@@ -1,30 +1,7 @@
 
 // This file contains services related to services management
 import { supabase } from './client';
-
-export interface ServiceData {
-  name: string;
-  description: string;
-  totalHours: number;
-  hourlyRate: number;
-  totalValue: number;
-  taxRate: number;
-  extraCosts: number;
-  netValue: number;
-  stages: string; // JSON string
-}
-
-export interface ServiceTag {
-  id: string;
-  name: string;
-}
-
-export interface Service extends ServiceData {
-  id: string;
-  created_at: string;
-  tags?: ServiceTag[];
-  stages?: any[];
-}
+import { Service, ServiceData, ServiceTag } from '../components/services/types';
 
 export const getServices = async (): Promise<Service[]> => {
   try {
@@ -35,7 +12,24 @@ export const getServices = async (): Promise<Service[]> => {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    
+    // Transform the data to match the Service interface
+    const services: Service[] = (data || []).map((service: any) => {
+      let parsedStages = [];
+      try {
+        parsedStages = JSON.parse(service.stages || '[]');
+      } catch (e) {
+        console.error('Error parsing stages JSON:', e);
+      }
+      
+      return {
+        ...service,
+        stages: parsedStages,
+        tags: [] // Initialize with empty array
+      };
+    });
+    
+    return services;
   } catch (error) {
     console.error('Error fetching services:', error);
     throw error;
@@ -51,7 +45,21 @@ export const getServiceById = async (id: string): Promise<Service | null> => {
       .single();
 
     if (error) throw error;
-    return data;
+    
+    if (!data) return null;
+    
+    let parsedStages = [];
+    try {
+      parsedStages = JSON.parse(data.stages || '[]');
+    } catch (e) {
+      console.error('Error parsing stages JSON:', e);
+    }
+    
+    return {
+      ...data,
+      stages: parsedStages,
+      tags: [] // Initialize with empty array
+    };
   } catch (error) {
     console.error(`Error fetching service with ID ${id}:`, error);
     throw error;
@@ -67,7 +75,19 @@ export const createService = async (serviceData: ServiceData): Promise<Service> 
       .single();
 
     if (error) throw error;
-    return data;
+    
+    let parsedStages = [];
+    try {
+      parsedStages = JSON.parse(data.stages || '[]');
+    } catch (e) {
+      console.error('Error parsing stages JSON:', e);
+    }
+    
+    return {
+      ...data,
+      stages: parsedStages,
+      tags: [] // Initialize with empty array
+    };
   } catch (error) {
     console.error('Error creating service:', error);
     throw error;

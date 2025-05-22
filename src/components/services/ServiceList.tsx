@@ -27,9 +27,9 @@ import { Badge } from "@/components/ui/badge";
 import { Service, ServiceTag } from './types';
 
 // Mock data - will be replaced with database data
-const mockServices = [
+const mockServices: Service[] = [
   { 
-    id: 1, 
+    id: "1", 
     name: 'Consultoria Estratégica', 
     totalHours: 120, 
     hourlyRate: 125, 
@@ -38,13 +38,14 @@ const mockServices = [
     extraCosts: 500, 
     netValue: 12100,
     stages: [
-      { id: 1, name: 'Diagnóstico Inicial', hours: 40, value: 5000 },
-      { id: 2, name: 'Desenvolvimento de Estratégia', hours: 60, value: 7500 },
-      { id: 3, name: 'Implementação e Monitoramento', hours: 20, value: 2500 }
-    ]
+      { id: 1, name: 'Diagnóstico Inicial', hours: 40, value: 5000, days: 5 },
+      { id: 2, name: 'Desenvolvimento de Estratégia', hours: 60, value: 7500, days: 7 },
+      { id: 3, name: 'Implementação e Monitoramento', hours: 20, value: 2500, days: 3 }
+    ],
+    tags: [] // Added empty tags array to comply with Service type
   },
   { 
-    id: 2, 
+    id: "2", 
     name: 'Gestão de Projetos', 
     totalHours: 160, 
     hourlyRate: 112.50, 
@@ -53,13 +54,14 @@ const mockServices = [
     extraCosts: 800, 
     netValue: 14320,
     stages: [
-      { id: 1, name: 'Planejamento', hours: 40, value: 4500 },
-      { id: 2, name: 'Execução', hours: 100, value: 11250 },
-      { id: 3, name: 'Encerramento', hours: 20, value: 2250 }
-    ]
+      { id: 1, name: 'Planejamento', hours: 40, value: 4500, days: 5 },
+      { id: 2, name: 'Execução', hours: 100, value: 11250, days: 12 },
+      { id: 3, name: 'Encerramento', hours: 20, value: 2250, days: 3 }
+    ],
+    tags: [] // Added empty tags array to comply with Service type
   },
   { 
-    id: 3, 
+    id: "3", 
     name: 'Análise de Dados', 
     totalHours: 80, 
     hourlyRate: 150, 
@@ -68,10 +70,11 @@ const mockServices = [
     extraCosts: 300, 
     netValue: 9780,
     stages: [
-      { id: 1, name: 'Coleta de Dados', hours: 20, value: 3000 },
-      { id: 2, name: 'Processamento e Análise', hours: 40, value: 6000 },
-      { id: 3, name: 'Elaboração de Relatórios', hours: 20, value: 3000 }
-    ]
+      { id: 1, name: 'Coleta de Dados', hours: 20, value: 3000, days: 3 },
+      { id: 2, name: 'Processamento e Análise', hours: 40, value: 6000, days: 5 },
+      { id: 3, name: 'Elaboração de Relatórios', hours: 20, value: 3000, days: 2 }
+    ],
+    tags: [] // Added empty tags array to comply with Service type
   }
 ];
 

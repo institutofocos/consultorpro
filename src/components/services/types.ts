@@ -27,3 +27,15 @@ export interface Service {
   tags: ServiceTag[];
   created_at?: string;
 }
+
+export interface ServiceData {
+  name: string;
+  description: string;
+  totalHours: number;
+  hourlyRate: number;
+  totalValue: number;
+  taxRate: number;
+  extraCosts: number;
+  netValue: number;
+  stages: string; // JSON string for storage
+}
