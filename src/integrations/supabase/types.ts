@@ -9,7 +9,53 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      service_tags: {
+        Row: {
+          created_at: string
+          id: string
+          service_id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          service_id: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          service_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tags: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

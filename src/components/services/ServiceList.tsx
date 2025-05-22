@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Table, 
   TableBody, 
@@ -16,12 +16,17 @@ import {
   Edit, 
   Trash,
   Clock,
-  DollarSign
+  DollarSign,
+  Calendar,
+  Tag
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ServiceForm } from './ServiceForm';
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
 
-// Mock data
+// Mock data - will be replaced with database data
 const mockServices = [
   { 
     id: 1, 
@@ -71,25 +76,124 @@ const mockServices = [
 ];
 
 export const ServiceList: React.FC = () => {
-  const [services, setServices] = useState(mockServices);
+  const [services, setServices] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingService, setEditingService] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const fetchServices = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch services
+      const { data: servicesData, error } = await supabase
+        .from('services')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Fetch tags for each service
+      const servicesWithTags = await Promise.all(
+        (servicesData || []).map(async (service) => {
+          // Get service tags
+          const { data: serviceTags, error: tagError } = await supabase
+            .from('service_tags')
+            .select('tag_id, tags(id, name)')
+            .eq('service_id', service.id);
+            
+          if (tagError) console.error('Error fetching tags for service:', tagError);
+          
+          const tags = (serviceTags || []).map((st: any) => ({
+            id: st.tags.id,
+            name: st.tags.name
+          }));
+          
+          // Parse stages from JSON
+          let stages = [];
+          try {
+            stages = JSON.parse(service.stages || '[]');
+          } catch (e) {
+            console.error('Error parsing stages JSON:', e);
+          }
+          
+          return { 
+            ...service,
+            tags,
+            stages
+          };
+        })
+      );
+      
+      setServices(servicesWithTags || []);
+    } catch (error: any) {
+      console.error('Error fetching services:', error);
+      toast.error(`Erro ao carregar serviços: ${error.message}`);
+      // Fallback to mock data for demo purposes
+      setServices(mockServices);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  useEffect(() => {
+    fetchServices();
+  }, []);
   
   const filteredServices = services.filter(service => 
     service.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
-  const handleAddService = (service: any) => {
+  const handleAddService = async (service: any) => {
     if (editingService) {
-      setServices(services.map(s => 
-        s.id === editingService.id ? { ...service, id: s.id } : s
-      ));
-      setEditingService(null);
-    } else {
-      setServices([...services, { ...service, id: services.length + 1 }]);
+      try {
+        // Update existing service
+        const { error } = await supabase
+          .from('services')
+          .update({
+            name: service.name,
+            description: service.description,
+            totalHours: service.totalHours,
+            hourlyRate: service.hourlyRate,
+            totalValue: service.totalValue,
+            taxRate: service.taxRate,
+            extraCosts: service.extraCosts,
+            netValue: service.netValue,
+            stages: JSON.stringify(service.stages)
+          })
+          .eq('id', editingService.id);
+          
+        if (error) throw error;
+        
+        // Delete existing tag relationships and add new ones
+        await supabase
+          .from('service_tags')
+          .delete()
+          .eq('service_id', editingService.id);
+          
+        if (service.tags && service.tags.length > 0) {
+          const serviceTags = service.tags.map((tagId: string) => ({
+            service_id: editingService.id,
+            tag_id: tagId
+          }));
+          
+          const { error: tagError } = await supabase
+            .from('service_tags')
+            .insert(serviceTags);
+            
+          if (tagError) throw tagError;
+        }
+        
+        toast.success('Serviço atualizado com sucesso!');
+        setEditingService(null);
+      } catch (error: any) {
+        console.error('Error updating service:', error);
+        toast.error(`Erro ao atualizar serviço: ${error.message}`);
+      }
     }
+    
     setShowForm(false);
+    fetchServices();
   };
   
   const handleEditService = (service: any) => {
@@ -97,8 +201,28 @@ export const ServiceList: React.FC = () => {
     setShowForm(true);
   };
   
-  const handleDeleteService = (id: number) => {
-    setServices(services.filter(s => s.id !== id));
+  const handleDeleteService = async (id: string) => {
+    try {
+      // First delete related tags
+      await supabase
+        .from('service_tags')
+        .delete()
+        .eq('service_id', id);
+        
+      // Then delete the service
+      const { error } = await supabase
+        .from('services')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      toast.success('Serviço excluído com sucesso!');
+      fetchServices();
+    } catch (error: any) {
+      console.error('Error deleting service:', error);
+      toast.error(`Erro ao excluir serviço: ${error.message}`);
+    }
   };
   
   return (
@@ -148,11 +272,18 @@ export const ServiceList: React.FC = () => {
                     <TableHead>Carga Horária</TableHead>
                     <TableHead>Valor Total</TableHead>
                     <TableHead>Valor Líquido</TableHead>
+                    <TableHead>Tags</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredServices.length > 0 ? (
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        Carregando...
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredServices.length > 0 ? (
                     filteredServices.map((service) => (
                       <TableRow key={service.id}>
                         <TableCell className="font-medium">{service.name}</TableCell>
@@ -166,7 +297,7 @@ export const ServiceList: React.FC = () => {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <DollarSign className="h-4 w-4 text-green-500" />
-                            R$ {service.totalValue.toLocaleString('pt-BR', { 
+                            R$ {service.totalValue?.toLocaleString('pt-BR', { 
                               minimumFractionDigits: 2, 
                               maximumFractionDigits: 2 
                             })}
@@ -175,10 +306,24 @@ export const ServiceList: React.FC = () => {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <DollarSign className="h-4 w-4 text-emerald-600" />
-                            R$ {service.netValue.toLocaleString('pt-BR', { 
+                            R$ {service.netValue?.toLocaleString('pt-BR', { 
                               minimumFractionDigits: 2, 
                               maximumFractionDigits: 2 
                             })}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {service.tags && service.tags.length > 0 ? (
+                              service.tags.map((tag: any) => (
+                                <Badge key={tag.id} variant="outline" className="text-xs">
+                                  <Tag className="h-3 w-3 mr-1" />
+                                  {tag.name}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-muted-foreground text-xs">Nenhuma</span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
@@ -193,7 +338,7 @@ export const ServiceList: React.FC = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         Nenhum serviço encontrado
                       </TableCell>
                     </TableRow>
