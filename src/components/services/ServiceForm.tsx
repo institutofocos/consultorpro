@@ -80,7 +80,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
       taxRate: 16,
       extraCosts: 0,
     }
-  };
+  });
   
   const totalHours = form.watch("totalHours");
   const hourlyRate = form.watch("hourlyRate");
