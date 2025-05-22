@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 // Import components
 import ConsultantList from "./components/consultants/ConsultantList";
 import ProjectList from "./components/projects/ProjectList";
+import ServiceList from "./components/services/ServiceList";
 import KpiList from "./components/kpis/KpiList";
 import OkrList from "./components/okrs/OkrList";
 import Layout from "./components/layout/Layout";
@@ -32,6 +33,11 @@ const App = () => (
           <Route path="/projects" element={
             <Layout>
               <ProjectList />
+            </Layout>
+          } />
+          <Route path="/services" element={
+            <Layout>
+              <ServiceList />
             </Layout>
           } />
           <Route path="/kpis" element={
