@@ -16,14 +16,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { PlusCircle, X, AlertCircle } from "lucide-react";
+import { PlusCircle, X, AlertCircle, Edit2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
 
 const serviceSchema = z.object({
   name: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }),
   description: z.string().min(10, { message: 'Descrição deve ter pelo menos 10 caracteres' }),
   totalHours: z.coerce.number().positive({ message: 'Horas devem ser maior que 0' }),
   totalValue: z.coerce.number().positive({ message: 'Valor deve ser maior que 0' }),
+  hourlyRate: z.coerce.number().positive({ message: 'Valor hora deve ser maior que 0' }),
+  taxRate: z.coerce.number().min(0, { message: 'Taxa não pode ser negativa' }).max(100, { message: 'Taxa não pode exceder 100%' }),
 });
 
 type ServiceFormValues = z.infer<typeof serviceSchema>;
@@ -49,6 +52,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
   const [stageHours, setStageHours] = useState<number>(0);
   const [stageValue, setStageValue] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
+  const [editingStage, setEditingStage] = useState<ServiceStage | null>(null);
 
   const form = useForm<ServiceFormValues>({
     resolver: zodResolver(serviceSchema),
@@ -57,11 +61,15 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
       description: service.description,
       totalHours: service.totalHours,
       totalValue: service.totalValue,
+      hourlyRate: service.hourlyRate || 0,
+      taxRate: service.taxRate || 16,
     } : {
       name: '',
       description: '',
       totalHours: 0,
       totalValue: 0,
+      hourlyRate: 0,
+      taxRate: 16,
     }
   });
   
@@ -75,7 +83,16 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
   const remainingValue = totalValue - currentTotalStageValue;
   const remainingHours = totalHours - currentTotalStageHours;
   
-  const handleAddStage = () => {
+  // Reset the stage form
+  const resetStageForm = () => {
+    setStageName("");
+    setStageHours(0);
+    setStageValue(0);
+    setEditingStage(null);
+    setError(null);
+  };
+
+  const handleAddOrUpdateStage = () => {
     if (!stageName.trim()) {
       setError("Nome da etapa é obrigatório");
       return;
@@ -91,37 +108,86 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
       return;
     }
     
-    if (stageHours > remainingHours) {
-      setError(`Horas excedem o total disponível (${remainingHours}h restantes)`);
+    const newHours = editingStage ? currentTotalStageHours - editingStage.hours + stageHours : currentTotalStageHours + stageHours;
+    const newValue = editingStage ? currentTotalStageValue - editingStage.value + stageValue : currentTotalStageValue + stageValue;
+    
+    if (newHours > totalHours) {
+      setError(`Horas excedem o total disponível (${totalHours}h total)`);
       return;
     }
     
-    if (stageValue > remainingValue) {
-      setError(`Valor excede o total disponível (R$${remainingValue.toFixed(2)} restantes)`);
+    if (newValue > totalValue) {
+      setError(`Valor excede o total disponível (R$${totalValue.toFixed(2)} total)`);
       return;
     }
+
+    if (editingStage) {
+      // Update existing stage
+      setStages(stages.map(stage => 
+        stage.id === editingStage.id 
+          ? { ...stage, name: stageName, hours: stageHours, value: stageValue } 
+          : stage
+      ));
+      toast.success("Etapa atualizada com sucesso");
+    } else {
+      // Add new stage
+      setStages([
+        ...stages,
+        {
+          id: Date.now(), // Use timestamp for unique ID
+          name: stageName,
+          hours: stageHours,
+          value: stageValue
+        }
+      ]);
+    }
     
-    setStages([
-      ...stages,
-      {
-        id: stages.length + 1,
-        name: stageName,
-        hours: stageHours,
-        value: stageValue
-      }
-    ]);
-    
-    setStageName("");
-    setStageHours(0);
-    setStageValue(0);
+    resetStageForm();
+  };
+  
+  const handleEditStage = (stage: ServiceStage) => {
+    setStageName(stage.name);
+    setStageHours(stage.hours);
+    setStageValue(stage.value);
+    setEditingStage(stage);
     setError(null);
   };
   
   const handleRemoveStage = (id: number) => {
     setStages(stages.filter((stage) => stage.id !== id));
+    if (editingStage?.id === id) {
+      resetStageForm();
+    }
   };
   
   const onSubmit = (data: ServiceFormValues) => {
+    // Validate that all hours are accounted for
+    if (currentTotalStageHours < totalHours) {
+      toast.error(`A soma das horas das etapas (${currentTotalStageHours}h) é menor que o total definido (${totalHours}h)`);
+      return;
+    }
+
+    if (currentTotalStageHours > totalHours) {
+      toast.error(`A soma das horas das etapas (${currentTotalStageHours}h) é maior que o total definido (${totalHours}h)`);
+      return;
+    }
+
+    if (currentTotalStageValue < totalValue) {
+      toast.error(`A soma dos valores das etapas (R$${currentTotalStageValue.toFixed(2)}) é menor que o valor total definido (R$${totalValue.toFixed(2)})`);
+      return;
+    }
+
+    if (currentTotalStageValue > totalValue) {
+      toast.error(`A soma dos valores das etapas (R$${currentTotalStageValue.toFixed(2)}) é maior que o valor total definido (R$${totalValue.toFixed(2)})`);
+      return;
+    }
+
+    // Only save if stages exist
+    if (stages.length === 0) {
+      toast.error("É necessário adicionar pelo menos uma etapa ao serviço");
+      return;
+    }
+
     onSave({
       ...data,
       stages
@@ -207,6 +273,49 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                   )}
                 />
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="hourlyRate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Valor Hora (R$)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="taxRate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tributação (%)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number"
+                          step="0.01"
+                          placeholder="16.00" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <FormDescription className="text-xs">
+                        Padrão: 16%
+                      </FormDescription>
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
             
             <div className="border-t pt-6">
@@ -260,13 +369,34 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                 
                 <Button 
                   type="button" 
-                  onClick={handleAddStage}
+                  onClick={handleAddOrUpdateStage}
                   size="sm" 
                   className="w-full"
                 >
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Adicionar Etapa
+                  {editingStage ? (
+                    <>
+                      <Edit2 className="mr-2 h-4 w-4" />
+                      Atualizar Etapa
+                    </>
+                  ) : (
+                    <>
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Adicionar Etapa
+                    </>
+                  )}
                 </Button>
+
+                {editingStage && (
+                  <Button
+                    type="button"
+                    onClick={resetStageForm}
+                    size="sm"
+                    variant="outline"
+                    className="w-full mt-2"
+                  >
+                    Cancelar Edição
+                  </Button>
+                )}
                 
                 {stages.length > 0 && (
                   <div className="border rounded-lg overflow-hidden">
@@ -286,14 +416,24 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                             <td className="px-4 py-3 text-right">{stage.hours}h</td>
                             <td className="px-4 py-3 text-right">R${stage.value.toFixed(2)}</td>
                             <td className="px-4 py-3 text-center">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRemoveStage(stage.id)}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
+                              <div className="flex justify-center gap-1">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleEditStage(stage)}
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleRemoveStage(stage.id)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}
