@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -99,7 +100,7 @@ export const Dashboard: React.FC = () => {
         <StatCard 
           title="KPIs" 
           value="36" 
-          icon={<LineChart size={24} className="text-white" />} 
+          icon={<Target size={24} className="text-white" />} 
           color="bg-green-500"
           change="82% na meta" 
         />
