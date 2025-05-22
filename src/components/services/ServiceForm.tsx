@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,9 +24,9 @@ const serviceSchema = z.object({
   name: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }),
   description: z.string().min(10, { message: 'Descrição deve ter pelo menos 10 caracteres' }),
   totalHours: z.coerce.number().positive({ message: 'Horas devem ser maior que 0' }),
-  totalValue: z.coerce.number().positive({ message: 'Valor deve ser maior que 0' }),
   hourlyRate: z.coerce.number().positive({ message: 'Valor hora deve ser maior que 0' }),
   taxRate: z.coerce.number().min(0, { message: 'Taxa não pode ser negativa' }).max(100, { message: 'Taxa não pode exceder 100%' }),
+  extraCosts: z.coerce.number().min(0, { message: 'Custos extras não podem ser negativos' }).default(0),
 });
 
 type ServiceFormValues = z.infer<typeof serviceSchema>;
@@ -40,7 +40,7 @@ interface ServiceStage {
 
 interface ServiceFormProps {
   service?: any;
-  onSave: (data: ServiceFormValues & { stages: ServiceStage[] }) => void;
+  onSave: (data: ServiceFormValues & { stages: ServiceStage[], totalValue: number, netValue: number }) => void;
   onCancel: () => void;
 }
 
@@ -60,29 +60,50 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
       name: service.name,
       description: service.description,
       totalHours: service.totalHours,
-      totalValue: service.totalValue,
       hourlyRate: service.hourlyRate || 0,
       taxRate: service.taxRate || 16,
+      extraCosts: service.extraCosts || 0,
     } : {
       name: '',
       description: '',
       totalHours: 0,
-      totalValue: 0,
       hourlyRate: 0,
       taxRate: 16,
+      extraCosts: 0,
     }
   });
   
-  const totalValue = form.watch("totalValue");
   const totalHours = form.watch("totalHours");
+  const hourlyRate = form.watch("hourlyRate");
+  const taxRate = form.watch("taxRate");
+  const extraCosts = form.watch("extraCosts");
   
-  // Calculate the current sum of stage values
-  const currentTotalStageValue = stages.reduce((sum, stage) => sum + stage.value, 0);
+  // Calculate total value based on hours and hourly rate
+  const totalValue = totalHours * hourlyRate;
+  
+  // Calculate tax amount
+  const taxAmount = totalValue * (taxRate / 100);
+  
+  // Calculate net value: total value - tax - extra costs
+  const netValue = totalValue - taxAmount - extraCosts;
+  
+  // Calculate the current sum of stage hours
   const currentTotalStageHours = stages.reduce((sum, stage) => sum + stage.hours, 0);
   
-  const remainingValue = totalValue - currentTotalStageValue;
   const remainingHours = totalHours - currentTotalStageHours;
   
+  // Update total value and stage values when hourly rate changes
+  useEffect(() => {
+    if (hourlyRate > 0 && stages.length > 0) {
+      // Recalculate stage values based on the new hourly rate
+      const updatedStages = stages.map(stage => ({
+        ...stage,
+        value: stage.hours * hourlyRate
+      }));
+      setStages(updatedStages);
+    }
+  }, [hourlyRate]);
+
   // Reset the stage form
   const resetStageForm = () => {
     setStageName("");
@@ -102,30 +123,15 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
       setError("Horas da etapa devem ser maior que 0");
       return;
     }
-    
-    if (stageValue <= 0) {
-      setError("Valor da etapa deve ser maior que 0");
-      return;
-    }
-    
-    const newHours = editingStage ? currentTotalStageHours - editingStage.hours + stageHours : currentTotalStageHours + stageHours;
-    const newValue = editingStage ? currentTotalStageValue - editingStage.value + stageValue : currentTotalStageValue + stageValue;
-    
-    if (newHours > totalHours) {
-      setError(`Horas excedem o total disponível (${totalHours}h total)`);
-      return;
-    }
-    
-    if (newValue > totalValue) {
-      setError(`Valor excede o total disponível (R$${totalValue.toFixed(2)} total)`);
-      return;
-    }
 
+    // Calculate value based on hourly rate
+    const calculatedValue = stageHours * hourlyRate;
+    
     if (editingStage) {
       // Update existing stage
       setStages(stages.map(stage => 
         stage.id === editingStage.id 
-          ? { ...stage, name: stageName, hours: stageHours, value: stageValue } 
+          ? { ...stage, name: stageName, hours: stageHours, value: calculatedValue } 
           : stage
       ));
       toast.success("Etapa atualizada com sucesso");
@@ -137,7 +143,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
           id: Date.now(), // Use timestamp for unique ID
           name: stageName,
           hours: stageHours,
-          value: stageValue
+          value: calculatedValue
         }
       ]);
     }
@@ -161,24 +167,9 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
   };
   
   const onSubmit = (data: ServiceFormValues) => {
-    // Validate that all hours are accounted for
-    if (currentTotalStageHours < totalHours) {
-      toast.error(`A soma das horas das etapas (${currentTotalStageHours}h) é menor que o total definido (${totalHours}h)`);
-      return;
-    }
-
-    if (currentTotalStageHours > totalHours) {
-      toast.error(`A soma das horas das etapas (${currentTotalStageHours}h) é maior que o total definido (${totalHours}h)`);
-      return;
-    }
-
-    if (currentTotalStageValue < totalValue) {
-      toast.error(`A soma dos valores das etapas (R$${currentTotalStageValue.toFixed(2)}) é menor que o valor total definido (R$${totalValue.toFixed(2)})`);
-      return;
-    }
-
-    if (currentTotalStageValue > totalValue) {
-      toast.error(`A soma dos valores das etapas (R$${currentTotalStageValue.toFixed(2)}) é maior que o valor total definido (R$${totalValue.toFixed(2)})`);
+    // Validate that total hours match stage hours
+    if (currentTotalStageHours !== totalHours) {
+      toast.error(`A soma das horas das etapas (${currentTotalStageHours}h) deve ser igual ao total definido (${totalHours}h)`);
       return;
     }
 
@@ -190,7 +181,9 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
 
     onSave({
       ...data,
-      stages
+      stages,
+      totalValue,
+      netValue
     });
   };
   
@@ -256,27 +249,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                 
                 <FormField
                   control={form.control}
-                  name="totalValue"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Valor Total (R$)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00" 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
                   name="hourlyRate"
                   render={({ field }) => (
                     <FormItem>
@@ -293,7 +265,9 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                     </FormItem>
                   )}
                 />
-                
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="taxRate"
@@ -309,12 +283,38 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                         />
                       </FormControl>
                       <FormMessage />
-                      <FormDescription className="text-xs">
-                        Padrão: 16%
-                      </FormDescription>
                     </FormItem>
                   )}
                 />
+                
+                <FormField
+                  control={form.control}
+                  name="extraCosts"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Custos Extras (R$)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <div className="space-y-2">
+                  <FormLabel>Valor Líquido (R$)</FormLabel>
+                  <div className="flex items-center h-10 px-3 rounded-md border bg-muted/50">
+                    R$ {netValue.toFixed(2)}
+                  </div>
+                  <FormDescription className="text-xs">
+                    Total: R$ {totalValue.toFixed(2)} | Taxa: R$ {taxAmount.toFixed(2)}
+                  </FormDescription>
+                </div>
               </div>
             </div>
             
@@ -329,7 +329,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
               )}
               
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-2">
                     <FormLabel>Nome da Etapa</FormLabel>
                     <Input
@@ -349,20 +349,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                     />
                     <FormDescription className="text-xs">
                       Restante: {remainingHours}h
-                    </FormDescription>
-                  </div>
-                  
-                  <div>
-                    <FormLabel>Valor (R$)</FormLabel>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={stageValue || ""}
-                      onChange={(e) => setStageValue(parseFloat(e.target.value) || 0)}
-                    />
-                    <FormDescription className="text-xs">
-                      Restante: R${remainingValue.toFixed(2)}
                     </FormDescription>
                   </div>
                 </div>
@@ -440,7 +426,9 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                         <tr className="bg-muted/50 font-medium">
                           <td className="px-4 py-2">Total</td>
                           <td className="px-4 py-2 text-right">{currentTotalStageHours}h / {totalHours}h</td>
-                          <td className="px-4 py-2 text-right">R${currentTotalStageValue.toFixed(2)} / R${totalValue.toFixed(2)}</td>
+                          <td className="px-4 py-2 text-right">
+                            R${stages.reduce((sum, stage) => sum + stage.value, 0).toFixed(2)}
+                          </td>
                           <td></td>
                         </tr>
                       </tbody>
@@ -455,7 +443,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancelar
             </Button>
-            <Button type="submit">Salvar</Button>
+            <Button type="submit">Cadastrar</Button>
           </CardFooter>
         </form>
       </Form>

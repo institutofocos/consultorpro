@@ -23,21 +23,51 @@ import { ServiceForm } from './ServiceForm';
 
 // Mock data
 const mockServices = [
-  { id: 1, name: 'Consultoria Estratégica', totalHours: 120, totalValue: 15000, stages: [
-    { id: 1, name: 'Diagnóstico Inicial', hours: 40, value: 5000 },
-    { id: 2, name: 'Desenvolvimento de Estratégia', hours: 60, value: 7500 },
-    { id: 3, name: 'Implementação e Monitoramento', hours: 20, value: 2500 }
-  ]},
-  { id: 2, name: 'Gestão de Projetos', totalHours: 160, totalValue: 18000, stages: [
-    { id: 1, name: 'Planejamento', hours: 40, value: 4500 },
-    { id: 2, name: 'Execução', hours: 100, value: 11250 },
-    { id: 3, name: 'Encerramento', hours: 20, value: 2250 }
-  ]},
-  { id: 3, name: 'Análise de Dados', totalHours: 80, totalValue: 12000, stages: [
-    { id: 1, name: 'Coleta de Dados', hours: 20, value: 3000 },
-    { id: 2, name: 'Processamento e Análise', hours: 40, value: 6000 },
-    { id: 3, name: 'Elaboração de Relatórios', hours: 20, value: 3000 }
-  ]}
+  { 
+    id: 1, 
+    name: 'Consultoria Estratégica', 
+    totalHours: 120, 
+    hourlyRate: 125, 
+    totalValue: 15000, 
+    taxRate: 16, 
+    extraCosts: 500, 
+    netValue: 12100,
+    stages: [
+      { id: 1, name: 'Diagnóstico Inicial', hours: 40, value: 5000 },
+      { id: 2, name: 'Desenvolvimento de Estratégia', hours: 60, value: 7500 },
+      { id: 3, name: 'Implementação e Monitoramento', hours: 20, value: 2500 }
+    ]
+  },
+  { 
+    id: 2, 
+    name: 'Gestão de Projetos', 
+    totalHours: 160, 
+    hourlyRate: 112.50, 
+    totalValue: 18000, 
+    taxRate: 16, 
+    extraCosts: 800, 
+    netValue: 14320,
+    stages: [
+      { id: 1, name: 'Planejamento', hours: 40, value: 4500 },
+      { id: 2, name: 'Execução', hours: 100, value: 11250 },
+      { id: 3, name: 'Encerramento', hours: 20, value: 2250 }
+    ]
+  },
+  { 
+    id: 3, 
+    name: 'Análise de Dados', 
+    totalHours: 80, 
+    hourlyRate: 150, 
+    totalValue: 12000, 
+    taxRate: 16, 
+    extraCosts: 300, 
+    netValue: 9780,
+    stages: [
+      { id: 1, name: 'Coleta de Dados', hours: 20, value: 3000 },
+      { id: 2, name: 'Processamento e Análise', hours: 40, value: 6000 },
+      { id: 3, name: 'Elaboração de Relatórios', hours: 20, value: 3000 }
+    ]
+  }
 ];
 
 export const ServiceList: React.FC = () => {
@@ -117,6 +147,7 @@ export const ServiceList: React.FC = () => {
                     <TableHead>Etapas</TableHead>
                     <TableHead>Carga Horária</TableHead>
                     <TableHead>Valor Total</TableHead>
+                    <TableHead>Valor Líquido</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -141,6 +172,15 @@ export const ServiceList: React.FC = () => {
                             })}
                           </div>
                         </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="h-4 w-4 text-emerald-600" />
+                            R$ {service.netValue.toLocaleString('pt-BR', { 
+                              minimumFractionDigits: 2, 
+                              maximumFractionDigits: 2 
+                            })}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="icon" onClick={() => handleEditService(service)}>
                             <Edit className="h-4 w-4" />
@@ -153,7 +193,7 @@ export const ServiceList: React.FC = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                         Nenhum serviço encontrado
                       </TableCell>
                     </TableRow>
