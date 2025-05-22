@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -25,6 +24,7 @@ import { ServiceForm } from './ServiceForm';
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { Service, ServiceTag } from './types';
 
 // Mock data - will be replaced with database data
 const mockServices = [
@@ -76,17 +76,17 @@ const mockServices = [
 ];
 
 export const ServiceList: React.FC = () => {
-  const [services, setServices] = useState<any[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [editingService, setEditingService] = useState<any | null>(null);
+  const [editingService, setEditingService] = useState<Service | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   
   const fetchServices = async () => {
     setIsLoading(true);
     try {
       // Fetch services
-      const { data: servicesData, error } = await supabase
+      const { data: servicesData, error } = await (supabase as any)
         .from('services')
         .select('*')
         .order('created_at', { ascending: false });
@@ -95,7 +95,7 @@ export const ServiceList: React.FC = () => {
       
       // Fetch tags for each service
       const servicesWithTags = await Promise.all(
-        (servicesData || []).map(async (service) => {
+        (servicesData || []).map(async (service: any) => {
           // Get service tags
           const { data: serviceTags, error: tagError } = await supabase
             .from('service_tags')
@@ -148,7 +148,7 @@ export const ServiceList: React.FC = () => {
     if (editingService) {
       try {
         // Update existing service
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('services')
           .update({
             name: service.name,
@@ -196,7 +196,7 @@ export const ServiceList: React.FC = () => {
     fetchServices();
   };
   
-  const handleEditService = (service: any) => {
+  const handleEditService = (service: Service) => {
     setEditingService(service);
     setShowForm(true);
   };
@@ -210,7 +210,7 @@ export const ServiceList: React.FC = () => {
         .eq('service_id', id);
         
       // Then delete the service
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('services')
         .delete()
         .eq('id', id);

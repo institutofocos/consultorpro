@@ -1,9 +1,8 @@
 
-import { supabase } from "./client";
+// This file contains services related to services management
+import { supabase } from './client';
 
-// Define service type
-export interface Service {
-  id: string;
+export interface ServiceData {
   name: string;
   description: string;
   totalHours: number;
@@ -12,120 +11,93 @@ export interface Service {
   taxRate: number;
   extraCosts: number;
   netValue: number;
-  stages: string; // JSON string of stages
-  created_at: string;
+  stages: string; // JSON string
 }
 
-// Define tag type
-export interface Tag {
-  id: string;
-  name: string;
-  created_at: string;
-}
-
-// Define service tag relationship type
 export interface ServiceTag {
   id: string;
-  service_id: string;
-  tag_id: string;
-  created_at: string;
+  name: string;
 }
 
-// Create initial services table (run once)
-export const createServicesTable = async () => {
-  const { error } = await supabase.rpc('create_services_table');
-  return { error };
+export interface Service extends ServiceData {
+  id: string;
+  created_at: string;
+  tags?: ServiceTag[];
+  stages?: any[];
+}
+
+export const getServices = async (): Promise<Service[]> => {
+  try {
+    // Use 'any' to bypass TypeScript checking since services table isn't in the types
+    const { data, error } = await (supabase as any)
+      .from('services')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching services:', error);
+    throw error;
+  }
 };
 
-// Get all services
-export const getServices = async () => {
-  return await supabase
-    .from('services')
-    .select('*')
-    .order('created_at', { ascending: false });
+export const getServiceById = async (id: string): Promise<Service | null> => {
+  try {
+    const { data, error } = await (supabase as any)
+      .from('services')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error(`Error fetching service with ID ${id}:`, error);
+    throw error;
+  }
 };
 
-// Get a specific service by ID
-export const getServiceById = async (id: string) => {
-  return await supabase
-    .from('services')
-    .select('*')
-    .eq('id', id)
-    .single();
+export const createService = async (serviceData: ServiceData): Promise<Service> => {
+  try {
+    const { data, error } = await (supabase as any)
+      .from('services')
+      .insert([serviceData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error creating service:', error);
+    throw error;
+  }
 };
 
-// Create a new service
-export const createService = async (service: Omit<Service, 'id' | 'created_at'>) => {
-  return await supabase
-    .from('services')
-    .insert([service])
-    .select();
+export const updateService = async (id: string, serviceData: Partial<ServiceData>): Promise<void> => {
+  try {
+    const { error } = await (supabase as any)
+      .from('services')
+      .update(serviceData)
+      .eq('id', id);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error(`Error updating service with ID ${id}:`, error);
+    throw error;
+  }
 };
 
-// Update an existing service
-export const updateService = async (id: string, service: Partial<Service>) => {
-  return await supabase
-    .from('services')
-    .update(service)
-    .eq('id', id);
-};
+export const deleteService = async (id: string): Promise<void> => {
+  try {
+    const { error } = await (supabase as any)
+      .from('services')
+      .delete()
+      .eq('id', id);
 
-// Delete a service
-export const deleteService = async (id: string) => {
-  return await supabase
-    .from('services')
-    .delete()
-    .eq('id', id);
-};
-
-// Get all tags
-export const getTags = async () => {
-  return await supabase
-    .from('tags')
-    .select('*')
-    .order('name');
-};
-
-// Create a new tag
-export const createTag = async (name: string) => {
-  return await supabase
-    .from('tags')
-    .insert([{ name }])
-    .select();
-};
-
-// Delete a tag
-export const deleteTag = async (id: string) => {
-  return await supabase
-    .from('tags')
-    .delete()
-    .eq('id', id);
-};
-
-// Get tags for a specific service
-export const getServiceTags = async (serviceId: string) => {
-  return await supabase
-    .from('service_tags')
-    .select('tag_id, tags(id, name)')
-    .eq('service_id', serviceId);
-};
-
-// Add tags to a service
-export const addTagsToService = async (serviceId: string, tagIds: string[]) => {
-  const serviceTags = tagIds.map(tagId => ({
-    service_id: serviceId,
-    tag_id: tagId
-  }));
-  
-  return await supabase
-    .from('service_tags')
-    .insert(serviceTags);
-};
-
-// Remove tags from a service
-export const removeTagsFromService = async (serviceId: string) => {
-  return await supabase
-    .from('service_tags')
-    .delete()
-    .eq('service_id', serviceId);
+    if (error) throw error;
+  } catch (error) {
+    console.error(`Error deleting service with ID ${id}:`, error);
+    throw error;
+  }
 };

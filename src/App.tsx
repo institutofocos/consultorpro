@@ -15,6 +15,9 @@ import TagList from "./components/tags/TagList";
 import KpiList from "./components/kpis/KpiList";
 import OkrList from "./components/okrs/OkrList";
 import Layout from "./components/layout/Layout";
+import ActivitiesList from "./components/activities/ActivitiesList";
+import ReportsList from "./components/reports/ReportsList";
+import SettingsPage from "./components/settings/SettingsPage";
 
 const queryClient = new QueryClient();
 
@@ -25,7 +28,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<Layout><Index /></Layout>} />
           <Route path="/consultants" element={
             <Layout>
               <ConsultantList />
@@ -54,6 +57,21 @@ const App = () => (
           <Route path="/okrs" element={
             <Layout>
               <OkrList />
+            </Layout>
+          } />
+          <Route path="/activities" element={
+            <Layout>
+              <ActivitiesList />
+            </Layout>
+          } />
+          <Route path="/reports" element={
+            <Layout>
+              <ReportsList />
+            </Layout>
+          } />
+          <Route path="/settings" element={
+            <Layout>
+              <SettingsPage />
             </Layout>
           } />
           <Route path="*" element={<NotFound />} />

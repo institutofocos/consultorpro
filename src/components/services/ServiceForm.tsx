@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -28,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { ServiceStage } from './types';
 
 const serviceSchema = z.object({
   name: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }),
@@ -40,14 +40,6 @@ const serviceSchema = z.object({
 });
 
 type ServiceFormValues = z.infer<typeof serviceSchema>;
-
-interface ServiceStage {
-  id: number;
-  name: string;
-  hours: number;
-  value: number;
-  days: number;
-}
 
 interface ServiceFormProps {
   service?: any;
@@ -88,7 +80,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
       taxRate: 16,
       extraCosts: 0,
     }
-  });
+  };
   
   const totalHours = form.watch("totalHours");
   const hourlyRate = form.watch("hourlyRate");
@@ -250,7 +242,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
     // Ensure we have a value for totalValue
     const finalTotalValue = data.totalValue || calculatedTotalValue;
 
-    // Save to database first
+    // Save to database
     try {
       const serviceData = {
         name: data.name,
@@ -265,7 +257,9 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
         stages: JSON.stringify(stages)
       };
       
-      const { data: savedService, error } = await supabase
+      // For TypeScript to be happy, we use 'any' here since our types.ts doesn't include 
+      // the services table definition that would normally come from Supabase
+      const { data: savedService, error } = await (supabase as any)
         .from('services')
         .insert([serviceData])
         .select('id')
