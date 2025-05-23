@@ -136,6 +136,7 @@ export type Database = {
           id: string
           name: string
           phone: string | null
+          pix_key: string | null
           salary: number | null
           state: string | null
           street: string | null
@@ -152,6 +153,7 @@ export type Database = {
           id?: string
           name: string
           phone?: string | null
+          pix_key?: string | null
           salary?: number | null
           state?: string | null
           street?: string | null
@@ -168,6 +170,7 @@ export type Database = {
           id?: string
           name?: string
           phone?: string | null
+          pix_key?: string | null
           salary?: number | null
           state?: string | null
           street?: string | null

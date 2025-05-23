@@ -14,6 +14,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
+import { Json } from '@/integrations/supabase/types';
 
 interface Stage {
   id: string;
@@ -84,7 +85,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
         const { error } = await supabase
           .from('projects')
           .update({
-            stages: updatedStages,
+            stages: updatedStages as unknown as Json,
             status: newStatus
           })
           .eq('id', project.id);
@@ -93,7 +94,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
       } else {
         const { error } = await supabase
           .from('projects')
-          .update({ stages: updatedStages })
+          .update({ stages: updatedStages as unknown as Json })
           .eq('id', project.id);
         
         if (error) throw error;

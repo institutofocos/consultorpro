@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -25,6 +24,7 @@ import { ProjectForm } from './ProjectForm';
 import { ProjectDetails } from './ProjectDetails';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
+import { Json } from '@/integrations/supabase/types';
 
 // Project type definition
 interface Project {
@@ -80,7 +80,7 @@ export const ProjectList: React.FC = () => {
     try {
       setIsLoading(true);
       
-      // Fetch projects from Supabase
+      // Fetch projects from Supabase with correct consultant reference
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select(`
@@ -94,7 +94,7 @@ export const ProjectList: React.FC = () => {
       if (projectsData) {
         // Transform the data for frontend use
         const transformedProjects: Project[] = projectsData.map(project => {
-          const stages = project.stages as any[] || [];
+          const stages = project.stages as Stage[] || [];
           
           return {
             id: project.id,
