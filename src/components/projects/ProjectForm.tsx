@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,13 +11,14 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Plus, Trash, MoreHorizontal, FileUp, Tag } from "lucide-react";
+import { CalendarIcon, Plus, Trash, MoreHorizontal, FileUp, Tag, Search } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 import { fetchConsultants } from '@/integrations/supabase/consultants';
 import { fetchServices, fetchServiceById } from '@/integrations/supabase/services';
+import { fetchTags } from '@/integrations/supabase/projects';
 import { supabase } from '@/integrations/supabase/client';
 import { createChatRoom, addChatParticipant } from '@/integrations/supabase/chat';
 import { Consultant, Project, Stage } from './types';
@@ -26,6 +26,14 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { addDays } from 'date-fns';
 import { BasicService } from '@/components/services/types';
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface ProjectFormProps {
   project?: Project | null;
@@ -55,6 +63,9 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
   const [mainConsultantCommission, setMainConsultantCommission] = useState(project?.mainConsultantCommission?.toString() || '0');
   const [supportConsultantCommission, setSupportConsultantCommission] = useState(project?.supportConsultantCommission?.toString() || '0');
   const [fileUploading, setFileUploading] = useState(false);
+  const [availableTags, setAvailableTags] = useState<{id: string, name: string}[]>([]);
+  const [tagSearch, setTagSearch] = useState('');
+  const [filteredTags, setFilteredTags] = useState<{id: string, name: string}[]>([]);
   const { toast } = useToast();
   
   useEffect(() => {
@@ -83,6 +94,14 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
       setServices(data as unknown as BasicService[]);
     });
     
+    // Fetch available tags
+    const loadTags = async () => {
+      const tagsList = await fetchTags();
+      setAvailableTags(tagsList);
+      setFilteredTags(tagsList);
+    };
+    
+    loadTags();
   }, []);
   
   // Handle consultant selection and set their default commission percentage
@@ -297,10 +316,23 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
     return total - tax - expenses - consultantCost - supportConsultantCost;
   };
   
-  const handleAddTag = () => {
-    if (newTag.trim() && !tags.includes(newTag.trim())) {
-      setTags([...tags, newTag.trim()]);
+  // Filter tags based on search term
+  useEffect(() => {
+    if (tagSearch.trim() === '') {
+      setFilteredTags(availableTags);
+    } else {
+      const filtered = availableTags.filter(tag => 
+        tag.name.toLowerCase().includes(tagSearch.toLowerCase())
+      );
+      setFilteredTags(filtered);
+    }
+  }, [tagSearch, availableTags]);
+  
+  const handleAddTag = (tagName: string) => {
+    if (tagName.trim() && !tags.includes(tagName.trim())) {
+      setTags([...tags, tagName.trim()]);
       setNewTag('');
+      setTagSearch('');
     }
   };
 
@@ -479,21 +511,48 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
               </Badge>
             ))}
           </div>
-          <div className="flex gap-2">
-            <Input 
-              value={newTag} 
-              onChange={(e) => setNewTag(e.target.value)}
-              placeholder="Adicionar tag" 
-              onKeyPress={(e) => e.key === 'Enter' && e.preventDefault()}
-            />
-            <Button 
-              type="button" 
-              onClick={handleAddTag} 
-              size="sm" 
-              className="whitespace-nowrap"
-            >
-              <Tag className="h-4 w-4 mr-1" /> Adicionar
-            </Button>
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <div className="relative flex-grow">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input 
+                  value={tagSearch} 
+                  onChange={(e) => setTagSearch(e.target.value)}
+                  placeholder="Buscar tags existentes" 
+                  className="pl-10"
+                />
+              </div>
+              <Input 
+                value={newTag} 
+                onChange={(e) => setNewTag(e.target.value)}
+                placeholder="Ou criar nova tag" 
+                onKeyPress={(e) => e.key === 'Enter' && e.preventDefault()}
+              />
+              <Button 
+                type="button" 
+                onClick={() => handleAddTag(newTag)} 
+                size="sm" 
+                className="whitespace-nowrap"
+              >
+                <Tag className="h-4 w-4 mr-1" /> Adicionar
+              </Button>
+            </div>
+            
+            {filteredTags.length > 0 && tagSearch && (
+              <div className="border rounded-md max-h-32 overflow-y-auto">
+                <ul className="p-2">
+                  {filteredTags.map(tag => (
+                    <li 
+                      key={tag.id} 
+                      className="py-1 px-2 hover:bg-slate-100 cursor-pointer rounded"
+                      onClick={() => handleAddTag(tag.name)}
+                    >
+                      {tag.name}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
         

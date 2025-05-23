@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -16,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { PlusCircle, X, AlertCircle, Edit2, Tag } from "lucide-react";
+import { PlusCircle, X, AlertCircle, Edit2, Tag, FileUp, AlignLeft } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { 
@@ -29,6 +28,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { ServiceStage, Json } from './types';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const serviceSchema = z.object({
   name: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }),
@@ -41,6 +48,11 @@ const serviceSchema = z.object({
 });
 
 type ServiceFormValues = z.infer<typeof serviceSchema>;
+
+interface ExtendedServiceStage extends ServiceStage {
+  description?: string;
+  attachment?: string;
+}
 
 interface ServiceFormProps {
   service?: any;
@@ -63,16 +75,23 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
     }
   }
 
-  const [stages, setStages] = useState<ServiceStage[]>(initialStages || []);
+  const [stages, setStages] = useState<ExtendedServiceStage[]>(initialStages || []);
   const [stageName, setStageName] = useState("");
   const [stageHours, setStageHours] = useState<number>(0);
   const [stageDays, setStageDays] = useState<number>(0);
   const [stageValue, setStageValue] = useState<number>(0);
+  const [stageDescription, setStageDescription] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
-  const [editingStage, setEditingStage] = useState<ServiceStage | null>(null);
+  const [editingStage, setEditingStage] = useState<ExtendedServiceStage | null>(null);
   const [tags, setTags] = useState<any[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState<string>("");
+  const [fileUploading, setFileUploading] = useState(false);
+  
+  // Dialog state for description editing
+  const [descriptionDialogOpen, setDescriptionDialogOpen] = useState(false);
+  const [currentEditingIndex, setCurrentEditingIndex] = useState<number | null>(null);
+  const [currentDescription, setCurrentDescription] = useState("");
 
   // Set initial selected tags from service
   useEffect(() => {
@@ -166,12 +185,13 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
     fetchTags();
   }, []);
 
-  // Reset the stage form
+  // Reset the stage form - update to include description
   const resetStageForm = () => {
     setStageName("");
     setStageHours(0);
     setStageDays(0);
     setStageValue(0);
+    setStageDescription("");
     setEditingStage(null);
     setError(null);
   };
@@ -196,15 +216,22 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
     const calculatedValue = stageHours * (hourlyRate || 0);
     
     if (editingStage) {
-      // Update existing stage
+      // Update existing stage - include description
       setStages(stages.map(stage => 
         stage.id === editingStage.id 
-          ? { ...stage, name: stageName, hours: stageHours, days: stageDays, value: calculatedValue } 
+          ? { 
+              ...stage, 
+              name: stageName, 
+              hours: stageHours, 
+              days: stageDays, 
+              value: calculatedValue,
+              description: stageDescription || stage.description 
+            } 
           : stage
       ));
       toast.success("Etapa atualizada com sucesso");
     } else {
-      // Add new stage
+      // Add new stage - include description
       setStages([
         ...stages,
         {
@@ -212,7 +239,9 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
           name: stageName,
           hours: stageHours,
           days: stageDays,
-          value: calculatedValue
+          value: calculatedValue,
+          description: stageDescription,
+          attachment: ''
         }
       ]);
     }
@@ -220,13 +249,55 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
     resetStageForm();
   };
   
-  const handleEditStage = (stage: ServiceStage) => {
+  const handleEditStage = (stage: ExtendedServiceStage) => {
     setStageName(stage.name);
     setStageHours(stage.hours);
     setStageDays(stage.days || 0);
     setStageValue(stage.value);
+    setStageDescription(stage.description || '');
     setEditingStage(stage);
     setError(null);
+  };
+  
+  // Handle opening the description dialog
+  const handleOpenDescriptionDialog = (index: number) => {
+    setCurrentEditingIndex(index);
+    setCurrentDescription(stages[index].description || '');
+    setDescriptionDialogOpen(true);
+  };
+  
+  // Handle saving the description
+  const handleSaveDescription = () => {
+    if (currentEditingIndex !== null) {
+      const updatedStages = [...stages];
+      updatedStages[currentEditingIndex].description = currentDescription;
+      setStages(updatedStages);
+      setDescriptionDialogOpen(false);
+      setCurrentEditingIndex(null);
+      toast.success("Descrição da etapa salva");
+    }
+  };
+  
+  // Handle file upload
+  const handleFileUpload = async (index: number, files: FileList | null) => {
+    if (!files || !files[0]) return;
+    
+    const file = files[0];
+    setFileUploading(true);
+    
+    try {
+      // For now, just store the file name to track that an attachment was added
+      const updatedStages = [...stages];
+      updatedStages[index].attachment = file.name;
+      setStages(updatedStages);
+      
+      toast.success("Arquivo anexado com sucesso!");
+    } catch (error) {
+      console.error('Error with file:', error);
+      toast.error("Não foi possível anexar o arquivo.");
+    } finally {
+      setFileUploading(false);
+    }
   };
   
   const handleRemoveStage = (id: number) => {
@@ -662,7 +733,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                         </tr>
                       </thead>
                       <tbody>
-                        {stages.map((stage) => (
+                        {stages.map((stage, index) => (
                           <tr key={stage.id} className="border-t">
                             <td className="px-4 py-3">{stage.name}</td>
                             <td className="px-4 py-3 text-right">{stage.hours}h</td>
@@ -675,6 +746,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleEditStage(stage)}
+                                  title="Editar etapa"
                                 >
                                   <Edit2 className="h-4 w-4" />
                                 </Button>
@@ -682,10 +754,49 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                                   type="button"
                                   variant="ghost"
                                   size="icon"
+                                  onClick={() => handleOpenDescriptionDialog(index)}
+                                  title="Adicionar/Editar descrição"
+                                >
+                                  <AlignLeft className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Anexar arquivo"
+                                >
+                                  <label htmlFor={`file-upload-${index}`} className="cursor-pointer">
+                                    <FileUp className="h-4 w-4" />
+                                    <input
+                                      id={`file-upload-${index}`}
+                                      type="file"
+                                      className="hidden"
+                                      onChange={(e) => handleFileUpload(index, e.target.files)}
+                                      disabled={fileUploading}
+                                    />
+                                  </label>
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
                                   onClick={() => handleRemoveStage(stage.id)}
+                                  title="Remover etapa"
                                 >
                                   <X className="h-4 w-4" />
                                 </Button>
+                              </div>
+                              <div className="mt-1 text-xs">
+                                {stage.description && (
+                                  <span className="inline-block mr-2 text-green-600">
+                                    Descrição: {stage.description.substring(0, 20)}...
+                                  </span>
+                                )}
+                                {stage.attachment && (
+                                  <span className="inline-block text-blue-600">
+                                    Anexo: {stage.attachment}
+                                  </span>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -715,6 +826,34 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
           </CardFooter>
         </form>
       </Form>
+      
+      {/* Add description dialog */}
+      <Dialog open={descriptionDialogOpen} onOpenChange={setDescriptionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Descrição da Etapa</DialogTitle>
+            <DialogDescription>
+              Adicione ou edite a descrição detalhada desta etapa.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              placeholder="Digite uma descrição detalhada para esta etapa..."
+              className="min-h-[150px]"
+              value={currentDescription}
+              onChange={(e) => setCurrentDescription(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDescriptionDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleSaveDescription}>
+              Salvar Descrição
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

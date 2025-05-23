@@ -1,87 +1,50 @@
+import { supabase } from "./client";
 
-import { supabase } from './client';
-import { ensureProjectChatRoom, addChatParticipant } from './chat';
-
-// Função para criar um projeto e automaticamente criar uma sala de chat para ele
-export const createProjectWithChat = async (projectData: any) => {
-  // Inserir o projeto
-  const { data, error } = await supabase
-    .from('projects')
-    .insert(projectData)
-    .select()
-    .single();
-  
-  if (error) {
-    console.error('Erro ao criar projeto:', error);
-    throw error;
-  }
-  
+export const updateProject = async (project: any) => {
   try {
-    // Criar sala de chat para o projeto (mesmo que o trigger também faça isso)
-    const chatRoom = await ensureProjectChatRoom(data.id, data.name);
-    
-    // Adicionar consultores como participantes da sala
-    if (data.main_consultant_id) {
-      // Buscar informações do consultor principal
-      const { data: mainConsultant } = await supabase
-        .from('consultants')
-        .select('name')
-        .eq('id', data.main_consultant_id)
-        .single();
-      
-      if (mainConsultant) {
-        await addChatParticipant(
-          chatRoom.id, 
-          data.main_consultant_id, 
-          mainConsultant.name, 
-          'consultor'
-        );
-      }
-    }
-    
-    if (data.support_consultant_id) {
-      // Buscar informações do consultor de suporte
-      const { data: supportConsultant } = await supabase
-        .from('consultants')
-        .select('name')
-        .eq('id', data.support_consultant_id)
-        .single();
-      
-      if (supportConsultant) {
-        await addChatParticipant(
-          chatRoom.id, 
-          data.support_consultant_id, 
-          supportConsultant.name, 
-          'consultor'
-        );
-      }
-    }
-  } catch (chatError) {
-    console.error('Erro ao configurar sala de chat:', chatError);
-    // Não lançamos o erro aqui para não impedir a criação do projeto
-    // mas ainda registramos para debugging
-  }
-  
-  return data;
-};
+    const { error } = await supabase
+      .from('projects')
+      .update({
+        name: project.name,
+        description: project.description,
+        service_id: project.serviceId || null,
+        main_consultant_id: project.mainConsultantId,
+        main_consultant_commission: project.mainConsultantCommission,
+        support_consultant_id: project.supportConsultantId || null,
+        support_consultant_commission: project.supportConsultantCommission,
+        start_date: project.startDate,
+        end_date: project.endDate,
+        total_value: project.totalValue,
+        tax_percent: project.taxPercent,
+        third_party_expenses: project.thirdPartyExpenses,
+        main_consultant_value: project.consultantValue,
+        support_consultant_value: project.supportConsultantValue,
+        status: project.status,
+        stages: project.stages,
+        tags: project.tags || []
+      })
+      .eq('id', project.id);
 
-/**
- * Updates an existing project in the database
- */
-export const updateProject = async (id: string, projectData: any) => {
-  const { data, error } = await supabase
-    .from('projects')
-    .update(projectData)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) {
+    if (error) throw error;
+    return project;
+  } catch (error) {
     console.error('Error updating project:', error);
     throw error;
   }
-
-  return data;
 };
 
-// Exportar outras funções relacionadas a projetos, se necessário
+// New function to fetch all available tags
+export const fetchTags = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('tags')
+      .select('*')
+      .order('name');
+      
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching tags:', error);
+    return [];
+  }
+};
