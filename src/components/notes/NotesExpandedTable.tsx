@@ -14,16 +14,10 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Edit3, Trash2, Calendar, ChevronDown, ChevronRight, CheckCircle, FileText, Link as LinkIcon } from 'lucide-react';
+import { Edit3, Trash2, Calendar, ChevronDown, ChevronRight, CheckCircle } from 'lucide-react';
 import NoteForm from './NoteForm';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 interface NotesExpandedTableProps {
   notes: Note[];
@@ -51,7 +45,6 @@ const NotesExpandedTable: React.FC<NotesExpandedTableProps> = ({
   onDeleteNote,
 }) => {
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
-  const [openDescriptions, setOpenDescriptions] = useState<{[id: string]: boolean}>({});
 
   const toggleExpanded = (noteId: string) => {
     const newExpanded = new Set(expandedNotes);
@@ -61,13 +54,6 @@ const NotesExpandedTable: React.FC<NotesExpandedTableProps> = ({
       newExpanded.add(noteId);
     }
     setExpandedNotes(newExpanded);
-  };
-  
-  const toggleDescription = (id: string, state?: boolean) => {
-    setOpenDescriptions(prev => ({
-      ...prev,
-      [id]: state !== undefined ? state : !prev[id]
-    }));
   };
 
   const handleChecklistToggle = async (checklistId: string, completed: boolean) => {
@@ -113,14 +99,6 @@ const NotesExpandedTable: React.FC<NotesExpandedTableProps> = ({
               />
             )}
             <span className="font-medium">{note.title}</span>
-            
-            {/* Link badge */}
-            {note.linked_task_id && (
-              <Badge variant="outline" className="bg-indigo-50 text-indigo-700 ml-2">
-                <LinkIcon className="h-3 w-3 mr-1" />
-                Vinculada
-              </Badge>
-            )}
           </div>
         </div>
       </TableCell>
@@ -147,34 +125,11 @@ const NotesExpandedTable: React.FC<NotesExpandedTableProps> = ({
         )}
       </TableCell>
       <TableCell>
-        <div className="flex items-center gap-2">
-          {note.content && (
-            <>
-              <Dialog open={openDescriptions[note.id]} onOpenChange={(state) => toggleDescription(note.id, state)}>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => toggleDescription(note.id)} 
-                  className="h-6 w-6 p-0"
-                >
-                  <FileText className="h-4 w-4" />
-                </Button>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>{note.title}</DialogTitle>
-                  </DialogHeader>
-                  <div className="whitespace-pre-wrap">{note.content}</div>
-                </DialogContent>
-              </Dialog>
-            </>
-          )}
-          
-          {note.checklists && note.checklists.length > 0 && (
-            <div className="text-xs text-muted-foreground">
-              {note.checklists.filter(c => c.completed).length}/{note.checklists.length} concluídos
-            </div>
-          )}
-        </div>
+        {note.checklists && note.checklists.length > 0 && (
+          <div className="text-xs text-muted-foreground">
+            {note.checklists.filter(c => c.completed).length}/{note.checklists.length} concluídos
+          </div>
+        )}
       </TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-2">
@@ -213,27 +168,10 @@ const NotesExpandedTable: React.FC<NotesExpandedTableProps> = ({
           <span className={cn("text-sm", checklist.completed && "line-through text-muted-foreground")}>
             {checklist.title}
           </span>
-          
-          {/* Description dialog for checklist item */}
           {checklist.description && (
-            <>
-              <Dialog open={openDescriptions[`cl-${checklist.id}`]} onOpenChange={(state) => toggleDescription(`cl-${checklist.id}`, state)}>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => toggleDescription(`cl-${checklist.id}`)} 
-                  className="h-5 w-5 p-0 ml-1"
-                >
-                  <FileText className="h-3 w-3" />
-                </Button>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>{checklist.title}</DialogTitle>
-                  </DialogHeader>
-                  <div className="whitespace-pre-wrap">{checklist.description}</div>
-                </DialogContent>
-              </Dialog>
-            </>
+            <span className="text-xs text-muted-foreground">
+              - {checklist.description}
+            </span>
           )}
         </div>
       </TableCell>
@@ -294,7 +232,7 @@ const NotesExpandedTable: React.FC<NotesExpandedTableProps> = ({
             <TableHead>Serviço</TableHead>
             <TableHead>Consultor / Responsável</TableHead>
             <TableHead>Data Vencimento</TableHead>
-            <TableHead>Descrição / Progresso</TableHead>
+            <TableHead>Progresso / Conclusão</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>

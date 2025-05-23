@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 import { Project, Stage } from "@/components/projects/types";
 import { createProjectTasks, updateProjectTasks } from "./project-tasks";
@@ -378,6 +379,7 @@ export const fetchProjectById = async (projectId: string): Promise<Project | nul
       status: projectStatus,
       stages: stages,
       tags: data.tags || []
+      // Removed the incorrect createdAt and updatedAt properties
     };
   } catch (error) {
     console.error('Error fetching project by ID:', error);
