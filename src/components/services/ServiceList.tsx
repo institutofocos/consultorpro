@@ -287,7 +287,7 @@ export const ServiceList: React.FC = () => {
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             {service.tags && service.tags.length > 0 ? (
-                              service.tags.map((tag: any) => (
+                              service.tags.map((tag: ServiceTag) => (
                                 <Badge key={tag.id} variant="outline" className="text-xs">
                                   <Tag className="h-3 w-3 mr-1" />
                                   {tag.name}

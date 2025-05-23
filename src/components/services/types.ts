@@ -7,6 +7,13 @@ export interface ServiceStage {
   value: number;
 }
 
+export interface ServiceTag {
+  id: string;
+  name: string;
+}
+
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
 export interface Service {
   id: string;
   name: string;
@@ -15,13 +22,17 @@ export interface Service {
   hourlyRate?: number;
   totalValue: number;
   taxRate: number;
+  extraCosts?: number;
+  netValue?: number;
   stages?: ServiceStage[];
+  tags?: ServiceTag[];
 }
 
 export interface BasicService {
   id: string;
   name: string;
   total_value: number;
+  totalValue?: number;
   tax_rate: number;
   stages?: any;
 }
@@ -37,4 +48,15 @@ export interface BasicClient {
   state?: string;
   zip_code?: string;
   notes?: string;
+}
+
+export interface ServiceData {
+  id: string;
+  name: string;
+  description?: string;
+  total_hours: number;
+  hourly_rate?: number;
+  total_value: number;
+  tax_rate: number;
+  stages?: Json;
 }
