@@ -104,8 +104,12 @@ const FinancialPage = () => {
       updateTransactionStatus(id, status, paymentDate),
     onSuccess: () => {
       toast.success("Status atualizado com sucesso");
+      // Invalidar todas as queries relacionadas ao financeiro para sincronizar
       queryClient.invalidateQueries({ queryKey: ['financial-transactions'] });
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
+      queryClient.invalidateQueries({ queryKey: ['manual-transactions'] });
     },
     onError: (error) => {
       toast.error("Erro ao atualizar status: " + error.message);
@@ -116,9 +120,12 @@ const FinancialPage = () => {
     mutationFn: createManualTransaction,
     onSuccess: () => {
       toast.success("Transação criada com sucesso");
+      // Invalidar todas as queries relacionadas ao financeiro para sincronizar
       queryClient.invalidateQueries({ queryKey: ['manual-transactions'] });
       queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
       queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-transactions'] });
     },
     onError: (error) => {
       toast.error("Erro ao criar transação: " + error.message);
@@ -129,9 +136,12 @@ const FinancialPage = () => {
     mutationFn: ({ id, data }: { id: string, data: any }) => updateManualTransaction(id, data),
     onSuccess: () => {
       toast.success("Transação atualizada com sucesso");
+      // Invalidar todas as queries relacionadas ao financeiro para sincronizar
       queryClient.invalidateQueries({ queryKey: ['manual-transactions'] });
       queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
       queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-transactions'] });
     },
     onError: (error) => {
       toast.error("Erro ao atualizar transação: " + error.message);
@@ -142,7 +152,12 @@ const FinancialPage = () => {
     mutationFn: deleteManualTransaction,
     onSuccess: () => {
       toast.success("Transação excluída com sucesso");
+      // Invalidar todas as queries relacionadas ao financeiro para sincronizar
       queryClient.invalidateQueries({ queryKey: ['manual-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-transactions'] });
     },
     onError: (error) => {
       toast.error("Erro ao excluir transação: " + error.message);
@@ -259,7 +274,8 @@ const FinancialPage = () => {
         <AlertTitle>Transações do Sistema</AlertTitle>
         <AlertDescription>
           As transações do sistema são geradas automaticamente a partir das etapas dos projetos. 
-          Para criar lançamentos manuais, use o botão "Novo Lançamento".
+          Para criar lançamentos manuais, use o botão "Novo Lançamento". Todas as alterações são automaticamente 
+          sincronizadas entre as seções de transações e contas a pagar/receber.
         </AlertDescription>
       </Alert>
 
