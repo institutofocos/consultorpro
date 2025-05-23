@@ -68,21 +68,79 @@ export const fetchDemandsWithoutConsultants = async () => {
         total_value,
         status,
         tags,
-        clients(name)
+        clients(name),
+        services:service_id(id, name, total_hours, stages)
       `)
       .is('main_consultant_id', null)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    // Format the data to include client name
-    return (data || []).map(project => ({
-      ...project,
-      clientName: project.clients ? project.clients.name : null
-    }));
+    // Format the data to include client name and service information
+    return (data || []).map(project => {
+      // Calculate total days from the service stages if available
+      let totalDays = 0;
+      let totalHours = 0;
+      
+      if (project.services?.stages) {
+        try {
+          const stages = typeof project.services.stages === 'string' 
+            ? JSON.parse(project.services.stages) 
+            : project.services.stages;
+          
+          if (Array.isArray(stages)) {
+            totalDays = stages.reduce((sum, stage) => sum + (stage.days || 0), 0);
+            totalHours = stages.reduce((sum, stage) => sum + (stage.hours || 0), 0);
+          }
+        } catch (e) {
+          console.error('Error parsing service stages:', e);
+        }
+      }
+      
+      // Use service total_hours if available
+      if (project.services?.total_hours) {
+        totalHours = Number(project.services.total_hours);
+      }
+      
+      return {
+        ...project,
+        clientName: project.clients ? project.clients.name : null,
+        serviceName: project.services ? project.services.name : null,
+        totalHours: totalHours,
+        totalDays: totalDays
+      };
+    });
 
   } catch (error) {
     console.error('Error fetching demands:', error);
     return [];
+  }
+};
+
+// New function to assign consultants to a demand
+export const assignConsultantsToDemand = async (
+  projectId: string, 
+  mainConsultantId: string | null, 
+  mainConsultantCommission: number = 0,
+  supportConsultantId: string | null = null,
+  supportConsultantCommission: number = 0
+) => {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .update({
+        main_consultant_id: mainConsultantId,
+        main_consultant_commission: mainConsultantCommission,
+        support_consultant_id: supportConsultantId,
+        support_consultant_commission: supportConsultantCommission
+      })
+      .eq('id', projectId)
+      .select();
+      
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error assigning consultants to demand:', error);
+    throw error;
   }
 };
