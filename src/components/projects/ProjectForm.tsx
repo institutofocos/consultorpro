@@ -841,7 +841,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
           </Select>
         </div>
 
-        {/* Seção para etapas do projeto */}
+        {/* Seção para etapas do projeto - SEM CHECKBOX DE CONCLUÍDA */}
         <Card>
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <CardTitle>Etapas do Projeto</CardTitle>
@@ -959,20 +959,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                         />
                       </div>
                       
-                      {project && (
-                        <div className="flex items-center space-x-2 pt-6">
-                          <input
-                            type="checkbox"
-                            id={`stage-completed-${index}`}
-                            checked={stage.completed}
-                            onChange={(e) => handleUpdateStage(index, 'completed', e.target.checked)}
-                            className="rounded border-gray-300"
-                          />
-                          <Label htmlFor={`stage-completed-${index}`} className="text-xs cursor-pointer">
-                            Concluída
-                          </Label>
-                        </div>
-                      )}
+                      {/* REMOVED: Checkbox for "Concluída" - Esta gestão agora é feita apenas em ProjectDetails */}
                     </div>
                   </div>
                 ))}

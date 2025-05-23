@@ -66,21 +66,79 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
     queryFn: () => fetchChatRoomsByProject(project.id)
   });
 
+  // Calculate project progress based on manager-approved stages
+  const calculateProjectProgress = () => {
+    if (stages.length === 0) return 0;
+    const approvedStages = stages.filter(stage => stage.managerApproved).length;
+    return Math.round((approvedStages / stages.length) * 100);
+  };
+
+  // Update project status based on stage completion
+  const updateProjectStatus = async (updatedStages: Stage[]) => {
+    const progress = Math.round((updatedStages.filter(stage => stage.managerApproved).length / updatedStages.length) * 100);
+    
+    let newStatus = project.status;
+    if (progress === 100) {
+      newStatus = 'completed';
+    } else if (progress > 0) {
+      newStatus = 'active';
+    } else {
+      newStatus = 'planned';
+    }
+    
+    // Update project status if it changed
+    if (newStatus !== project.status) {
+      try {
+        const { error } = await supabase
+          .from('projects')
+          .update({ status: newStatus })
+          .eq('id', project.id);
+        
+        if (error) throw error;
+        
+        toast({
+          title: "Status do projeto atualizado",
+          description: `Projeto marcado como: ${newStatus === 'completed' ? 'Concluído' : newStatus === 'active' ? 'Em Andamento' : 'Planejado'}`
+        });
+      } catch (error: any) {
+        console.error('Error updating project status:', error);
+      }
+    }
+  };
+
   const handleStageStatusUpdate = async (stageId: string, statusField: StageStatusKey, value: boolean) => {
-    const updatedStages = stages.map(stage =>
-      stage.id === stageId ? { ...stage, [statusField]: value } : stage
-    );
+    const updatedStages = stages.map(stage => {
+      if (stage.id === stageId) {
+        const updatedStage = { ...stage, [statusField]: value };
+        
+        // Auto-mark stage as completed when manager approves
+        if (statusField === 'managerApproved' && value) {
+          updatedStage.completed = true;
+        }
+        
+        // If manager disapproves, unmark completion
+        if (statusField === 'managerApproved' && !value) {
+          updatedStage.completed = false;
+        }
+        
+        return updatedStage;
+      }
+      return stage;
+    });
     
     setStages(updatedStages);
     
     try {
-      // We need to explicitly convert Stage[] to Json for the Supabase update
+      // Update stages in database
       const { error } = await supabase
         .from('projects')
         .update({ stages: updatedStages as any })
         .eq('id', project.id);
       
       if (error) throw error;
+      
+      // Update project status based on progress
+      await updateProjectStatus(updatedStages);
       
       toast({
         title: "Sucesso",
@@ -121,6 +179,8 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
     const thirdPartyExpenses = project.thirdPartyExpenses || 0;
     return totalValue - consultantValue - supportConsultantValue - thirdPartyExpenses;
   };
+
+  const projectProgress = calculateProjectProgress();
 
   return (
     <div className="space-y-6">
@@ -223,6 +283,22 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
                 )}
               </div>
             </div>
+            
+            <div>
+              <div className="text-sm font-medium">Progresso do Projeto</div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                    style={{ width: `${projectProgress}%` }}
+                  ></div>
+                </div>
+                <span className="text-sm font-medium">{projectProgress}%</span>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {stages.filter(s => s.managerApproved).length} de {stages.length} etapas aprovadas pelo gestor
+              </div>
+            </div>
           </div>
           
           <div>
@@ -266,10 +342,10 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
                   
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm">Status da Etapa</Button>
+                      <Button variant="outline" size="sm">Gerenciar Status</Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-56">
-                      <DropdownMenuLabel>Atualizar Status</DropdownMenuLabel>
+                      <DropdownMenuLabel>Atualizar Status da Etapa</DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <DropdownMenuGroup>
                         <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'clientApproved', !stage.clientApproved)}>
@@ -292,11 +368,6 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
                           <Check className={`mr-2 h-4 w-4 ${stage.consultantsSettled ? 'text-green-600' : 'text-gray-400'}`} />
                           <span>Consultores pagos</span>
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'completed', !stage.completed)}>
-                          <Check className={`mr-2 h-4 w-4 ${stage.completed ? 'text-green-600' : 'text-gray-400'}`} />
-                          <span>Etapa Concluída</span>
-                        </DropdownMenuItem>
                       </DropdownMenuGroup>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -308,6 +379,11 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
                   <div>Valor: {new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(stage.value)}</div>
                   
                   <div className="flex flex-wrap gap-1 col-span-2 mt-2">
+                    {stage.completed && (
+                      <Badge variant="outline" className="bg-slate-100 text-slate-800 border-slate-300">
+                        Etapa concluída
+                      </Badge>
+                    )}
                     {stage.clientApproved && (
                       <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
                         Aprovado pelo cliente
@@ -331,11 +407,6 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
                     {stage.consultantsSettled && (
                       <Badge variant="outline" className="bg-indigo-100 text-indigo-800 border-indigo-300">
                         Consultores pagos
-                      </Badge>
-                    )}
-                    {stage.completed && (
-                      <Badge variant="outline" className="bg-slate-100 text-slate-800 border-slate-300">
-                        Etapa concluída
                       </Badge>
                     )}
                   </div>
