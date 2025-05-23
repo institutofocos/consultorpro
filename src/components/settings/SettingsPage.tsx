@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import WebhookManager from './WebhookManager';
 import SwaggerDocs from './SwaggerDocs';
+import APIKeyManager from './APIKeyManager';
 
 const SettingsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("general");
@@ -18,6 +19,7 @@ const SettingsPage: React.FC = () => {
       <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-6">
           <TabsTrigger value="general">Geral</TabsTrigger>
+          <TabsTrigger value="api_keys">API Keys</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
           <TabsTrigger value="api">API</TabsTrigger>
         </TabsList>
@@ -33,6 +35,10 @@ const SettingsPage: React.FC = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+        
+        <TabsContent value="api_keys">
+          <APIKeyManager />
         </TabsContent>
         
         <TabsContent value="webhooks">

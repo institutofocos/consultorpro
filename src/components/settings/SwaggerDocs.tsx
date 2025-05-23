@@ -3,9 +3,13 @@ import SwaggerUI from 'swagger-ui-react';
 import "swagger-ui-react/swagger-ui.css";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { InfoIcon } from "lucide-react";
+import { InfoIcon, Key } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 const SwaggerDocs: React.FC = () => {
+  const navigate = useNavigate();
+  
   // Swagger specification in OpenAPI format
   const spec = {
     openapi: "3.0.0",
@@ -315,6 +319,24 @@ const SwaggerDocs: React.FC = () => {
           <code className="bg-muted px-2 py-1 rounded text-sm break-all mt-1 block">
             eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmZnBpb2VwdmtmdnB1cWRiYm5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MzQ5NDIsImV4cCI6MjA2MzUxMDk0Mn0.ZD1AuPVDNuqTeYz8Eyt4QZHf_Qt1K-9oZcK3_fxSx-w
           </code>
+          <div className="flex items-center mt-3 gap-2">
+            <p>Você também pode gerenciar ou criar novas API Keys:</p>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                navigate('/settings');
+                // Wait for navigation and then change tab
+                setTimeout(() => {
+                  document.querySelector('[value="api_keys"]')?.dispatchEvent(
+                    new MouseEvent('click', { bubbles: true })
+                  );
+                }, 100);
+              }}
+            >
+              <Key className="h-4 w-4 mr-1" /> Gerenciar API Keys
+            </Button>
+          </div>
           <p className="mt-2">Para usuários autenticados, você também precisará incluir um token de autorização no formato <code className="bg-muted px-1 py-0.5 rounded text-xs">Bearer [seu-token]</code>.</p>
         </AlertDescription>
       </Alert>
