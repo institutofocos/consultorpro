@@ -95,7 +95,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
   
   // Dialog for file preview
   const [filePreviewDialogOpen, setFilePreviewDialogOpen] = useState(false);
-  const [currentFilePreview, setCurrentFilePreview] = useState<string | null>(null);
+  const [currentFilePreview, setCurrentFilePreview] = useState<{url: string, name: string, path: string} | null>(null);
 
   // Set initial selected tags from service
   useEffect(() => {
@@ -290,12 +290,20 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
     setFileUploading(true);
     
     try {
-      // For now, just store the file name to track that an attachment was added
-      const updatedStages = [...stages];
-      updatedStages[index].attachment = file.name;
-      setStages(updatedStages);
+      // Use the service to upload the file to Supabase Storage
+      const filePath = await uploadServiceFile(file, form.getValues('name') || 'unnamed-service');
       
-      toast.success("Arquivo anexado com sucesso!");
+      if (filePath) {
+        const updatedStages = [...stages];
+        updatedStages[index].attachment = filePath;
+        // Store just the filename for display purposes
+        updatedStages[index].attachmentName = file.name;
+        setStages(updatedStages);
+        
+        toast.success("Arquivo anexado com sucesso!");
+      } else {
+        toast.error("Não foi possível anexar o arquivo.");
+      }
     } catch (error) {
       console.error('Error with file:', error);
       toast.error("Não foi possível anexar o arquivo.");
@@ -437,9 +445,29 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
   };
   
   // Handle opening the file preview dialog
-  const handleOpenFilePreview = (fileName: string) => {
-    setCurrentFilePreview(fileName);
-    setFilePreviewDialogOpen(true);
+  const handleOpenFilePreview = async (filePath: string, fileName: string) => {
+    try {
+      setFileUploading(true);
+      const fileBlob = await downloadServiceFile(filePath);
+      
+      if (fileBlob) {
+        // Create an object URL for the downloaded file
+        const fileUrl = URL.createObjectURL(fileBlob);
+        setCurrentFilePreview({
+          url: fileUrl,
+          name: fileName,
+          path: filePath
+        });
+        setFilePreviewDialogOpen(true);
+      } else {
+        toast.error("Não foi possível baixar o arquivo.");
+      }
+    } catch (error) {
+      console.error('Error previewing file:', error);
+      toast.error("Erro ao visualizar o arquivo.");
+    } finally {
+      setFileUploading(false);
+    }
   };
 
   return (
@@ -765,7 +793,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleOpenDescriptionDialog(index)}
-                                  title="Adicionar/Editar descrição"
+                                  title={stage.description ? "Editar descrição" : "Adicionar descrição"}
                                 >
                                   <AlignLeft 
                                     className={`h-4 w-4 ${stage.description ? 'text-green-500' : 'text-red-500'}`} 
@@ -795,7 +823,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                                     type="button"
                                     variant="ghost"
                                     size="icon"
-                                    onClick={() => handleOpenFilePreview(stage.attachment || '')}
+                                    onClick={() => handleOpenFilePreview(stage.attachment, stage.attachmentName || 'arquivo')}
                                     title="Visualizar anexo"
                                   >
                                     <Eye className="h-4 w-4" />
@@ -886,16 +914,50 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
           <DialogHeader>
             <DialogTitle>Visualização do Arquivo</DialogTitle>
             <DialogDescription>
-              {currentFilePreview}
+              {currentFilePreview?.name}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <div className="border rounded p-4 text-center">
-              {/* In a real implementation, this would show the actual file */}
-              <p>Arquivo: {currentFilePreview}</p>
-              <p className="text-sm text-gray-500 mt-2">
-                Visualização de arquivos será implementada quando o upload estiver funcional
-              </p>
+              {currentFilePreview && (
+                <div className="max-h-[500px] overflow-auto">
+                  {currentFilePreview.url && (
+                    /* Handle different file types */
+                    currentFilePreview.name.toLowerCase().endsWith('.pdf') ? (
+                      <iframe 
+                        src={currentFilePreview.url} 
+                        className="w-full h-[400px]" 
+                        title={currentFilePreview.name}
+                      />
+                    ) : currentFilePreview.name.toLowerCase().match(/\.(jpg|jpeg|png|gif)$/) ? (
+                      <img 
+                        src={currentFilePreview.url} 
+                        alt={currentFilePreview.name}
+                        className="max-w-full" 
+                      />
+                    ) : (
+                      <div className="text-center p-4">
+                        <p>Visualização não disponível para este tipo de arquivo</p>
+                        <Button 
+                          type="button" 
+                          onClick={() => {
+                            // Create a download link for the file
+                            const link = document.createElement('a');
+                            link.href = currentFilePreview.url;
+                            link.download = currentFilePreview.name;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }}
+                          className="mt-2"
+                        >
+                          Download
+                        </Button>
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>

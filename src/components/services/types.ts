@@ -1,4 +1,3 @@
-
 export interface ServiceStage {
   id: number;
   name: string;
@@ -7,6 +6,7 @@ export interface ServiceStage {
   hours: number;
   value: number;
   attachment?: string;
+  attachmentName?: string;
 }
 
 export interface ServiceTag {

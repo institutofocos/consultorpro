@@ -54,3 +54,61 @@ export const fetchServiceById = async (id: string): Promise<Service | null> => {
     return null;
   }
 };
+
+// New function to upload file to Supabase Storage
+export const uploadServiceFile = async (file: File, serviceName: string): Promise<string | null> => {
+  try {
+    const fileExt = file.name.split('.').pop();
+    // Create a unique file path using timestamp and random string
+    const filePath = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+    const storagePath = `service-files/${serviceName}/${filePath}`;
+    
+    const { data, error } = await supabase.storage
+      .from('services')
+      .upload(storagePath, file);
+    
+    if (error) {
+      console.error('Error uploading file:', error);
+      throw error;
+    }
+    
+    // Return the path to the uploaded file
+    return storagePath;
+  } catch (error) {
+    console.error('Error in uploadServiceFile:', error);
+    return null;
+  }
+};
+
+// Function to get a public URL for a file
+export const getServiceFileUrl = async (filePath: string): Promise<string | null> => {
+  try {
+    const { data } = supabase.storage
+      .from('services')
+      .getPublicUrl(filePath);
+    
+    return data.publicUrl;
+  } catch (error) {
+    console.error('Error getting file URL:', error);
+    return null;
+  }
+};
+
+// Function to download a file
+export const downloadServiceFile = async (filePath: string): Promise<Blob | null> => {
+  try {
+    const { data, error } = await supabase.storage
+      .from('services')
+      .download(filePath);
+    
+    if (error) {
+      console.error('Error downloading file:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in downloadServiceFile:', error);
+    return null;
+  }
+};
