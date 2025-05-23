@@ -60,16 +60,68 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
   const [currentStageDescription, setCurrentStageDescription] = useState("");
   const { toast } = useToast();
   
-  // Initialize stages from project
+  // Initialize stages from project with proper error handling and validation
   useEffect(() => {
-    console.log('ProjectDetails - project.stages:', project.stages);
-    if (project.stages && Array.isArray(project.stages)) {
-      setStages(project.stages);
-    } else {
-      console.warn('Project stages is not an array or is undefined:', project.stages);
+    console.log('ProjectDetails - Loading project:', project);
+    console.log('ProjectDetails - project.stages type:', typeof project.stages);
+    console.log('ProjectDetails - project.stages content:', project.stages);
+    
+    let parsedStages: Stage[] = [];
+    
+    try {
+      if (project.stages) {
+        // Handle different possible formats of stages data
+        if (typeof project.stages === 'string') {
+          // If stages is a JSON string, parse it
+          const parsed = JSON.parse(project.stages);
+          if (Array.isArray(parsed)) {
+            parsedStages = parsed;
+          }
+        } else if (Array.isArray(project.stages)) {
+          // If stages is already an array, use it directly
+          parsedStages = project.stages;
+        } else if (typeof project.stages === 'object') {
+          // If stages is an object but not an array, try to extract array
+          if (project.stages.stages && Array.isArray(project.stages.stages)) {
+            parsedStages = project.stages.stages;
+          }
+        }
+      }
+      
+      // Ensure each stage has the required properties
+      parsedStages = parsedStages.map((stage, index) => ({
+        id: stage.id || `stage-${index}`,
+        name: stage.name || `Etapa ${index + 1}`,
+        description: stage.description || '',
+        days: stage.days || 1,
+        hours: stage.hours || 8,
+        value: stage.value || 0,
+        startDate: stage.startDate || '',
+        endDate: stage.endDate || '',
+        consultantId: stage.consultantId || undefined,
+        completed: stage.completed || false,
+        clientApproved: stage.clientApproved || false,
+        managerApproved: stage.managerApproved || false,
+        invoiceIssued: stage.invoiceIssued || false,
+        paymentReceived: stage.paymentReceived || false,
+        consultantsSettled: stage.consultantsSettled || false,
+        attachment: stage.attachment || ''
+      }));
+      
+      console.log('ProjectDetails - Parsed stages:', parsedStages);
+      setStages(parsedStages);
+      
+    } catch (error) {
+      console.error('Error parsing project stages:', error);
+      console.error('Raw stages data:', project.stages);
       setStages([]);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Erro ao carregar etapas do projeto. Dados podem estar corrompidos."
+      });
     }
-  }, [project]);
+  }, [project, toast]);
   
   // Buscar salas de chat relacionadas a este projeto
   const { data: projectChatRooms = [] } = useQuery({

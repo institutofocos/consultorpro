@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 import { Project, Stage } from "@/components/projects/types";
 import { createProjectTasks, updateProjectTasks } from "./project-tasks";
@@ -82,13 +83,57 @@ export const fetchProjects = async () => {
 
     // Transform the data to match the Project type
     return (data || []).map(project => {
-      // Safely parse stages from JSON
+      // Safely parse stages from JSON with improved error handling
       let stages: Stage[] = [];
       if (project.stages) {
         try {
-          stages = Array.isArray(project.stages) ? project.stages as unknown as Stage[] : [];
+          if (typeof project.stages === 'string') {
+            // If it's a JSON string, parse it
+            stages = JSON.parse(project.stages);
+          } else if (Array.isArray(project.stages)) {
+            // If it's already an array, use it
+            stages = project.stages as unknown as Stage[];
+          } else if (typeof project.stages === 'object' && project.stages !== null) {
+            // If it's an object, try to extract array or convert
+            if ('stages' in project.stages && Array.isArray(project.stages.stages)) {
+              stages = project.stages.stages;
+            } else {
+              // Try to convert object to array
+              stages = Object.values(project.stages).filter(item => 
+                item && typeof item === 'object' && 'id' in item
+              ) as Stage[];
+            }
+          }
+          
+          // Ensure stages is actually an array
+          if (!Array.isArray(stages)) {
+            console.warn('Stages is not an array after parsing:', stages);
+            stages = [];
+          }
+          
+          // Validate and clean stage data
+          stages = stages.map((stage, index) => ({
+            id: stage.id || `stage-${index}`,
+            name: stage.name || `Etapa ${index + 1}`,
+            description: stage.description || '',
+            days: Number(stage.days) || 1,
+            hours: Number(stage.hours) || 8,
+            value: Number(stage.value) || 0,
+            startDate: stage.startDate || '',
+            endDate: stage.endDate || '',
+            consultantId: stage.consultantId || undefined,
+            completed: Boolean(stage.completed),
+            clientApproved: Boolean(stage.clientApproved),
+            managerApproved: Boolean(stage.managerApproved),
+            invoiceIssued: Boolean(stage.invoiceIssued),
+            paymentReceived: Boolean(stage.paymentReceived),
+            consultantsSettled: Boolean(stage.consultantsSettled),
+            attachment: stage.attachment || ''
+          }));
+          
         } catch (e) {
           console.error('Error parsing stages for project:', project.id, e);
+          console.error('Raw stages data:', project.stages);
           stages = [];
         }
       }
