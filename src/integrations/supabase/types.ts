@@ -54,13 +54,6 @@ export type Database = {
             referencedRelation: "consultants"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "accounts_payable_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
         ]
       }
       accounts_receivable: {
@@ -106,13 +99,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "accounts_receivable_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -192,7 +178,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
-          level: number
+          level: number | null
           name: string
           parent_id: string | null
           project_id: string | null
@@ -202,7 +188,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
-          level?: number
+          level?: number | null
           name: string
           parent_id?: string | null
           project_id?: string | null
@@ -212,7 +198,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
-          level?: number
+          level?: number | null
           name?: string
           parent_id?: string | null
           project_id?: string | null
@@ -412,10 +398,11 @@ export type Database = {
           created_at: string | null
           due_date: string
           id: string
-          is_support_consultant: boolean
+          is_support_consultant: boolean | null
           net_amount: number
           payment_date: string | null
           project_id: string | null
+          stage_id: string | null
           stage_name: string
           status: string
           transaction_type: string
@@ -427,12 +414,13 @@ export type Database = {
           created_at?: string | null
           due_date: string
           id?: string
-          is_support_consultant?: boolean
+          is_support_consultant?: boolean | null
           net_amount?: number
           payment_date?: string | null
           project_id?: string | null
+          stage_id?: string | null
           stage_name: string
-          status: string
+          status?: string
           transaction_type: string
           updated_at?: string | null
         }
@@ -442,10 +430,11 @@ export type Database = {
           created_at?: string | null
           due_date?: string
           id?: string
-          is_support_consultant?: boolean
+          is_support_consultant?: boolean | null
           net_amount?: number
           payment_date?: string | null
           project_id?: string | null
+          stage_id?: string | null
           stage_name?: string
           status?: string
           transaction_type?: string
@@ -464,6 +453,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_transactions_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "project_stages"
             referencedColumns: ["id"]
           },
         ]
@@ -634,13 +630,6 @@ export type Database = {
             columns: ["consultant_id"]
             isOneToOne: false
             referencedRelation: "consultants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "manual_transactions_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -916,13 +905,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "notes_chat_room_id_fkey"
-            columns: ["chat_room_id"]
-            isOneToOne: false
-            referencedRelation: "chat_rooms"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "notes_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
@@ -952,6 +934,90 @@ export type Database = {
           },
         ]
       }
+      project_stages: {
+        Row: {
+          attachment: string | null
+          client_approved: boolean | null
+          completed: boolean | null
+          consultant_id: string | null
+          consultants_settled: boolean | null
+          created_at: string | null
+          days: number
+          description: string | null
+          end_date: string | null
+          hours: number
+          id: string
+          invoice_issued: boolean | null
+          manager_approved: boolean | null
+          name: string
+          payment_received: boolean | null
+          project_id: string
+          stage_order: number
+          start_date: string | null
+          updated_at: string | null
+          value: number
+        }
+        Insert: {
+          attachment?: string | null
+          client_approved?: boolean | null
+          completed?: boolean | null
+          consultant_id?: string | null
+          consultants_settled?: boolean | null
+          created_at?: string | null
+          days?: number
+          description?: string | null
+          end_date?: string | null
+          hours?: number
+          id?: string
+          invoice_issued?: boolean | null
+          manager_approved?: boolean | null
+          name: string
+          payment_received?: boolean | null
+          project_id: string
+          stage_order?: number
+          start_date?: string | null
+          updated_at?: string | null
+          value?: number
+        }
+        Update: {
+          attachment?: string | null
+          client_approved?: boolean | null
+          completed?: boolean | null
+          consultant_id?: string | null
+          consultants_settled?: boolean | null
+          created_at?: string | null
+          days?: number
+          description?: string | null
+          end_date?: string | null
+          hours?: number
+          id?: string
+          invoice_issued?: boolean | null
+          manager_approved?: boolean | null
+          name?: string
+          payment_received?: boolean | null
+          project_id?: string
+          stage_order?: number
+          start_date?: string | null
+          updated_at?: string | null
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_stages_consultant_id_fkey"
+            columns: ["consultant_id"]
+            isOneToOne: false
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_stages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           client_id: string | null
@@ -963,9 +1029,7 @@ export type Database = {
           main_consultant_id: string | null
           main_consultant_value: number | null
           name: string
-          net_value: number | null
           service_id: string | null
-          stages: Json | null
           start_date: string
           status: string
           support_consultant_commission: number | null
@@ -987,9 +1051,7 @@ export type Database = {
           main_consultant_id?: string | null
           main_consultant_value?: number | null
           name: string
-          net_value?: number | null
           service_id?: string | null
-          stages?: Json | null
           start_date: string
           status?: string
           support_consultant_commission?: number | null
@@ -1011,9 +1073,7 @@ export type Database = {
           main_consultant_id?: string | null
           main_consultant_value?: number | null
           name?: string
-          net_value?: number | null
           service_id?: string | null
-          stages?: Json | null
           start_date?: string
           status?: string
           support_consultant_commission?: number | null

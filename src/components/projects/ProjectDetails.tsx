@@ -8,11 +8,11 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Clock, FileText, Eye } from "lucide-react";
+import { Check, Clock, FileText } from "lucide-react";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Project, Stage } from './types';
-import { supabase } from '@/integrations/supabase/client';
+import { updateStageStatus } from '@/integrations/supabase/projects';
 import { useToast } from "@/components/ui/use-toast";
 import { Link } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
@@ -60,80 +60,17 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
   const [currentStageDescription, setCurrentStageDescription] = useState("");
   const { toast } = useToast();
   
-  // Initialize stages from project with proper error handling and validation
+  // Initialize stages from project
   useEffect(() => {
     console.log('ProjectDetails - Loading project:', project);
-    console.log('ProjectDetails - project.stages type:', typeof project.stages);
-    console.log('ProjectDetails - project.stages content:', project.stages);
+    console.log('ProjectDetails - project.stages:', project.stages);
     
-    let parsedStages: Stage[] = [];
-    
-    try {
-      if (project.stages) {
-        // Handle different possible formats of stages data
-        if (typeof project.stages === 'string') {
-          // If stages is a JSON string, parse it
-          const parsed = JSON.parse(project.stages);
-          if (Array.isArray(parsed)) {
-            parsedStages = parsed;
-          }
-        } else if (Array.isArray(project.stages)) {
-          // If stages is already an array, use it directly
-          parsedStages = project.stages;
-        } else if (typeof project.stages === 'object' && project.stages !== null) {
-          // If stages is an object but not an array, try to extract array
-          const stagesObj = project.stages as any;
-          if (stagesObj.stages && Array.isArray(stagesObj.stages)) {
-            parsedStages = stagesObj.stages;
-          } else {
-            // Try to convert object to array
-            parsedStages = Object.values(stagesObj).filter(item => 
-              item && typeof item === 'object' && 'id' in item
-            ) as Stage[];
-          }
-        }
-      }
-      
-      // Ensure parsedStages is actually an array
-      if (!Array.isArray(parsedStages)) {
-        console.warn('Stages is not an array after parsing:', parsedStages);
-        parsedStages = [];
-      }
-      
-      // Validate and clean stage data
-      parsedStages = parsedStages.map((stage, index) => ({
-        id: stage.id || `stage-${index}`,
-        name: stage.name || `Etapa ${index + 1}`,
-        description: stage.description || '',
-        days: Number(stage.days) || 1,
-        hours: Number(stage.hours) || 8,
-        value: Number(stage.value) || 0,
-        startDate: stage.startDate || '',
-        endDate: stage.endDate || '',
-        consultantId: stage.consultantId || undefined,
-        completed: Boolean(stage.completed),
-        clientApproved: Boolean(stage.clientApproved),
-        managerApproved: Boolean(stage.managerApproved),
-        invoiceIssued: Boolean(stage.invoiceIssued),
-        paymentReceived: Boolean(stage.paymentReceived),
-        consultantsSettled: Boolean(stage.consultantsSettled),
-        attachment: stage.attachment || ''
-      }));
-      
-      console.log('ProjectDetails - Parsed stages:', parsedStages);
-      setStages(parsedStages);
-      
-    } catch (error) {
-      console.error('Error parsing project stages:', error);
-      console.error('Raw stages data:', project.stages);
+    if (project.stages && Array.isArray(project.stages)) {
+      setStages(project.stages);
+    } else {
       setStages([]);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Erro ao carregar etapas do projeto. Dados podem estar corrompidos."
-      });
     }
-  }, [project, toast]);
+  }, [project]);
   
   // Buscar salas de chat relacionadas a este projeto
   const { data: projectChatRooms = [] } = useQuery({
@@ -146,42 +83,6 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
     if (stages.length === 0) return 0;
     const approvedStages = stages.filter(stage => stage.managerApproved).length;
     return Math.round((approvedStages / stages.length) * 100);
-  };
-
-  // Update project status based on stage completion
-  const updateProjectStatus = async (updatedStages: Stage[]) => {
-    const progress = Math.round((updatedStages.filter(stage => stage.managerApproved).length / updatedStages.length) * 100);
-    
-    let newStatus = project.status;
-    if (progress === 100) {
-      newStatus = 'completed';
-    } else if (progress > 0) {
-      newStatus = 'active';
-    } else {
-      newStatus = 'planned';
-    }
-    
-    // Update project status if it changed
-    if (newStatus !== project.status) {
-      try {
-        const { error } = await supabase
-          .from('projects')
-          .update({ 
-            status: newStatus,
-            stages: JSON.stringify(updatedStages)
-          })
-          .eq('id', project.id);
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Status do projeto atualizado",
-          description: `Projeto marcado como: ${newStatus === 'completed' ? 'Concluído' : newStatus === 'active' ? 'Em Andamento' : 'Planejado'}`
-        });
-      } catch (error: any) {
-        console.error('Error updating project status:', error);
-      }
-    }
   };
 
   const handleStageStatusUpdate = async (stageId: string, statusField: StageStatusKey, value: boolean) => {
@@ -207,16 +108,21 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
     setStages(updatedStages);
     
     try {
-      // Update stages in database
-      const { error } = await supabase
-        .from('projects')
-        .update({ stages: JSON.stringify(updatedStages) })
-        .eq('id', project.id);
+      // Update stage in database
+      const updates: Partial<Stage> = {};
+      updates[statusField] = value;
       
-      if (error) throw error;
+      // Auto-mark stage as completed when manager approves
+      if (statusField === 'managerApproved' && value) {
+        updates.completed = true;
+      }
       
-      // Update project status based on progress
-      await updateProjectStatus(updatedStages);
+      // If manager disapproves, unmark completion
+      if (statusField === 'managerApproved' && !value) {
+        updates.completed = false;
+      }
+      
+      await updateStageStatus(stageId, updates);
       
       toast({
         title: "Sucesso",
@@ -231,6 +137,9 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
         title: "Erro",
         description: error.message || "Não foi possível atualizar o status da etapa."
       });
+      
+      // Revert local state on error
+      setStages(project.stages || []);
     }
   };
 

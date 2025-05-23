@@ -1,14 +1,15 @@
 
 export interface Stage {
   id: string;
+  projectId: string;
   name: string;
   description: string;
   days: number;
   hours: number;
+  value: number;
   startDate?: string;
   endDate?: string;
   consultantId?: string;
-  value: number;
   completed: boolean;
   clientApproved: boolean;
   managerApproved: boolean;
@@ -16,6 +17,9 @@ export interface Stage {
   paymentReceived: boolean;
   consultantsSettled: boolean;
   attachment?: string;
+  stageOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Project {
@@ -36,8 +40,8 @@ export interface Project {
   consultantValue?: number;
   supportConsultantValue?: number;
   status: 'planned' | 'active' | 'completed' | 'cancelled';
-  stages: Stage[];
   tags?: string[];
+  stages?: Stage[];
   // Extended properties from joins
   mainConsultantName?: string;
   mainConsultantPixKey?: string;
@@ -46,6 +50,8 @@ export interface Project {
   serviceName?: string;
   clientName?: string;
   completedStages?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Consultant {

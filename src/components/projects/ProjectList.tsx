@@ -24,10 +24,9 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProjectForm } from './ProjectForm';
 import { ProjectDetails } from './ProjectDetails';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
 import { Project, Stage } from './types';
-import { updateProject, deleteProject as deleteProjectFunction } from '@/integrations/supabase/projects';
+import { fetchProjects, createProject, updateProject, deleteProject } from '@/integrations/supabase/projects';
 import { 
   Select, 
   SelectContent, 
@@ -41,6 +40,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
 
 // Use export type for re-exporting types when isolatedModules is enabled
 export type { Project, Stage };
@@ -69,7 +69,7 @@ export const ProjectList: React.FC = () => {
   const [services, setServices] = useState<{id: string, name: string}[]>([]);
   
   useEffect(() => {
-    fetchProjects();
+    loadProjects();
     fetchFilterData();
   }, []);
 
@@ -97,83 +97,11 @@ export const ProjectList: React.FC = () => {
     }
   };
 
-  const fetchProjects = async () => {
+  const loadProjects = async () => {
     try {
       setIsLoading(true);
-      
-      // Fetch projects from Supabase with properly aliased consultant references and client, service info
-      const { data: projectsData, error: projectsError } = await supabase
-        .from('projects')
-        .select(`
-          *,
-          main_consultant:consultants!main_consultant_id(id, name, pix_key, commission_percentage),
-          support_consultant:consultants!support_consultant_id(id, name, pix_key, commission_percentage),
-          client:clients(id, name),
-          service:services(id, name)
-        `);
-      
-      if (projectsError) throw projectsError;
-      
-      if (projectsData) {
-        // Transform the data for frontend use
-        const transformedProjects: Project[] = projectsData.map(project => {
-          // Safely parse stages with proper type handling
-          let stages: Stage[] = [];
-          try {
-            if (project.stages && Array.isArray(project.stages)) {
-              stages = project.stages as unknown as Stage[];
-            }
-          } catch (e) {
-            console.error("Error parsing stages:", e);
-          }
-          
-          // Parse tags safely (now available as a proper column in the database)
-          let tags: string[] = [];
-          try {
-            if (project.tags && Array.isArray(project.tags)) {
-              tags = project.tags as string[];
-            }
-          } catch (e) {
-            console.error("Error parsing tags:", e);
-          }
-          
-          return {
-            id: project.id,
-            name: project.name,
-            description: project.description || '',
-            serviceId: project.service_id,
-            serviceName: project.service?.name,
-            clientId: project.client_id,
-            clientName: project.client?.name,
-            mainConsultantId: project.main_consultant_id,
-            // Using optional chaining to safely access nested properties
-            mainConsultantName: project.main_consultant?.name || 'Não especificado',
-            mainConsultantPixKey: project.main_consultant?.pix_key || '',
-            // Use commission from specific field if available, or from consultant profile, or default to 0
-            mainConsultantCommission: project.main_consultant_commission || 
-                                     project.main_consultant?.commission_percentage || 0,
-            supportConsultantId: project.support_consultant_id || undefined,
-            supportConsultantName: project.support_consultant?.name || undefined,
-            supportConsultantPixKey: project.support_consultant?.pix_key || '',
-            // Use commission from specific field if available, or from consultant profile, or default to 0
-            supportConsultantCommission: project.support_consultant_commission || 
-                                        project.support_consultant?.commission_percentage || 0,
-            startDate: project.start_date,
-            endDate: project.end_date,
-            totalValue: Number(project.total_value) || 0,
-            taxPercent: Number(project.tax_percent) || 0,
-            thirdPartyExpenses: Number(project.third_party_expenses) || 0,
-            consultantValue: Number(project.main_consultant_value) || 0,
-            supportConsultantValue: Number(project.support_consultant_value) || 0,
-            status: project.status as any || 'planned',
-            stages: stages,
-            completedStages: stages.filter(s => s.completed).length,
-            tags: tags
-          };
-        });
-        
-        setProjects(transformedProjects);
-      }
+      const projectsData = await fetchProjects();
+      setProjects(projectsData);
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast({
@@ -188,7 +116,7 @@ export const ProjectList: React.FC = () => {
 
   const handleAddProject = async (project: any) => {
     if (editingProject) {
-      // Update existing project in Supabase
+      // Update existing project
       try {
         await updateProject(project);
         
@@ -198,7 +126,7 @@ export const ProjectList: React.FC = () => {
         });
         
         setEditingProject(null);
-        fetchProjects(); // Refresh projects list
+        loadProjects(); // Refresh projects list
       } catch (error: any) {
         console.error('Error updating project:', error);
         toast({
@@ -208,42 +136,16 @@ export const ProjectList: React.FC = () => {
         });
       }
     } else {
-      // Add new project to Supabase
+      // Add new project
       try {
-        const { error } = await supabase
-          .from('projects')
-          .insert({
-            name: project.name,
-            description: project.description,
-            service_id: project.serviceId || null,
-            client_id: project.clientId || null,
-            main_consultant_id: project.mainConsultantId || null, // Allow null consultants
-            main_consultant_commission: project.mainConsultantCommission || 0,
-            support_consultant_id: project.supportConsultantId || null,
-            support_consultant_commission: project.supportConsultantCommission || 0,
-            start_date: project.startDate,
-            end_date: project.endDate,
-            total_value: project.totalValue,
-            tax_percent: project.taxPercent,
-            third_party_expenses: project.thirdPartyExpenses || 0,
-            main_consultant_value: project.consultantValue || 0,
-            support_consultant_value: project.supportConsultantValue || 0,
-            status: project.status,
-            stages: project.stages,
-            tags: project.tags || []
-          });
-
-        if (error) {
-          console.error('Error details:', error);
-          throw error;
-        }
+        await createProject(project);
         
         toast({
           title: "Sucesso",
           description: "Projeto adicionado com sucesso!"
         });
         
-        fetchProjects(); // Refresh projects list
+        loadProjects(); // Refresh projects list
       } catch (error: any) {
         console.error('Error adding project:', error);
         toast({
@@ -272,7 +174,7 @@ export const ProjectList: React.FC = () => {
     try {
       console.log(`Tentando excluir projeto: ${projectName || id}`);
       
-      await deleteProjectFunction(id);
+      await deleteProject(id);
       
       // Update local state
       setProjects(projects.filter(p => p.id !== id));
@@ -334,7 +236,7 @@ export const ProjectList: React.FC = () => {
     const matchesSearch = 
       !searchTerm || 
       project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.mainConsultantName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.serviceName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -385,7 +287,7 @@ export const ProjectList: React.FC = () => {
         <ProjectDetails 
           project={selectedProject}
           onClose={handleCloseDetails}
-          onProjectUpdated={fetchProjects}
+          onProjectUpdated={loadProjects}
         />
       ) : (
         <>
@@ -584,7 +486,7 @@ export const ProjectList: React.FC = () => {
                             <div className="bg-muted h-2 w-16 rounded-full overflow-hidden">
                               <div 
                                 className="bg-blue-500 h-full rounded-full"
-                                style={{ width: `${project.stages?.length ? (project.completedStages / project.stages.length) * 100 : 0}%` }}
+                                style={{ width: `${project.stages?.length ? (project.completedStages || 0 / project.stages.length) * 100 : 0}%` }}
                               ></div>
                             </div>
                           </div>

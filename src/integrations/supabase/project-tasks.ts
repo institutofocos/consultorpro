@@ -65,7 +65,7 @@ export const createProjectTasks = async (project: Project): Promise<ProjectTaskC
             note_id: mainTask.id,
             title: stage.name,
             description: stage.description || '',
-            due_date: stage.endDate || project.endDate, // Use stage end date or project end date
+            due_date: stage.endDate || project.endDate,
             responsible_consultant_id: stage.consultantId || project.mainConsultantId
           })
           .select()
