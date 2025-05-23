@@ -181,6 +181,13 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         return;
       }
 
+      // Validate and clean stage dates
+      const cleanedStages = (formData.stages || []).map(stage => ({
+        ...stage,
+        startDate: stage.startDate?.trim() || '',
+        endDate: stage.endDate?.trim() || ''
+      }));
+
       const projectData: Project = {
         id: project?.id || '',
         name: formData.name,
@@ -200,7 +207,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         supportConsultantValue: Number(formData.supportConsultantValue || 0),
         status: formData.status as 'planned' | 'active' | 'completed' | 'cancelled',
         tags: formData.tags || [],
-        stages: formData.stages || []
+        stages: cleanedStages
       };
 
       let savedProject: Project;

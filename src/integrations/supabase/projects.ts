@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 import { Project, Stage } from "@/components/projects/types";
 import { createProjectTasks, updateProjectTasks } from "./project-tasks";
@@ -52,16 +53,16 @@ export const createProjectStages = async (projectId: string, stages: Omit<Stage,
       days: stage.days,
       hours: stage.hours,
       value: stage.value,
-      start_date: stage.startDate,
-      end_date: stage.endDate,
-      consultant_id: stage.consultantId,
+      start_date: stage.startDate && stage.startDate !== '' ? stage.startDate : null,
+      end_date: stage.endDate && stage.endDate !== '' ? stage.endDate : null,
+      consultant_id: stage.consultantId || null,
       completed: stage.completed,
       client_approved: stage.clientApproved,
       manager_approved: stage.managerApproved,
       invoice_issued: stage.invoiceIssued,
       payment_received: stage.paymentReceived,
       consultants_settled: stage.consultantsSettled,
-      attachment: stage.attachment,
+      attachment: stage.attachment || null,
       stage_order: stage.stageOrder || index + 1
     }));
 
@@ -80,8 +81,8 @@ export const createProjectStages = async (projectId: string, stages: Omit<Stage,
       days: stage.days,
       hours: stage.hours,
       value: Number(stage.value),
-      startDate: stage.start_date,
-      endDate: stage.end_date,
+      startDate: stage.start_date || '',
+      endDate: stage.end_date || '',
       consultantId: stage.consultant_id,
       completed: stage.completed,
       clientApproved: stage.client_approved,
@@ -117,16 +118,16 @@ export const updateProjectStages = async (projectId: string, stages: Stage[]): P
       days: stage.days,
       hours: stage.hours,
       value: stage.value,
-      start_date: stage.startDate,
-      end_date: stage.endDate,
-      consultant_id: stage.consultantId,
+      start_date: stage.startDate && stage.startDate !== '' ? stage.startDate : null,
+      end_date: stage.endDate && stage.endDate !== '' ? stage.endDate : null,
+      consultant_id: stage.consultantId || null,
       completed: stage.completed,
       client_approved: stage.clientApproved,
       manager_approved: stage.managerApproved,
       invoice_issued: stage.invoiceIssued,
       payment_received: stage.paymentReceived,
       consultants_settled: stage.consultantsSettled,
-      attachment: stage.attachment,
+      attachment: stage.attachment || null,
       stage_order: index + 1
     }));
 
@@ -145,8 +146,8 @@ export const updateProjectStages = async (projectId: string, stages: Stage[]): P
       days: stage.days,
       hours: stage.hours,
       value: Number(stage.value),
-      startDate: stage.start_date,
-      endDate: stage.end_date,
+      startDate: stage.start_date || '',
+      endDate: stage.end_date || '',
       consultantId: stage.consultant_id,
       completed: stage.completed,
       clientApproved: stage.client_approved,
