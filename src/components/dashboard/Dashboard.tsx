@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -154,15 +153,17 @@ export const Dashboard: React.FC = () => {
           projectsData.forEach(project => {
             if (project.stages && Array.isArray(project.stages)) {
               project.stages.forEach(stage => {
-                // Fix: Create a new object instead of using spread on potentially non-object stage
+                // Safely extract properties with type checking
+                const stageObj = typeof stage === 'object' && stage !== null ? stage : {};
+                
                 allStages.push({
-                  id: stage.id || 0,
-                  name: stage.name || '',
-                  hours: stage.hours || 0,
-                  days: stage.days || 0,
-                  value: stage.value || 0,
-                  startDate: stage.startDate || '',
-                  endDate: stage.endDate || '',
+                  id: typeof stageObj.id === 'number' ? stageObj.id : 0,
+                  name: typeof stageObj.name === 'string' ? stageObj.name : '',
+                  hours: typeof stageObj.hours === 'number' ? stageObj.hours : 0,
+                  days: typeof stageObj.days === 'number' ? stageObj.days : 0,
+                  value: typeof stageObj.value === 'number' ? stageObj.value : 0,
+                  startDate: typeof stageObj.startDate === 'string' ? stageObj.startDate : '',
+                  endDate: typeof stageObj.endDate === 'string' ? stageObj.endDate : '',
                   projectName: project.name || '',
                   projectId: project.id || ''
                 });

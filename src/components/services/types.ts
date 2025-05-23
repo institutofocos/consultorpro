@@ -78,7 +78,7 @@ export interface Project {
   support_consultant_value?: number;
   net_value: number;
   status: 'planned' | 'active' | 'completed' | 'delayed';
-  stages?: ProjectStage[];
+  stages?: ProjectStage[] | Json;
   created_at?: string;
   updated_at?: string;
 }
