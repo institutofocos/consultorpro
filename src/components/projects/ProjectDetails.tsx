@@ -42,9 +42,10 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
     setStages(updatedStages);
     
     try {
+      // We need to explicitly convert Stage[] to Json for the Supabase update
       const { error } = await supabase
         .from('projects')
-        .update({ stages: updatedStages })
+        .update({ stages: updatedStages as any })
         .eq('id', project.id);
       
       if (error) throw error;

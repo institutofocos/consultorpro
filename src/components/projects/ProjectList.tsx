@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -26,42 +25,9 @@ import { ProjectDetails } from './ProjectDetails';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
 import { Json } from '@/integrations/supabase/types';
+import { Project, Stage } from './types';
 
-// Project type definition
-export interface Project {
-  id: string;
-  name: string;
-  description: string;
-  mainConsultantId: string;
-  mainConsultantName?: string;
-  mainConsultantPixKey?: string;
-  supportConsultantId?: string;
-  supportConsultantName?: string;
-  supportConsultantPixKey?: string;
-  startDate: string;
-  endDate: string;
-  totalValue: number;
-  taxPercent: number;
-  thirdPartyExpenses: number;
-  consultantValue: number;
-  status: 'planned' | 'active' | 'completed' | 'cancelled';
-  stages: Stage[];
-  completedStages: number;
-}
-
-// Stage type definition for type safety
-export interface Stage {
-  id: string;
-  name: string;
-  hours: number;
-  days: number;
-  value: number;
-  startDate: string;
-  endDate: string;
-  completed: boolean;
-  clientApproved: boolean;
-  consultantPaid: boolean;
-}
+export { Project, Stage };
 
 export const ProjectList: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);

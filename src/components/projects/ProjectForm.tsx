@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,11 +17,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
-import { Consultant } from '../consultants/ConsultantList';
 import { fetchConsultants } from '@/integrations/supabase/consultants';
-import { Project, Stage } from './ProjectList';
 import { supabase } from '@/integrations/supabase/client';
 import { createChatRoom, addChatParticipant } from '@/integrations/supabase/chat';
+import { Consultant, Project, Stage } from './types';
 
 interface ProjectFormProps {
   project?: Project | null;
@@ -39,13 +39,14 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
   const [taxPercent, setTaxPercent] = useState(project?.taxPercent?.toString() || '');
   const [thirdPartyExpenses, setThirdPartyExpenses] = useState(project?.thirdPartyExpenses?.toString() || '');
   const [consultantValue, setConsultantValue] = useState(project?.consultantValue?.toString() || '');
-  const [status, setStatus] = useState(project?.status || 'planned');
+  const [status, setStatus] = useState<'planned' | 'active' | 'completed' | 'cancelled'>(project?.status || 'planned');
   const [stages, setStages] = useState<Stage[]>(project?.stages || []);
   const [consultants, setConsultants] = useState<Consultant[]>([]);
   const { toast } = useToast();
   
   useEffect(() => {
-    fetchConsultants().then(setConsultants);
+    // We use TypeScript type assertion to handle the consultant type mismatch
+    fetchConsultants().then(data => setConsultants(data as unknown as Consultant[]));
   }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -303,7 +304,10 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
         
         <div>
           <Label htmlFor="status">Status do Projeto</Label>
-          <Select value={status} onValueChange={setStatus}>
+          <Select 
+            value={status} 
+            onValueChange={(value: 'planned' | 'active' | 'completed' | 'cancelled') => setStatus(value)}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Selecione o status" />
             </SelectTrigger>
