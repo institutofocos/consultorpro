@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -35,6 +36,7 @@ const formSchema = z.object({
   phone: z.string().optional(),
   commissionPercentage: z.coerce.number().min(0).max(100).optional(),
   salary: z.coerce.number().min(0).optional(),
+  pixKey: z.string().optional(),
   street: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
@@ -94,6 +96,7 @@ export const ConsultantForm: React.FC<ConsultantFormProps> = ({ consultant, onSa
       phone: consultant.phone || '',
       commissionPercentage: consultant.commissionPercentage || 0,
       salary: consultant.salary || 0,
+      pixKey: consultant.pixKey || '',
       street: consultant.street || '',
       city: consultant.city || '',
       state: consultant.state || '',
@@ -106,6 +109,7 @@ export const ConsultantForm: React.FC<ConsultantFormProps> = ({ consultant, onSa
       phone: '',
       commissionPercentage: 0,
       salary: 0,
+      pixKey: '',
       street: '',
       city: '',
       state: '',
@@ -267,6 +271,28 @@ export const ConsultantForm: React.FC<ConsultantFormProps> = ({ consultant, onSa
                       </FormControl>
                       <FormDescription>
                         Caso aplicável
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div className="mt-4">
+                <FormField
+                  control={form.control}
+                  name="pixKey"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Chave PIX</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="CPF, CNPJ, Celular, Email ou Chave Aleatória" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Chave PIX para pagamentos
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

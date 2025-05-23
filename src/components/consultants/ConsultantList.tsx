@@ -30,6 +30,7 @@ type Consultant = {
   phone?: string;
   commissionPercentage?: number;
   salary?: number;
+  pixKey?: string;
   street?: string;
   city?: string;
   state?: string;
@@ -50,6 +51,7 @@ const mapConsultantFromDB = (consultant: Tables<"consultants"> & { services?: st
     phone: consultant.phone || '',
     commissionPercentage: consultant.commission_percentage ? Number(consultant.commission_percentage) : 0,
     salary: consultant.salary ? Number(consultant.salary) : 0,
+    pixKey: consultant.pix_key || '',
     street: consultant.street || '',
     city: consultant.city || '',
     state: consultant.state || '',
@@ -133,6 +135,7 @@ export const ConsultantList: React.FC = () => {
         phone: formData.phone,
         commission_percentage: formData.commissionPercentage,
         salary: formData.salary,
+        pix_key: formData.pixKey,
         street: formData.street,
         city: formData.city,
         state: formData.state,

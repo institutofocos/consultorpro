@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Table, 
   TableBody, 
@@ -16,127 +16,240 @@ import {
   Edit, 
   Trash,
   Check,
-  Clock
+  Clock,
+  Eye
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProjectForm } from './ProjectForm';
+import { ProjectDetails } from './ProjectDetails';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from "@/components/ui/use-toast";
 
-// Mock data
-const mockProjects = [
-  { 
-    id: 1, 
-    name: 'Implementação ERP', 
-    description: 'Implementação de sistema ERP para controle financeiro',
-    mainConsultant: 'Ana Silva',
-    startDate: '2023-06-10',
-    endDate: '2023-12-20',
-    totalValue: 85000,
-    taxPercent: 16,
-    thirdPartyExpenses: 12000,
-    consultantValue: 35000,
-    status: 'active',
-    stages: 5,
-    completedStages: 3
-  },
-  { 
-    id: 2, 
-    name: 'Consultoria Processos', 
-    description: 'Mapeamento e otimização de processos internos',
-    mainConsultant: 'Carlos Mendes',
-    startDate: '2023-08-15',
-    endDate: '2024-01-15',
-    totalValue: 63000,
-    taxPercent: 16,
-    thirdPartyExpenses: 5000,
-    consultantValue: 25000,
-    status: 'active',
-    stages: 4,
-    completedStages: 2
-  },
-  { 
-    id: 3, 
-    name: 'Treinamento Liderança', 
-    description: 'Programa de desenvolvimento de líderes',
-    mainConsultant: 'Patricia Lemos',
-    startDate: '2023-09-01',
-    endDate: '2023-11-30',
-    totalValue: 42000,
-    taxPercent: 16,
-    thirdPartyExpenses: 8000,
-    consultantValue: 18000,
-    status: 'completed',
-    stages: 3,
-    completedStages: 3
-  },
-  { 
-    id: 4, 
-    name: 'Gestão de Riscos', 
-    description: 'Implementação de estrutura de gestão de riscos',
-    mainConsultant: 'Roberto Gomes',
-    startDate: '2023-10-05',
-    endDate: '2024-04-05',
-    totalValue: 79000,
-    taxPercent: 16,
-    thirdPartyExpenses: 15000,
-    consultantValue: 30000,
-    status: 'active',
-    stages: 6,
-    completedStages: 2
-  },
-  { 
-    id: 5, 
-    name: 'Rebranding', 
-    description: 'Renovação da identidade visual e posicionamento',
-    mainConsultant: 'Juliana Alves',
-    startDate: '2023-11-01',
-    endDate: '2024-02-28',
-    totalValue: 56000,
-    taxPercent: 16,
-    thirdPartyExpenses: 18000,
-    consultantValue: 20000,
-    status: 'planned',
-    stages: 4,
-    completedStages: 0
-  },
-];
+// Project type definition
+interface Project {
+  id: string;
+  name: string;
+  description: string;
+  mainConsultantId: string;
+  mainConsultantName?: string;
+  mainConsultantPixKey?: string;
+  supportConsultantId?: string;
+  supportConsultantName?: string;
+  supportConsultantPixKey?: string;
+  startDate: string;
+  endDate: string;
+  totalValue: number;
+  taxPercent: number;
+  thirdPartyExpenses: number;
+  consultantValue: number;
+  status: 'planned' | 'active' | 'completed' | 'cancelled';
+  stages: any[];
+  completedStages: number;
+}
+
+// Stage type definition for type safety
+interface Stage {
+  id: string;
+  name: string;
+  hours: number;
+  days: number;
+  value: number;
+  startDate: string;
+  endDate: string;
+  completed: boolean;
+  clientApproved: boolean;
+  consultantPaid: boolean;
+}
 
 export const ProjectList: React.FC = () => {
-  const [projects, setProjects] = useState(mockProjects);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [editingProject, setEditingProject] = useState<any | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
   
-  const filteredProjects = projects.filter(project => 
-    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.mainConsultant.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  
-  const handleAddProject = (project: any) => {
-    if (editingProject) {
-      setProjects(projects.map(p => 
-        p.id === editingProject.id ? { ...project, id: p.id } : p
-      ));
-      setEditingProject(null);
-    } else {
-      setProjects([...projects, { 
-        ...project, 
-        id: projects.length + 1, 
-        stages: 1,
-        completedStages: 0,
-      }]);
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Fetch projects from Supabase
+      const { data: projectsData, error: projectsError } = await supabase
+        .from('projects')
+        .select(`
+          *,
+          main_consultant:main_consultant_id(id, name, pix_key),
+          support_consultant:support_consultant_id(id, name, pix_key)
+        `);
+      
+      if (projectsError) throw projectsError;
+      
+      if (projectsData) {
+        // Transform the data for frontend use
+        const transformedProjects: Project[] = projectsData.map(project => {
+          const stages = project.stages as any[] || [];
+          
+          return {
+            id: project.id,
+            name: project.name,
+            description: project.description || '',
+            mainConsultantId: project.main_consultant_id,
+            mainConsultantName: project.main_consultant?.name || 'Não especificado',
+            mainConsultantPixKey: project.main_consultant?.pix_key || '',
+            supportConsultantId: project.support_consultant_id || undefined,
+            supportConsultantName: project.support_consultant?.name || undefined,
+            supportConsultantPixKey: project.support_consultant?.pix_key || '',
+            startDate: project.start_date,
+            endDate: project.end_date,
+            totalValue: Number(project.total_value) || 0,
+            taxPercent: Number(project.tax_percent) || 0,
+            thirdPartyExpenses: Number(project.third_party_expenses) || 0,
+            consultantValue: Number(project.main_consultant_value) || 0,
+            status: project.status as any || 'planned',
+            stages: Array.isArray(stages) ? stages : [],
+            completedStages: Array.isArray(stages) ? stages.filter(s => s.completed).length : 0
+          };
+        });
+        
+        setProjects(transformedProjects);
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível carregar os projetos."
+      });
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handleAddProject = async (project: any) => {
+    if (editingProject) {
+      // Update existing project in Supabase
+      try {
+        const { error } = await supabase
+          .from('projects')
+          .update({
+            name: project.name,
+            description: project.description,
+            main_consultant_id: project.mainConsultantId,
+            support_consultant_id: project.supportConsultantId,
+            start_date: project.startDate,
+            end_date: project.endDate,
+            total_value: project.totalValue,
+            tax_percent: project.taxPercent,
+            third_party_expenses: project.thirdPartyExpenses,
+            main_consultant_value: project.consultantValue,
+            status: project.status,
+            stages: project.stages
+          })
+          .eq('id', editingProject.id);
+
+        if (error) throw error;
+        
+        toast({
+          title: "Sucesso",
+          description: "Projeto atualizado com sucesso!"
+        });
+        
+        setEditingProject(null);
+        fetchProjects(); // Refresh projects list
+      } catch (error: any) {
+        console.error('Error updating project:', error);
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: error.message || "Não foi possível atualizar o projeto."
+        });
+      }
+    } else {
+      // Add new project to Supabase
+      try {
+        const { error } = await supabase
+          .from('projects')
+          .insert({
+            name: project.name,
+            description: project.description,
+            main_consultant_id: project.mainConsultantId,
+            support_consultant_id: project.supportConsultantId,
+            start_date: project.startDate,
+            end_date: project.endDate,
+            total_value: project.totalValue,
+            tax_percent: project.taxPercent,
+            third_party_expenses: project.thirdPartyExpenses,
+            main_consultant_value: project.consultantValue,
+            status: project.status,
+            stages: project.stages
+          });
+
+        if (error) throw error;
+        
+        toast({
+          title: "Sucesso",
+          description: "Projeto adicionado com sucesso!"
+        });
+        
+        fetchProjects(); // Refresh projects list
+      } catch (error: any) {
+        console.error('Error adding project:', error);
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: error.message || "Não foi possível adicionar o projeto."
+        });
+      }
+    }
+    
     setShowForm(false);
   };
   
-  const handleEditProject = (project: any) => {
+  const handleEditProject = (project: Project) => {
     setEditingProject(project);
     setShowForm(true);
   };
   
-  const handleDeleteProject = (id: number) => {
-    setProjects(projects.filter(p => p.id !== id));
+  const handleDeleteProject = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      setProjects(projects.filter(p => p.id !== id));
+      
+      toast({
+        title: "Sucesso",
+        description: "Projeto removido com sucesso!"
+      });
+    } catch (error: any) {
+      console.error('Error deleting project:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: error.message || "Não foi possível remover o projeto."
+      });
+    }
+  };
+
+  const handleViewProject = (project: Project) => {
+    setSelectedProject(project);
+    setShowDetails(true);
+  };
+
+  const handleCloseDetails = () => {
+    setShowDetails(false);
+    setSelectedProject(null);
   };
 
   // Format currency
@@ -146,6 +259,12 @@ export const ProjectList: React.FC = () => {
       currency: 'BRL'
     }).format(value);
   };
+  
+  const filteredProjects = projects.filter(project => 
+    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    project.mainConsultantName?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
   
   return (
     <div className="space-y-8 animate-fade-in">
@@ -162,6 +281,12 @@ export const ProjectList: React.FC = () => {
             setShowForm(false);
             setEditingProject(null);
           }} 
+        />
+      ) : showDetails && selectedProject ? (
+        <ProjectDetails 
+          project={selectedProject}
+          onClose={handleCloseDetails}
+          onProjectUpdated={fetchProjects}
         />
       ) : (
         <>
@@ -198,7 +323,13 @@ export const ProjectList: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredProjects.length > 0 ? (
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        Carregando projetos...
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredProjects.length > 0 ? (
                     filteredProjects.map((project) => (
                       <TableRow key={project.id}>
                         <TableCell>
@@ -207,17 +338,17 @@ export const ProjectList: React.FC = () => {
                             <div className="text-sm text-muted-foreground">{project.description}</div>
                           </div>
                         </TableCell>
-                        <TableCell>{project.mainConsultant}</TableCell>
+                        <TableCell>{project.mainConsultantName}</TableCell>
                         <TableCell>{formatCurrency(project.totalValue)}</TableCell>
                         <TableCell>
                           <div className="flex items-center">
                             <span className="text-sm mr-2">
-                              {project.completedStages}/{project.stages}
+                              {project.completedStages}/{project.stages?.length || 0}
                             </span>
                             <div className="bg-muted h-2 w-16 rounded-full overflow-hidden">
                               <div 
                                 className="bg-blue-500 h-full rounded-full"
-                                style={{ width: `${(project.completedStages / project.stages) * 100}%` }}
+                                style={{ width: `${project.stages?.length ? (project.completedStages / project.stages.length) * 100 : 0}%` }}
                               ></div>
                             </div>
                           </div>
@@ -242,10 +373,13 @@ export const ProjectList: React.FC = () => {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditProject(project)}>
+                          <Button variant="ghost" size="icon" onClick={() => handleViewProject(project)} title="Visualizar detalhes">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleEditProject(project)} title="Editar">
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteProject(project.id)}>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteProject(project.id)} title="Excluir">
                             <Trash className="h-4 w-4" />
                           </Button>
                         </TableCell>
