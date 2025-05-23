@@ -360,6 +360,30 @@ export type Database = {
           },
         ]
       }
+      module_permissions: {
+        Row: {
+          can_edit: boolean
+          can_view: boolean
+          id: string
+          module_name: string
+          user_id: string
+        }
+        Insert: {
+          can_edit?: boolean
+          can_view?: boolean
+          id?: string
+          module_name: string
+          user_id: string
+        }
+        Update: {
+          can_edit?: boolean
+          can_view?: boolean
+          id?: string
+          module_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       note_custom_fields: {
         Row: {
           created_at: string | null
@@ -672,6 +696,33 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          created_at: string
+          full_name: string
+          id: string
+          last_login: string | null
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          full_name: string
+          id: string
+          last_login?: string | null
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string
+          id?: string
+          last_login?: string | null
+          role?: string
+          updated_at?: string
         }
         Relationships: []
       }

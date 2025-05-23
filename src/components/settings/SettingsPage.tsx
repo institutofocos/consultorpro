@@ -5,9 +5,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import WebhookManager from './WebhookManager';
 import SwaggerDocs from './SwaggerDocs';
 import APIKeyManager from './APIKeyManager';
+import UserManagement from './UserManagement';
+import { useAuth } from '@/contexts/AuthContext';
+import { Settings, Users } from 'lucide-react';
 
 const SettingsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("general");
+  const { checkPermission } = useAuth();
+  const canViewUsers = checkPermission('settings', 'view');
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -18,7 +23,16 @@ const SettingsPage: React.FC = () => {
 
       <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-6">
-          <TabsTrigger value="general">Geral</TabsTrigger>
+          <TabsTrigger value="general">
+            <Settings className="h-4 w-4 mr-2" />
+            Geral
+          </TabsTrigger>
+          {canViewUsers && (
+            <TabsTrigger value="users">
+              <Users className="h-4 w-4 mr-2" />
+              Usuários
+            </TabsTrigger>
+          )}
           <TabsTrigger value="api_keys">API Keys</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
           <TabsTrigger value="api">API</TabsTrigger>
@@ -36,6 +50,12 @@ const SettingsPage: React.FC = () => {
             </CardContent>
           </Card>
         </TabsContent>
+        
+        {canViewUsers && (
+          <TabsContent value="users">
+            <UserManagement />
+          </TabsContent>
+        )}
         
         <TabsContent value="api_keys">
           <APIKeyManager />

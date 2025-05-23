@@ -2,8 +2,20 @@
 import React, { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
+import { Menu, User, LogOut, Settings } from "lucide-react";
 import ChatNotification from "@/components/chat/ChatNotification";
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { logoutUser } from '@/services/auth';
+import { useToast } from '@/hooks/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,10 +23,29 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { user, checkPermission } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      navigate('/auth');
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao sair",
+        description: "Não foi possível fazer logout. Tente novamente."
+      });
+    }
+  };
+  
+  const canAccessSettings = checkPermission('settings', 'view');
+
   return (
     <div className="h-screen flex flex-col overflow-hidden">
-      <header className="border-b bg-card h-16 z-10 sticky top-0 flex items-center px-6 md:px-8">
+      <header className="border-b bg-card h-16 z-10 sticky top-0 flex items-center justify-between px-6 md:px-8">
         <div className="flex items-center">
           <Button
             variant="ghost"
@@ -28,10 +59,46 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
         
         <div className="flex items-center gap-4">
-          {/* Placeholder for user profile/settings */}
-          <div className="bg-blue-100 dark:bg-blue-900 h-8 w-8 rounded-full flex items-center justify-center">
-            <span className="text-sm font-medium text-blue-600 dark:text-blue-400">AD</span>
-          </div>
+          {user && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <div className="bg-primary/10 h-8 w-8 rounded-full flex items-center justify-center">
+                    <span className="text-sm font-medium text-primary">
+                      {user.profile?.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="hidden md:block text-left">
+                    <p className="text-sm font-medium">{user.profile?.full_name}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{user.profile?.role}</p>
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Minha conta</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Perfil</span>
+                </DropdownMenuItem>
+                {canAccessSettings && (
+                  <DropdownMenuItem onClick={() => navigate('/settings')}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Configurações</span>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sair</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </header>
       
@@ -43,7 +110,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </div>
       
       {/* Adiciona o componente de notificação */}
-      <ChatNotification />
+      <ChatNotification userId={user?.id} />
     </div>
   );
 };
