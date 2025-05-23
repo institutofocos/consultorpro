@@ -38,7 +38,8 @@ export const fetchConsultants = async (): Promise<Consultant[]> => {
       pixKey: item.pix_key,
       created_at: item.created_at,
       updated_at: item.updated_at,
-      hoursPerMonth: item.hours_per_month || 160
+      hoursPerMonth: item.hours_per_month || 160,
+      availableHours: 0 // Initialize availableHours property
     }));
 
     // Fetch and calculate available hours for each consultant
