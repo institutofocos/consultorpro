@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -22,7 +23,7 @@ import {
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ProjectForm } from './ProjectForm';
+import ProjectForm from './ProjectForm';
 import { ProjectDetails } from './ProjectDetails';
 import { useToast } from "@/components/ui/use-toast";
 import { Project, Stage } from './types';

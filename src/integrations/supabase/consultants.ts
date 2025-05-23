@@ -64,6 +64,24 @@ export const deleteConsultant = async (id: string) => {
   }
 };
 
+export const calculateConsultantAvailableHours = async (consultantId: string, hoursPerMonth: number = 160): Promise<number> => {
+  try {
+    // Fetch stages where this consultant is assigned
+    const { data: stages, error } = await supabase
+      .from('project_stages')
+      .select('hours')
+      .eq('consultant_id', consultantId);
+
+    if (error) throw error;
+
+    const totalAllocatedHours = stages?.reduce((sum, stage) => sum + (stage.hours || 0), 0) || 0;
+    return Math.max(0, hoursPerMonth - totalAllocatedHours);
+  } catch (error) {
+    console.error('Error calculating consultant available hours:', error);
+    return hoursPerMonth;
+  }
+};
+
 export const fetchConsultantProjects = async (consultantId: string) => {
   try {
     // Buscar projetos onde o consultor é principal ou de apoio

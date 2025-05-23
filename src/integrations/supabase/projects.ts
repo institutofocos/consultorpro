@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 import { Project, Stage } from "@/components/projects/types";
 import { createProjectTasks, updateProjectTasks } from "./project-tasks";
@@ -516,7 +515,7 @@ export const fetchProjectById = async (projectId: string): Promise<Project | nul
       thirdPartyExpenses: data.third_party_expenses || 0,
       consultantValue: data.main_consultant_value || 0,
       supportConsultantValue: data.support_consultant_value || 0,
-      status: data.status,
+      status: data.status as 'planned' | 'active' | 'completed' | 'cancelled',
       stages: stages,
       tags: data.tags || [],
       createdAt: data.created_at,
