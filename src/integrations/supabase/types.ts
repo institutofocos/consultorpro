@@ -519,6 +519,7 @@ export type Database = {
           description: string | null
           end_date: string
           id: string
+          main_consultant_commission: number | null
           main_consultant_id: string
           main_consultant_value: number | null
           name: string
@@ -527,8 +528,10 @@ export type Database = {
           stages: Json | null
           start_date: string
           status: string
+          support_consultant_commission: number | null
           support_consultant_id: string | null
           support_consultant_value: number | null
+          tags: string[] | null
           tax_percent: number
           third_party_expenses: number | null
           total_value: number
@@ -540,6 +543,7 @@ export type Database = {
           description?: string | null
           end_date: string
           id?: string
+          main_consultant_commission?: number | null
           main_consultant_id: string
           main_consultant_value?: number | null
           name: string
@@ -548,8 +552,10 @@ export type Database = {
           stages?: Json | null
           start_date: string
           status?: string
+          support_consultant_commission?: number | null
           support_consultant_id?: string | null
           support_consultant_value?: number | null
+          tags?: string[] | null
           tax_percent?: number
           third_party_expenses?: number | null
           total_value?: number
@@ -561,6 +567,7 @@ export type Database = {
           description?: string | null
           end_date?: string
           id?: string
+          main_consultant_commission?: number | null
           main_consultant_id?: string
           main_consultant_value?: number | null
           name?: string
@@ -569,8 +576,10 @@ export type Database = {
           stages?: Json | null
           start_date?: string
           status?: string
+          support_consultant_commission?: number | null
           support_consultant_id?: string | null
           support_consultant_value?: number | null
+          tags?: string[] | null
           tax_percent?: number
           third_party_expenses?: number | null
           total_value?: number
