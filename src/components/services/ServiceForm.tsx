@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -27,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { ServiceStage } from './types';
+import { ServiceStage, Json } from './types';
 
 const serviceSchema = z.object({
   name: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }),
@@ -255,6 +256,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
 
     // Save to database
     try {
+      // Convert stages to Json-compatible format
       const serviceData = {
         name: data.name,
         description: data.description,
@@ -264,7 +266,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
         tax_rate: data.taxRate,
         extra_costs: data.extraCosts || 0,
         net_value: calculatedNetValue,
-        stages: stages // Will be automatically converted to JSON
+        stages: stages as unknown as Json // Type assertion to match Json type
       };
       
       console.log('Saving service data:', serviceData);

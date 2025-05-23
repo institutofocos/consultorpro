@@ -39,3 +39,12 @@ export interface ServiceData {
   netValue: number;
   stages: string; // JSON string for storage
 }
+
+// Add a Json type alias to match Supabase's Json type
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
