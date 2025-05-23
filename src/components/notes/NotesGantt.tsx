@@ -20,6 +20,17 @@ const STATUS_COLORS = {
   'cancelado': 'bg-red-500',
 };
 
+interface GanttItem {
+  id: string;
+  name: string;
+  type: 'main' | 'subtask';
+  startDate: string;
+  endDate: string;
+  status: 'a_fazer' | 'em_producao' | 'finalizado' | 'cancelado';
+  consultant: string;
+  parentId: string | null;
+}
+
 const NotesGantt: React.FC<NotesGanttProps> = ({ notes }) => {
   // Filter notes that have dates
   const notesWithDates = notes.filter(note => note.start_date && note.due_date);
@@ -64,11 +75,11 @@ const NotesGantt: React.FC<NotesGanttProps> = ({ notes }) => {
   };
 
   // Create gantt items (main tasks + subtasks)
-  const ganttItems = notesWithDates.flatMap(note => {
-    const items = [{
+  const ganttItems: GanttItem[] = notesWithDates.flatMap(note => {
+    const items: GanttItem[] = [{
       id: note.id,
       name: note.title,
-      type: 'main' as const,
+      type: 'main',
       startDate: note.start_date!,
       endDate: note.due_date!,
       status: note.status,
@@ -86,10 +97,10 @@ const NotesGantt: React.FC<NotesGanttProps> = ({ notes }) => {
         items.push({
           id: checklist.id,
           name: checklist.title,
-          type: 'subtask' as const,
+          type: 'subtask',
           startDate: note.start_date!,
           endDate: checklist.due_date!,
-          status: checklist.completed ? 'finalizado' as const : 'a_fazer' as const,
+          status: checklist.completed ? 'finalizado' : 'a_fazer',
           consultant: checklist.responsible_consultant_name || 'Não atribuído',
           parentId: note.id
         });
