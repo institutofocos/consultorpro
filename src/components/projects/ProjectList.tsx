@@ -27,7 +27,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { Json } from '@/integrations/supabase/types';
 import { Project, Stage } from './types';
 
-export { Project, Stage };
+// Use export type for re-exporting types when isolatedModules is enabled
+export type { Project, Stage };
 
 export const ProjectList: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
