@@ -45,7 +45,7 @@ interface Project {
   thirdPartyExpenses: number;
   consultantValue: number;
   status: 'planned' | 'active' | 'completed' | 'cancelled';
-  stages: any[];
+  stages: Stage[];
   completedStages: number;
 }
 
@@ -82,12 +82,13 @@ export const ProjectList: React.FC = () => {
       setIsLoading(true);
       
       // Fetch projects from Supabase with properly aliased consultant references
+      // Fix: Use explicit column names in foreign table references to avoid ambiguity
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select(`
           *,
-          main_consultant:main_consultant_id(id, name, pix_key),
-          support_consultant:support_consultant_id(id, name, pix_key)
+          main_consultant:consultants!main_consultant_id(id, name, pix_key),
+          support_consultant:consultants!support_consultant_id(id, name, pix_key)
         `);
       
       if (projectsError) throw projectsError;
@@ -110,6 +111,7 @@ export const ProjectList: React.FC = () => {
             name: project.name,
             description: project.description || '',
             mainConsultantId: project.main_consultant_id,
+            // Using optional chaining to safely access nested properties
             mainConsultantName: project.main_consultant?.name || 'Não especificado',
             mainConsultantPixKey: project.main_consultant?.pix_key || '',
             supportConsultantId: project.support_consultant_id || undefined,
