@@ -9,69 +9,60 @@ interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   checkPermission: (moduleName: string, actionType: 'view' | 'edit') => boolean;
-  refreshUser: () => Promise<AuthUser | null>; // Updated return type to match implementation
+  refreshUser: () => Promise<AuthUser | null>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   checkPermission: () => false,
-  refreshUser: async () => null, // Updated default return value to match type
+  refreshUser: async () => null,
 });
 
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Create a default admin user to bypass login
+  const defaultUser: AuthUser = {
+    id: 'default-admin-id',
+    email: 'admin@example.com',
+    profile: {
+      id: 'default-admin-id',
+      full_name: 'Admin User',
+      role: 'admin',
+      created_at: new Date(),
+      updated_at: new Date()
+    },
+    permissions: [
+      // Add permissions for all modules
+      ...['dashboard', 'consultants', 'clients', 'projects', 'services', 
+          'tags', 'kpis', 'okrs', 'financial', 'activities', 
+          'notes', 'chat', 'reports', 'settings'].map(module => ({
+        id: `${module}-permission`,
+        user_id: 'default-admin-id',
+        module_name: module,
+        can_view: true,
+        can_edit: true,
+        created_at: new Date(),
+        updated_at: new Date()
+      }))
+    ]
+  };
+  
+  const [user, setUser] = useState<AuthUser | null>(defaultUser);
+  const [loading, setLoading] = useState(false); // Set loading to false immediately
 
   const refreshUser = async () => {
-    try {
-      const userData = await getCurrentUser();
-      console.log("User data refreshed:", userData);
-      setUser(userData);
-      return userData;
-    } catch (error) {
-      console.error('Erro ao atualizar dados do usuário:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível atualizar os dados do usuário",
-      });
-      return null;
-    }
+    // In bypass mode, always return the default user
+    return defaultUser;
   };
 
-  useEffect(() => {
-    async function loadUser() {
-      try {
-        await refreshUser();
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    loadUser();
-
-    // Configurar listener para alterações na autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log("Auth state changed:", event);
-        if (event === 'SIGNED_IN') {
-          await refreshUser();
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-        }
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+  // No need to listen for auth state changes or load user data
+  // We're bypassing authentication entirely
 
   const checkPermission = (moduleName: string, actionType: 'view' | 'edit'): boolean => {
-    return hasPermission(user, moduleName, actionType);
+    // In bypass mode, all permissions are granted
+    return true;
   };
 
   return (

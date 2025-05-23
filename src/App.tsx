@@ -30,27 +30,13 @@ import ReportsCalendar from "./components/reports/ReportsCalendar";
 import ReportsKanban from "./components/reports/ReportsKanban";
 import ReportsGantt from "./components/reports/ReportsGantt";
 
-// Componente de proteção de rotas que verifica autenticação
+// Modified to always render children without authentication check
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
-  const location = useLocation();
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
-  }
-
+  // No authentication check, always render children
   return <>{children}</>;
 };
 
-// Componente de verificação de permissão para módulos específicos
+// Modified to always grant permission without checks
 const PermissionRoute = ({ 
   children, 
   moduleName, 
@@ -60,37 +46,7 @@ const PermissionRoute = ({
   moduleName: string;
   actionType?: 'view' | 'edit';
 }) => {
-  const { checkPermission, user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
-  }
-
-  // Se não estiver autenticado, redireciona para login
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  // Verifica permissão para o módulo
-  const hasPermission = checkPermission(moduleName, actionType);
-
-  if (!hasPermission) {
-    return (
-      <Layout>
-        <div className="flex flex-col items-center justify-center h-[60vh] text-center">
-          <h2 className="text-2xl font-bold mb-2">Acesso restrito</h2>
-          <p className="text-muted-foreground mb-4">
-            Você não possui permissão para acessar este módulo.
-          </p>
-        </div>
-      </Layout>
-    );
-  }
-
+  // No permission check, always allow access
   return <>{children}</>;
 };
 
@@ -104,110 +60,63 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Rotas de autenticação públicas */}
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/admin-setup" element={<AdminSetup />} />
+            {/* Redirect from auth to dashboard */}
+            <Route path="/auth" element={<Navigate to="/" replace />} />
+            <Route path="/admin-setup" element={<Navigate to="/" replace />} />
             
-            {/* Rotas protegidas */}
+            {/* Always render the dashboard directly */}
             <Route path="/" element={
-              <ProtectedRoute>
-                <Layout><Index /></Layout>
-              </ProtectedRoute>
+              <Layout><Index /></Layout>
             } />
             
+            {/* Other routes without authentication checks */}
             <Route path="/consultants" element={
-              <PermissionRoute moduleName="consultants">
-                <Layout>
-                  <ConsultantList />
-                </Layout>
-              </PermissionRoute>
+              <Layout><ConsultantList /></Layout>
             } />
             
             <Route path="/clients" element={
-              <PermissionRoute moduleName="clients">
-                <Layout>
-                  <ClientList />
-                </Layout>
-              </PermissionRoute>
+              <Layout><ClientList /></Layout>
             } />
             
             <Route path="/projects" element={
-              <PermissionRoute moduleName="projects">
-                <Layout>
-                  <ProjectList />
-                </Layout>
-              </PermissionRoute>
+              <Layout><ProjectList /></Layout>
             } />
             
             <Route path="/services" element={
-              <PermissionRoute moduleName="services">
-                <Layout>
-                  <ServiceList />
-                </Layout>
-              </PermissionRoute>
+              <Layout><ServiceList /></Layout>
             } />
             
             <Route path="/tags" element={
-              <PermissionRoute moduleName="tags">
-                <Layout>
-                  <TagList />
-                </Layout>
-              </PermissionRoute>
+              <Layout><TagList /></Layout>
             } />
             
             <Route path="/kpis" element={
-              <PermissionRoute moduleName="kpis">
-                <Layout>
-                  <KpiList />
-                </Layout>
-              </PermissionRoute>
+              <Layout><KpiList /></Layout>
             } />
             
             <Route path="/okrs" element={
-              <PermissionRoute moduleName="okrs">
-                <Layout>
-                  <OkrList />
-                </Layout>
-              </PermissionRoute>
+              <Layout><OkrList /></Layout>
             } />
             
             <Route path="/financial" element={
-              <PermissionRoute moduleName="financial">
-                <Layout>
-                  <FinancialPage />
-                </Layout>
-              </PermissionRoute>
+              <Layout><FinancialPage /></Layout>
             } />
             
             <Route path="/activities" element={
-              <PermissionRoute moduleName="activities">
-                <Layout>
-                  <ActivitiesList />
-                </Layout>
-              </PermissionRoute>
+              <Layout><ActivitiesList /></Layout>
             } />
             
             <Route path="/notes" element={
-              <PermissionRoute moduleName="notes">
-                <Layout>
-                  <NotesPage />
-                </Layout>
-              </PermissionRoute>
+              <Layout><NotesPage /></Layout>
             } />
             
             <Route path="/chat" element={
-              <PermissionRoute moduleName="chat">
-                <Layout>
-                  <ChatPage />
-                </Layout>
-              </PermissionRoute>
+              <Layout><ChatPage /></Layout>
             } />
             
             {/* Reports routes */}
             <Route path="/reports" element={
-              <PermissionRoute moduleName="reports">
-                <Layout><ReportsLayout /></Layout>
-              </PermissionRoute>
+              <Layout><ReportsLayout /></Layout>
             }>
               <Route index element={<Navigate to="/reports/calendar" replace />} />
               <Route path="calendar" element={<ReportsCalendar />} />
@@ -216,11 +125,7 @@ const App = () => (
             </Route>
             
             <Route path="/settings" element={
-              <PermissionRoute moduleName="settings">
-                <Layout>
-                  <SettingsPage />
-                </Layout>
-              </PermissionRoute>
+              <Layout><SettingsPage /></Layout>
             } />
             
             <Route path="*" element={<NotFound />} />
