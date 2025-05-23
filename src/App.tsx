@@ -18,6 +18,7 @@ import Layout from "./components/layout/Layout";
 import ActivitiesList from "./components/activities/ActivitiesList";
 import SettingsPage from "./components/settings/SettingsPage";
 import ClientList from "./components/clients/ClientList";
+import FinancialPage from "./components/financial/FinancialPage";
 
 // Import reports components
 import ReportsLayout from "./components/reports/ReportsLayout";
@@ -68,6 +69,11 @@ const App = () => (
           <Route path="/okrs" element={
             <Layout>
               <OkrList />
+            </Layout>
+          } />
+          <Route path="/financial" element={
+            <Layout>
+              <FinancialPage />
             </Layout>
           } />
           <Route path="/activities" element={
