@@ -20,14 +20,14 @@ import { ConsultantForm } from './ConsultantForm';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
 import { Tables } from '@/integrations/supabase/types';
-import { Progress } from "@/components/ui/progress";
-import { calculateConsultantPerformance } from "@/integrations/supabase/indicators";
+import { fetchConsultants, calculateConsultantAvailableHours } from "@/integrations/supabase/consultants";
 
 export type Consultant = {
   id: string;
   name: string;
   email: string;
   hoursPerMonth: number;
+  availableHours?: number;
   phone?: string;
   commissionPercentage?: number;
   salary?: number;
@@ -39,7 +39,6 @@ export type Consultant = {
   education?: string;
   services: string[];
   activeProjects?: number;
-  performance?: number;
 };
 
 // Helper to map database model to frontend model
@@ -60,7 +59,7 @@ const mapConsultantFromDB = (consultant: Tables<"consultants"> & { services?: st
     education: consultant.education || '',
     services: consultant.services || [],
     activeProjects: 0, // Default value since we don't have projects implemented yet
-    performance: 0, // Default value since we don't have performance metrics yet
+    availableHours: 0, // Will be calculated later
   };
 };
 
@@ -69,13 +68,13 @@ export const ConsultantList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingConsultant, setEditingConsultant] = useState<Consultant | null>(null);
-  const [performances, setPerformances] = useState<{[key: string]: number}>({});
+  const [availableHours, setAvailableHours] = useState<{[key: string]: number}>({});
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   
   // Fetch consultants from database
   useEffect(() => {
-    const fetchConsultants = async () => {
+    const fetchConsultantsData = async () => {
       try {
         setIsLoading(true);
         // Fetch consultants
@@ -107,7 +106,21 @@ export const ConsultantList: React.FC = () => {
           })
         );
         
-        setConsultants(consultantsWithServices.map(mapConsultantFromDB));
+        // Map consultants and calculate available hours
+        const mappedConsultants = consultantsWithServices.map(mapConsultantFromDB);
+        setConsultants(mappedConsultants);
+
+        // Calculate available hours for each consultant
+        const hoursMap: {[key: string]: number} = {};
+        for (const consultant of mappedConsultants) {
+          const hours = await calculateConsultantAvailableHours(
+            consultant.id, 
+            consultant.hoursPerMonth
+          );
+          hoursMap[consultant.id] = hours;
+        }
+        
+        setAvailableHours(hoursMap);
       } catch (error) {
         console.error('Error fetching consultants:', error);
         toast({
@@ -120,25 +133,8 @@ export const ConsultantList: React.FC = () => {
       }
     };
 
-    fetchConsultants();
+    fetchConsultantsData();
   }, [toast]);
-  
-  useEffect(() => {
-    const loadPerformances = async () => {
-      if (!consultants || consultants.length === 0) return;
-      
-      const performanceMap: {[key: string]: number} = {};
-      
-      for (const consultant of consultants) {
-        const performance = await calculateConsultantPerformance(consultant.id);
-        performanceMap[consultant.id] = performance;
-      }
-      
-      setPerformances(performanceMap);
-    };
-    
-    loadPerformances();
-  }, [consultants]);
   
   const filteredConsultants = consultants.filter(consultant => 
     consultant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -331,7 +327,7 @@ export const ConsultantList: React.FC = () => {
                     <TableHead>Email</TableHead>
                     <TableHead>Horas/Mês</TableHead>
                     <TableHead>Projetos</TableHead>
-                    <TableHead>Performance</TableHead>
+                    <TableHead>Horas Livres</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -350,12 +346,9 @@ export const ConsultantList: React.FC = () => {
                         <TableCell>{consultant.hoursPerMonth}h</TableCell>
                         <TableCell>{consultant.activeProjects || 0}</TableCell>
                         <TableCell>
-                          <div className="flex flex-col gap-1">
-                            <div className="flex justify-between text-xs">
-                              <span>{performances[consultant.id] || 0}%</span>
-                            </div>
-                            <Progress value={performances[consultant.id] || 0} />
-                          </div>
+                          {availableHours[consultant.id] !== undefined ? 
+                            `${availableHours[consultant.id]}h` : 
+                            `${consultant.hoursPerMonth}h`}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="icon" onClick={() => handleEditConsultant(consultant)}>

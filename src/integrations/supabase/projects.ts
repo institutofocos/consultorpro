@@ -144,3 +144,51 @@ export const assignConsultantsToDemand = async (
     throw error;
   }
 };
+
+// New function to assign consultant to a specific stage
+export const assignConsultantToStage = async (
+  projectId: string,
+  stageId: string,
+  consultantId: string | null
+) => {
+  try {
+    // First, fetch the current project
+    const { data: projectData, error: fetchError } = await supabase
+      .from('projects')
+      .select('stages')
+      .eq('id', projectId)
+      .single();
+    
+    if (fetchError) throw fetchError;
+    if (!projectData) throw new Error('Project not found');
+    
+    // Parse the stages
+    const stages = typeof projectData.stages === 'string' 
+      ? JSON.parse(projectData.stages) 
+      : projectData.stages;
+    
+    if (!Array.isArray(stages)) {
+      throw new Error('Invalid stages format');
+    }
+    
+    // Find and update the specific stage
+    const updatedStages = stages.map(stage => {
+      if (stage.id === stageId) {
+        return { ...stage, consultantId };
+      }
+      return stage;
+    });
+    
+    // Update the project with the modified stages
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({ stages: updatedStages })
+      .eq('id', projectId);
+    
+    if (updateError) throw updateError;
+    return updatedStages;
+  } catch (error) {
+    console.error('Error assigning consultant to stage:', error);
+    throw error;
+  }
+};

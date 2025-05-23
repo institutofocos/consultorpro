@@ -45,6 +45,8 @@ export interface Stage {
   consultantsSettled?: boolean;
   consultantPaid: boolean;
   attachment?: string;
+  consultantId?: string; // Added consultantId field for stage-specific consultant
+  consultantName?: string;
 }
 
 export interface Consultant {
@@ -61,4 +63,5 @@ export interface Consultant {
   state?: string;
   zipCode?: string;
   education?: string;
+  availableHours?: number; // Added available hours field
 }
