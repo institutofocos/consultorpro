@@ -4,6 +4,9 @@ export interface Project {
   name: string;
   description: string;
   serviceId?: string;
+  serviceName?: string;
+  clientId?: string;
+  clientName?: string;
   mainConsultantId: string;
   mainConsultantName?: string;
   mainConsultantPixKey?: string;

@@ -18,7 +18,8 @@ import {
   Check,
   Clock,
   Eye,
-  Tag
+  Tag,
+  Filter
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +29,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
 import { Project, Stage } from './types';
 import { updateProject } from '@/integrations/supabase/projects';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { fetchClients } from '@/integrations/supabase/clients';
+import { fetchServices } from '@/integrations/supabase/services';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 // Use export type for re-exporting types when isolatedModules is enabled
 export type { Project, Stage };
@@ -42,21 +56,61 @@ export const ProjectList: React.FC = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   
+  // New state for filters
+  const [consultantFilter, setConsultantFilter] = useState<string>("");
+  const [clientFilter, setClientFilter] = useState<string>("");
+  const [serviceFilter, setServiceFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [startDateFilter, setStartDateFilter] = useState<Date | undefined>(undefined);
+  const [endDateFilter, setEndDateFilter] = useState<Date | undefined>(undefined);
+  
+  // State for filter data options
+  const [consultants, setConsultants] = useState<{id: string, name: string}[]>([]);
+  const [clients, setClients] = useState<{id: string, name: string}[]>([]);
+  const [services, setServices] = useState<{id: string, name: string}[]>([]);
+  
   useEffect(() => {
     fetchProjects();
+    fetchFilterData();
   }, []);
+
+  const fetchFilterData = async () => {
+    try {
+      // Fetch consultants
+      const { data: consultantsData, error: consultantsError } = await supabase
+        .from('consultants')
+        .select('id, name')
+        .order('name');
+      
+      if (consultantsError) throw consultantsError;
+      setConsultants(consultantsData || []);
+      
+      // Fetch clients
+      const clientsData = await fetchClients();
+      setClients(clientsData);
+      
+      // Fetch services
+      const servicesData = await fetchServices();
+      setServices(servicesData);
+      
+    } catch (error) {
+      console.error('Error fetching filter data:', error);
+    }
+  };
 
   const fetchProjects = async () => {
     try {
       setIsLoading(true);
       
-      // Fetch projects from Supabase with properly aliased consultant references
+      // Fetch projects from Supabase with properly aliased consultant references and client, service info
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select(`
           *,
           main_consultant:consultants!main_consultant_id(id, name, pix_key, commission_percentage),
-          support_consultant:consultants!support_consultant_id(id, name, pix_key, commission_percentage)
+          support_consultant:consultants!support_consultant_id(id, name, pix_key, commission_percentage),
+          client:clients(id, name),
+          service:services(id, name)
         `);
       
       if (projectsError) throw projectsError;
@@ -89,6 +143,9 @@ export const ProjectList: React.FC = () => {
             name: project.name,
             description: project.description || '',
             serviceId: project.service_id,
+            serviceName: project.service?.name,
+            clientId: project.client_id,
+            clientName: project.client?.name,
             mainConsultantId: project.main_consultant_id,
             // Using optional chaining to safely access nested properties
             mainConsultantName: project.main_consultant?.name || 'Não especificado',
@@ -134,30 +191,7 @@ export const ProjectList: React.FC = () => {
     if (editingProject) {
       // Update existing project in Supabase
       try {
-        const { error } = await supabase
-          .from('projects')
-          .update({
-            name: project.name,
-            description: project.description,
-            service_id: project.serviceId || null, // Para aceitar valor vazio ou nulo
-            main_consultant_id: project.mainConsultantId,
-            main_consultant_commission: project.mainConsultantCommission,
-            support_consultant_id: project.supportConsultantId || null, // Para aceitar valor vazio ou nulo
-            support_consultant_commission: project.supportConsultantCommission,
-            start_date: project.startDate,
-            end_date: project.endDate,
-            total_value: project.totalValue,
-            tax_percent: project.taxPercent,
-            third_party_expenses: project.thirdPartyExpenses,
-            main_consultant_value: project.consultantValue,
-            support_consultant_value: project.supportConsultantValue,
-            status: project.status,
-            stages: project.stages,
-            tags: project.tags || []
-          })
-          .eq('id', editingProject.id);
-
-        if (error) throw error;
+        await updateProject(project);
         
         toast({
           title: "Sucesso",
@@ -183,6 +217,7 @@ export const ProjectList: React.FC = () => {
             name: project.name,
             description: project.description,
             service_id: project.serviceId || null, // Para aceitar valor vazio ou nulo
+            client_id: project.clientId || null,
             main_consultant_id: project.mainConsultantId,
             main_consultant_commission: project.mainConsultantCommission,
             support_consultant_id: project.supportConsultantId || null, // Para aceitar valor vazio ou nulo
@@ -263,6 +298,17 @@ export const ProjectList: React.FC = () => {
     setSelectedProject(null);
   };
 
+  // Reset all filters
+  const resetFilters = () => {
+    setConsultantFilter("");
+    setClientFilter("");
+    setServiceFilter("");
+    setStatusFilter("");
+    setStartDateFilter(undefined);
+    setEndDateFilter(undefined);
+    setSearchTerm("");
+  };
+
   // Format currency
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -280,13 +326,41 @@ export const ProjectList: React.FC = () => {
     return totalValue - consultantValue - supportConsultantValue - thirdPartyExpenses;
   };
   
-  const filteredProjects = projects.filter(project => 
-    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.mainConsultantName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    // Also search by tags, safely handling potential undefined
-    (project.tags && project.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
-  );
+  const filteredProjects = projects.filter(project => {
+    // First filter by search term
+    const matchesSearch = 
+      !searchTerm || 
+      project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      project.mainConsultantName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      project.serviceName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      project.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (project.tags && project.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())));
+    
+    // Then apply all other filters
+    const matchesConsultant = !consultantFilter || 
+                              project.mainConsultantId === consultantFilter || 
+                              project.supportConsultantId === consultantFilter;
+    
+    const matchesClient = !clientFilter || project.clientId === clientFilter;
+    
+    const matchesService = !serviceFilter || project.serviceId === serviceFilter;
+    
+    const matchesStatus = !statusFilter || project.status === statusFilter;
+    
+    // Date range filtering
+    let matchesDateRange = true;
+    if (startDateFilter) {
+      const projectStartDate = new Date(project.startDate);
+      matchesDateRange = matchesDateRange && projectStartDate >= startDateFilter;
+    }
+    if (endDateFilter) {
+      const projectEndDate = new Date(project.endDate);
+      matchesDateRange = matchesDateRange && projectEndDate <= endDateFilter;
+    }
+    
+    return matchesSearch && matchesConsultant && matchesClient && matchesService && matchesStatus && matchesDateRange;
+  });
   
   return (
     <div className="space-y-8 animate-fade-in">
@@ -322,6 +396,137 @@ export const ProjectList: React.FC = () => {
                 className="pl-10"
               />
             </div>
+
+            {/* Filter Popover */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  Filtrar
+                  {(consultantFilter || clientFilter || serviceFilter || statusFilter || startDateFilter || endDateFilter) && (
+                    <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center">
+                      {[consultantFilter, clientFilter, serviceFilter, statusFilter, startDateFilter, endDateFilter].filter(Boolean).length}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
+                <div className="grid gap-4">
+                  <h4 className="font-medium">Filtros</h4>
+                  
+                  <div className="grid gap-2">
+                    <label className="text-sm">Consultor</label>
+                    <Select value={consultantFilter} onValueChange={setConsultantFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Todos</SelectItem>
+                        {consultants.map(consultant => (
+                          <SelectItem key={consultant.id} value={consultant.id}>
+                            {consultant.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="grid gap-2">
+                    <label className="text-sm">Cliente</label>
+                    <Select value={clientFilter} onValueChange={setClientFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Todos</SelectItem>
+                        {clients.map(client => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="grid gap-2">
+                    <label className="text-sm">Serviço</label>
+                    <Select value={serviceFilter} onValueChange={setServiceFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Todos</SelectItem>
+                        {services.map(service => (
+                          <SelectItem key={service.id} value={service.id}>
+                            {service.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="grid gap-2">
+                    <label className="text-sm">Status</label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Todos</SelectItem>
+                        <SelectItem value="planned">Planejado</SelectItem>
+                        <SelectItem value="active">Em Andamento</SelectItem>
+                        <SelectItem value="completed">Concluído</SelectItem>
+                        <SelectItem value="cancelled">Cancelado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="grid gap-2">
+                    <label className="text-sm">Data de Início</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline">
+                          {startDateFilter ? format(startDateFilter, 'dd/MM/yyyy', { locale: ptBR }) : "Selecionar..."}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={startDateFilter}
+                          onSelect={setStartDateFilter}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  
+                  <div className="grid gap-2">
+                    <label className="text-sm">Data de Término</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline">
+                          {endDateFilter ? format(endDateFilter, 'dd/MM/yyyy', { locale: ptBR }) : "Selecionar..."}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={endDateFilter}
+                          onSelect={setEndDateFilter}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <Button variant="ghost" onClick={resetFilters}>Limpar Filtros</Button>
+                    <Button onClick={() => document.body.click()}>Aplicar</Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
             <Button onClick={() => setShowForm(true)} className="w-full md:w-auto">
               <PlusCircle className="mr-2 h-4 w-4" />
               Adicionar Projeto
@@ -337,6 +542,8 @@ export const ProjectList: React.FC = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Projeto</TableHead>
+                    <TableHead>Serviço</TableHead>
+                    <TableHead>Cliente</TableHead>
                     <TableHead>Consultor</TableHead>
                     <TableHead>Valor Total</TableHead>
                     <TableHead>Valor Líquido</TableHead>
@@ -349,7 +556,7 @@ export const ProjectList: React.FC = () => {
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                         Carregando projetos...
                       </TableCell>
                     </TableRow>
@@ -357,10 +564,10 @@ export const ProjectList: React.FC = () => {
                     filteredProjects.map((project) => (
                       <TableRow key={project.id}>
                         <TableCell>
-                          <div>
-                            <div className="font-medium">{project.name}</div>
-                          </div>
+                          <div className="font-medium">{project.name}</div>
                         </TableCell>
+                        <TableCell>{project.serviceName || "Não especificado"}</TableCell>
+                        <TableCell>{project.clientName || "Não especificado"}</TableCell>
                         <TableCell>{project.mainConsultantName}</TableCell>
                         <TableCell>{formatCurrency(project.totalValue)}</TableCell>
                         <TableCell>{formatCurrency(calculateNetValue(project))}</TableCell>
@@ -395,6 +602,11 @@ export const ProjectList: React.FC = () => {
                               Planejado
                             </Badge>
                           )}
+                          {project.status === 'cancelled' && (
+                            <Badge variant="destructive">
+                              Cancelado
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
@@ -425,7 +637,7 @@ export const ProjectList: React.FC = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                         Nenhum projeto encontrado
                       </TableCell>
                     </TableRow>

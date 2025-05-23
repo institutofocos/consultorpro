@@ -1,7 +1,9 @@
 
 import { supabase } from "./client";
+import { Project } from "@/components/projects/types";
+import { fetchTags } from "./projects";
 
-export const updateProject = async (project: any) => {
+export const updateProject = async (project: Project) => {
   try {
     const { error } = await supabase
       .from('projects')
@@ -9,6 +11,7 @@ export const updateProject = async (project: any) => {
         name: project.name,
         description: project.description,
         service_id: project.serviceId || null,
+        client_id: project.clientId || null,
         main_consultant_id: project.mainConsultantId,
         main_consultant_commission: project.mainConsultantCommission,
         support_consultant_id: project.supportConsultantId || null,
