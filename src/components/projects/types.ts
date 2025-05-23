@@ -1,3 +1,4 @@
+
 export interface Project {
   id: string;
   name: string;
@@ -37,4 +38,20 @@ export interface Stage {
   clientApproved: boolean;
   consultantPaid: boolean;
   attachment?: string;
+}
+
+export interface Consultant {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  hoursPerMonth?: number;
+  commissionPercentage?: number;
+  salary?: number;
+  pixKey?: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  education?: string;
 }
