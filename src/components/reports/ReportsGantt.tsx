@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Users } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -18,6 +17,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays, differenceInDays, startOfMonth, endOfMonth, addMonths } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { Progress } from "@/components/ui/progress";
 
 export default function ReportsGantt() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -37,6 +37,9 @@ export default function ReportsGantt() {
   const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date()));
   const [dateRange, setDateRange] = useState<Date[]>([]);
   const [chartWidth, setChartWidth] = useState<number>(0);
+
+  // Day cell width in pixels - This is a crucial parameter for proper alignment
+  const DAY_CELL_WIDTH = 30; // Increased from 25px to 30px for better spacing
 
   useEffect(() => {
     // Update the period based on selected time period and date
@@ -59,7 +62,7 @@ export default function ReportsGantt() {
       currentDate = addDays(currentDate, 1);
     }
     setDateRange(range);
-    setChartWidth(range.length * 25); // Each day is 25px wide
+    setChartWidth(range.length * DAY_CELL_WIDTH); // Each day has fixed width
   }, [startDate, endDate]);
 
   useEffect(() => {
@@ -149,6 +152,7 @@ export default function ReportsGantt() {
   };
 
   const applyFilters = () => {
+    // ... keep existing code (filtering logic)
     let filtered = [...projects];
     
     // Filter by consultant
@@ -301,21 +305,25 @@ export default function ReportsGantt() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              {/* Gantt chart container */}
-              <div style={{ minWidth: `max(100%, ${chartWidth}px)` }}>
-                {/* Gantt chart header */}
+              {/* Gantt chart container - Use fixed width grid layout */}
+              <div className="min-w-full" style={{ minWidth: `max(100%, ${chartWidth + 250}px)` }}>
+                {/* Gantt chart header - Fixed positioning */}
                 <div className="flex mb-4 sticky top-0 bg-white z-10 border-b pb-2">
-                  <div className="w-64 pr-4 font-medium">Projeto</div>
-                  <div className="flex-1 relative">
-                    <div className="flex absolute inset-0">
+                  {/* Fixed width for project name column */}
+                  <div className="w-[250px] pr-4 font-medium">Projeto</div>
+                  
+                  {/* Dates header with fixed width cells */}
+                  <div className="flex-1 grid grid-cols-1">
+                    <div className="flex">
                       {dateRange.map((date, i) => (
                         <div 
                           key={i} 
-                          className={`w-[25px] flex-shrink-0 text-center text-xs border-r border-gray-200 ${
-                            date.getDate() === 1 ? 'font-medium border-l border-gray-300' : ''
-                          } ${
-                            date.getDay() === 0 || date.getDay() === 6 ? 'bg-gray-50' : ''
-                          }`}
+                          className={`
+                            flex-shrink-0 text-center text-xs border-r border-gray-200
+                            ${date.getDate() === 1 ? 'font-medium border-l border-gray-300' : ''}
+                            ${date.getDay() === 0 || date.getDay() === 6 ? 'bg-gray-50' : ''}
+                          `}
+                          style={{ width: `${DAY_CELL_WIDTH}px` }}
                         >
                           {date.getDate() === 1 || i === 0 ? format(date, 'dd/MM', { locale: pt }) : date.getDate()}
                         </div>
@@ -330,15 +338,31 @@ export default function ReportsGantt() {
                     <div key={project.id} className="space-y-1 pb-4 border-b border-dashed">
                       {/* Project row */}
                       <div className="flex items-center h-10">
-                        <div className="w-64 pr-4 truncate">
-                          <div className="font-medium">{project.name}</div>
+                        <div className="w-[250px] pr-4">
+                          <div className="font-medium truncate">{project.name}</div>
                           <div className="text-xs text-muted-foreground flex items-center gap-1">
                             <span className="inline-block w-2 h-2 rounded-full bg-gray-400"></span>
                             {project.clients?.name}
                           </div>
                         </div>
+                        
+                        {/* Project timeline container with fixed positioning */}
                         <div className="flex-1 relative h-8">
-                          {/* Project timeline bar */}
+                          <div className="absolute inset-0 flex">
+                            {/* Background vertical grid lines for dates */}
+                            {dateRange.map((date, i) => (
+                              <div
+                                key={i}
+                                className={`
+                                  flex-shrink-0 border-r border-gray-100
+                                  ${date.getDay() === 0 || date.getDay() === 6 ? 'bg-gray-50' : ''}
+                                `}
+                                style={{ width: `${DAY_CELL_WIDTH}px` }}
+                              />
+                            ))}
+                          </div>
+                          
+                          {/* Project timeline bar with absolute positioning */}
                           <div 
                             className={`absolute top-1/2 -translate-y-1/2 h-6 rounded-md ${getStatusColor(project.status)}`}
                             style={{
@@ -357,14 +381,30 @@ export default function ReportsGantt() {
                       {/* Stage rows */}
                       {project.stages && project.stages.map((stage: any, idx: number) => (
                         <div key={idx} className="flex items-center pl-8 h-6">
-                          <div className="w-64 pr-4 truncate">
-                            <div className="text-sm">{stage.name}</div>
+                          <div className="w-[242px] pr-4">
+                            <div className="text-sm truncate">{stage.name}</div>
                             <div className="text-xs text-muted-foreground">
                               {stage.days} dias {stage.completed && '(Concluída)'}
                             </div>
                           </div>
+                          
+                          {/* Stage timeline container with fixed positioning */}
                           <div className="flex-1 relative h-6">
-                            {/* Stage timeline bar */}
+                            <div className="absolute inset-0 flex">
+                              {/* Background vertical grid lines for dates */}
+                              {dateRange.map((date, i) => (
+                                <div
+                                  key={i}
+                                  className={`
+                                    flex-shrink-0 border-r border-gray-100
+                                    ${date.getDay() === 0 || date.getDay() === 6 ? 'bg-gray-50' : ''}
+                                  `}
+                                  style={{ width: `${DAY_CELL_WIDTH}px` }}
+                                />
+                              ))}
+                            </div>
+                            
+                            {/* Stage timeline bar with absolute positioning */}
                             <div 
                               className={`absolute top-1/2 -translate-y-1/2 h-4 rounded-sm ${stage.completed ? 'bg-green-600' : 'bg-gray-600'} bg-opacity-70`}
                               style={{
