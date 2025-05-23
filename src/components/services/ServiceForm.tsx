@@ -226,9 +226,16 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
     setSelectedTags(selectedTags.filter(id => id !== tagId));
   };
   
+  // Fix validation to properly compare the hours
+  const compareHours = (a: number, b: number) => {
+    return Math.abs(a - b) < 0.001;
+  };
+  
   const onSubmit = async (data: ServiceFormValues) => {
     // Fix validation to properly compare the hours
-    if (Math.abs(currentTotalStageHours - totalHours) > 0.001) {
+    const currentTotalStageHours = stages.reduce((sum, stage) => sum + stage.hours, 0);
+    
+    if (!compareHours(currentTotalStageHours, totalHours)) {
       toast.error(`A soma das horas das etapas (${currentTotalStageHours}h) deve ser igual ao total definido (${totalHours}h)`);
       return;
     }
@@ -240,37 +247,66 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
     }
     
     // Ensure we have a value for totalValue
-    const finalTotalValue = data.totalValue || calculatedTotalValue;
+    const finalTotalValue = data.totalValue || (data.hourlyRate || 0) * data.totalHours;
+
+    // Calculate net value
+    const taxAmount = finalTotalValue * (data.taxRate / 100);
+    const calculatedNetValue = finalTotalValue - taxAmount - (data.extraCosts || 0);
 
     // Save to database
     try {
       const serviceData = {
         name: data.name,
         description: data.description,
-        totalHours: data.totalHours,
-        hourlyRate: data.hourlyRate || finalTotalValue / data.totalHours,
-        totalValue: finalTotalValue,
-        taxRate: data.taxRate,
-        extraCosts: data.extraCosts,
-        netValue: netValue,
-        // Converting stages to JSON for storage
-        stages: JSON.stringify(stages)
+        total_hours: data.totalHours,
+        hourly_rate: data.hourlyRate || finalTotalValue / data.totalHours,
+        total_value: finalTotalValue,
+        tax_rate: data.taxRate,
+        extra_costs: data.extraCosts || 0,
+        net_value: calculatedNetValue,
+        stages: stages // Will be automatically converted to JSON
       };
       
-      // For TypeScript to be happy, we use 'any' here since our types.ts doesn't include 
-      // the services table definition that would normally come from Supabase
-      const { data: savedService, error } = await (supabase as any)
-        .from('services')
-        .insert([serviceData])
-        .select('id')
-        .single();
-        
-      if (error) throw error;
+      console.log('Saving service data:', serviceData);
+      
+      // For new service
+      let savedServiceId;
+      
+      if (service) {
+        // Update existing service
+        const { data: updatedService, error } = await supabase
+          .from('services')
+          .update(serviceData)
+          .eq('id', service.id)
+          .select('id')
+          .single();
+          
+        if (error) throw error;
+        savedServiceId = updatedService.id;
+      } else {
+        // Insert new service
+        const { data: newService, error } = await supabase
+          .from('services')
+          .insert([serviceData])
+          .select('id')
+          .single();
+          
+        if (error) throw error;
+        savedServiceId = newService.id;
+      }
       
       // If we have tags, save the service-tag relationships
       if (selectedTags.length > 0) {
+        // First delete existing tags if updating
+        if (service) {
+          await supabase
+            .from('service_tags')
+            .delete()
+            .eq('service_id', savedServiceId);
+        }
+        
         const serviceTags = selectedTags.map(tagId => ({
-          service_id: savedService.id,
+          service_id: savedServiceId,
           tag_id: tagId
         }));
         
@@ -288,7 +324,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
         ...data,
         totalValue: finalTotalValue, 
         stages,
-        netValue,
+        netValue: calculatedNetValue,
         tags: selectedTags
       });
       

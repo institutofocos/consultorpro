@@ -38,6 +38,51 @@ export type Database = {
           },
         ]
       }
+      services: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          extra_costs: number | null
+          hourly_rate: number | null
+          id: string
+          name: string
+          net_value: number | null
+          stages: Json | null
+          tax_rate: number
+          total_hours: number
+          total_value: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          extra_costs?: number | null
+          hourly_rate?: number | null
+          id?: string
+          name: string
+          net_value?: number | null
+          stages?: Json | null
+          tax_rate?: number
+          total_hours: number
+          total_value?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          extra_costs?: number | null
+          hourly_rate?: number | null
+          id?: string
+          name?: string
+          net_value?: number | null
+          stages?: Json | null
+          tax_rate?: number
+          total_hours?: number
+          total_value?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       tags: {
         Row: {
           created_at: string
