@@ -18,6 +18,7 @@ import Layout from "./components/layout/Layout";
 import ActivitiesList from "./components/activities/ActivitiesList";
 import ReportsList from "./components/reports/ReportsList";
 import SettingsPage from "./components/settings/SettingsPage";
+import ClientList from "./components/clients/ClientList";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,11 @@ const App = () => (
           <Route path="/consultants" element={
             <Layout>
               <ConsultantList />
+            </Layout>
+          } />
+          <Route path="/clients" element={
+            <Layout>
+              <ClientList />
             </Layout>
           } />
           <Route path="/projects" element={

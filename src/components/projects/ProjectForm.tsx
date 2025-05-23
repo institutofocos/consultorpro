@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -20,54 +21,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { PlusCircle, X, AlertCircle, Edit2, Calendar } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { ServiceStage } from "../services/types";
-import { format } from "date-fns";
-
-// Mock clients for select
-const mockClients = [
-  { id: 1, name: 'Empresa ABC Ltda.' },
-  { id: 2, name: 'XYZ Consultoria' },
-  { id: 3, name: 'Tech Solutions S.A.' },
-  { id: 4, name: 'Indústrias Nova Era' },
-  { id: 5, name: 'Comércio Global Ltda.' },
-];
-
-// Mock consultants for select
-const mockConsultants = [
-  { id: 1, name: 'Ana Silva' },
-  { id: 2, name: 'Carlos Mendes' },
-  { id: 3, name: 'Patricia Lemos' },
-  { id: 4, name: 'Roberto Gomes' },
-  { id: 5, name: 'Juliana Alves' },
-];
-
-// Mock KPIs for select
-const mockKpis = [
-  { id: 1, name: 'Satisfação do cliente', pillar: 'Qualidade' },
-  { id: 2, name: 'ROI do projeto', pillar: 'Financeiro' },
-  { id: 3, name: 'Cumprimento de prazos', pillar: 'Processos' },
-  { id: 4, name: 'Inovação implementada', pillar: 'Inovação' },
-];
-
-// Mock OKRs for select
-const mockOkrs = [
-  { id: 1, name: 'Aumentar satisfação do cliente em 15%' },
-  { id: 2, name: 'Reduzir custos operacionais em 20%' },
-  { id: 3, name: 'Implementar novo sistema em 6 meses' },
-];
+import { ServiceStage, BasicService } from "../services/types";
 
 const formSchema = z.object({
   name: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }),
   description: z.string().min(10, { message: 'Descrição deve ter pelo menos 10 caracteres' }),
   client: z.string({ required_error: 'Selecione um cliente' }),
   service: z.string().optional(),
-  mainConsultant: z.string({ required_error: 'Selecione um consultor' }),
+  mainConsultant: z.string({ required_error: 'Selecione um consultor principal' }),
+  supportConsultant: z.string().optional(),
   startDate: z.string(),
   endDate: z.string(),
   totalValue: z.coerce.number().positive({ message: 'Valor deve ser maior que 0' }),
   taxPercent: z.coerce.number().min(0).max(100),
   thirdPartyExpenses: z.coerce.number().min(0),
-  consultantValue: z.coerce.number().min(0),
+  mainConsultantValue: z.coerce.number().min(0),
+  supportConsultantValue: z.coerce.number().min(0).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -87,9 +56,12 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
   const [totalValue, setTotalValue] = useState(project?.totalValue || 0);
   const [taxPercent, setTaxPercent] = useState(project?.taxPercent || 16);
   const [thirdPartyExpenses, setThirdPartyExpenses] = useState(project?.thirdPartyExpenses || 0);
-  const [consultantValue, setConsultantValue] = useState(project?.consultantValue || 0);
+  const [mainConsultantValue, setMainConsultantValue] = useState(project?.mainConsultantValue || 0);
+  const [supportConsultantValue, setSupportConsultantValue] = useState(project?.supportConsultantValue || 0);
   const [netValue, setNetValue] = useState(0);
-  const [services, setServices] = useState<any[]>([]);
+  const [services, setServices] = useState<BasicService[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [consultants, setConsultants] = useState<any[]>([]);
   const [selectedService, setSelectedService] = useState<any>(null);
   const [projectStages, setProjectStages] = useState<ProjectStage[]>(project?.stages || []);
   
@@ -110,88 +82,84 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
       client: project.client,
       service: project.service,
       mainConsultant: project.mainConsultant,
+      supportConsultant: project.supportConsultant || '',
       startDate: project.startDate,
       endDate: project.endDate,
       totalValue: project.totalValue,
       taxPercent: project.taxPercent,
       thirdPartyExpenses: project.thirdPartyExpenses,
-      consultantValue: project.consultantValue,
+      mainConsultantValue: project.mainConsultantValue,
+      supportConsultantValue: project.supportConsultantValue || 0,
     } : {
       name: '',
       description: '',
       client: '',
       service: '',
       mainConsultant: '',
+      supportConsultant: '',
       startDate: new Date().toISOString().split('T')[0],
       endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       totalValue: 0,
       taxPercent: 16,
       thirdPartyExpenses: 0,
-      consultantValue: 0,
+      mainConsultantValue: 0,
+      supportConsultantValue: 0,
     }
   });
   
   // Calculate net value whenever related values change
   React.useEffect(() => {
     const taxAmount = (totalValue * taxPercent) / 100;
-    const calculatedNetValue = totalValue - taxAmount - thirdPartyExpenses - consultantValue;
+    const calculatedNetValue = totalValue - taxAmount - thirdPartyExpenses - mainConsultantValue - supportConsultantValue;
     setNetValue(calculatedNetValue);
-  }, [totalValue, taxPercent, thirdPartyExpenses, consultantValue]);
+  }, [totalValue, taxPercent, thirdPartyExpenses, mainConsultantValue, supportConsultantValue]);
   
-  // Fetch available services
+  // Fetch available services, clients and consultants
   useEffect(() => {
-    const fetchServices = async () => {
+    const fetchData = async () => {
       try {
-        const { data, error } = await supabase
-          .from('tags')
-          .select('*')
+        // Fetch services
+        const { data: servicesData, error: servicesError } = await supabase
+          .from('services')
+          .select('id, name, total_value, tax_rate, stages')
           .order('name');
           
-        if (error) throw error;
+        if (servicesError) throw servicesError;
+        setServices(servicesData || []);
         
-        // Use mock data for now, will be replaced with real API call
-        const mockServices = [
-          { 
-            id: "1", 
-            name: 'Consultoria Estratégica', 
-            totalHours: 120, 
-            hourlyRate: 125, 
-            totalValue: 15000, 
-            taxRate: 16, 
-            extraCosts: 500, 
-            netValue: 12100,
-            stages: [
-              { id: 101, name: 'Diagnóstico Inicial', hours: 40, value: 5000, days: 5 },
-              { id: 102, name: 'Desenvolvimento de Estratégia', hours: 60, value: 7500, days: 7 },
-              { id: 103, name: 'Implementação e Monitoramento', hours: 20, value: 2500, days: 3 }
-            ]
-          },
-          { 
-            id: "2", 
-            name: 'Gestão de Projetos', 
-            totalHours: 160, 
-            hourlyRate: 112.50, 
-            totalValue: 18000, 
-            taxRate: 16, 
-            extraCosts: 800, 
-            netValue: 14320,
-            stages: [
-              { id: 201, name: 'Planejamento', hours: 40, value: 4500, days: 5 },
-              { id: 202, name: 'Execução', hours: 100, value: 11250, days: 12 },
-              { id: 203, name: 'Encerramento', hours: 20, value: 2250, days: 3 }
-            ]
+        // Fetch clients
+        const { data: clientsData, error: clientsError } = await supabase
+          .from('clients')
+          .select('id, name')
+          .order('name');
+          
+        if (clientsError) throw clientsError;
+        setClients(clientsData || []);
+        
+        // Fetch consultants
+        const { data: consultantsData, error: consultantsError } = await supabase
+          .from('consultants')
+          .select('id, name')
+          .order('name');
+          
+        if (consultantsError) throw consultantsError;
+        setConsultants(consultantsData || []);
+        
+        // If editing project, load the selected service
+        if (project?.service) {
+          const service = servicesData?.find(s => s.id === project.service);
+          if (service) {
+            setSelectedService(service);
           }
-        ];
-        
-        setServices(mockServices);
+        }
       } catch (error: any) {
-        console.error('Error fetching services:', error);
-        toast.error('Erro ao carregar serviços');
+        console.error('Error fetching data:', error);
+        toast.error('Erro ao carregar dados');
       }
     };
     
-    fetchServices();
-  }, []);
+    fetchData();
+  }, [project]);
   
   // Handle service selection
   const handleServiceChange = (serviceId: string) => {
@@ -200,28 +168,43 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
     
     if (service) {
       // Set project values based on selected service
-      form.setValue('totalValue', service.totalValue);
-      setTotalValue(service.totalValue);
+      form.setValue('totalValue', service.total_value);
+      setTotalValue(service.total_value);
+      form.setValue('taxPercent', service.tax_rate);
+      setTaxPercent(service.tax_rate);
       
-      // Convert service stages to project stages
-      const today = new Date();
-      const stageStartDate = new Date();
-      
-      const newProjectStages: ProjectStage[] = service.stages.map((stage: ServiceStage, index: number) => {
-        // Calculate stage dates
-        const startDate = new Date(stageStartDate);
-        startDate.setDate(startDate.getDate() + (index > 0 ? service.stages[index-1].days : 0));
-        const endDate = new Date(startDate);
-        endDate.setDate(endDate.getDate() + stage.days);
-        
-        return {
-          ...stage,
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0]
-        };
-      });
-      
-      setProjectStages(newProjectStages);
+      // Convert service stages to project stages if they exist
+      if (service.stages) {
+        try {
+          const serviceStages = typeof service.stages === 'string' 
+            ? JSON.parse(service.stages) 
+            : service.stages;
+          
+          const today = new Date();
+          let currentDate = new Date();
+          
+          const newProjectStages: ProjectStage[] = serviceStages.map((stage: ServiceStage, index: number) => {
+            // Calculate stage dates
+            const startDate = new Date(currentDate);
+            const endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + stage.days);
+            
+            // Update currentDate for next stage
+            currentDate = new Date(endDate);
+            currentDate.setDate(currentDate.getDate() + 1);
+            
+            return {
+              ...stage,
+              startDate: startDate.toISOString().split('T')[0],
+              endDate: endDate.toISOString().split('T')[0]
+            };
+          });
+          
+          setProjectStages(newProjectStages);
+        } catch (error) {
+          console.error('Error parsing service stages:', error);
+        }
+      }
     }
   };
   
@@ -382,6 +365,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                       <Select 
                         onValueChange={field.onChange} 
                         defaultValue={field.value}
+                        value={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -389,8 +373,8 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {mockClients.map(client => (
-                            <SelectItem key={client.id} value={client.id.toString()}>
+                          {clients.map(client => (
+                            <SelectItem key={client.id} value={client.id}>
                               {client.name}
                             </SelectItem>
                           ))}
@@ -413,6 +397,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                           handleServiceChange(value);
                         }} 
                         defaultValue={field.value}
+                        value={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -421,7 +406,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                         </FormControl>
                         <SelectContent>
                           {services.map(service => (
-                            <SelectItem key={service.id} value={service.id.toString()}>
+                            <SelectItem key={service.id} value={service.id}>
                               {service.name}
                             </SelectItem>
                           ))}
@@ -443,6 +428,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                       <Select 
                         onValueChange={field.onChange} 
                         defaultValue={field.value}
+                        value={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -450,8 +436,8 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {mockConsultants.map(consultant => (
-                            <SelectItem key={consultant.id} value={consultant.name}>
+                          {consultants.map(consultant => (
+                            <SelectItem key={consultant.id} value={consultant.id}>
                               {consultant.name}
                             </SelectItem>
                           ))}
@@ -464,31 +450,63 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                 
                 <FormField
                   control={form.control}
-                  name="startDate"
+                  name="supportConsultant"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Data de Início</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
+                      <FormLabel>Consultor de Apoio</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione um consultor (opcional)" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">Nenhum</SelectItem>
+                          {consultants.map(consultant => (
+                            <SelectItem key={consultant.id} value={consultant.id}>
+                              {consultant.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 
-                <FormField
-                  control={form.control}
-                  name="endDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Data de Término</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <FormField
+                    control={form.control}
+                    name="startDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Data de Início</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="endDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Data de Término</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
             </div>
             
@@ -543,7 +561,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                 />
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="thirdPartyExpenses"
@@ -568,10 +586,10 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                 
                 <FormField
                   control={form.control}
-                  name="consultantValue"
+                  name="mainConsultantValue"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Valor de Repasse ao Consultor</FormLabel>
+                      <FormLabel>Valor de Repasse ao Consultor Principal</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
@@ -579,7 +597,29 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                           {...field}
                           onChange={(e) => {
                             field.onChange(e);
-                            setConsultantValue(Number(e.target.value));
+                            setMainConsultantValue(Number(e.target.value));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="supportConsultantValue"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Valor de Repasse ao Consultor de Apoio</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="0.00" 
+                          {...field}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            setSupportConsultantValue(Number(e.target.value));
                           }}
                         />
                       </FormControl>
@@ -595,7 +635,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                   <span className="text-lg font-bold">{formatCurrency(netValue)}</span>
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  Calculado como: Valor Total - Impostos - Gastos com Terceiros - Repasse ao Consultor
+                  Calculado como: Valor Total - Impostos - Gastos com Terceiros - Repasse aos Consultores
                 </div>
               </div>
             </div>

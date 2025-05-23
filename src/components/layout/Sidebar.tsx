@@ -3,7 +3,8 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
   Users, Briefcase, BarChart2, LineChart, Target, Calendar, 
-  FileText, Settings, ChevronLeft, ChevronRight, Layers, Tag
+  FileText, Settings, ChevronLeft, ChevronRight, Layers, Tag,
+  Building
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   const navItems = [
     { to: '/', icon: <BarChart2 size={20} />, label: 'Dashboard' },
     { to: '/consultants', icon: <Users size={20} />, label: 'Consultores' },
+    { to: '/clients', icon: <Building size={20} />, label: 'Clientes' },
     { to: '/projects', icon: <Briefcase size={20} />, label: 'Projetos' },
     { to: '/services', icon: <Layers size={20} />, label: 'Serviços' },
     { to: '/tags', icon: <Tag size={20} />, label: 'Tags' },

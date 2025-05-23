@@ -22,7 +22,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Trash, Tag, Plus } from "lucide-react";
+import { Trash, Tag, Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -35,6 +35,7 @@ type FormValues = z.infer<typeof formSchema>;
 const TagList: React.FC = () => {
   const [tags, setTags] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingTag, setEditingTag] = useState<{id: string, name: string} | null>(null);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -64,21 +65,54 @@ const TagList: React.FC = () => {
   useEffect(() => {
     fetchTags();
   }, []);
+
+  // Update form when editing tag changes
+  useEffect(() => {
+    if (editingTag) {
+      form.setValue('name', editingTag.name);
+    } else {
+      form.reset();
+    }
+  }, [editingTag, form]);
   
   const onSubmit = async (data: FormValues) => {
     try {
-      const { error } = await supabase
-        .from('tags')
-        .insert([{ name: data.name }]);
+      if (editingTag) {
+        // Updating existing tag
+        const { error } = await supabase
+          .from('tags')
+          .update({ name: data.name })
+          .eq('id', editingTag.id);
+          
+        if (error) throw error;
         
-      if (error) throw error;
+        toast.success('Tag atualizada com sucesso!');
+      } else {
+        // Creating new tag
+        const { error } = await supabase
+          .from('tags')
+          .insert([{ name: data.name }]);
+          
+        if (error) throw error;
+        
+        toast.success('Tag adicionada com sucesso!');
+      }
       
-      toast.success('Tag adicionada com sucesso!');
       form.reset();
+      setEditingTag(null);
       fetchTags();
     } catch (error: any) {
-      toast.error('Erro ao adicionar tag: ' + error.message);
+      toast.error(`Erro ao ${editingTag ? 'atualizar' : 'adicionar'} tag: ` + error.message);
     }
+  };
+  
+  const handleEditTag = (tag: {id: string, name: string}) => {
+    setEditingTag(tag);
+  };
+  
+  const handleCancelEdit = () => {
+    setEditingTag(null);
+    form.reset();
   };
   
   const handleDeleteTag = async (id: string) => {
@@ -91,7 +125,8 @@ const TagList: React.FC = () => {
       if (error) throw error;
       
       toast.success('Tag removida com sucesso!');
-      fetchTags();
+      // Atualizar lista de tags após exclusão
+      setTags(tags.filter(tag => tag.id !== id));
     } catch (error: any) {
       toast.error('Erro ao remover tag: ' + error.message);
     }
@@ -107,7 +142,7 @@ const TagList: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="shadow-card md:col-span-1">
           <CardHeader className="pb-3">
-            <CardTitle>Adicionar Tag</CardTitle>
+            <CardTitle>{editingTag ? 'Editar Tag' : 'Adicionar Tag'}</CardTitle>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -126,9 +161,25 @@ const TagList: React.FC = () => {
                   )}
                 />
                 
-                <Button type="submit" className="w-full">
-                  <Plus className="mr-2 h-4 w-4" /> Adicionar Tag
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="submit" className="flex-1">
+                    {editingTag ? (
+                      <>
+                        <Pencil className="mr-2 h-4 w-4" /> Atualizar Tag
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" /> Adicionar Tag
+                      </>
+                    )}
+                  </Button>
+                  
+                  {editingTag && (
+                    <Button type="button" variant="outline" onClick={handleCancelEdit}>
+                      Cancelar
+                    </Button>
+                  )}
+                </div>
               </form>
             </Form>
           </CardContent>
@@ -161,9 +212,14 @@ const TagList: React.FC = () => {
                         {tag.name}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteTag(tag.id)}>
-                          <Trash className="h-4 w-4" />
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="icon" onClick={() => handleEditTag(tag)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteTag(tag.id)}>
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
