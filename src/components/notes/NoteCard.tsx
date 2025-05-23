@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Calendar, Tag, UserCircle, Building, Layers, MessageCircle, Clock, CheckSquare, Edit3, Trash2 } from 'lucide-react';
+import { Calendar, Tag, UserCircle, Building, Layers, MessageCircle, Clock, CheckSquare, Edit3, Trash2, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { Note, updateNoteStatus, updateChecklist } from '@/integrations/supabase/notes';
@@ -54,6 +54,25 @@ const NoteCard: React.FC<NoteCardProps> = ({
       }
     } catch (error) {
       toast.error('Erro ao atualizar status');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleMarkAsCompleted = async () => {
+    setIsUpdatingStatus(true);
+    try {
+      const updatedNote = await updateNoteStatus(note.id, 'finalizado');
+      if (updatedNote) {
+        await onUpdate(updatedNote);
+        toast.success('Anotação marcada como finalizada');
+      }
+    } catch (error: any) {
+      if (error.message && error.message.includes('checklists')) {
+        toast.error('Não é possível finalizar. Complete todas as checklists primeiro.');
+      } else {
+        toast.error('Erro ao marcar como finalizada');
+      }
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -239,15 +258,30 @@ const NoteCard: React.FC<NoteCardProps> = ({
       </CardContent>
       
       <CardFooter className="pt-0 flex justify-between">
-        <NoteForm
-          initialData={note}
-          onSave={onUpdate}
-        >
-          <Button variant="outline" size="sm">
-            <Edit3 className="h-3 w-3 mr-1" />
-            Editar
-          </Button>
-        </NoteForm>
+        <div className="flex gap-2">
+          <NoteForm
+            initialData={note}
+            onSave={onUpdate}
+          >
+            <Button variant="outline" size="sm">
+              <Edit3 className="h-3 w-3 mr-1" />
+              Editar
+            </Button>
+          </NoteForm>
+          
+          {note.status !== 'finalizado' && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="border-green-200 hover:border-green-500 hover:text-green-600"
+              onClick={handleMarkAsCompleted}
+              disabled={isUpdatingStatus}
+            >
+              <Check className="h-3 w-3 mr-1" />
+              Finalizar
+            </Button>
+          )}
+        </div>
         
         <Button 
           variant="outline" 

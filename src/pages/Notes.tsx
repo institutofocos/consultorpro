@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutGrid, ListIcon, Kanban, Plus, Filter, Calendar as CalendarIcon } from 'lucide-react';
+import { LayoutGrid, List, Kanban, Plus, Filter, Calendar as CalendarIcon, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -24,14 +23,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 
 import NotesGrid from '@/components/notes/NotesGrid';
-import NotesTable from '@/components/notes/NotesTable';
 import NotesExpandedTable from '@/components/notes/NotesExpandedTable';
 import NotesKanban from '@/components/notes/NotesKanban';
 import NoteForm from '@/components/notes/NoteForm';
 import NoteFormSelect from '@/components/notes/NoteFormSelect';
 
 const NotesPage: React.FC = () => {
-  const [viewMode, setViewMode] = useState<string>('expanded');
+  const [viewMode, setViewMode] = useState<string>('lista');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [consultantFilter, setConsultantFilter] = useState<string>('');
@@ -323,21 +321,21 @@ const NotesPage: React.FC = () => {
       <div className="flex justify-end">
         <Tabs defaultValue={viewMode} onValueChange={setViewMode} className="w-auto">
           <TabsList>
-            <TabsTrigger value="grid">
+            <TabsTrigger value="cards">
               <LayoutGrid className="h-4 w-4 mr-2" />
               Cards
             </TabsTrigger>
-            <TabsTrigger value="table">
-              <ListIcon className="h-4 w-4 mr-2" />
-              Tabela
-            </TabsTrigger>
-            <TabsTrigger value="expanded">
-              <ListIcon className="h-4 w-4 mr-2" />
-              Expandida
+            <TabsTrigger value="lista">
+              <List className="h-4 w-4 mr-2" />
+              Lista
             </TabsTrigger>
             <TabsTrigger value="kanban">
               <Kanban className="h-4 w-4 mr-2" />
               Kanban
+            </TabsTrigger>
+            <TabsTrigger value="gantt">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Gantt
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -353,21 +351,14 @@ const NotesPage: React.FC = () => {
             </div>
           ) : (
             <>
-              {viewMode === 'grid' && (
+              {viewMode === 'cards' && (
                 <NotesGrid
                   notes={filteredNotes}
                   onUpdateNote={handleUpdateNote}
                   onDeleteNote={handleDeleteNote}
                 />
               )}
-              {viewMode === 'table' && (
-                <NotesTable
-                  notes={filteredNotes}
-                  onUpdateNote={handleUpdateNote}
-                  onDeleteNote={handleDeleteNote}
-                />
-              )}
-              {viewMode === 'expanded' && (
+              {viewMode === 'lista' && (
                 <NotesExpandedTable
                   notes={filteredNotes}
                   onUpdateNote={handleUpdateNote}
@@ -382,6 +373,11 @@ const NotesPage: React.FC = () => {
                     onDeleteNote={handleDeleteNote}
                     onStatusChanged={handleNoteStatusChanged}
                   />
+                </div>
+              )}
+              {viewMode === 'gantt' && (
+                <div className="text-center py-8 text-gray-500">
+                  Visualização Gantt será implementada em breve.
                 </div>
               )}
             </>
