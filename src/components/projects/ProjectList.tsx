@@ -109,7 +109,7 @@ export const ProjectList: React.FC = () => {
             status: project.status as any || 'planned',
             stages: stages,
             completedStages: stages.filter(s => s.completed).length,
-            tags: tags
+            tags: tags || []
           };
         });
         

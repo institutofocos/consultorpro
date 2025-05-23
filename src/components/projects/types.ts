@@ -2,7 +2,7 @@
 export interface Stage {
   id: string;
   name: string;
-  description?: string; // Added description field
+  description?: string;
   hours: number;
   days: number;
   value: number;
@@ -11,7 +11,7 @@ export interface Stage {
   completed: boolean;
   clientApproved: boolean;
   consultantPaid: boolean;
-  attachment?: string; // Added attachment field
+  attachment?: string;
 }
 
 export interface Consultant {
@@ -19,7 +19,7 @@ export interface Consultant {
   name: string;
   email: string;
   pix_key?: string;
-  commission_percentage?: number; // Added to access consultant's default commission
+  commission_percentage?: number;
 }
 
 export interface Project {
@@ -30,11 +30,11 @@ export interface Project {
   mainConsultantId: string;
   mainConsultantName?: string;
   mainConsultantPixKey?: string;
-  mainConsultantCommission?: number; // Added field for project-specific commission
+  mainConsultantCommission?: number;
   supportConsultantId?: string;
   supportConsultantName?: string;
   supportConsultantPixKey?: string;
-  supportConsultantCommission?: number; // Added field for project-specific commission
+  supportConsultantCommission?: number;
   startDate: string;
   endDate: string;
   totalValue: number;
@@ -45,5 +45,5 @@ export interface Project {
   status: 'planned' | 'active' | 'completed' | 'cancelled';
   stages: Stage[];
   completedStages?: number;
-  tags?: string[]; // Added tags field
+  tags?: string[];
 }
