@@ -1,11 +1,11 @@
 
 import { supabase } from './client';
-import { Note } from './notes';
+import { Note, NoteChecklist } from './notes';
 import { Project } from '@/components/projects/types';
 
 export interface ProjectTaskCreationResult {
   mainTask: Note | null;
-  stageTasks: Note[];
+  stageTasks: NoteChecklist[];
   error?: string;
 }
 
@@ -55,7 +55,7 @@ export const createProjectTasks = async (project: Project): Promise<ProjectTaskC
     }
 
     // Create subtasks for each stage
-    const stageTasks: Note[] = [];
+    const stageTasks: NoteChecklist[] = [];
     if (project.stages && Array.isArray(project.stages)) {
       for (const stage of project.stages) {
         // Create a checklist item for each stage
@@ -81,7 +81,7 @@ export const createProjectTasks = async (project: Project): Promise<ProjectTaskC
     }
 
     return {
-      mainTask,
+      mainTask: mainTask as Note,
       stageTasks
     };
   } catch (error) {
@@ -135,7 +135,7 @@ export const updateProjectTasks = async (project: Project): Promise<ProjectTaskC
         .eq('note_id', existingTask.id);
 
       // Create new checklists for each stage
-      const stageTasks: Note[] = [];
+      const stageTasks: NoteChecklist[] = [];
       if (project.stages && Array.isArray(project.stages)) {
         for (const stage of project.stages) {
           const { data: checklist, error: checklistError } = await supabase
@@ -160,7 +160,7 @@ export const updateProjectTasks = async (project: Project): Promise<ProjectTaskC
       }
 
       return {
-        mainTask: updatedTask,
+        mainTask: updatedTask as Note,
         stageTasks
       };
     } else {

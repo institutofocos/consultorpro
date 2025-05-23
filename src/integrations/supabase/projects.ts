@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 import { Project, Stage } from "@/components/projects/types";
 import { createProjectTasks, updateProjectTasks } from "./project-tasks";
@@ -26,8 +25,8 @@ export const updateProject = async (project: Project) => {
         main_consultant_value: project.consultantValue || 0,
         support_consultant_value: project.supportConsultantValue || 0,
         status: project.status,
-        // Convert the stages array to a JSON object
-        stages: project.stages as unknown as Record<string, any>,
+        // Convert the stages array to a JSON string
+        stages: JSON.stringify(project.stages),
         tags: project.tags || []
       })
       .eq('id', project.id);
@@ -251,7 +250,7 @@ export const fetchDemandsWithoutConsultants = async () => {
   }
 };
 
-// New function to assign consultants to a demand
+// Function to assign consultants to a demand
 export const assignConsultantsToDemand = async (
   projectId: string, 
   mainConsultantId: string | null, 
@@ -331,11 +330,31 @@ export const fetchProjectById = async (projectId: string): Promise<Project | nul
     let stages: Stage[] = [];
     if (data.stages) {
       try {
-        stages = Array.isArray(data.stages) ? data.stages as unknown as Stage[] : [];
+        // Parse stages from JSON if needed
+        stages = typeof data.stages === 'string'
+          ? JSON.parse(data.stages)
+          : Array.isArray(data.stages) 
+            ? data.stages as unknown as Stage[]
+            : [];
       } catch (e) {
         console.error('Error parsing stages for project:', data.id, e);
         stages = [];
       }
+    }
+
+    // Map the status to a valid project status
+    let projectStatus: 'planned' | 'active' | 'completed' | 'cancelled';
+    
+    // Ensure the status is one of the allowed values
+    switch(data.status) {
+      case 'planned':
+      case 'active':
+      case 'completed': 
+      case 'cancelled':
+        projectStatus = data.status;
+        break;
+      default:
+        projectStatus = 'planned'; // Default to planned if unknown status
     }
 
     return {
@@ -355,7 +374,7 @@ export const fetchProjectById = async (projectId: string): Promise<Project | nul
       thirdPartyExpenses: data.third_party_expenses || 0,
       consultantValue: data.main_consultant_value || 0,
       supportConsultantValue: data.support_consultant_value || 0,
-      status: data.status,
+      status: projectStatus,
       stages: stages,
       tags: data.tags || [],
       createdAt: data.created_at,
@@ -367,7 +386,7 @@ export const fetchProjectById = async (projectId: string): Promise<Project | nul
   }
 };
 
-// New function to assign consultant to a specific stage
+// Function to assign consultant to a specific stage
 export const assignConsultantToStage = async (
   projectId: string,
   stageId: string,
