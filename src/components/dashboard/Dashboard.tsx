@@ -154,10 +154,17 @@ export const Dashboard: React.FC = () => {
           projectsData.forEach(project => {
             if (project.stages && Array.isArray(project.stages)) {
               project.stages.forEach(stage => {
+                // Fix: Create a new object instead of using spread on potentially non-object stage
                 allStages.push({
-                  ...stage,
-                  projectName: project.name,
-                  projectId: project.id
+                  id: stage.id || 0,
+                  name: stage.name || '',
+                  hours: stage.hours || 0,
+                  days: stage.days || 0,
+                  value: stage.value || 0,
+                  startDate: stage.startDate || '',
+                  endDate: stage.endDate || '',
+                  projectName: project.name || '',
+                  projectId: project.id || ''
                 });
               });
             }
