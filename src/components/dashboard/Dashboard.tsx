@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -30,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter } from "date-fns";
 import { Project, ProjectStage } from '../services/types';
+import { toast } from "sonner";
 
 // Time period filter options
 const TIME_FILTERS = {
@@ -116,9 +118,8 @@ export const Dashboard: React.FC = () => {
           .order('name');
         setTags(tagData || []);
         
-        // Fetch projects - using the any type to bypass type checking temporarily
-        // until Supabase types are refreshed
-        const { data: projects } = await supabase
+        // Fetch projects with type assertion to help TypeScript understand the shape
+        const { data: projectsData, error: projectsError } = await supabase
           .from('projects')
           .select(`
             id, name, description, client_id, service_id, 
@@ -127,11 +128,17 @@ export const Dashboard: React.FC = () => {
             third_party_expenses, main_consultant_value, 
             support_consultant_value, net_value, status, stages
           `)
-          .order('end_date') as { data: Project[] };
+          .order('end_date');
+          
+        if (projectsError) {
+          console.error('Error fetching projects:', projectsError);
+          toast.error('Error loading project data');
+          return;
+        }
           
         // Format project data for charts
-        if (projects) {
-          const formattedProjects = projects.slice(0, 5).map(project => ({
+        if (projectsData && projectsData.length > 0) {
+          const formattedProjects = projectsData.slice(0, 5).map(project => ({
             name: project.name,
             value: project.total_value || 0
           }));
@@ -139,12 +146,12 @@ export const Dashboard: React.FC = () => {
           setProjectData(formattedProjects);
           
           // Calculate upcoming projects based on filters
-          const filtered = filterProjectsByTime(projects, timeFilter);
+          const filtered = filterProjectsByTime(projectsData, timeFilter);
           setUpcomingProjects(filtered);
           
           // Extract stages from projects
           const allStages: any[] = [];
-          projects.forEach(project => {
+          projectsData.forEach(project => {
             if (project.stages && Array.isArray(project.stages)) {
               project.stages.forEach(stage => {
                 allStages.push({
@@ -163,10 +170,13 @@ export const Dashboard: React.FC = () => {
           // Set statistics
           setStats({
             consultantCount: (consultantData || []).length.toString(),
-            activeProjectsCount: projects.filter(p => p.status === 'active').length.toString(),
+            activeProjectsCount: projectsData.filter(p => p.status === 'active').length.toString(),
             kpiCount: '36', // This would come from a KPIs table in a real implementation
             activitiesCount: '128' // This would come from an activities table in a real implementation
           });
+        } else {
+          console.log('No projects found or empty result');
+          toast.info('No project data available');
         }
         
         // Mock KPI data for now
@@ -189,6 +199,7 @@ export const Dashboard: React.FC = () => {
         
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
+        toast.error('Error loading dashboard data');
       }
     };
     
