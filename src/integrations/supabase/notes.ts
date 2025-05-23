@@ -109,10 +109,10 @@ export const fetchNotes = async (): Promise<Note[]> => {
           }))
         : [];
 
-      // Process linked task
+      // Process linked task - fix: check if it exists and is not null
       let linkedTask = null;
-      if (note.linked_task && note.linked_task.length > 0) {
-        linkedTask = note.linked_task[0];
+      if (note.linked_task && note.linked_task.id) {
+        linkedTask = note.linked_task;
       }
 
       return {
