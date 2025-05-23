@@ -5,7 +5,7 @@ import {
   Users, Briefcase, BarChart2, LineChart, Target, Calendar, 
   FileText, Settings, ChevronLeft, ChevronRight, Layers, Tag,
   Building, ChevronDown, KanbanSquare, ChartGantt, DollarSign,
-  StickyNote, MessageSquare, FileCheck
+  CheckSquare, MessageSquare, FileCheck
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -121,7 +121,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     { to: '/tags', icon: <Tag size={20} />, label: 'Tags' },
     { to: '/demands', icon: <FileCheck size={20} />, label: 'Demandas' },
     { to: '/financial', icon: <DollarSign size={20} />, label: 'Financeiro' },
-    { to: '/notes', icon: <StickyNote size={20} />, label: 'Anotações' },
+    { to: '/notes', icon: <CheckSquare size={20} />, label: 'Tarefas' },
     { to: '/chat', icon: <MessageSquare size={20} />, label: 'Chat Interno' },
     // KPIs/OKRs como um item único
     { to: '/kpis', icon: <LineChart size={20} />, label: 'KPIs / OKRs' },

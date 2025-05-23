@@ -25,6 +25,7 @@ import { Calendar } from '@/components/ui/calendar';
 import NotesGrid from '@/components/notes/NotesGrid';
 import NotesExpandedTable from '@/components/notes/NotesExpandedTable';
 import NotesKanban from '@/components/notes/NotesKanban';
+import NotesGantt from '@/components/notes/NotesGantt';
 import NoteForm from '@/components/notes/NoteForm';
 import NoteFormSelect from '@/components/notes/NoteFormSelect';
 
@@ -59,7 +60,7 @@ const NotesPage: React.FC = () => {
     fetchFilterOptions();
   }, []);
 
-  // Buscar anotações
+  // Buscar tarefas
   const { 
     data: notes = [], 
     isLoading, 
@@ -70,7 +71,7 @@ const NotesPage: React.FC = () => {
     queryFn: fetchNotes,
   });
 
-  // Filtrar anotações
+  // Filtrar tarefas
   const filteredNotes = notes.filter(note => {
     const matchesSearch = searchTerm === '' || 
       note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -136,10 +137,10 @@ const NotesPage: React.FC = () => {
     try {
       await createNote(noteData);
       refetch();
-      toast.success("Anotação criada com sucesso!");
+      toast.success("Tarefa criada com sucesso!");
     } catch (error) {
-      console.error("Erro ao criar anotação:", error);
-      toast.error("Erro ao criar anotação.");
+      console.error("Erro ao criar tarefa:", error);
+      toast.error("Erro ao criar tarefa.");
     }
   };
 
@@ -147,22 +148,22 @@ const NotesPage: React.FC = () => {
     try {
       await updateNote(noteData.id, noteData);
       refetch();
-      toast.success("Anotação atualizada com sucesso!");
+      toast.success("Tarefa atualizada com sucesso!");
     } catch (error) {
-      console.error("Erro ao atualizar anotação:", error);
-      toast.error("Erro ao atualizar anotação.");
+      console.error("Erro ao atualizar tarefa:", error);
+      toast.error("Erro ao atualizar tarefa.");
     }
   };
 
   const handleDeleteNote = async (id: string) => {
-    if (window.confirm("Tem certeza que deseja excluir esta anotação?")) {
+    if (window.confirm("Tem certeza que deseja excluir esta tarefa?")) {
       try {
         await deleteNote(id);
         refetch();
-        toast.success("Anotação excluída com sucesso!");
+        toast.success("Tarefa excluída com sucesso!");
       } catch (error) {
-        console.error("Erro ao excluir anotação:", error);
-        toast.error("Erro ao excluir anotação.");
+        console.error("Erro ao excluir tarefa:", error);
+        toast.error("Erro ao excluir tarefa.");
       }
     }
   };
@@ -197,7 +198,7 @@ const NotesPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Anotações</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Tarefas</h1>
         <div className="flex items-center">
           <NoteForm onSave={handleCreateNote}>
             <Button size="sm" variant="outline" className="ml-auto gap-1">
@@ -213,7 +214,7 @@ const NotesPage: React.FC = () => {
         <CardContent className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
             <Input
-              placeholder="Buscar anotações..."
+              placeholder="Buscar tarefas..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -308,7 +309,7 @@ const NotesPage: React.FC = () => {
 
           <div className="flex justify-between items-center mt-4">
             <div className="text-sm text-muted-foreground">
-              {filteredNotes.length} anotação(ões) encontrada(s)
+              {filteredNotes.length} tarefa(s) encontrada(s)
             </div>
             <Button variant="outline" size="sm" onClick={clearFilters}>
               <Filter className="h-4 w-4 mr-2" />
@@ -344,10 +345,10 @@ const NotesPage: React.FC = () => {
       <Card className="overflow-hidden">
         <CardContent className={viewMode === 'kanban' ? 'p-4 pt-4' : 'p-6 pt-6'}>
           {isLoading ? (
-            <div className="text-center py-8">Carregando anotações...</div>
+            <div className="text-center py-8">Carregando tarefas...</div>
           ) : isError ? (
             <div className="text-center py-8 text-red-500">
-              Erro ao carregar anotações. Por favor, tente novamente.
+              Erro ao carregar tarefas. Por favor, tente novamente.
             </div>
           ) : (
             <>
@@ -376,9 +377,11 @@ const NotesPage: React.FC = () => {
                 </div>
               )}
               {viewMode === 'gantt' && (
-                <div className="text-center py-8 text-gray-500">
-                  Visualização Gantt será implementada em breve.
-                </div>
+                <NotesGantt
+                  notes={filteredNotes}
+                  onUpdateNote={handleUpdateNote}
+                  onDeleteNote={handleDeleteNote}
+                />
               )}
             </>
           )}

@@ -23,11 +23,12 @@ const NotesGrid: React.FC<NotesGridProps> = ({
             note={note} 
             onUpdate={onUpdateNote} 
             onDelete={onDeleteNote}
+            viewMode="cards"
           />
         ))
       ) : (
         <div className="col-span-full text-center py-8 text-gray-500">
-          Nenhuma anotação encontrada.
+          Nenhuma tarefa encontrada.
         </div>
       )}
     </div>

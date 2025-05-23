@@ -121,7 +121,7 @@ const NotesTable: React.FC<NotesTableProps> = ({
           ) : (
             <TableRow>
               <TableCell colSpan={7} className="text-center py-4 text-muted-foreground">
-                Nenhuma anotação encontrada.
+                Nenhuma tarefa encontrada.
               </TableCell>
             </TableRow>
           )}

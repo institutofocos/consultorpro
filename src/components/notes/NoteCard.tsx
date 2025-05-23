@@ -20,6 +20,7 @@ interface NoteCardProps {
   onUpdate: (note: Note) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   isDraggable?: boolean;
+  viewMode?: string;
 }
 
 const STATUS_COLORS = {
@@ -40,7 +41,8 @@ const NoteCard: React.FC<NoteCardProps> = ({
   note, 
   onUpdate, 
   onDelete,
-  isDraggable = false
+  isDraggable = false,
+  viewMode = 'cards'
 }) => {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
@@ -65,7 +67,7 @@ const NoteCard: React.FC<NoteCardProps> = ({
       const updatedNote = await updateNoteStatus(note.id, 'finalizado');
       if (updatedNote) {
         await onUpdate(updatedNote);
-        toast.success('Anotação marcada como finalizada');
+        toast.success('Tarefa marcada como finalizada');
       }
     } catch (error: any) {
       if (error.message && error.message.includes('checklists')) {
@@ -86,7 +88,24 @@ const NoteCard: React.FC<NoteCardProps> = ({
       });
       
       if (success) {
-        // Refetch the note to get updated checklists
+        // Auto-update status to "em_producao" when any checklist is marked as done
+        if (completed && note.status === 'a_fazer') {
+          await handleStatusChange('em_producao');
+        }
+        
+        // Check if all checklists are completed to auto-finalize
+        const updatedNote = { ...note };
+        if (updatedNote.checklists) {
+          const updatedChecklists = updatedNote.checklists.map(c => 
+            c.id === checklistId ? { ...c, completed } : c
+          );
+          const allCompleted = updatedChecklists.every(c => c.completed);
+          
+          if (allCompleted && completed) {
+            await handleStatusChange('finalizado');
+          }
+        }
+        
         window.location.reload(); // Temporary solution - ideally would refetch properly
         toast.success('Checklist atualizada');
       }
@@ -100,6 +119,8 @@ const NoteCard: React.FC<NoteCardProps> = ({
     const completed = note.checklists.filter(c => c.completed).length;
     return Math.round((completed / note.checklists.length) * 100);
   };
+
+  const showChecklists = viewMode !== 'cards';
 
   return (
     <Card 
@@ -217,8 +238,21 @@ const NoteCard: React.FC<NoteCardProps> = ({
           </div>
         )}
 
-        {/* Checklists */}
-        {note.checklists && note.checklists.length > 0 && (
+        {/* Show checklist progress only for cards view */}
+        {viewMode === 'cards' && note.checklists && note.checklists.length > 0 && (
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <CheckSquare className="h-4 w-4" />
+              <span>Progresso</span>
+            </div>
+            <Badge variant="outline" className="text-xs">
+              {getProgress()}% concluído
+            </Badge>
+          </div>
+        )}
+
+        {/* Checklists - only show in non-cards views */}
+        {showChecklists && note.checklists && note.checklists.length > 0 && (
           <div className="space-y-2">
             <Separator />
             <div className="flex items-center justify-between">
