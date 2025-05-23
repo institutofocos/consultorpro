@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { AuthUser, UserProfile, ModulePermission } from '@/types/auth';
+import { User } from '@supabase/supabase-js';
 
 export async function loginWithEmail(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -149,8 +150,9 @@ export async function setupAdminUsers() {
       // Buscar usuário pelo email
       const { data } = await supabase.auth.admin.listUsers();
       
-      // Fix: proper typing to find the user by email
-      const user = data?.users?.find(u => u.email === email);
+      // Properly type the users array and safely access the email property
+      const users = data?.users as Array<User & { email: string }> || [];
+      const user = users.find(u => u.email === email);
       
       if (user) {
         // Atualizar senha do usuário

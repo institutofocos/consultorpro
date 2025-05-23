@@ -1,6 +1,7 @@
 
 import { supabase } from './client';
 import { ModulePermission, UserProfile } from '@/types/auth';
+import { User } from '@supabase/supabase-js';
 
 export async function listUsers() {
   const { data, error } = await supabase.auth.admin.listUsers();
@@ -112,8 +113,9 @@ export async function setAdminUsers(emails: string[]) {
     
     if (userError) throw userError;
     
-    // Fix the TypeScript error by properly typing the users array
-    const user = userData?.users?.find(u => u.email === email);
+    // Properly type the users array and safely access the email property
+    const users = userData?.users as Array<User & { email: string }> || [];
+    const user = users.find(u => u.email === email);
     
     if (user) {
       // Atualizar perfil para administrador
