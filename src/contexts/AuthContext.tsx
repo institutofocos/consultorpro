@@ -9,14 +9,14 @@ interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   checkPermission: (moduleName: string, actionType: 'view' | 'edit') => boolean;
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<AuthUser | null>; // Updated return type to match implementation
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   checkPermission: () => false,
-  refreshUser: async () => {},
+  refreshUser: async () => null, // Updated default return value to match type
 });
 
 export const useAuth = () => useContext(AuthContext);
