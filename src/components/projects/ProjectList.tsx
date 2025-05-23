@@ -116,15 +116,14 @@ export const ProjectList: React.FC = () => {
     if (editingProject) {
       // Update existing project in Supabase
       try {
-        // Garantir que main_consultant_id está definido explicitamente
         const { error } = await supabase
           .from('projects')
           .update({
             name: project.name,
             description: project.description,
-            service_id: project.serviceId,
+            service_id: project.serviceId || null, // Para aceitar valor vazio ou nulo
             main_consultant_id: project.mainConsultantId,
-            support_consultant_id: project.supportConsultantId,
+            support_consultant_id: project.supportConsultantId || null, // Para aceitar valor vazio ou nulo
             start_date: project.startDate,
             end_date: project.endDate,
             total_value: project.totalValue,
@@ -157,15 +156,14 @@ export const ProjectList: React.FC = () => {
     } else {
       // Add new project to Supabase
       try {
-        // Garantir que main_consultant_id está definido explicitamente
         const { error } = await supabase
           .from('projects')
           .insert({
             name: project.name,
             description: project.description,
-            service_id: project.serviceId,
+            service_id: project.serviceId || null, // Para aceitar valor vazio ou nulo
             main_consultant_id: project.mainConsultantId,
-            support_consultant_id: project.supportConsultantId,
+            support_consultant_id: project.supportConsultantId || null, // Para aceitar valor vazio ou nulo
             start_date: project.startDate,
             end_date: project.endDate,
             total_value: project.totalValue,

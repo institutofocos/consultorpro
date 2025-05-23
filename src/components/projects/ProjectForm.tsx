@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 import { fetchConsultants } from '@/integrations/supabase/consultants';
-import { fetchServices } from '@/integrations/supabase/services';
+import { fetchServices, fetchServiceById } from '@/integrations/supabase/services';
 import { supabase } from '@/integrations/supabase/client';
 import { createChatRoom, addChatParticipant } from '@/integrations/supabase/chat';
 import { Consultant, Project, Stage } from './types';
@@ -64,71 +64,92 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
   }, []);
 
   // Initialize stages from a service template if no stages provided
-  const initializeStagesFromService = (serviceId: string) => {
+  const initializeStagesFromService = async (serviceId: string) => {
+    // Verificar se o serviceId está vazio
+    if (!serviceId) {
+      setSelectedServiceId('');
+      setDescription('');
+      return;
+    }
+
     setSelectedServiceId(serviceId);
     
-    // Find the selected service
-    const selectedService = services.find(s => s.id === serviceId);
-    if (selectedService) {
-      console.log("Selected service:", selectedService);
-      
-      // Set the total value and tax rate from the service
-      if (selectedService.total_value) {
-        setTotalValue(selectedService.total_value.toString());
-      }
-      
-      if (selectedService.tax_rate) {
-        setTaxPercent(selectedService.tax_rate.toString());
-      }
-      
-      // Handle stages
-      if (selectedService.stages) {
-        try {
-          let serviceStages: Stage[];
-          if (typeof selectedService.stages === 'string') {
-            serviceStages = JSON.parse(selectedService.stages);
-          } else {
-            serviceStages = selectedService.stages as any;
-          }
-          
-          if (Array.isArray(serviceStages)) {
-            // Add required fields that exist on projects but might not on service templates
-            const stagesWithDates = serviceStages.map((stage, index) => {
-              // Calculate the start and end date for each stage
-              const stageDuration = stage.days || 1;
-              let stageStartDate;
-              
-              if (index === 0) {
-                stageStartDate = startDate ? new Date(startDate) : new Date();
-              } else {
-                const prevStage = serviceStages[index - 1];
-                stageStartDate = addDays(
-                  new Date(prevStage.endDate || prevStage.startDate || new Date()), 
-                  1
-                );
-              }
-              
-              const stageEndDate = addDays(stageStartDate, stageDuration - 1);
-              
-              // Convert all ids to strings to match the Stage type
-              return {
-                ...stage,
-                id: stage.id ? stage.id.toString() : Date.now().toString() + index,
-                startDate: stage.startDate || stageStartDate.toISOString().split('T')[0],
-                endDate: stage.endDate || stageEndDate.toISOString().split('T')[0],
-                completed: stage.completed || false,
-                clientApproved: false,
-                consultantPaid: false
-              } as Stage;
-            });
+    // Buscar o serviço selecionado diretamente do banco de dados
+    try {
+      const selectedService = await fetchServiceById(serviceId);
+      if (selectedService) {
+        console.log("Selected service:", selectedService);
+        
+        // Atualizar a descrição com a descrição do serviço
+        if (selectedService.description) {
+          setDescription(selectedService.description);
+        }
+        
+        // Set the total value and tax rate from the service
+        if (selectedService.total_value) {
+          setTotalValue(selectedService.total_value.toString());
+        }
+        
+        if (selectedService.tax_rate) {
+          setTaxPercent(selectedService.tax_rate.toString());
+        }
+        
+        // Handle stages
+        if (selectedService.stages) {
+          try {
+            let serviceStages: Stage[];
+            if (typeof selectedService.stages === 'string') {
+              serviceStages = JSON.parse(selectedService.stages);
+            } else {
+              serviceStages = selectedService.stages as any;
+            }
             
-            setStages(stagesWithDates);
-            console.log("Stages loaded from service:", stagesWithDates);
+            if (Array.isArray(serviceStages)) {
+              // Add required fields that exist on projects but might not on service templates
+              const stagesWithDates = serviceStages.map((stage, index) => {
+                // Calculate the start and end date for each stage
+                const stageDuration = stage.days || 1;
+                let stageStartDate;
+                
+                if (index === 0) {
+                  stageStartDate = startDate ? new Date(startDate) : new Date();
+                } else {
+                  const prevStage = serviceStages[index - 1];
+                  stageStartDate = addDays(
+                    new Date(prevStage.endDate || prevStage.startDate || new Date()), 
+                    1
+                  );
+                }
+                
+                const stageEndDate = addDays(stageStartDate, stageDuration - 1);
+                
+                // Convert all ids to strings to match the Stage type
+                return {
+                  ...stage,
+                  id: stage.id ? stage.id.toString() : Date.now().toString() + index,
+                  startDate: stage.startDate || stageStartDate.toISOString().split('T')[0],
+                  endDate: stage.endDate || stageEndDate.toISOString().split('T')[0],
+                  completed: stage.completed || false,
+                  clientApproved: false,
+                  consultantPaid: false
+                } as Stage;
+              });
+              
+              setStages(stagesWithDates);
+              console.log("Stages loaded from service:", stagesWithDates);
+            }
+          } catch (e) {
+            console.error("Error parsing service stages:", e);
           }
-        } catch (e) {
-          console.error("Error parsing service stages:", e);
         }
       }
+    } catch (error) {
+      console.error("Error fetching service details:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível carregar os detalhes do serviço."
+      });
     }
   };
 
@@ -177,7 +198,11 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
     const total = Number(totalValue) || 0;
     const tax = (Number(taxPercent) || 0) / 100 * total;
     const expenses = Number(thirdPartyExpenses) || 0;
-    return total - tax - expenses;
+    const consultantCost = Number(consultantValue) || 0;
+    const supportConsultantCost = Number(supportConsultantValue) || 0;
+    
+    // Descontar todos os valores conforme solicitado
+    return total - tax - expenses - consultantCost - supportConsultantCost;
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -199,20 +224,20 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
       id: project?.id,
       name,
       description,
-      serviceId: selectedServiceId, // Add service ID to form data
+      serviceId: selectedServiceId || null, // Para aceitar valor vazio ou nulo
       mainConsultantId,
       mainConsultantName: mainConsultant?.name,
       mainConsultantPixKey: mainConsultant?.pix_key,
-      supportConsultantId,
+      supportConsultantId: supportConsultantId || null, // Para aceitar valor vazio ou nulo
       supportConsultantName: supportConsultant?.name,
       supportConsultantPixKey: supportConsultant?.pix_key,
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
-      totalValue: parseFloat(totalValue),
-      taxPercent: parseFloat(taxPercent),
-      thirdPartyExpenses: parseFloat(thirdPartyExpenses),
-      consultantValue: parseFloat(consultantValue),
-      supportConsultantValue: parseFloat(supportConsultantValue),
+      startDate: startDate ? startDate.toISOString() : null,
+      endDate: endDate ? endDate.toISOString() : null,
+      totalValue: parseFloat(totalValue) || 0,
+      taxPercent: parseFloat(taxPercent) || 0,
+      thirdPartyExpenses: parseFloat(thirdPartyExpenses) || 0,
+      consultantValue: parseFloat(consultantValue) || 0,
+      supportConsultantValue: parseFloat(supportConsultantValue) || 0,
       status,
       stages
     };
@@ -296,7 +321,10 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
         
         <div>
           <Label htmlFor="service">Serviço Vinculado</Label>
-          <Select value={selectedServiceId} onValueChange={initializeStagesFromService}>
+          <Select 
+            value={selectedServiceId} 
+            onValueChange={initializeStagesFromService}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Selecione um serviço para vincular ao projeto" />
             </SelectTrigger>
@@ -451,6 +479,9 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
               disabled
               className="bg-muted"
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Valor total - imposto - despesas terceiros - valor consultores
+            </p>
           </div>
         </div>
 
