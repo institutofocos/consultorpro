@@ -1,24 +1,6 @@
 
 import { supabase } from './client';
-
-export interface Note {
-  id: string;
-  title: string;
-  content?: string;
-  status: 'a_fazer' | 'em_producao' | 'finalizado' | 'cancelado';
-  dueDate?: string;
-  startDate?: string;
-  endDate?: string;
-  color?: string;
-  clientId?: string;
-  serviceId?: string;
-  consultantId?: string;
-  linkedTaskId?: string;
-  hasInternalChat?: boolean;
-  chatRoomId?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
+import { Note } from './notes';
 
 /**
  * Links two tasks together, making the dependent task require completion of the parent task
@@ -72,7 +54,7 @@ export const unlinkTask = async (taskId: string): Promise<boolean> => {
  * Fetches all available tasks to link with
  * @param excludeTaskId The task to exclude from results (typically the current task)
  */
-export const fetchTasksForLinking = async (excludeTaskId: string): Promise<Note[]> => {
+export const fetchTasksForLinking = async (excludeTaskId: string): Promise<Pick<Note, 'id' | 'title' | 'status'>[]> => {
   try {
     const { data, error } = await supabase
       .from('notes')
@@ -96,7 +78,7 @@ export const fetchTasksForLinking = async (excludeTaskId: string): Promise<Note[
  * Gets all tasks that depend on the specified task
  * @param taskId The parent task ID
  */
-export const getDependentTasks = async (taskId: string): Promise<Note[]> => {
+export const getDependentTasks = async (taskId: string): Promise<Pick<Note, 'id' | 'title' | 'status'>[]> => {
   try {
     const { data, error } = await supabase
       .from('notes')
