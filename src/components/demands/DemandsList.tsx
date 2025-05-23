@@ -75,7 +75,7 @@ const DemandsList = () => {
                           <h3 className="font-medium text-lg">{demand.name}</h3>
                           <p className="text-sm text-muted-foreground line-clamp-2">{demand.description || "Sem descrição"}</p>
                         </div>
-                        <Badge variant={demand.status === 'planned' ? 'outline' : demand.status === 'active' ? 'default' : demand.status === 'completed' ? 'success' : 'destructive'}>
+                        <Badge variant={demand.status === 'planned' ? 'outline' : demand.status === 'active' ? 'default' : demand.status === 'completed' ? 'secondary' : 'destructive'}>
                           {demand.status === 'planned' ? 'Planejado' : 
                            demand.status === 'active' ? 'Em Andamento' : 
                            demand.status === 'completed' ? 'Concluído' : 'Cancelado'}
