@@ -162,7 +162,10 @@ export const createNote = async (note: Omit<Note, 'id' | 'created_at' | 'updated
       }
     }
 
-    return data;
+    return {
+      ...data,
+      status: data.status as 'a_fazer' | 'em_producao' | 'finalizado' | 'cancelado'
+    } as Note;
   } catch (error) {
     console.error('Error in createNote:', error);
     return null;
