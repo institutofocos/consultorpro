@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -60,6 +59,20 @@ const STATUS_COLORS = {
 
 const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444'];
 
+// Type definitions for statistics
+interface ConsultantStats {
+  name: string;
+  projects: number;
+  totalHours: number;
+  totalValue: number;
+}
+
+interface ServiceStats {
+  name: string;
+  projects: number;
+  totalRevenue: number;
+}
+
 const StatCard = ({ title, value, icon, color, change }: { 
   title: string, 
   value: string, 
@@ -110,8 +123,8 @@ export const Dashboard: React.FC = () => {
   const [consultantsPaid, setConsultantsPaid] = useState([]);
   const [upcomingProjects, setUpcomingProjects] = useState([]);
   const [upcomingStages, setUpcomingStages] = useState([]);
-  const [topConsultants, setTopConsultants] = useState([]);
-  const [topServices, setTopServices] = useState([]);
+  const [topConsultants, setTopConsultants] = useState<ConsultantStats[]>([]);
+  const [topServices, setTopServices] = useState<ServiceStats[]>([]);
   
   const [stats, setStats] = useState({
     totalConsultants: '0',
@@ -274,7 +287,7 @@ export const Dashboard: React.FC = () => {
   };
   
   const processTopConsultants = (projectsData) => {
-    const consultantStats = {};
+    const consultantStats: Record<string, ConsultantStats> = {};
     
     projectsData.forEach(project => {
       // Count main consultant projects
@@ -328,7 +341,7 @@ export const Dashboard: React.FC = () => {
   };
   
   const processTopServices = (projectsData, serviceData) => {
-    const serviceStats = {};
+    const serviceStats: Record<string, ServiceStats> = {};
     
     projectsData.forEach(project => {
       if (project.service_id) {
