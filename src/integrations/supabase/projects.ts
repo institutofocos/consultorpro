@@ -53,3 +53,36 @@ export const fetchTags = async () => {
     return [];
   }
 };
+
+// Function to fetch projects without consultants assigned (demands)
+export const fetchDemandsWithoutConsultants = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        id,
+        name,
+        description,
+        start_date,
+        end_date,
+        total_value,
+        status,
+        tags,
+        clients(name)
+      `)
+      .is('main_consultant_id', null)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Format the data to include client name
+    return (data || []).map(project => ({
+      ...project,
+      clientName: project.clients ? project.clients.name : null
+    }));
+
+  } catch (error) {
+    console.error('Error fetching demands:', error);
+    return [];
+  }
+};
