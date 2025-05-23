@@ -24,7 +24,7 @@ export const linkTasks = async (dependentTaskId: string, parentTaskId: string): 
       .from('notes')
       .update({
         linked_task_id: parentTaskId
-      })
+      } as any)
       .eq('id', dependentTaskId);
 
     if (error) throw error;
@@ -45,7 +45,7 @@ export const unlinkTask = async (taskId: string): Promise<boolean> => {
       .from('notes')
       .update({
         linked_task_id: null
-      })
+      } as any)
       .eq('id', taskId);
 
     if (error) throw error;

@@ -878,6 +878,7 @@ export type Database = {
           end_date: string | null
           has_internal_chat: boolean | null
           id: string
+          linked_task_id: string | null
           service_id: string | null
           start_date: string | null
           status: string
@@ -895,6 +896,7 @@ export type Database = {
           end_date?: string | null
           has_internal_chat?: boolean | null
           id?: string
+          linked_task_id?: string | null
           service_id?: string | null
           start_date?: string | null
           status?: string
@@ -912,6 +914,7 @@ export type Database = {
           end_date?: string | null
           has_internal_chat?: boolean | null
           id?: string
+          linked_task_id?: string | null
           service_id?: string | null
           start_date?: string | null
           status?: string
@@ -938,6 +941,13 @@ export type Database = {
             columns: ["consultant_id"]
             isOneToOne: false
             referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_linked_task_id_fkey"
+            columns: ["linked_task_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
             referencedColumns: ["id"]
           },
           {
