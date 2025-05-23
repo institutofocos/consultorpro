@@ -145,59 +145,119 @@ export async function setupAdminUsers() {
     const adminEmails = [
       'contato@eron.dev.br', 
       'augusto.andrademelo@gmail.com',
-      'pedroaugusto.andrademelo@gmail.com'  // Adicionado novo admin
+      'pedroaugusto.andrademelo@gmail.com'
     ];
     const password = '123456789';
     
+    const results = [];
+    
     // Para cada email de administrador
     for (const email of adminEmails) {
-      // Buscar usuário pelo email
-      const { data } = await supabase.auth.admin.listUsers();
-      
-      // Properly type the users array and safely access the email property
-      const users = data?.users as Array<User & { email: string }> || [];
-      const user = users.find(u => u.email === email);
-      
-      if (user) {
-        // Atualizar senha do usuário
-        await supabase.auth.admin.updateUserById(
-          user.id,
-          { password }
-        );
+      try {
+        // Buscar usuário pelo email usando a API de administração
+        const { data: usersData } = await supabase.auth.admin.listUsers();
         
-        // Atualizar perfil para administrador
-        await supabase
-          .from('user_profiles')
-          .update({ role: 'admin' })
-          .eq('id', user.id);
+        // Guarantee we have a users array
+        const users = usersData?.users || [];
         
-        console.log(`Usuário ${email} configurado como administrador com sucesso.`);
-      } else {
-        // If user doesn't exist, let's create it
-        const { data: newUser, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: email === 'contato@eron.dev.br' 
-                ? 'Eron Admin' 
-                : email === 'augusto.andrademelo@gmail.com' 
-                  ? 'Augusto Admin'
-                  : 'Pedro Augusto Admin',
-              role: 'admin'
+        // Find user with the specific email
+        const existingUser = users.find(u => u.email === email);
+        
+        if (existingUser) {
+          console.log(`Usuário ${email} encontrado, atualizando senha...`);
+          
+          // Atualizar senha do usuário existente
+          await supabase.auth.admin.updateUserById(
+            existingUser.id,
+            { password }
+          );
+          
+          // Verificar se já existe um perfil para este usuário
+          const { data: existingProfile } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', existingUser.id)
+            .single();
+            
+          if (existingProfile) {
+            // Atualizar perfil para administrador
+            await supabase
+              .from('user_profiles')
+              .update({ role: 'admin' })
+              .eq('id', existingUser.id);
+          } else {
+            // Criar perfil de administrador
+            await supabase
+              .from('user_profiles')
+              .insert({
+                id: existingUser.id,
+                full_name: email === 'contato@eron.dev.br' 
+                  ? 'Eron Admin' 
+                  : email === 'augusto.andrademelo@gmail.com'
+                    ? 'Augusto Admin'
+                    : 'Pedro Augusto Admin',
+                role: 'admin'
+              });
+          }
+          
+          results.push(`Usuário ${email} configurado como administrador com sucesso.`);
+        } else {
+          console.log(`Usuário ${email} não encontrado, criando novo usuário...`);
+          
+          // Create a new user
+          const { data: newUser, error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                full_name: email === 'contato@eron.dev.br' 
+                  ? 'Eron Admin' 
+                  : email === 'augusto.andrademelo@gmail.com' 
+                    ? 'Augusto Admin'
+                    : 'Pedro Augusto Admin',
+                role: 'admin'
+              }
+            }
+          });
+          
+          if (signUpError) {
+            console.error(`Erro ao criar usuário ${email}:`, signUpError);
+            results.push(`Erro ao criar usuário ${email}: ${signUpError.message}`);
+          } else {
+            results.push(`Novo usuário ${email} criado com sucesso.`);
+            
+            // Atualizar perfil para administrador se necessário
+            if (newUser?.user) {
+              const { data: existingProfile } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('id', newUser.user.id)
+                .single();
+                
+              if (!existingProfile) {
+                await supabase
+                  .from('user_profiles')
+                  .insert({
+                    id: newUser.user.id,
+                    full_name: email === 'contato@eron.dev.br' 
+                      ? 'Eron Admin' 
+                      : email === 'augusto.andrademelo@gmail.com'
+                        ? 'Augusto Admin'
+                        : 'Pedro Augusto Admin',
+                    role: 'admin'
+                  });
+              }
             }
           }
-        });
-        
-        if (signUpError) {
-          console.error(`Erro ao criar usuário ${email}:`, signUpError);
-        } else {
-          console.log(`Novo usuário ${email} criado com sucesso.`);
         }
+      } catch (userError) {
+        console.error(`Erro ao configurar usuário ${email}:`, userError);
+        results.push(`Erro ao configurar usuário ${email}: ${userError.message || 'Erro desconhecido'}`);
       }
     }
     
-    return true;
+    console.log('Resultados da configuração:', results);
+    return results;
   } catch (error) {
     console.error('Erro ao configurar usuários administradores:', error);
     throw error;

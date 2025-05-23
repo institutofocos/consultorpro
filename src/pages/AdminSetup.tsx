@@ -4,17 +4,24 @@ import { setupAdminUsers } from '@/services/auth';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { useToast } from '@/hooks/use-toast';
-import { Shield, Loader2 } from 'lucide-react';
+import { Shield, Loader2, CheckCircle2 } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 const AdminSetup = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [results, setResults] = useState<string[]>([]);
+  const [setupComplete, setSetupComplete] = useState(false);
   
   const handleSetupAdmins = async () => {
     setIsLoading(true);
+    setResults([]);
     
     try {
-      await setupAdminUsers();
+      const setupResults = await setupAdminUsers();
+      
+      setResults(setupResults);
+      setSetupComplete(true);
       
       toast({
         title: "Configuração concluída",
@@ -53,25 +60,54 @@ const AdminSetup = () => {
           </ul>
           <p className="text-sm font-medium">Senha: 123456789</p>
           
-          <div className="pt-4">
-            <Button
-              onClick={handleSetupAdmins}
-              className="w-full"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Configurando...
-                </>
-              ) : (
-                <>
-                  <Shield className="mr-2 h-4 w-4" />
-                  Configurar Administradores
-                </>
-              )}
-            </Button>
-          </div>
+          {results.length > 0 && (
+            <Alert className="mt-4">
+              <AlertTitle>Resultados</AlertTitle>
+              <AlertDescription>
+                <ul className="list-disc pl-5 text-sm mt-2">
+                  {results.map((result, index) => (
+                    <li key={index}>{result}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {setupComplete ? (
+            <div className="py-4 flex flex-col items-center text-center">
+              <CheckCircle2 className="h-16 w-16 text-green-500 mb-2" />
+              <h3 className="text-lg font-medium">Configuração Concluída</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Agora você pode voltar à página de login e acessar o sistema com as credenciais de administrador.
+              </p>
+              <Button 
+                className="mt-4"
+                onClick={() => window.location.href = "/auth"}
+              >
+                Ir para o Login
+              </Button>
+            </div>
+          ) : (
+            <div className="pt-4">
+              <Button
+                onClick={handleSetupAdmins}
+                className="w-full"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Configurando...
+                  </>
+                ) : (
+                  <>
+                    <Shield className="mr-2 h-4 w-4" />
+                    Configurar Administradores
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
