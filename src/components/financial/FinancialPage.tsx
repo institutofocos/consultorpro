@@ -25,13 +25,16 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { FinancialFilter, fetchFinancialTransactions } from "@/integrations/supabase/financial";
+import { 
+  FinancialFilter, 
+  fetchFinancialTransactions,
+  updateTransactionStatus 
+} from "@/integrations/supabase/financial";
 import { Badge } from "@/components/ui/badge";
 import { toast } from 'sonner';
 import { DollarSign, CalendarIcon, Filter, Check, X, RefreshCw } from "lucide-react";
 import { fetchConsultants } from "@/integrations/supabase/consultants";
 import { fetchServices } from "@/integrations/supabase/services";
-import { updateTransactionStatus } from '@/integrations/supabase/financial';
 import {
   Dialog,
   DialogContent,
