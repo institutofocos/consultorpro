@@ -28,6 +28,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
 import { Json } from '@/integrations/supabase/types';
 import { Project, Stage } from './types';
+import { updateProject } from '@/integrations/supabase/projects';
 
 // Use export type for re-exporting types when isolatedModules is enabled
 export type { Project, Stage };
@@ -74,12 +75,13 @@ export const ProjectList: React.FC = () => {
             console.error("Error parsing stages:", e);
           }
           
-          // Parse tags if they exist (handle if property doesn't exist)
+          // Parse tags safely - handle the case when project.tags is undefined
           let tags: string[] = [];
           try {
-            // Check if project has tags property and it's an array
-            if (project.tags && Array.isArray(project.tags)) {
-              tags = project.tags as string[];
+            // Use type assertion to handle the fact that tags might be undefined
+            const rawTags = (project as any).tags;
+            if (rawTags && Array.isArray(rawTags)) {
+              tags = rawTags as string[];
             }
           } catch (e) {
             console.error("Error parsing tags:", e);
@@ -95,13 +97,13 @@ export const ProjectList: React.FC = () => {
             mainConsultantName: project.main_consultant?.name || 'Não especificado',
             mainConsultantPixKey: project.main_consultant?.pix_key || '',
             // Use commission from specific field if available, or from consultant profile, or default to 0
-            mainConsultantCommission: project.main_consultant_commission || 
+            mainConsultantCommission: ((project as any).main_consultant_commission) || 
                                       project.main_consultant?.commission_percentage || 0,
             supportConsultantId: project.support_consultant_id || undefined,
             supportConsultantName: project.support_consultant?.name || undefined,
             supportConsultantPixKey: project.support_consultant?.pix_key || '',
             // Use commission from specific field if available, or from consultant profile, or default to 0
-            supportConsultantCommission: project.support_consultant_commission || 
+            supportConsultantCommission: ((project as any).support_consultant_commission) || 
                                          project.support_consultant?.commission_percentage || 0,
             startDate: project.start_date,
             endDate: project.end_date,
