@@ -42,6 +42,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { deleteChatRoom, fetchChatRoomsByProject } from '@/integrations/supabase/chat';
 
 // Use export type for re-exporting types when isolatedModules is enabled
 export type { Project, Stage };
@@ -216,19 +217,19 @@ export const ProjectList: React.FC = () => {
           .insert({
             name: project.name,
             description: project.description,
-            service_id: project.serviceId || null, // Para aceitar valor vazio ou nulo
+            service_id: project.serviceId || null,
             client_id: project.clientId || null,
-            main_consultant_id: project.mainConsultantId,
-            main_consultant_commission: project.mainConsultantCommission,
-            support_consultant_id: project.supportConsultantId || null, // Para aceitar valor vazio ou nulo
-            support_consultant_commission: project.supportConsultantCommission,
+            main_consultant_id: project.mainConsultantId || null, // Allow null consultants
+            main_consultant_commission: project.mainConsultantCommission || 0,
+            support_consultant_id: project.supportConsultantId || null,
+            support_consultant_commission: project.supportConsultantCommission || 0,
             start_date: project.startDate,
             end_date: project.endDate,
             total_value: project.totalValue,
             tax_percent: project.taxPercent,
-            third_party_expenses: project.thirdPartyExpenses,
-            main_consultant_value: project.consultantValue,
-            support_consultant_value: project.supportConsultantValue,
+            third_party_expenses: project.thirdPartyExpenses || 0,
+            main_consultant_value: project.consultantValue || 0,
+            support_consultant_value: project.supportConsultantValue || 0,
             status: project.status,
             stages: project.stages,
             tags: project.tags || []
@@ -265,6 +266,20 @@ export const ProjectList: React.FC = () => {
   
   const handleDeleteProject = async (id: string) => {
     try {
+      // First, we need to get all chat rooms related to this project
+      const chatRooms = await fetchChatRoomsByProject(id);
+      
+      // Delete each chat room related to this project
+      for (const room of chatRooms) {
+        try {
+          await deleteChatRoom(room.id);
+        } catch (error) {
+          console.error('Error deleting chat room:', error);
+          // Continue with other deletions even if this one fails
+        }
+      }
+      
+      // Now we can safely delete the project
       const { error } = await supabase
         .from('projects')
         .delete()
