@@ -30,8 +30,8 @@ export const seedIndicators = async (): Promise<boolean> => {
           description: kpi.description,
           type: 'kpi',
           category: kpi.category,
-          target: kpi.target.toString(), // Convert to string for DB
-          current: kpi.current.toString(), // Convert to string for DB
+          target: kpi.target,
+          current: kpi.current || 0,
           unit: kpi.unit,
           period: kpi.period,
           start_date: kpi.startDate,
@@ -56,8 +56,8 @@ export const seedIndicators = async (): Promise<boolean> => {
           description: okr.description,
           type: 'okr',
           category: okr.category,
-          target: okr.target.toString(), // Convert to string for DB
-          current: okr.current.toString(), // Convert to string for DB
+          target: okr.target,
+          current: okr.current || 0,
           unit: okr.unit,
           period: okr.period,
           start_date: okr.startDate,
@@ -76,21 +76,23 @@ export const seedIndicators = async (): Promise<boolean> => {
       }
       
       // Insert key results for this OKR
-      for (const kr of okr.keyResults) {
+      if (data && okr.keyResults && okr.keyResults.length > 0) {
+        const keyResultsToInsert = okr.keyResults.map(kr => ({
+          indicator_id: data.id,
+          name: kr.name,
+          description: kr.description || '',
+          target: kr.target,
+          current: kr.current || 0,
+          unit: kr.unit,
+          status: kr.status
+        }));
+        
         const { error: krError } = await supabase
           .from('key_results')
-          .insert({
-            indicator_id: data?.id,
-            name: kr.name,
-            description: kr.description || '',
-            target: kr.target.toString(), // Convert to string for DB
-            current: kr.current.toString(), // Convert to string for DB
-            unit: kr.unit,
-            status: kr.status
-          });
+          .insert(keyResultsToInsert);
         
         if (krError) {
-          console.error(`Error seeding key result ${kr.name}:`, krError);
+          console.error(`Error seeding key results for OKR ${okr.name}:`, krError);
         }
       }
     }

@@ -37,8 +37,8 @@ export const fetchIndicators = async (): Promise<{kpis: KPI[], okrs: OKR[]}> => 
         description: ind.description || '',
         type: 'kpi' as const,
         category: ind.category as IndicatorCategory, // Cast to the enum type
-        target: parseFloat(ind.target),
-        current: parseFloat(ind.current || '0'),
+        target: Number(ind.target),
+        current: Number(ind.current || 0),
         unit: ind.unit,
         period: ind.period as IndicatorPeriod, // Cast to the enum type
         startDate: ind.start_date,
@@ -59,8 +59,8 @@ export const fetchIndicators = async (): Promise<{kpis: KPI[], okrs: OKR[]}> => 
         description: ind.description || '',
         type: 'okr' as const,
         category: ind.category as IndicatorCategory, // Cast to the enum type
-        target: parseFloat(ind.target),
-        current: parseFloat(ind.current || '0'),
+        target: Number(ind.target),
+        current: Number(ind.current || 0),
         unit: ind.unit,
         period: ind.period as IndicatorPeriod, // Cast to the enum type
         startDate: ind.start_date,
@@ -75,8 +75,8 @@ export const fetchIndicators = async (): Promise<{kpis: KPI[], okrs: OKR[]}> => 
           id: kr.id,
           name: kr.name,
           description: kr.description || '',
-          target: parseFloat(kr.target),
-          current: parseFloat(kr.current || '0'),
+          target: Number(kr.target),
+          current: Number(kr.current || 0),
           unit: kr.unit,
           status: kr.status as IndicatorStatus // Cast to the enum type
         })) || []
@@ -109,8 +109,6 @@ export const updateIndicatorValues = async (): Promise<void> => {
 
     // For each indicator, calculate the current value
     for (const indicator of indicators || []) {
-      let currentValue = 0;
-      
       // In a real implementation, we would:
       // 1. Parse the formula
       // 2. Query the appropriate tables based on data_source
@@ -145,8 +143,8 @@ export const createIndicator = async (indicator: Omit<Indicator, 'id' | 'created
         description: indicator.description,
         type: indicator.type,
         category: indicator.category,
-        target: indicator.target.toString(), // Convert to string for DB
-        current: (indicator.current || 0).toString(), // Convert to string for DB
+        target: indicator.target,
+        current: indicator.current || 0,
         unit: indicator.unit,
         period: indicator.period,
         start_date: indicator.startDate,
@@ -172,10 +170,10 @@ export const createIndicator = async (indicator: Omit<Indicator, 'id' | 'created
         indicator_id: indicatorId,
         name: kr.name,
         description: kr.description || '',
-        target: kr.target.toString(), // Convert to string for DB
-        current: (kr.current || 0).toString(), // Convert to string for DB
+        target: kr.target,
+        current: kr.current || 0,
         unit: kr.unit,
-        status: 'not_started'
+        status: 'not_started' as IndicatorStatus
       }));
 
       const { error: krError } = await supabase
@@ -204,8 +202,8 @@ export const updateIndicator = async (indicator: Indicator, keyResults?: KeyResu
         name: indicator.name,
         description: indicator.description,
         category: indicator.category,
-        target: indicator.target.toString(), // Convert to string for DB
-        current: indicator.current.toString(), // Convert to string for DB
+        target: indicator.target,
+        current: indicator.current,
         unit: indicator.unit,
         period: indicator.period,
         start_date: indicator.startDate,
@@ -226,7 +224,7 @@ export const updateIndicator = async (indicator: Indicator, keyResults?: KeyResu
     // For OKRs, update key results
     if (indicator.type === 'okr' && keyResults && keyResults.length > 0) {
       // First, remove any deleted key results
-      const keyResultIds = keyResults.filter(kr => !kr.id.startsWith('new-')).map(kr => kr.id);
+      const keyResultIds = keyResults.filter(kr => kr.id && !kr.id.startsWith('new-')).map(kr => kr.id);
       
       // Delete key results that aren't in our current list
       if (keyResultIds.length > 0) {
@@ -261,8 +259,8 @@ export const updateIndicator = async (indicator: Indicator, keyResults?: KeyResu
               indicator_id: indicator.id,
               name: kr.name,
               description: kr.description || '',
-              target: kr.target.toString(), // Convert to string for DB
-              current: kr.current.toString(), // Convert to string for DB
+              target: kr.target,
+              current: kr.current,
               unit: kr.unit,
               status: kr.status
             });
@@ -277,8 +275,8 @@ export const updateIndicator = async (indicator: Indicator, keyResults?: KeyResu
             .update({
               name: kr.name,
               description: kr.description || '',
-              target: kr.target.toString(), // Convert to string for DB
-              current: kr.current.toString(), // Convert to string for DB
+              target: kr.target,
+              current: kr.current,
               unit: kr.unit,
               status: kr.status
             })
