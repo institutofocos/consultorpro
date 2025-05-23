@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { AuthUser, UserProfile, ModulePermission } from '@/types/auth';
 import { User } from '@supabase/supabase-js';
@@ -154,55 +153,14 @@ export async function setupAdminUsers() {
     // Para cada email de administrador
     for (const email of adminEmails) {
       try {
-        // Buscar usuário pelo email usando a API de administração
-        const { data: usersData } = await supabase.auth.admin.listUsers();
-        
-        // Guarantee we have a users array
-        const users = usersData?.users || [];
-        
-        // Find user with the specific email
-        const existingUser = users.find(u => u.email === email);
-        
-        if (existingUser) {
-          console.log(`Usuário ${email} encontrado, atualizando senha...`);
-          
-          // Atualizar senha do usuário existente
-          await supabase.auth.admin.updateUserById(
-            existingUser.id,
-            { password }
-          );
-          
-          // Verificar se já existe um perfil para este usuário
-          const { data: existingProfile } = await supabase
-            .from('user_profiles')
-            .select('*')
-            .eq('id', existingUser.id)
-            .single();
-            
-          if (existingProfile) {
-            // Atualizar perfil para administrador
-            await supabase
-              .from('user_profiles')
-              .update({ role: 'admin' })
-              .eq('id', existingUser.id);
-          } else {
-            // Criar perfil de administrador
-            await supabase
-              .from('user_profiles')
-              .insert({
-                id: existingUser.id,
-                full_name: email === 'contato@eron.dev.br' 
-                  ? 'Eron Admin' 
-                  : email === 'augusto.andrademelo@gmail.com'
-                    ? 'Augusto Admin'
-                    : 'Pedro Augusto Admin',
-                role: 'admin'
-              });
-          }
-          
-          results.push(`Usuário ${email} configurado como administrador com sucesso.`);
-        } else {
-          console.log(`Usuário ${email} não encontrado, criando novo usuário...`);
+        // First, check if user exists by attempting to sign in
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (signInError) {
+          console.log(`Usuário ${email} não encontrado ou senha incorreta, criando novo usuário...`);
           
           // Create a new user
           const { data: newUser, error: signUpError } = await supabase.auth.signUp({
@@ -226,7 +184,7 @@ export async function setupAdminUsers() {
           } else {
             results.push(`Novo usuário ${email} criado com sucesso.`);
             
-            // Atualizar perfil para administrador se necessário
+            // Atualizar perfil para administrador
             if (newUser?.user) {
               const { data: existingProfile } = await supabase
                 .from('user_profiles')
@@ -249,8 +207,81 @@ export async function setupAdminUsers() {
               }
             }
           }
+        } else {
+          // User exists, ensure they have admin profile
+          if (signInData?.user) {
+            console.log(`Usuário ${email} encontrado, verificando perfil...`);
+            
+            const { data: existingProfile } = await supabase
+              .from('user_profiles')
+              .select('*')
+              .eq('id', signInData.user.id)
+              .single();
+              
+            if (existingProfile) {
+              // Atualizar perfil para administrador
+              await supabase
+                .from('user_profiles')
+                .update({ role: 'admin' })
+                .eq('id', signInData.user.id);
+                
+              results.push(`Usuário ${email} atualizado como administrador com sucesso.`);
+            } else {
+              // Criar perfil de administrador
+              await supabase
+                .from('user_profiles')
+                .insert({
+                  id: signInData.user.id,
+                  full_name: email === 'contato@eron.dev.br' 
+                    ? 'Eron Admin' 
+                    : email === 'augusto.andrademelo@gmail.com'
+                      ? 'Augusto Admin'
+                      : 'Pedro Augusto Admin',
+                  role: 'admin'
+                });
+                
+              results.push(`Perfil de administrador criado para ${email} com sucesso.`);
+            }
+            
+            // Configurar permissões para todos os módulos do sistema
+            const systemModules = [
+              'dashboard', 'consultants', 'clients', 'projects', 'services', 
+              'tags', 'kpis', 'okrs', 'financial', 'activities', 
+              'notes', 'chat', 'reports', 'settings'
+            ];
+            
+            for (const moduleName of systemModules) {
+              const { data: existingPermission } = await supabase
+                .from('module_permissions')
+                .select('*')
+                .eq('user_id', signInData.user.id)
+                .eq('module_name', moduleName)
+                .maybeSingle();
+              
+              if (existingPermission) {
+                // Atualizar permissão existente
+                await supabase
+                  .from('module_permissions')
+                  .update({
+                    can_view: true,
+                    can_edit: true
+                  })
+                  .eq('id', existingPermission.id);
+              } else {
+                // Criar nova permissão
+                await supabase
+                  .from('module_permissions')
+                  .insert({
+                    user_id: signInData.user.id,
+                    module_name: moduleName,
+                    can_view: true,
+                    can_edit: true
+                  });
+              }
+            }
+          }
         }
-      } catch (userError) {
+      } catch (userError: any) {
         console.error(`Erro ao configurar usuário ${email}:`, userError);
         results.push(`Erro ao configurar usuário ${email}: ${userError.message || 'Erro desconhecido'}`);
       }

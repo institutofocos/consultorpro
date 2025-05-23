@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { loginWithEmail, registerUser, resetUserPassword } from '@/services/auth';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,13 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Lock, Loader2, Mail } from "lucide-react";
+import { Lock, Loader2, Mail, ShieldAlert } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from '@/integrations/supabase/client';
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, loading, refreshUser } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<string>("login");
   
@@ -22,6 +22,7 @@ const Auth = () => {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [setupNeeded, setSetupNeeded] = useState(false);
   
   // Estado para cadastro
   const [registerEmail, setRegisterEmail] = useState("");
@@ -35,8 +36,27 @@ const Auth = () => {
   const [resetEmail, setResetEmail] = useState("");
   const [isResetting, setIsResetting] = useState(false);
 
-  // Se já estiver logado, redirecionar para a página inicial
-  if (!loading && user) {
+  // Check if the user needs to go to admin setup
+  useEffect(() => {
+    const checkAdminSetup = async () => {
+      const setupDone = localStorage.getItem('adminSetupComplete');
+      if (!setupDone && user && user.profile?.role === 'admin') {
+        setSetupNeeded(true);
+      }
+    };
+    
+    if (user) {
+      checkAdminSetup();
+    }
+  }, [user]);
+
+  // If already logged in and admin setup needed, redirect to admin setup
+  if (!loading && user && setupNeeded) {
+    return <Navigate to="/admin-setup" replace />;
+  }
+
+  // If already logged in, redirect to main page
+  if (!loading && user && !setupNeeded) {
     return <Navigate to="/" replace />;
   }
 
@@ -45,8 +65,28 @@ const Auth = () => {
     setIsLoggingIn(true);
     
     try {
-      await loginWithEmail(loginEmail, loginPassword);
-      navigate("/");
+      // First, sign in with the provided credentials
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword
+      });
+      
+      if (error) throw error;
+      
+      // If successful, refresh the user data
+      await refreshUser();
+      
+      toast({
+        title: "Login realizado",
+        description: "Você foi autenticado com sucesso."
+      });
+      
+      // Check specifically for the admin user
+      if (loginEmail === 'pedroaugusto.andrademelo@gmail.com' && !localStorage.getItem('adminSetupComplete')) {
+        navigate('/admin-setup');
+      } else {
+        navigate("/");
+      }
     } catch (error: any) {
       let message = "Falha no login. Tente novamente.";
       if (error.message) {
@@ -56,6 +96,7 @@ const Auth = () => {
           message = "Credenciais inválidas. Verifique seu email e senha.";
         }
       }
+      console.error('Login error:', error);
       toast({
         variant: "destructive",
         title: "Erro no login",
@@ -64,6 +105,10 @@ const Auth = () => {
     } finally {
       setIsLoggingIn(false);
     }
+  };
+
+  const handleSetupAdmin = () => {
+    navigate('/admin-setup');
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -193,19 +238,32 @@ const Auth = () => {
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={isLoggingIn}>
-                    {isLoggingIn ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Entrando...
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="mr-2 h-4 w-4" />
-                        Entrar
-                      </>
-                    )}
-                  </Button>
+                  
+                  <div className="flex flex-col gap-2">
+                    <Button type="submit" className="w-full" disabled={isLoggingIn}>
+                      {isLoggingIn ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Entrando...
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="mr-2 h-4 w-4" />
+                          Entrar
+                        </>
+                      )}
+                    </Button>
+                    
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={handleSetupAdmin}
+                    >
+                      <ShieldAlert className="mr-2 h-4 w-4" />
+                      Configurar Administrador
+                    </Button>
+                  </div>
                 </form>
               </TabsContent>
               

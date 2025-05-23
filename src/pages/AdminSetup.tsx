@@ -1,17 +1,27 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { setupAdminUsers } from '@/services/auth';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { useToast } from '@/hooks/use-toast';
 import { Shield, Loader2, CheckCircle2 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { useNavigate } from 'react-router-dom';
 
 const AdminSetup = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<string[]>([]);
   const [setupComplete, setSetupComplete] = useState(false);
+  
+  useEffect(() => {
+    // Check local storage to see if setup was already completed
+    const setupDone = localStorage.getItem('adminSetupComplete');
+    if (setupDone === 'true') {
+      setSetupComplete(true);
+    }
+  }, []);
   
   const handleSetupAdmins = async () => {
     setIsLoading(true);
@@ -22,6 +32,9 @@ const AdminSetup = () => {
       
       setResults(setupResults);
       setSetupComplete(true);
+      
+      // Store setup completion in local storage
+      localStorage.setItem('adminSetupComplete', 'true');
       
       toast({
         title: "Configuração concluída",
@@ -38,6 +51,10 @@ const AdminSetup = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const goToLogin = () => {
+    navigate('/auth');
   };
 
   return (
@@ -82,7 +99,7 @@ const AdminSetup = () => {
               </p>
               <Button 
                 className="mt-4"
-                onClick={() => window.location.href = "/auth"}
+                onClick={goToLogin}
               >
                 Ir para o Login
               </Button>

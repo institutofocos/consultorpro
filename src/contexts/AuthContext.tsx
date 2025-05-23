@@ -28,7 +28,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshUser = async () => {
     try {
       const userData = await getCurrentUser();
+      console.log("User data refreshed:", userData);
       setUser(userData);
+      return userData;
     } catch (error) {
       console.error('Erro ao atualizar dados do usuário:', error);
       toast({
@@ -36,6 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         title: "Erro",
         description: "Não foi possível atualizar os dados do usuário",
       });
+      return null;
     }
   };
 
@@ -52,7 +55,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Configurar listener para alterações na autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event) => {
+      async (event, session) => {
+        console.log("Auth state changed:", event);
         if (event === 'SIGNED_IN') {
           await refreshUser();
         } else if (event === 'SIGNED_OUT') {
