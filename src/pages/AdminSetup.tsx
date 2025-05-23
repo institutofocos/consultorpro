@@ -49,6 +49,7 @@ const AdminSetup = () => {
           <ul className="list-disc pl-5 space-y-1 text-sm">
             <li>contato@eron.dev.br</li>
             <li>augusto.andrademelo@gmail.com</li>
+            <li>pedroaugusto.andrademelo@gmail.com</li>
           </ul>
           <p className="text-sm font-medium">Senha: 123456789</p>
           

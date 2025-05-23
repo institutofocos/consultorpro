@@ -142,7 +142,11 @@ export function hasPermission(user: AuthUser | null, moduleName: string, actionT
 export async function setupAdminUsers() {
   try {
     // Lista de emails de administradores e suas senhas
-    const adminEmails = ['contato@eron.dev.br', 'augusto.andrademelo@gmail.com'];
+    const adminEmails = [
+      'contato@eron.dev.br', 
+      'augusto.andrademelo@gmail.com',
+      'pedroaugusto.andrademelo@gmail.com'  // Adicionado novo admin
+    ];
     const password = '123456789';
     
     // Para cada email de administrador
@@ -175,7 +179,11 @@ export async function setupAdminUsers() {
           password,
           options: {
             data: {
-              full_name: email === 'contato@eron.dev.br' ? 'Eron Admin' : 'Augusto Admin',
+              full_name: email === 'contato@eron.dev.br' 
+                ? 'Eron Admin' 
+                : email === 'augusto.andrademelo@gmail.com' 
+                  ? 'Augusto Admin'
+                  : 'Pedro Augusto Admin',
               role: 'admin'
             }
           }
