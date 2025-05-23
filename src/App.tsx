@@ -20,6 +20,7 @@ import SettingsPage from "./components/settings/SettingsPage";
 import ClientList from "./components/clients/ClientList";
 import FinancialPage from "./components/financial/FinancialPage";
 import NotesPage from "./pages/Notes"; // Importar a nova página de anotações
+import ChatPage from "./components/chat/ChatPage"; // Importar a página de chat interna
 
 // Import reports components
 import ReportsLayout from "./components/reports/ReportsLayout";
@@ -85,6 +86,11 @@ const App = () => (
           <Route path="/notes" element={
             <Layout>
               <NotesPage />
+            </Layout>
+          } />
+          <Route path="/chat" element={
+            <Layout>
+              <ChatPage />
             </Layout>
           } />
           
