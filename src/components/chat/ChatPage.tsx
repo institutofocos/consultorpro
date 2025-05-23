@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 import { fetchConsultants } from '@/integrations/supabase/consultants';
 import { fetchChatRooms, fetchChatMessages, sendChatMessage, subscribeToChatMessages, ChatMessage, ChatRoom } from '@/integrations/supabase/chat';
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import ChatRoomsList from './ChatRoomsList';
 import ChatMessages from './ChatMessages';
 import ChatInput from './ChatInput';
@@ -15,6 +14,10 @@ import { Separator } from '@/components/ui/separator';
 type LocationState = {
   initialRoomId?: string;
 };
+
+// Create a valid temporary UUID for development
+const TEMP_USER_ID = "00000000-0000-0000-0000-000000000000";
+const TEMP_USER_NAME = "Usuário Teste";
 
 const ChatPage = () => {
   const location = useLocation();
@@ -99,12 +102,8 @@ const ChatPage = () => {
 
   const handleSendMessage = async (messageContent: string) => {
     if (selectedRoomId) {
-      // Como estamos numa PoC, usamos valores temporários para o remetente
-      // Num sistema real, estes dados viriam do usuário autenticado
-      const tempSenderId = "temp-user-id";
-      const tempSenderName = "Usuário Teste";
-      
-      await sendChatMessage(selectedRoomId, tempSenderId, tempSenderName, messageContent);
+      // Usando o UUID temporário válido em vez de uma string comum
+      await sendChatMessage(selectedRoomId, TEMP_USER_ID, TEMP_USER_NAME, messageContent);
       // Não precisamos atualizar manualmente os messages porque o subscription fará isso
     }
   };

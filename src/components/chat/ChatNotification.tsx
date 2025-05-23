@@ -5,11 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Bell } from 'lucide-react';
 import { ChatMessage } from '@/integrations/supabase/chat';
 
+// Use the same temporary UUID for consistency
+const TEMP_USER_ID = "00000000-0000-0000-0000-000000000000";
+
 interface ChatNotificationProps {
-  userId?: string;  // Opcional para quando não temos autenticação
+  userId?: string;  // Optional for when we don't have authentication
 }
 
-const ChatNotification: React.FC<ChatNotificationProps> = ({ userId = "temp-user-id" }) => {
+const ChatNotification: React.FC<ChatNotificationProps> = ({ userId = TEMP_USER_ID }) => {
   useEffect(() => {
     // Inscrever-se para receber novas mensagens de chat
     const subscription = supabase
