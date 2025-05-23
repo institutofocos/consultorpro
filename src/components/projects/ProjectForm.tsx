@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -104,7 +103,9 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
               id: stage.id ? stage.id.toString() : Date.now().toString() + index,
               startDate: stage.startDate || stageStartDate.toISOString().split('T')[0],
               endDate: stage.endDate || stageEndDate.toISOString().split('T')[0],
-              completed: stage.completed || false
+              completed: stage.completed || false,
+              clientApproved: false,
+              consultantPaid: false
             } as Stage;
           });
           
@@ -136,7 +137,9 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
       value: 2200,
       startDate: newStageStartDate.toISOString().split('T')[0],
       endDate: newStageEndDate.toISOString().split('T')[0],
-      completed: false
+      completed: false,
+      clientApproved: false,
+      consultantPaid: false
     };
     
     setStages([...stages, newStage]);
