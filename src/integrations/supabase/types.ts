@@ -9,6 +9,114 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      accounts_payable: {
+        Row: {
+          amount: number
+          consultant_id: string | null
+          created_at: string
+          description: string
+          due_date: string
+          id: string
+          payment_date: string | null
+          project_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          consultant_id?: string | null
+          created_at?: string
+          description: string
+          due_date: string
+          id?: string
+          payment_date?: string | null
+          project_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          consultant_id?: string | null
+          created_at?: string
+          description?: string
+          due_date?: string
+          id?: string
+          payment_date?: string | null
+          project_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_payable_consultant_id_fkey"
+            columns: ["consultant_id"]
+            isOneToOne: false
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounts_payable_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounts_receivable: {
+        Row: {
+          amount: number
+          client_id: string | null
+          created_at: string
+          description: string
+          due_date: string
+          id: string
+          payment_date: string | null
+          project_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          client_id?: string | null
+          created_at?: string
+          description: string
+          due_date: string
+          id?: string
+          payment_date?: string | null
+          project_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          client_id?: string | null
+          created_at?: string
+          description?: string
+          due_date?: string
+          id?: string
+          payment_date?: string | null
+          project_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_receivable_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounts_receivable_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
           content: string
@@ -461,6 +569,89 @@ export type Database = {
           },
         ]
       }
+      manual_transactions: {
+        Row: {
+          amount: number
+          client_id: string | null
+          consultant_id: string | null
+          created_at: string
+          description: string
+          due_date: string
+          id: string
+          is_recurring: boolean
+          payment_date: string | null
+          project_id: string | null
+          recurrence_interval: string | null
+          status: string
+          tag_id: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          client_id?: string | null
+          consultant_id?: string | null
+          created_at?: string
+          description: string
+          due_date: string
+          id?: string
+          is_recurring?: boolean
+          payment_date?: string | null
+          project_id?: string | null
+          recurrence_interval?: string | null
+          status?: string
+          tag_id?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          client_id?: string | null
+          consultant_id?: string | null
+          created_at?: string
+          description?: string
+          due_date?: string
+          id?: string
+          is_recurring?: boolean
+          payment_date?: string | null
+          project_id?: string | null
+          recurrence_interval?: string | null
+          status?: string
+          tag_id?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_transactions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_transactions_consultant_id_fkey"
+            columns: ["consultant_id"]
+            isOneToOne: false
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_transactions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_transactions_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       module_permissions: {
         Row: {
           can_edit: boolean
@@ -841,7 +1032,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_financial_summary: {
+        Args: {
+          start_date?: string
+          end_date?: string
+          consultant_filter?: string
+          service_filter?: string
+        }
+        Returns: {
+          total_expected: number
+          total_received: number
+          total_pending: number
+          consultant_payments_made: number
+          consultant_payments_pending: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

@@ -1,81 +1,74 @@
 
-import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { PlusCircle, AlertCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { format } from "date-fns";
-import { 
-  FinancialFilter, 
-  fetchFinancialTransactions,
-  updateTransactionStatus 
-} from "@/integrations/supabase/financial";
-import { Badge } from "@/components/ui/badge";
 import { toast } from 'sonner';
-import { DollarSign, CalendarIcon, Filter, Check, X, RefreshCw } from "lucide-react";
+import { 
+  fetchFinancialSummary,
+  fetchFinancialTransactions,
+  fetchManualTransactions, 
+  fetchAccountsPayable,
+  fetchAccountsReceivable,
+  updateTransactionStatus,
+  createManualTransaction,
+  updateManualTransaction,
+  deleteManualTransaction,
+  FinancialFilter
+} from "@/integrations/supabase/financial";
 import { fetchConsultants } from "@/integrations/supabase/consultants";
 import { fetchServices } from "@/integrations/supabase/services";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { fetchClients } from "@/integrations/supabase/clients";
+import { fetchProjects } from "@/integrations/supabase/projects";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { Skeleton } from "@/components/ui/skeleton";
-
-type Consultant = {
-  id: string;
-  name: string;
-};
-
-type Service = {
-  id: string;
-  name: string;
-};
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import FinancialSummary from "./FinancialSummary";
+import FinancialFilters from "./FinancialFilters";
+import FinancialTabs from "./FinancialTabs";
+import AccountsPayableReceivable from "./AccountsPayableReceivable";
+import ManualTransactionForm from "./ManualTransactionForm";
 
 const FinancialPage = () => {
-  const [filters, setFilters] = useState<FinancialFilter>({
-    status: ['pending'],
-    timeframe: 'all',
-  });
+  const queryClient = useQueryClient();
+  const [filters, setFilters] = useState<FinancialFilter>({});
   const [selectedTransaction, setSelectedTransaction] = useState<string | null>(null);
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
+  const [showAddTransaction, setShowAddTransaction] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<any>(null);
 
-  const { data: transactions, isLoading: transactionsLoading, refetch } = useQuery({
+  // Fetch financial data
+  const { data: summary, isLoading: summaryLoading } = useQuery({
+    queryKey: ['financial-summary', filters],
+    queryFn: () => fetchFinancialSummary(filters),
+  });
+
+  const { data: transactions, isLoading: transactionsLoading } = useQuery({
     queryKey: ['financial-transactions', filters],
     queryFn: () => fetchFinancialTransactions(filters),
   });
 
+  const { data: manualTransactions, isLoading: manualTransactionsLoading } = useQuery({
+    queryKey: ['manual-transactions', filters],
+    queryFn: () => fetchManualTransactions(filters),
+  });
+
+  const { data: payables, isLoading: payablesLoading } = useQuery({
+    queryKey: ['accounts-payable', filters],
+    queryFn: () => fetchAccountsPayable(filters),
+  });
+
+  const { data: receivables, isLoading: receivablesLoading } = useQuery({
+    queryKey: ['accounts-receivable', filters],
+    queryFn: () => fetchAccountsReceivable(filters),
+  });
+
+  // Fetch auxiliary data
   const { data: consultants, isLoading: consultantsLoading } = useQuery({
     queryKey: ['consultants'],
     queryFn: fetchConsultants,
@@ -86,386 +79,216 @@ const FinancialPage = () => {
     queryFn: fetchServices,
   });
 
-  // Calculate summary statistics
-  const summary = React.useMemo(() => {
-    if (!transactions) return {
-      totalExpected: 0,
-      totalReceived: 0,
-      totalPending: 0,
-      totalConsultantPayments: 0
-    };
+  const { data: clients, isLoading: clientsLoading } = useQuery({
+    queryKey: ['clients'],
+    queryFn: fetchClients,
+  });
 
-    return transactions.reduce((acc, transaction) => {
-      if (transaction.transaction_type === 'expected_income') {
-        if (transaction.status === 'completed') {
-          acc.totalReceived += transaction.amount;
-        } else if (transaction.status === 'pending') {
-          acc.totalPending += transaction.amount;
-        }
-        acc.totalExpected += transaction.amount;
-      } else if (transaction.transaction_type === 'consultant_payment') {
-        acc.totalConsultantPayments += transaction.amount;
-      }
-      return acc;
-    }, {
-      totalExpected: 0,
-      totalReceived: 0,
-      totalPending: 0,
-      totalConsultantPayments: 0
-    });
-  }, [transactions]);
+  const { data: projects, isLoading: projectsLoading } = useQuery({
+    queryKey: ['projects'],
+    queryFn: fetchProjects,
+  });
 
-  const handleStatusChange = async (id: string, status: 'completed' | 'pending' | 'canceled') => {
+  const { data: tags = [] } = useQuery({
+    queryKey: ['tags'],
+    queryFn: async () => {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data } = await supabase.from('tags').select('id, name');
+      return data || [];
+    },
+  });
+
+  // Mutations
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status, paymentDate }: { id: string, status: 'completed' | 'pending' | 'canceled', paymentDate?: string }) => 
+      updateTransactionStatus(id, status, paymentDate),
+    onSuccess: () => {
+      toast.success("Status atualizado com sucesso");
+      queryClient.invalidateQueries({ queryKey: ['financial-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+    },
+    onError: (error) => {
+      toast.error("Erro ao atualizar status: " + error.message);
+    },
+  });
+
+  const createManualTransactionMutation = useMutation({
+    mutationFn: createManualTransaction,
+    onSuccess: () => {
+      toast.success("Transação criada com sucesso");
+      queryClient.invalidateQueries({ queryKey: ['manual-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
+    },
+    onError: (error) => {
+      toast.error("Erro ao criar transação: " + error.message);
+    },
+  });
+
+  const updateManualTransactionMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string, data: any }) => updateManualTransaction(id, data),
+    onSuccess: () => {
+      toast.success("Transação atualizada com sucesso");
+      queryClient.invalidateQueries({ queryKey: ['manual-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
+    },
+    onError: (error) => {
+      toast.error("Erro ao atualizar transação: " + error.message);
+    },
+  });
+
+  const deleteManualTransactionMutation = useMutation({
+    mutationFn: deleteManualTransaction,
+    onSuccess: () => {
+      toast.success("Transação excluída com sucesso");
+      queryClient.invalidateQueries({ queryKey: ['manual-transactions'] });
+    },
+    onError: (error) => {
+      toast.error("Erro ao excluir transação: " + error.message);
+    },
+  });
+
+  // Event handlers
+  const handleFilterChange = (newFilters: any) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
+  };
+
+  const handleFilterReset = () => {
+    setFilters({});
+  };
+
+  const handleStatusChange = (id: string, status: 'completed' | 'pending' | 'canceled') => {
     if (status === 'completed') {
       setSelectedTransaction(id);
       setIsMarkingPaid(true);
     } else {
-      try {
-        await updateTransactionStatus(id, status);
-        toast.success("Status atualizado com sucesso");
-        refetch();
-      } catch (error) {
-        toast.error("Erro ao atualizar status");
-      }
+      updateStatusMutation.mutate({ id, status });
     }
   };
 
   const handleConfirmPayment = async () => {
     if (!selectedTransaction) return;
     
-    try {
-      await updateTransactionStatus(
-        selectedTransaction, 
-        'completed',
-        paymentDate ? format(paymentDate, 'yyyy-MM-dd') : undefined
-      );
-      toast.success("Pagamento registrado com sucesso");
-      setIsMarkingPaid(false);
-      refetch();
-    } catch (error) {
-      toast.error("Erro ao registrar pagamento");
-    }
+    await updateStatusMutation.mutate({
+      id: selectedTransaction, 
+      status: 'completed',
+      paymentDate: paymentDate ? format(paymentDate, 'yyyy-MM-dd') : undefined
+    });
+    
+    setIsMarkingPaid(false);
+    setSelectedTransaction(null);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch(status) {
-      case 'pending':
-        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Pendente</Badge>;
-      case 'completed':
-        return <Badge variant="outline" className="bg-green-100 text-green-800">Concluído</Badge>;
-      case 'canceled':
-        return <Badge variant="outline" className="bg-red-100 text-red-800">Cancelado</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+  const handleAddTransaction = async (data: any) => {
+    // Format dates correctly for the database
+    const formattedData = {
+      ...data,
+      due_date: format(data.due_date, 'yyyy-MM-dd'),
+      payment_date: data.payment_date ? format(data.payment_date, 'yyyy-MM-dd') : null
+    };
+    
+    if (editingTransaction) {
+      await updateManualTransactionMutation.mutate({ 
+        id: editingTransaction.id, 
+        data: formattedData 
+      });
+      setEditingTransaction(null);
+    } else {
+      await createManualTransactionMutation.mutate(formattedData);
     }
+    
+    setShowAddTransaction(false);
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  const handleEditTransaction = (transaction: any) => {
+    setEditingTransaction(transaction);
+    setShowAddTransaction(true);
+  };
+
+  const handleDeleteTransaction = (id: string) => {
+    if (confirm("Tem certeza que deseja excluir esta transação?")) {
+      deleteManualTransactionMutation.mutate(id);
+    }
   };
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-bold">Financeiro</h1>
-        <p className="text-muted-foreground">Controle de receitas e pagamentos</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Financeiro</h1>
+          <p className="text-muted-foreground">Controle de receitas e pagamentos</p>
+        </div>
+        <Button
+          onClick={() => {
+            setEditingTransaction(null);
+            setShowAddTransaction(true);
+          }}
+        >
+          <PlusCircle className="mr-2 h-4 w-4" /> Novo Lançamento
+        </Button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Previsto</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {transactionsLoading ? (
-                <Skeleton className="h-8 w-full" />
-              ) : (
-                formatCurrency(summary.totalExpected)
-              )}
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Recebido</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {transactionsLoading ? (
-                <Skeleton className="h-8 w-full" />
-              ) : (
-                formatCurrency(summary.totalReceived)
-              )}
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Pendente</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              {transactionsLoading ? (
-                <Skeleton className="h-8 w-full" />
-              ) : (
-                formatCurrency(summary.totalPending)
-              )}
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Pagamentos a Consultores</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {transactionsLoading ? (
-                <Skeleton className="h-8 w-full" />
-              ) : (
-                formatCurrency(summary.totalConsultantPayments)
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <FinancialSummary
+        summary={summary}
+        isLoading={summaryLoading}
+      />
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Filter className="h-5 w-5 mr-2" /> Filtros
-          </CardTitle>
-          <CardDescription>Filtre os dados financeiros</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-4">
-            <div className="w-full sm:w-auto">
-              <label className="block text-sm font-medium mb-1">Status</label>
-              <div className="flex flex-wrap gap-2">
-                <Button 
-                  size="sm" 
-                  variant={filters.status?.includes('pending') ? "default" : "outline"}
-                  onClick={() => setFilters(prev => {
-                    const newStatus = prev.status?.includes('pending')
-                      ? prev.status.filter(s => s !== 'pending')
-                      : [...(prev.status || []), 'pending'];
-                    return { ...prev, status: newStatus };
-                  })}
-                >
-                  Pendentes
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant={filters.status?.includes('completed') ? "default" : "outline"}
-                  onClick={() => setFilters(prev => {
-                    const newStatus = prev.status?.includes('completed')
-                      ? prev.status.filter(s => s !== 'completed')
-                      : [...(prev.status || []), 'completed'];
-                    return { ...prev, status: newStatus };
-                  })}
-                >
-                  Recebidos/Pagos
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant={filters.status?.includes('canceled') ? "default" : "outline"}
-                  onClick={() => setFilters(prev => {
-                    const newStatus = prev.status?.includes('canceled')
-                      ? prev.status.filter(s => s !== 'canceled')
-                      : [...(prev.status || []), 'canceled'];
-                    return { ...prev, status: newStatus };
-                  })}
-                >
-                  Cancelados
-                </Button>
-              </div>
-            </div>
+      <FinancialFilters
+        consultants={consultants || []}
+        services={services || []}
+        filters={{
+          startDate: filters.startDate ? new Date(filters.startDate) : undefined,
+          endDate: filters.endDate ? new Date(filters.endDate) : undefined,
+          consultantId: filters.consultantId,
+          serviceId: filters.serviceId,
+        }}
+        isLoading={{
+          consultants: consultantsLoading,
+          services: servicesLoading,
+        }}
+        onFilterChange={handleFilterChange}
+        onFilterReset={handleFilterReset}
+      />
 
-            <div className="w-full sm:w-auto">
-              <label className="block text-sm font-medium mb-1">Período</label>
-              <Select
-                value={filters.timeframe || 'all'}
-                onValueChange={value => setFilters(prev => ({ ...prev, timeframe: value as any }))}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="today">Hoje</SelectItem>
-                  <SelectItem value="this_week">Esta semana</SelectItem>
-                  <SelectItem value="this_month">Este mês</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      {/* Warning about automatic data */}
+      <Alert variant="warning">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Transações do Sistema</AlertTitle>
+        <AlertDescription>
+          As transações do sistema são geradas automaticamente a partir das etapas dos projetos. 
+          Para criar lançamentos manuais, use o botão "Novo Lançamento".
+        </AlertDescription>
+      </Alert>
 
-            <div className="w-full sm:w-auto">
-              <label className="block text-sm font-medium mb-1">Consultor</label>
-              <Select
-                value={filters.consultantId || ''}
-                onValueChange={value => setFilters(prev => ({ ...prev, consultantId: value || undefined }))}
-              >
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Todos os consultores" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todos os consultores</SelectItem>
-                  {!consultantsLoading && consultants?.map((consultant: Consultant) => (
-                    <SelectItem key={consultant.id} value={consultant.id}>
-                      {consultant.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      {/* Transactions Tables */}
+      <FinancialTabs
+        automatedTransactions={{
+          data: transactions,
+          isLoading: transactionsLoading,
+        }}
+        manualTransactions={{
+          data: manualTransactions,
+          isLoading: manualTransactionsLoading,
+        }}
+        onStatusChange={handleStatusChange}
+        onEditManualTransaction={handleEditTransaction}
+        onDeleteManualTransaction={handleDeleteTransaction}
+      />
 
-            <div className="w-full sm:w-auto">
-              <label className="block text-sm font-medium mb-1">Serviço</label>
-              <Select
-                value={filters.serviceId || ''}
-                onValueChange={value => setFilters(prev => ({ ...prev, serviceId: value || undefined }))}
-              >
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Todos os serviços" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todos os serviços</SelectItem>
-                  {!servicesLoading && services?.map((service: Service) => (
-                    <SelectItem key={service.id} value={service.id}>
-                      {service.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="w-full sm:w-auto flex items-end">
-              <Button
-                variant="outline"
-                onClick={() => setFilters({
-                  status: ['pending'],
-                  timeframe: 'all',
-                })}
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Limpar filtros
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Transactions Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Transações Financeiras</CardTitle>
-          <CardDescription>
-            Receitas e pagamentos previstos e realizados
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Projeto/Cliente</TableHead>
-                <TableHead>Etapa</TableHead>
-                <TableHead>Consultor</TableHead>
-                <TableHead>Valor Bruto</TableHead>
-                <TableHead>Valor Líquido</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactionsLoading ? (
-                Array.from({ length: 5 }).map((_, index) => (
-                  <TableRow key={index}>
-                    {Array.from({ length: 9 }).map((_, cellIndex) => (
-                      <TableCell key={cellIndex}>
-                        <Skeleton className="h-5 w-full" />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : transactions?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">
-                    Nenhuma transação encontrada para os filtros selecionados
-                  </TableCell>
-                </TableRow>
-              ) : (
-                transactions?.map(transaction => (
-                  <TableRow key={transaction.id}>
-                    <TableCell>
-                      {format(new Date(transaction.due_date), 'dd/MM/yyyy')}
-                    </TableCell>
-                    <TableCell>
-                      {transaction.transaction_type === 'expected_income' 
-                        ? <Badge className="bg-blue-100 text-blue-800 border-blue-300">Receita</Badge>
-                        : transaction.transaction_type === 'consultant_payment'
-                          ? <Badge className="bg-purple-100 text-purple-800 border-purple-300">Pagamento</Badge>
-                          : transaction.transaction_type}
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">{transaction.project_name}</div>
-                      <div className="text-sm text-muted-foreground">{transaction.client_name}</div>
-                    </TableCell>
-                    <TableCell>{transaction.stage_name}</TableCell>
-                    <TableCell>{transaction.consultant_name || '-'}</TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(transaction.amount)}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(transaction.net_amount)}
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(transaction.status)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-1">
-                        {transaction.status === 'pending' && (
-                          <>
-                            <Button 
-                              size="sm" 
-                              variant="ghost"
-                              onClick={() => handleStatusChange(transaction.id, 'completed')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="ghost"
-                              onClick={() => handleStatusChange(transaction.id, 'canceled')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                        {transaction.status === 'canceled' && (
-                          <Button 
-                            size="sm" 
-                            variant="ghost"
-                            onClick={() => handleStatusChange(transaction.id, 'pending')}
-                          >
-                            <RefreshCw className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* Accounts Payable/Receivable */}
+      <AccountsPayableReceivable
+        payables={{
+          data: payables,
+          isLoading: payablesLoading,
+        }}
+        receivables={{
+          data: receivables,
+          isLoading: receivablesLoading,
+        }}
+      />
 
       {/* Payment Dialog */}
       <Dialog open={isMarkingPaid} onOpenChange={setIsMarkingPaid}>
@@ -485,8 +308,8 @@ const FinancialPage = () => {
                       !paymentDate && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {paymentDate ? format(paymentDate, "PPP") : <span>Selecione uma data</span>}
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {paymentDate ? format(paymentDate, "dd/MM/yyyy") : <span>Selecione uma data</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
@@ -506,6 +329,21 @@ const FinancialPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Manual Transaction Form Dialog */}
+      <ManualTransactionForm
+        isOpen={showAddTransaction}
+        onClose={() => {
+          setShowAddTransaction(false);
+          setEditingTransaction(null);
+        }}
+        onSubmit={handleAddTransaction}
+        transaction={editingTransaction}
+        clients={clients || []}
+        consultants={consultants || []}
+        projects={projects || []}
+        tags={tags || []}
+      />
     </div>
   );
 };
