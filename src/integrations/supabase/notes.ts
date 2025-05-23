@@ -201,21 +201,18 @@ export const fetchNoteById = async (id: string): Promise<Note | null> => {
 export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'updated_at'>): Promise<Note | null> => {
   try {
     // Extract fields that should be directly inserted into notes table
-    const { consultant_ids, tag_ids, checklists, has_internal_chat, ...noteFields } = noteData;
+    const { consultant_ids, tag_ids, checklists, has_internal_chat, chat_room_id, start_date, end_date, ...noteFields } = noteData;
     
     // Create the note
     const { data: noteResult, error } = await supabase
       .from('notes')
-      .insert({
-        ...noteFields,
-        has_internal_chat: has_internal_chat || false
-      })
+      .insert(noteFields)
       .select()
       .single();
 
     if (error) throw error;
 
-    // Create chat room if requested, but this is simplified since we don't have all tables
+    // Create chat room if requested
     if (has_internal_chat) {
       const { data: chatRoom, error: chatError } = await supabase
         .from('chat_rooms')
@@ -229,10 +226,7 @@ export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'upd
       if (!chatError && chatRoom) {
         await supabase
           .from('notes')
-          .update({ 
-            has_internal_chat: true, 
-            chat_room_id: chatRoom.id 
-          })
+          .update({ chat_room_id: chatRoom.id })
           .eq('id', noteResult.id);
       }
     }
@@ -247,7 +241,7 @@ export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'upd
 export const updateNote = async (id: string, noteData: Partial<Note>): Promise<Note | null> => {
   try {
     // Extract fields that shouldn't be directly updated in the notes table
-    const { consultant_ids, tag_ids, checklists, ...noteFields } = noteData;
+    const { consultant_ids, tag_ids, checklists, chat_room_id, has_internal_chat, ...noteFields } = noteData;
 
     // Update the note
     const { error } = await supabase
