@@ -29,22 +29,22 @@ export type FinancialFilter = {
 
 export const fetchFinancialTransactions = async (filters: FinancialFilter = {}): Promise<FinancialTransaction[]> => {
   try {
-    let query = supabase
+    const query = supabase
       .from('financial_transactions')
       .select(`
         *,
-        projects:project_id (
+        projects!project_id (
           name,
           client_id,
           service_id,
-          clients:client_id (name)
+          clients!client_id (name)
         ),
-        consultants:consultant_id (name)
+        consultants!consultant_id (name)
       `);
 
     // Apply filters
     if (filters.status && filters.status.length > 0) {
-      query = query.in('status', filters.status);
+      query.in('status', filters.status);
     }
     
     if (filters.timeframe) {
@@ -52,7 +52,7 @@ export const fetchFinancialTransactions = async (filters: FinancialFilter = {}):
       
       switch (filters.timeframe) {
         case 'today':
-          query = query.eq('due_date', today.toISOString().split('T')[0]);
+          query.eq('due_date', today.toISOString().split('T')[0]);
           break;
         case 'this_week': {
           const startOfWeek = new Date(today);
@@ -60,7 +60,7 @@ export const fetchFinancialTransactions = async (filters: FinancialFilter = {}):
           const endOfWeek = new Date(today);
           endOfWeek.setDate(startOfWeek.getDate() + 6);
           
-          query = query
+          query
             .gte('due_date', startOfWeek.toISOString().split('T')[0])
             .lte('due_date', endOfWeek.toISOString().split('T')[0]);
           break;
@@ -69,7 +69,7 @@ export const fetchFinancialTransactions = async (filters: FinancialFilter = {}):
           const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
           const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
           
-          query = query
+          query
             .gte('due_date', startOfMonth.toISOString().split('T')[0])
             .lte('due_date', endOfMonth.toISOString().split('T')[0]);
           break;
@@ -78,16 +78,16 @@ export const fetchFinancialTransactions = async (filters: FinancialFilter = {}):
     }
     
     if (filters.consultantId) {
-      query = query.eq('consultant_id', filters.consultantId);
+      query.eq('consultant_id', filters.consultantId);
     }
 
     if (filters.serviceId) {
-      // We need to join through projects to filter by service_id
-      query = query.eq('projects.service_id', filters.serviceId);
+      // We need to filter by projects that have the specified service_id
+      query.eq('projects.service_id', filters.serviceId);
     }
 
     // Sort by date
-    query = query.order('due_date', { ascending: true });
+    query.order('due_date', { ascending: true });
 
     const { data, error } = await query;
 
@@ -97,17 +97,29 @@ export const fetchFinancialTransactions = async (filters: FinancialFilter = {}):
     }
 
     // Transform data for easier consumption
-    const result: FinancialTransaction[] = data.map(item => {
-      const projects = item.projects as any || {};
-      const consultants = item.consultants as any || {};
-      const clients = projects?.clients as any || {};
+    const result: FinancialTransaction[] = (data || []).map((item: any) => {
+      const projects = item.projects || {};
+      const consultants = item.consultants || {};
+      const clients = projects?.clients || {};
       
       return {
-        ...item,
+        id: item.id,
+        project_id: item.project_id,
+        transaction_type: item.transaction_type,
+        amount: item.amount,
+        net_amount: item.net_amount,
+        due_date: item.due_date,
+        payment_date: item.payment_date,
+        stage_name: item.stage_name,
+        consultant_id: item.consultant_id,
+        is_support_consultant: item.is_support_consultant,
+        status: item.status,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
         project_name: projects?.name || '',
         consultant_name: consultants?.name || '',
         client_name: clients?.name || ''
-      } as FinancialTransaction;
+      };
     });
 
     return result;
