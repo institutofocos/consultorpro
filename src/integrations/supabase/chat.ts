@@ -1,8 +1,13 @@
+
 import { supabase } from './client';
 import type { Database } from './types';
 
 // Tipo para salas de chat
-export type ChatRoom = Database['public']['Tables']['chat_rooms']['Row'];
+export type ChatRoom = Database['public']['Tables']['chat_rooms']['Row'] & {
+  projects?: {
+    status: string;
+  } | null;
+};
 export type ChatMessage = Database['public']['Tables']['chat_messages']['Row'];
 export type ChatParticipant = Database['public']['Tables']['chat_room_participants']['Row'];
 export type ChatRoomType = 'PROJECT' | 'DIRECT' | 'GROUP';

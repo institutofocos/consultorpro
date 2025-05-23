@@ -383,7 +383,7 @@ const ChatRoomsList: React.FC<ChatRoomsListProps> = ({
   
   const canModifyRoom = (room: ChatRoom) => {
     // A room can be modified if it's not linked to a project or if the project is completed
-    return !room.project_id || room.projects?.status === 'completed';
+    return !room.project_id || (room.projects && room.projects.status === 'completed');
   };
   
   const renderRoom = (room: ChatRoom) => {
