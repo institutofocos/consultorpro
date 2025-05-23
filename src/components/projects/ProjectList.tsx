@@ -77,6 +77,7 @@ export const ProjectList: React.FC = () => {
             id: project.id,
             name: project.name,
             description: project.description || '',
+            serviceId: project.service_id,
             mainConsultantId: project.main_consultant_id,
             // Using optional chaining to safely access nested properties
             mainConsultantName: project.main_consultant?.name || 'Não especificado',
@@ -90,6 +91,7 @@ export const ProjectList: React.FC = () => {
             taxPercent: Number(project.tax_percent) || 0,
             thirdPartyExpenses: Number(project.third_party_expenses) || 0,
             consultantValue: Number(project.main_consultant_value) || 0,
+            supportConsultantValue: Number(project.support_consultant_value) || 0,
             status: project.status as any || 'planned',
             stages: stages,
             completedStages: stages.filter(s => s.completed).length
@@ -120,6 +122,7 @@ export const ProjectList: React.FC = () => {
           .update({
             name: project.name,
             description: project.description,
+            service_id: project.serviceId,
             main_consultant_id: project.mainConsultantId,
             support_consultant_id: project.supportConsultantId,
             start_date: project.startDate,
@@ -128,6 +131,7 @@ export const ProjectList: React.FC = () => {
             tax_percent: project.taxPercent,
             third_party_expenses: project.thirdPartyExpenses,
             main_consultant_value: project.consultantValue,
+            support_consultant_value: project.supportConsultantValue,
             status: project.status,
             stages: project.stages
           })
@@ -159,7 +163,8 @@ export const ProjectList: React.FC = () => {
           .insert({
             name: project.name,
             description: project.description,
-            main_consultant_id: project.mainConsultantId,  // Usar a propriedade correta
+            service_id: project.serviceId,
+            main_consultant_id: project.mainConsultantId,
             support_consultant_id: project.supportConsultantId,
             start_date: project.startDate,
             end_date: project.endDate,
@@ -167,6 +172,7 @@ export const ProjectList: React.FC = () => {
             tax_percent: project.taxPercent,
             third_party_expenses: project.thirdPartyExpenses,
             main_consultant_value: project.consultantValue,
+            support_consultant_value: project.supportConsultantValue,
             status: project.status,
             stages: project.stages
           });

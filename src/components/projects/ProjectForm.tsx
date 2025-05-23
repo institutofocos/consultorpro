@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,11 +18,13 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 import { fetchConsultants } from '@/integrations/supabase/consultants';
+import { fetchServices } from '@/integrations/supabase/services';
 import { supabase } from '@/integrations/supabase/client';
 import { createChatRoom, addChatParticipant } from '@/integrations/supabase/chat';
 import { Consultant, Project, Stage } from './types';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { addDays } from 'date-fns';
+import { BasicService } from '@/components/services/types';
 
 interface ProjectFormProps {
   project?: Project | null;
@@ -40,84 +43,91 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
   const [taxPercent, setTaxPercent] = useState(project?.taxPercent?.toString() || '16');
   const [thirdPartyExpenses, setThirdPartyExpenses] = useState(project?.thirdPartyExpenses?.toString() || '0');
   const [consultantValue, setConsultantValue] = useState(project?.consultantValue?.toString() || '');
-  // Since supportConsultantValue doesn't exist on Project type, we'll use a default empty string
-  const [supportConsultantValue, setSupportConsultantValue] = useState('0');
+  const [supportConsultantValue, setSupportConsultantValue] = useState(project?.supportConsultantValue?.toString() || '0');
   const [status, setStatus] = useState<'planned' | 'active' | 'completed' | 'cancelled'>(project?.status || 'planned');
   const [stages, setStages] = useState<Stage[]>(project?.stages || []);
   const [consultants, setConsultants] = useState<Consultant[]>([]);
-  const [services, setServices] = useState<any[]>([]);
+  const [services, setServices] = useState<BasicService[]>([]);
+  const [selectedServiceId, setSelectedServiceId] = useState(project?.serviceId || '');
   const { toast } = useToast();
   
   useEffect(() => {
     // Fetch consultants
     fetchConsultants().then(data => setConsultants(data as unknown as Consultant[]));
     
-    // Fetch services for stage templates
-    const fetchServices = async () => {
-      const { data, error } = await supabase
-        .from('services')
-        .select('*');
-      
-      if (!error && data) {
-        setServices(data);
-      }
-    };
+    // Fetch services
+    fetchServices().then(data => {
+      setServices(data as unknown as BasicService[]);
+      console.log("Services loaded:", data);
+    });
     
-    fetchServices();
   }, []);
 
   // Initialize stages from a service template if no stages provided
   const initializeStagesFromService = (serviceId: string) => {
+    setSelectedServiceId(serviceId);
+    
+    // Find the selected service
     const selectedService = services.find(s => s.id === serviceId);
-    if (selectedService && selectedService.stages) {
-      try {
-        let serviceStages: Stage[];
-        if (typeof selectedService.stages === 'string') {
-          serviceStages = JSON.parse(selectedService.stages);
-        } else {
-          serviceStages = selectedService.stages;
-        }
-        
-        if (Array.isArray(serviceStages)) {
-          // Add required fields that exist on projects but might not on service templates
-          const stagesWithDates = serviceStages.map((stage, index) => {
-            // Calculate the start and end date for each stage
-            const stageDuration = stage.days || 1;
-            let stageStartDate;
-            
-            if (index === 0) {
-              stageStartDate = startDate ? new Date(startDate) : new Date();
-            } else {
-              const prevStage = serviceStages[index - 1];
-              stageStartDate = addDays(
-                new Date(prevStage.endDate || prevStage.startDate || new Date()), 
-                1
-              );
-            }
-            
-            const stageEndDate = addDays(stageStartDate, stageDuration - 1);
-            
-            // Convert all ids to strings to match the Stage type
-            return {
-              ...stage,
-              id: stage.id ? stage.id.toString() : Date.now().toString() + index,
-              startDate: stage.startDate || stageStartDate.toISOString().split('T')[0],
-              endDate: stage.endDate || stageEndDate.toISOString().split('T')[0],
-              completed: stage.completed || false,
-              clientApproved: false,
-              consultantPaid: false
-            } as Stage;
-          });
-          
-          setStages(stagesWithDates);
-          
-          // Set the total value from service if not set
-          if (!totalValue && selectedService.total_value) {
-            setTotalValue(selectedService.total_value.toString());
+    if (selectedService) {
+      console.log("Selected service:", selectedService);
+      
+      // Set the total value and tax rate from the service
+      if (selectedService.total_value) {
+        setTotalValue(selectedService.total_value.toString());
+      }
+      
+      if (selectedService.tax_rate) {
+        setTaxPercent(selectedService.tax_rate.toString());
+      }
+      
+      // Handle stages
+      if (selectedService.stages) {
+        try {
+          let serviceStages: Stage[];
+          if (typeof selectedService.stages === 'string') {
+            serviceStages = JSON.parse(selectedService.stages);
+          } else {
+            serviceStages = selectedService.stages as any;
           }
+          
+          if (Array.isArray(serviceStages)) {
+            // Add required fields that exist on projects but might not on service templates
+            const stagesWithDates = serviceStages.map((stage, index) => {
+              // Calculate the start and end date for each stage
+              const stageDuration = stage.days || 1;
+              let stageStartDate;
+              
+              if (index === 0) {
+                stageStartDate = startDate ? new Date(startDate) : new Date();
+              } else {
+                const prevStage = serviceStages[index - 1];
+                stageStartDate = addDays(
+                  new Date(prevStage.endDate || prevStage.startDate || new Date()), 
+                  1
+                );
+              }
+              
+              const stageEndDate = addDays(stageStartDate, stageDuration - 1);
+              
+              // Convert all ids to strings to match the Stage type
+              return {
+                ...stage,
+                id: stage.id ? stage.id.toString() : Date.now().toString() + index,
+                startDate: stage.startDate || stageStartDate.toISOString().split('T')[0],
+                endDate: stage.endDate || stageEndDate.toISOString().split('T')[0],
+                completed: stage.completed || false,
+                clientApproved: false,
+                consultantPaid: false
+              } as Stage;
+            });
+            
+            setStages(stagesWithDates);
+            console.log("Stages loaded from service:", stagesWithDates);
+          }
+        } catch (e) {
+          console.error("Error parsing service stages:", e);
         }
-      } catch (e) {
-        console.error("Error parsing service stages:", e);
       }
     }
   };
@@ -189,6 +199,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
       id: project?.id,
       name,
       description,
+      serviceId: selectedServiceId, // Add service ID to form data
       mainConsultantId,
       mainConsultantName: mainConsultant?.name,
       mainConsultantPixKey: mainConsultant?.pix_key,
@@ -281,6 +292,26 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Descrição do projeto"
           />
+        </div>
+        
+        <div>
+          <Label htmlFor="service">Serviço Vinculado</Label>
+          <Select value={selectedServiceId} onValueChange={initializeStagesFromService}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione um serviço para vincular ao projeto" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Nenhum</SelectItem>
+              {services.map(service => (
+                <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedServiceId && (
+            <p className="text-sm text-muted-foreground mt-1">
+              As etapas e valores do serviço selecionado foram carregados automaticamente.
+            </p>
+          )}
         </div>
         
         <div>
@@ -471,18 +502,6 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <CardTitle>Etapas do Projeto</CardTitle>
             <div className="flex gap-2">
-              {services.length > 0 && (
-                <Select onValueChange={initializeStagesFromService}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Carregar de serviço" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {services.map(service => (
-                      <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
               <Button type="button" onClick={handleAddStage} size="sm">
                 <Plus className="h-4 w-4 mr-1" /> Adicionar
               </Button>
@@ -491,7 +510,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
           <CardContent>
             {stages.length === 0 ? (
               <div className="text-center py-4 text-muted-foreground">
-                Nenhuma etapa adicionada. Clique em "Adicionar" para criar etapas.
+                Nenhuma etapa adicionada. Clique em "Adicionar" para criar etapas ou selecione um serviço para carregar etapas automaticamente.
               </div>
             ) : (
               <div className="space-y-3">
