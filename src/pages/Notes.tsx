@@ -184,6 +184,18 @@ const NotesPage: React.FC = () => {
     setCustomDateTo(undefined);
   };
 
+  const handleConsultantFilterChange = (value: string | string[]) => {
+    setConsultantFilter(Array.isArray(value) ? value[0] || '' : value);
+  };
+
+  const handleServiceFilterChange = (value: string | string[]) => {
+    setServiceFilter(Array.isArray(value) ? value[0] || '' : value);
+  };
+
+  const handleClientFilterChange = (value: string | string[]) => {
+    setClientFilter(Array.isArray(value) ? value[0] || '' : value);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -224,7 +236,7 @@ const NotesPage: React.FC = () => {
             <NoteFormSelect
               options={consultants}
               value={consultantFilter}
-              onValueChange={setConsultantFilter}
+              onValueChange={handleConsultantFilterChange}
               placeholder="Consultor"
               searchPlaceholder="Buscar consultor..."
               emptyText="Nenhum consultor encontrado."
@@ -233,7 +245,7 @@ const NotesPage: React.FC = () => {
             <NoteFormSelect
               options={services}
               value={serviceFilter}
-              onValueChange={setServiceFilter}
+              onValueChange={handleServiceFilterChange}
               placeholder="Serviço"
               searchPlaceholder="Buscar serviço..."
               emptyText="Nenhum serviço encontrado."
@@ -242,7 +254,7 @@ const NotesPage: React.FC = () => {
             <NoteFormSelect
               options={clients}
               value={clientFilter}
-              onValueChange={setClientFilter}
+              onValueChange={handleClientFilterChange}
               placeholder="Cliente"
               searchPlaceholder="Buscar cliente..."
               emptyText="Nenhum cliente encontrado."
