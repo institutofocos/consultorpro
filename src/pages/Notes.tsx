@@ -95,7 +95,14 @@ const NotesPage: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold tracking-tight">Anotações</h1>
-        <NoteForm onSave={handleCreateNote} />
+        <div className="flex items-center">
+          <NoteForm onSave={handleCreateNote}>
+            <Button size="sm" variant="outline" className="ml-auto gap-1">
+              <Plus className="h-4 w-4" />
+              <span>Nova</span>
+            </Button>
+          </NoteForm>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between">

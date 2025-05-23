@@ -87,20 +87,28 @@ const TagList: React.FC = () => {
         if (error) throw error;
         
         toast.success('Tag atualizada com sucesso!');
+        // Atualizar a lista localmente para refletir a alteração
+        setTags(tags.map(tag => 
+          tag.id === editingTag.id ? { ...tag, name: data.name } : tag
+        ));
       } else {
         // Creating new tag
-        const { error } = await supabase
+        const { data: newTag, error } = await supabase
           .from('tags')
-          .insert([{ name: data.name }]);
+          .insert([{ name: data.name }])
+          .select();
           
         if (error) throw error;
         
         toast.success('Tag adicionada com sucesso!');
+        // Adicionar a nova tag à lista local
+        if (newTag && newTag.length > 0) {
+          setTags([...tags, newTag[0]]);
+        }
       }
       
       form.reset();
       setEditingTag(null);
-      fetchTags();
     } catch (error: any) {
       toast.error(`Erro ao ${editingTag ? 'atualizar' : 'adicionar'} tag: ` + error.message);
     }

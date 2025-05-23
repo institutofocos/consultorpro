@@ -110,21 +110,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     { to: '/projects', icon: <Briefcase size={20} />, label: 'Projetos' },
     { to: '/services', icon: <Layers size={20} />, label: 'Serviços' },
     { to: '/tags', icon: <Tag size={20} />, label: 'Tags' },
-    { to: '/demands', icon: <FileCheck size={20} />, label: 'Demandas' }, // New item for demands
+    { to: '/demands', icon: <FileCheck size={20} />, label: 'Demandas' },
     { to: '/financial', icon: <DollarSign size={20} />, label: 'Financeiro' },
     { to: '/notes', icon: <StickyNote size={20} />, label: 'Anotações' },
     { to: '/chat', icon: <MessageSquare size={20} />, label: 'Chat Interno' },
-    { to: '/kpis', icon: <LineChart size={20} />, label: 'KPIs' },
-    { to: '/okrs', icon: <Target size={20} />, label: 'OKRs' },
-    { to: '/activities', icon: <Calendar size={20} />, label: 'Lançamentos' },
-    // Reports dropdown moved to separate variable
+    // Agrupando KPIs e OKRs em um dropdown
+    { to: '/kpis-okrs', icon: <LineChart size={20} />, label: 'KPIs / OKRs', isDropdown: true, 
+      options: [
+        { label: 'KPIs', to: '/kpis', icon: <LineChart size={16} /> },
+        { label: 'OKRs', to: '/okrs', icon: <Target size={16} /> }
+      ]
+    },
+    // Removendo dropdown de Relatórios e direcionando diretamente para agenda
+    { to: '/reports/calendar', icon: <FileText size={20} />, label: 'Relatórios' },
     { to: '/settings', icon: <Settings size={20} />, label: 'Configurações' }
-  ];
-
-  const reportOptions = [
-    { label: 'Agenda', to: '/reports/calendar', icon: <Calendar size={16} /> },
-    { label: 'Kanban', to: '/reports/kanban', icon: <KanbanSquare size={16} /> },
-    { label: 'Gantt', to: '/reports/gantt', icon: <ChartGantt size={16} /> }
   ];
 
   return (
@@ -158,23 +157,29 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       
       {/* Nav items */}
       <nav className="flex-1 px-2 py-3">
-        {navItems.map((item, index) => (
-          <NavItem 
-            key={index} 
-            to={item.to} 
-            icon={item.icon} 
-            label={item.label}
-            isOpen={isOpen}
-          />
-        ))}
-        
-        {/* Reports dropdown */}
-        <NavDropdownItem
-          label="Relatórios"
-          icon={<FileText size={20} />}
-          options={reportOptions}
-          isOpen={isOpen}
-        />
+        {navItems.map((item, index) => {
+          if (item.isDropdown && item.options) {
+            return (
+              <NavDropdownItem 
+                key={index} 
+                label={item.label} 
+                icon={item.icon} 
+                options={item.options}
+                isOpen={isOpen}
+              />
+            );
+          } else {
+            return (
+              <NavItem 
+                key={index} 
+                to={item.to} 
+                icon={item.icon} 
+                label={item.label}
+                isOpen={isOpen}
+              />
+            );
+          }
+        })}
       </nav>
       
       {/* Version info */}
