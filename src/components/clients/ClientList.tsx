@@ -14,12 +14,13 @@ import { Plus, Edit, Trash, Building } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import ClientForm from "./ClientForm";
+import { BasicClient } from '../services/types';
 
 const ClientList = () => {
-  const [clients, setClients] = useState<any[]>([]);
+  const [clients, setClients] = useState<BasicClient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingClient, setIsAddingClient] = useState(false);
-  const [editingClient, setEditingClient] = useState<any>(null);
+  const [editingClient, setEditingClient] = useState<BasicClient | null>(null);
 
   const fetchClients = async () => {
     setIsLoading(true);

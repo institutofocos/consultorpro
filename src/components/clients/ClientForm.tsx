@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { BasicClient } from '../services/types';
 
 const formSchema = z.object({
   name: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }),
@@ -33,7 +34,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 interface ClientFormProps {
-  client?: any;
+  client?: BasicClient | null;
   onSave: () => void;
   onCancel: () => void;
 }

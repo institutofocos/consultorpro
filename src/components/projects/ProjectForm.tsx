@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -21,7 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PlusCircle, X, AlertCircle, Edit2, Calendar } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { ServiceStage, BasicService } from "../services/types";
+import { ServiceStage, BasicService, BasicClient } from "../services/types";
 
 const formSchema = z.object({
   name: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }),
@@ -60,9 +59,9 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
   const [supportConsultantValue, setSupportConsultantValue] = useState(project?.supportConsultantValue || 0);
   const [netValue, setNetValue] = useState(0);
   const [services, setServices] = useState<BasicService[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
+  const [clients, setClients] = useState<BasicClient[]>([]);
   const [consultants, setConsultants] = useState<any[]>([]);
-  const [selectedService, setSelectedService] = useState<any>(null);
+  const [selectedService, setSelectedService] = useState<BasicService | null>(null);
   const [projectStages, setProjectStages] = useState<ProjectStage[]>(project?.stages || []);
   
   const [stageName, setStageName] = useState("");
@@ -130,7 +129,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
         // Fetch clients
         const { data: clientsData, error: clientsError } = await supabase
           .from('clients')
-          .select('id, name')
+          .select('id, name, contact_name, email, phone')
           .order('name');
           
         if (clientsError) throw clientsError;
@@ -164,7 +163,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
   // Handle service selection
   const handleServiceChange = (serviceId: string) => {
     const service = services.find(s => s.id === serviceId);
-    setSelectedService(service);
+    setSelectedService(service || null);
     
     if (service) {
       // Set project values based on selected service
