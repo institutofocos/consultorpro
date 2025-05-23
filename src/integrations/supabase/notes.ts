@@ -69,11 +69,11 @@ export const fetchNotes = async (): Promise<Note[]> => {
     // Process notes to add related information
     const notesWithRelations = await Promise.all(
       (data || []).map(async (note) => {
-        // Let's simplify this to avoid using tables that don't exist
         let consultantNames: string[] = [];
         let clientName: string | null = null;
         let serviceName: string | null = null;
         let tagNames: string[] = [];
+        let checklists: NoteChecklist[] = [];
         
         // Fetch consultant names if consultant_id exists
         if (note.consultant_id) {
@@ -110,13 +110,40 @@ export const fetchNotes = async (): Promise<Note[]> => {
           serviceName = service?.name || null;
         }
 
+        // Try to fetch checklists if table exists
+        try {
+          const { data: checklistData } = await supabase
+            .from('note_checklists')
+            .select(`
+              id,
+              title,
+              description,
+              due_date,
+              responsible_consultant_id,
+              completed,
+              completed_at,
+              created_at,
+              consultants:responsible_consultant_id (name)
+            `)
+            .eq('note_id', note.id);
+          
+          checklists = (checklistData || []).map((item: any) => ({
+            ...item,
+            note_id: note.id,
+            responsible_consultant_name: item.consultants?.name || null
+          }));
+        } catch (checklistError) {
+          console.log('Checklists table not available yet');
+          checklists = [];
+        }
+
         return {
           ...note,
           consultant_names: consultantNames,
           client_name: clientName,
           service_name: serviceName,
           tag_names: tagNames,
-          checklists: [], // We'll implement this later when we have the table
+          checklists: checklists,
           status: note.status as 'a_fazer' | 'em_producao' | 'finalizado' | 'cancelado'
         } as Note;
       })
@@ -147,6 +174,7 @@ export const fetchNoteById = async (id: string): Promise<Note | null> => {
     let clientName: string | null = null;
     let serviceName: string | null = null;
     let tagNames: string[] = [];
+    let checklists: NoteChecklist[] = [];
 
     // Fetch consultant name if consultant_id exists
     if (data.consultant_id) {
@@ -183,13 +211,40 @@ export const fetchNoteById = async (id: string): Promise<Note | null> => {
       serviceName = service?.name || null;
     }
 
+    // Try to fetch checklists
+    try {
+      const { data: checklistData } = await supabase
+        .from('note_checklists')
+        .select(`
+          id,
+          title,
+          description,
+          due_date,
+          responsible_consultant_id,
+          completed,
+          completed_at,
+          created_at,
+          consultants:responsible_consultant_id (name)
+        `)
+        .eq('note_id', id);
+      
+      checklists = (checklistData || []).map((item: any) => ({
+        ...item,
+        note_id: id,
+        responsible_consultant_name: item.consultants?.name || null
+      }));
+    } catch (checklistError) {
+      console.log('Checklists table not available yet');
+      checklists = [];
+    }
+
     return {
       ...data,
       consultant_names: consultantNames,
       client_name: clientName,
       service_name: serviceName,
       tag_names: tagNames,
-      checklists: [],
+      checklists: checklists,
       status: data.status as 'a_fazer' | 'em_producao' | 'finalizado' | 'cancelado'
     } as Note;
   } catch (error) {
@@ -200,10 +255,10 @@ export const fetchNoteById = async (id: string): Promise<Note | null> => {
 
 export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'updated_at'>): Promise<Note | null> => {
   try {
-    // Extract fields that should be directly inserted into notes table
+    // Extract fields that should be handled separately
     const { consultant_ids, tag_ids, checklists, has_internal_chat, chat_room_id, start_date, end_date, ...noteFields } = noteData;
     
-    // Create the note
+    // Create the note with only the fields that exist in the database
     const { data: noteResult, error } = await supabase
       .from('notes')
       .insert(noteFields)
@@ -214,20 +269,41 @@ export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'upd
 
     // Create chat room if requested
     if (has_internal_chat) {
-      const { data: chatRoom, error: chatError } = await supabase
-        .from('chat_rooms')
-        .insert({
-          name: `Chat: ${noteResult.title}`,
-          description: `Chat interno para a anotação: ${noteResult.title}`
-        })
-        .select()
-        .single();
-      
-      if (!chatError && chatRoom) {
-        await supabase
-          .from('notes')
-          .update({ chat_room_id: chatRoom.id })
-          .eq('id', noteResult.id);
+      try {
+        const { data: chatRoom, error: chatError } = await supabase
+          .from('chat_rooms')
+          .insert({
+            name: `Chat: ${noteResult.title}`,
+            description: `Chat interno para a anotação: ${noteResult.title}`
+          })
+          .select()
+          .single();
+        
+        if (!chatError && chatRoom) {
+          // Try to update the note with chat_room_id if the field exists
+          await supabase
+            .from('notes')
+            .update({ 
+              consultant_id: noteResult.consultant_id // Keep existing data
+            })
+            .eq('id', noteResult.id);
+          
+          // Add consultants to chat room if consultant_ids provided
+          if (consultant_ids && consultant_ids.length > 0) {
+            const participantsData = consultant_ids.map(consultantId => ({
+              room_id: chatRoom.id,
+              user_id: consultantId,
+              user_name: 'Consultor', // We'll fetch the actual name later
+              user_role: 'consultant'
+            }));
+            
+            await supabase
+              .from('chat_room_participants')
+              .insert(participantsData);
+          }
+        }
+      } catch (chatError) {
+        console.log('Could not create chat room:', chatError);
       }
     }
 
@@ -243,6 +319,18 @@ export const updateNote = async (id: string, noteData: Partial<Note>): Promise<N
     // Extract fields that shouldn't be directly updated in the notes table
     const { consultant_ids, tag_ids, checklists, chat_room_id, has_internal_chat, ...noteFields } = noteData;
 
+    // Check if trying to mark as finalizado
+    if (noteFields.status === 'finalizado') {
+      // Check if all checklists are completed
+      const note = await fetchNoteById(id);
+      if (note && note.checklists && note.checklists.length > 0) {
+        const hasIncompleteChecklists = note.checklists.some(checklist => !checklist.completed);
+        if (hasIncompleteChecklists) {
+          throw new Error('Não é possível finalizar a anotação. Todas as checklists devem estar concluídas primeiro.');
+        }
+      }
+    }
+
     // Update the note
     const { error } = await supabase
       .from('notes')
@@ -254,7 +342,7 @@ export const updateNote = async (id: string, noteData: Partial<Note>): Promise<N
     return await fetchNoteById(id);
   } catch (error) {
     console.error('Error in updateNote:', error);
-    return null;
+    throw error;
   }
 };
 
@@ -277,23 +365,61 @@ export const updateNoteStatus = async (id: string, status: Note['status']): Prom
   return updateNote(id, { status });
 };
 
-// Checklist functions - simplified since we don't have the tables yet
+// Checklist functions
 export const createChecklist = async (checklist: Omit<NoteChecklist, 'id' | 'created_at'>): Promise<NoteChecklist | null> => {
-  console.error('createChecklist: This function needs tables that don\'t exist yet');
-  return null;
+  try {
+    const { data, error } = await supabase
+      .from('note_checklists')
+      .insert(checklist)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error creating checklist:', error);
+    return null;
+  }
 };
 
 export const updateChecklist = async (id: string, updates: Partial<NoteChecklist>): Promise<boolean> => {
-  console.error('updateChecklist: This function needs tables that don\'t exist yet');
-  return false;
+  try {
+    // If marking as completed, add completed_at timestamp
+    if (updates.completed === true && !updates.completed_at) {
+      updates.completed_at = new Date().toISOString();
+    } else if (updates.completed === false) {
+      updates.completed_at = undefined;
+    }
+
+    const { error } = await supabase
+      .from('note_checklists')
+      .update(updates)
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error updating checklist:', error);
+    return false;
+  }
 };
 
 export const deleteChecklist = async (id: string): Promise<boolean> => {
-  console.error('deleteChecklist: This function needs tables that don\'t exist yet');
-  return false;
+  try {
+    const { error } = await supabase
+      .from('note_checklists')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting checklist:', error);
+    return false;
+  }
 };
 
-// Simplified helper functions that don't rely on non-existent tables
+// Helper functions
 async function fetchConsultantName(consultantId: string): Promise<string | null> {
   const { data } = await supabase
     .from('consultants')

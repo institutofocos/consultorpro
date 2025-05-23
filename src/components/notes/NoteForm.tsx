@@ -14,7 +14,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarIcon, Plus, Trash2 } from 'lucide-react';
+import { CalendarIcon, Plus, Trash2, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { fetchConsultants } from '@/integrations/supabase/consultants';
@@ -22,6 +22,11 @@ import { fetchClients } from '@/integrations/supabase/clients';
 import { fetchServices } from '@/integrations/supabase/services';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import NoteFormSelect from './NoteFormSelect';
+import ChecklistItem from './ChecklistItem';
+import { createChecklist, NoteChecklist } from '@/integrations/supabase/notes';
+import { toast } from 'sonner';
 
 export interface NoteFormProps {
   onSave: (data: any) => void;
@@ -31,7 +36,7 @@ export interface NoteFormProps {
 }
 
 const formSchema = z.object({
-  title: z.string().min(1, { message: "Título é obrigatório" }),
+  title: z.string().optional(),
   content: z.string().optional(),
   status: z.string().default("a_fazer"),
   color: z.string().optional(),
@@ -55,6 +60,7 @@ const formSchema = z.object({
 const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onClose }) => {
   const [open, setOpen] = useState(false);
   const [newChecklist, setNewChecklist] = useState({ title: '', description: '', due_date: '', responsible_consultant_id: '' });
+  const [checklistsData, setChecklistsData] = useState<NoteChecklist[]>([]);
   
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -111,26 +117,29 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
         tag_ids: initialData.tag_ids || [],
         checklists: initialData.checklists || []
       });
+      setChecklistsData(initialData.checklists || []);
     }
   }, [initialData, open, form]);
 
-  const handleSubmit = (data: any) => {
-    // Converter datas se fornecidas
-    const formattedData = {
-      ...data,
-      start_date: data.start_date ? format(new Date(data.start_date), 'yyyy-MM-dd') : undefined,
-      end_date: data.end_date ? format(new Date(data.end_date), 'yyyy-MM-dd') : undefined,
-      due_date: data.due_date ? format(new Date(data.due_date), 'yyyy-MM-dd') : undefined,
-      checklists: data.checklists?.map((checklist: any) => ({
-        ...checklist,
-        due_date: checklist.due_date ? format(new Date(checklist.due_date), 'yyyy-MM-dd') : undefined
-      })) || []
-    };
-    
-    onSave(formattedData);
-    setOpen(false);
-    form.reset();
-    if (onClose) onClose();
+  const handleSubmit = async (data: any) => {
+    try {
+      // Converter datas se fornecidas
+      const formattedData = {
+        ...data,
+        start_date: data.start_date ? format(new Date(data.start_date), 'yyyy-MM-dd') : undefined,
+        end_date: data.end_date ? format(new Date(data.end_date), 'yyyy-MM-dd') : undefined,
+        due_date: data.due_date ? format(new Date(data.due_date), 'yyyy-MM-dd') : undefined,
+        checklists: checklistsData
+      };
+      
+      await onSave(formattedData);
+      setOpen(false);
+      form.reset();
+      setChecklistsData([]);
+      if (onClose) onClose();
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao salvar anotação');
+    }
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -138,18 +147,70 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
     if (!newOpen && onClose) onClose();
   };
 
-  const addChecklist = () => {
+  const addChecklist = async () => {
     if (newChecklist.title.trim()) {
-      const currentChecklists = form.getValues('checklists') || [];
-      form.setValue('checklists', [...currentChecklists, { ...newChecklist, completed: false }]);
+      if (initialData?.id) {
+        // Se estamos editando, criar checklist diretamente no banco
+        const checklistData = {
+          ...newChecklist,
+          note_id: initialData.id,
+          completed: false
+        };
+        
+        const result = await createChecklist(checklistData);
+        if (result) {
+          setChecklistsData(prev => [...prev, result]);
+          toast.success('Checklist adicionada com sucesso!');
+        }
+      } else {
+        // Se estamos criando, adicionar à lista temporária
+        const tempId = `temp-${Date.now()}`;
+        const newChecklistItem: NoteChecklist = {
+          id: tempId,
+          note_id: '',
+          title: newChecklist.title,
+          description: newChecklist.description,
+          due_date: newChecklist.due_date,
+          responsible_consultant_id: newChecklist.responsible_consultant_id,
+          completed: false
+        };
+        setChecklistsData(prev => [...prev, newChecklistItem]);
+      }
+      
       setNewChecklist({ title: '', description: '', due_date: '', responsible_consultant_id: '' });
     }
   };
 
   const removeChecklist = (index: number) => {
-    const currentChecklists = form.getValues('checklists') || [];
-    form.setValue('checklists', currentChecklists.filter((_, i) => i !== index));
+    setChecklistsData(prev => prev.filter((_, i) => i !== index));
   };
+
+  const refreshChecklists = () => {
+    // Recarregar os dados da anotação se necessário
+    if (initialData?.id) {
+      // Aqui você pode chamar uma função para recarregar os dados
+      window.location.reload(); // Solução temporária
+    }
+  };
+
+  const formatConsultantsForSelect = (consultants: any[]) => {
+    return consultants.map(c => ({ id: c.id, name: c.name }));
+  };
+
+  const formatClientsForSelect = (clients: any[]) => {
+    return clients.map(c => ({ id: c.id, name: c.name }));
+  };
+
+  const formatServicesForSelect = (services: any[]) => {
+    return services.map(s => ({ id: s.id, name: s.name }));
+  };
+
+  const formatTagsForSelect = (tags: any[]) => {
+    return tags.map(t => ({ id: t.id, name: t.name }));
+  };
+
+  const allChecklistsCompleted = checklistsData.length > 0 && checklistsData.every(checklist => checklist.completed);
+  const canMarkAsFinalized = checklistsData.length === 0 || allChecklistsCompleted;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -188,7 +249,11 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                      disabled={field.value !== 'finalizado' && !canMarkAsFinalized && form.watch('status') === 'finalizado'}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione um status" />
@@ -197,7 +262,17 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
                       <SelectContent>
                         <SelectItem value="a_fazer">A fazer</SelectItem>
                         <SelectItem value="em_producao">Em produção</SelectItem>
-                        <SelectItem value="finalizado">Finalizado</SelectItem>
+                        <SelectItem 
+                          value="finalizado"
+                          disabled={!canMarkAsFinalized}
+                        >
+                          Finalizado
+                          {!canMarkAsFinalized && (
+                            <span className="text-xs text-muted-foreground ml-2">
+                              (Complete todas as checklists primeiro)
+                            </span>
+                          )}
+                        </SelectItem>
                         <SelectItem value="cancelado">Cancelado</SelectItem>
                       </SelectContent>
                     </Select>
@@ -358,7 +433,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
               />
             </div>
 
-            {/* Vínculos */}
+            {/* Vínculos com searchable selects */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -366,21 +441,16 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Cliente</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um cliente" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="">Nenhum cliente</SelectItem>
-                        {clients.map((client) => (
-                          <SelectItem key={client.id} value={client.id}>
-                            {client.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <NoteFormSelect
+                        options={formatClientsForSelect(clients)}
+                        value={field.value || ''}
+                        onValueChange={field.onChange}
+                        placeholder="Selecione um cliente"
+                        searchPlaceholder="Pesquisar clientes..."
+                        emptyText="Nenhum cliente encontrado"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -392,92 +462,63 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Serviço</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um serviço" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="">Nenhum serviço</SelectItem>
-                        {services.map((service) => (
-                          <SelectItem key={service.id} value={service.id}>
-                            {service.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <NoteFormSelect
+                        options={formatServicesForSelect(services)}
+                        value={field.value || ''}
+                        onValueChange={field.onChange}
+                        placeholder="Selecione um serviço"
+                        searchPlaceholder="Pesquisar serviços..."
+                        emptyText="Nenhum serviço encontrado"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
 
-            {/* Consultores */}
+            {/* Consultores com busca e múltipla seleção */}
             <FormField
               control={form.control}
               name="consultant_ids"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Consultores</FormLabel>
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      {consultants.map((consultant) => (
-                        <div key={consultant.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={consultant.id}
-                            checked={(field.value || []).includes(consultant.id)}
-                            onCheckedChange={(checked) => {
-                              const currentValues = field.value || [];
-                              if (checked) {
-                                field.onChange([...currentValues, consultant.id]);
-                              } else {
-                                field.onChange(currentValues.filter((id: string) => id !== consultant.id));
-                              }
-                            }}
-                          />
-                          <label htmlFor={consultant.id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                            {consultant.name}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <FormControl>
+                    <NoteFormSelect
+                      options={formatConsultantsForSelect(consultants)}
+                      value={field.value || []}
+                      onValueChange={field.onChange}
+                      placeholder="Selecione consultores"
+                      searchPlaceholder="Pesquisar consultores..."
+                      emptyText="Nenhum consultor encontrado"
+                      multiple
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* Tags */}
+            {/* Tags com busca e múltipla seleção */}
             <FormField
               control={form.control}
               name="tag_ids"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Tags</FormLabel>
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-3 gap-2">
-                      {tags.map((tag) => (
-                        <div key={tag.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={tag.id}
-                            checked={(field.value || []).includes(tag.id)}
-                            onCheckedChange={(checked) => {
-                              const currentValues = field.value || [];
-                              if (checked) {
-                                field.onChange([...currentValues, tag.id]);
-                              } else {
-                                field.onChange(currentValues.filter((id: string) => id !== tag.id));
-                              }
-                            }}
-                          />
-                          <label htmlFor={tag.id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                            {tag.name}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <FormControl>
+                    <NoteFormSelect
+                      options={formatTagsForSelect(tags)}
+                      value={field.value || []}
+                      onValueChange={field.onChange}
+                      placeholder="Selecione tags"
+                      searchPlaceholder="Pesquisar tags..."
+                      emptyText="Nenhuma tag encontrada"
+                      multiple
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -488,7 +529,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
               control={form.control}
               name="has_internal_chat"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                   <FormControl>
                     <Checkbox
                       checked={field.value}
@@ -496,11 +537,13 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel>
+                    <FormLabel className="flex items-center gap-2">
+                      <MessageCircle className="h-4 w-4" />
                       Criar chat interno
                     </FormLabel>
                     <p className="text-sm text-muted-foreground">
-                      Cria um chat interno vinculado a esta anotação para discussões da equipe.
+                      Comunique-se com outros consultores em tempo real vinculado a esta anotação.
+                      Os consultores selecionados serão automaticamente adicionados ao chat.
                     </p>
                   </div>
                 </FormItem>
@@ -509,39 +552,17 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
 
             {/* Checklists */}
             <div className="space-y-4">
-              <FormLabel>Checklists</FormLabel>
+              <Separator />
+              <FormLabel className="text-base font-semibold">Checklists</FormLabel>
               
               {/* Lista de checklists existentes */}
               <div className="space-y-2">
-                {(form.watch('checklists') || []).map((checklist: any, index: number) => (
-                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="font-medium">{checklist.title}</div>
-                      {checklist.description && (
-                        <div className="text-sm text-muted-foreground">{checklist.description}</div>
-                      )}
-                      <div className="flex gap-2 mt-1">
-                        {checklist.due_date && (
-                          <Badge variant="outline" className="text-xs">
-                            {format(new Date(checklist.due_date), "dd/MM/yyyy", { locale: ptBR })}
-                          </Badge>
-                        )}
-                        {checklist.responsible_consultant_id && (
-                          <Badge variant="outline" className="text-xs">
-                            {consultants.find(c => c.id === checklist.responsible_consultant_id)?.name}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeChecklist(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                {checklistsData.map((checklist, index) => (
+                  <ChecklistItem
+                    key={checklist.id}
+                    checklist={checklist}
+                    onUpdate={refreshChecklists}
+                  />
                 ))}
               </div>
 
