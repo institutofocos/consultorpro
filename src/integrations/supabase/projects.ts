@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 import { Project, Stage } from "@/components/projects/types";
 import { createProjectTasks, updateProjectTasks } from "./project-tasks";
@@ -5,7 +6,7 @@ import { toast } from "sonner";
 
 export const updateProject = async (project: Project) => {
   try {
-    // Convert the Stage[] array to a proper JSON object that Supabase can handle
+    // Convert the Stage[] array to a proper JSON string that Supabase can handle
     const { error } = await supabase
       .from('projects')
       .update({
@@ -13,7 +14,7 @@ export const updateProject = async (project: Project) => {
         description: project.description,
         service_id: project.serviceId || null,
         client_id: project.clientId || null,
-        main_consultant_id: project.mainConsultantId || null, // Now properly supports null consultants
+        main_consultant_id: project.mainConsultantId || null,
         main_consultant_commission: project.mainConsultantCommission || 0,
         support_consultant_id: project.supportConsultantId || null,
         support_consultant_commission: project.supportConsultantCommission || 0,
@@ -145,7 +146,8 @@ export const createProject = async (project: Project) => {
         main_consultant_value: project.consultantValue || 0,
         support_consultant_value: project.supportConsultantValue || 0,
         status: project.status,
-        stages: project.stages,
+        // Convert the stages array to a JSON string
+        stages: JSON.stringify(project.stages),
         tags: project.tags || []
       })
       .select()
@@ -376,9 +378,8 @@ export const fetchProjectById = async (projectId: string): Promise<Project | nul
       supportConsultantValue: data.support_consultant_value || 0,
       status: projectStatus,
       stages: stages,
-      tags: data.tags || [],
-      createdAt: data.created_at,
-      updatedAt: data.updated_at
+      tags: data.tags || []
+      // Removed the incorrect createdAt and updatedAt properties
     };
   } catch (error) {
     console.error('Error fetching project by ID:', error);
@@ -423,7 +424,7 @@ export const assignConsultantToStage = async (
     // Update the project with the modified stages
     const { error: updateError } = await supabase
       .from('projects')
-      .update({ stages: updatedStages })
+      .update({ stages: JSON.stringify(updatedStages) })
       .eq('id', projectId);
     
     if (updateError) throw updateError;
