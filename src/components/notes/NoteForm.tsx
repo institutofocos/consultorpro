@@ -10,11 +10,12 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-// Define the props including children
+// Define the props including children and onClose
 export interface NoteFormProps {
   onSave: (data: any) => void;
   initialData?: any;
   children?: React.ReactNode;
+  onClose?: () => void;
 }
 
 const formSchema = z.object({
@@ -25,7 +26,7 @@ const formSchema = z.object({
   due_date: z.string().optional(),
 });
 
-const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children }) => {
+const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onClose }) => {
   const [open, setOpen] = useState(false);
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -41,10 +42,16 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children }) =>
     onSave(data);
     setOpen(false);
     form.reset();
+    if (onClose) onClose();
+  };
+
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen && onClose) onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {children || <Button variant="outline" size="sm">Nova Anotação</Button>}
       </DialogTrigger>
