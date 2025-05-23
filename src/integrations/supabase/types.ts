@@ -9,6 +9,124 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      chat_messages: {
+        Row: {
+          content: string
+          id: string
+          room_id: string
+          sender_id: string
+          sender_name: string
+          timestamp: string | null
+        }
+        Insert: {
+          content: string
+          id?: string
+          room_id: string
+          sender_id: string
+          sender_name: string
+          timestamp?: string | null
+        }
+        Update: {
+          content?: string
+          id?: string
+          room_id?: string
+          sender_id?: string
+          sender_name?: string
+          timestamp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_room_participants: {
+        Row: {
+          created_at: string | null
+          id: string
+          room_id: string
+          user_id: string
+          user_name: string
+          user_role: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          room_id: string
+          user_id: string
+          user_name: string
+          user_role: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          room_id?: string
+          user_id?: string
+          user_name?: string
+          user_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_room_participants_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_rooms: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          level: number
+          name: string
+          parent_id: string | null
+          project_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          level?: number
+          name: string
+          parent_id?: string | null
+          project_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          level?: number
+          name?: string
+          parent_id?: string | null
+          project_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_rooms_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_rooms_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null

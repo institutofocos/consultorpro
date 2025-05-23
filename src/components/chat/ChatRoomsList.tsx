@@ -1,11 +1,13 @@
 
-import React, { useState } from 'react';
-import { ChevronRight, ChevronDown, Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronRight, ChevronDown, Plus, Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
+import { fetchChatRooms, createChatRoom, ChatRoom } from '@/integrations/supabase/chat';
 import { 
   Select,
   SelectContent,
@@ -14,24 +16,27 @@ import {
   SelectValue
 } from "@/components/ui/select";
 
-type Room = {
-  id: string;
-  name: string;
-  description: string;
-  level: number;
-  parentId: string | null;
-};
-
 interface ChatRoomsListProps {
-  rooms: Room[];
+  rooms: ChatRoom[];
   selectedRoomId: string | null;
   onRoomSelect: (roomId: string) => void;
+  isLoading: boolean;
 }
 
-const ChatRoomsList: React.FC<ChatRoomsListProps> = ({ rooms, selectedRoomId, onRoomSelect }) => {
+const ChatRoomsList: React.FC<ChatRoomsListProps> = ({ 
+  rooms, 
+  selectedRoomId, 
+  onRoomSelect, 
+  isLoading 
+}) => {
   const [expandedRooms, setExpandedRooms] = useState<string[]>([]);
   const [newRoomDialogOpen, setNewRoomDialogOpen] = useState(false);
   const [newRoomParent, setNewRoomParent] = useState<string | null>(null);
+  const [newRoomName, setNewRoomName] = useState('');
+  const [newRoomDescription, setNewRoomDescription] = useState('');
+  const [newRoomLevel, setNewRoomLevel] = useState('1');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
   
   // Organizar salas por níveis para renderização em árvore
   const topLevelRooms = rooms.filter(room => room.level === 1);
@@ -46,20 +51,57 @@ const ChatRoomsList: React.FC<ChatRoomsListProps> = ({ rooms, selectedRoomId, on
   
   const handleCreateRoom = (level: number, parentId: string | null = null) => {
     setNewRoomParent(parentId);
+    setNewRoomLevel(level.toString());
+    setNewRoomName('');
+    setNewRoomDescription('');
     setNewRoomDialogOpen(true);
   };
   
-  const handleSubmitNewRoom = (event: React.FormEvent) => {
+  const handleSubmitNewRoom = async (event: React.FormEvent) => {
     event.preventDefault();
-    // Aqui implementaremos a lógica para criar uma nova sala no Supabase
-    console.log('Nova sala será criada');
-    setNewRoomDialogOpen(false);
+    
+    if (!newRoomName.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Nome obrigatório",
+        description: "Por favor, digite um nome para a sala."
+      });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      await createChatRoom(
+        newRoomName,
+        newRoomDescription || null,
+        parseInt(newRoomLevel),
+        newRoomParent || undefined
+      );
+      
+      toast({
+        title: "Sala criada",
+        description: "A nova sala foi criada com sucesso!"
+      });
+      
+      setNewRoomDialogOpen(false);
+    } catch (error) {
+      console.error('Erro ao criar sala:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível criar a sala. Tente novamente."
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
-  const renderRoom = (room: Room) => {
-    const hasChildren = rooms.some(r => r.parentId === room.id);
+  const renderRoom = (room: ChatRoom) => {
+    const hasChildren = rooms.some(r => r.parent_id === room.id);
     const isExpanded = expandedRooms.includes(room.id);
-    const childRooms = rooms.filter(r => r.parentId === room.id);
+    const childRooms = rooms.filter(r => r.parent_id === room.id);
+    const isFromProject = room.project_id !== null;
     
     return (
       <div key={room.id} className="select-none">
@@ -83,10 +125,15 @@ const ChatRoomsList: React.FC<ChatRoomsListProps> = ({ rooms, selectedRoomId, on
           )}
           
           <span 
-            className="flex-grow text-sm font-medium truncate"
+            className="flex-grow text-sm font-medium truncate group"
             onClick={() => onRoomSelect(room.id)}
           >
             {room.name}
+            {isFromProject && (
+              <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">
+                Projeto
+              </span>
+            )}
           </span>
           
           {room.level < 3 && (
@@ -125,9 +172,22 @@ const ChatRoomsList: React.FC<ChatRoomsListProps> = ({ rooms, selectedRoomId, on
         </Button>
       </div>
       
-      <div className="space-y-1">
-        {topLevelRooms.map(room => renderRoom(room))}
-      </div>
+      {isLoading ? (
+        <div className="flex justify-center items-center p-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {topLevelRooms.length > 0 ? (
+            topLevelRooms.map(room => renderRoom(room))
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>Nenhuma sala disponível</p>
+              <p className="text-xs mt-1">Clique no + para criar uma sala</p>
+            </div>
+          )}
+        </div>
+      )}
       
       <Dialog open={newRoomDialogOpen} onOpenChange={setNewRoomDialogOpen}>
         <DialogContent>
@@ -138,18 +198,31 @@ const ChatRoomsList: React.FC<ChatRoomsListProps> = ({ rooms, selectedRoomId, on
           <form onSubmit={handleSubmitNewRoom} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="room-name">Nome da sala</Label>
-              <Input id="room-name" placeholder="Digite o nome da sala" />
+              <Input 
+                id="room-name" 
+                placeholder="Digite o nome da sala" 
+                value={newRoomName}
+                onChange={(e) => setNewRoomName(e.target.value)}
+              />
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="room-description">Descrição</Label>
-              <Textarea id="room-description" placeholder="Descrição opcional" />
+              <Textarea 
+                id="room-description" 
+                placeholder="Descrição opcional" 
+                value={newRoomDescription}
+                onChange={(e) => setNewRoomDescription(e.target.value)}
+              />
             </div>
             
             {!newRoomParent && (
               <div className="space-y-2">
                 <Label htmlFor="room-level">Nível</Label>
-                <Select defaultValue="1">
+                <Select 
+                  value={newRoomLevel}
+                  onValueChange={setNewRoomLevel}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o nível" />
                   </SelectTrigger>
@@ -163,7 +236,17 @@ const ChatRoomsList: React.FC<ChatRoomsListProps> = ({ rooms, selectedRoomId, on
             )}
             
             <DialogFooter>
-              <Button type="submit">Criar sala</Button>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting || !newRoomName.trim()}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Criando...
+                  </>
+                ) : "Criar sala"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

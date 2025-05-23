@@ -1,58 +1,108 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'react-router-dom';
 import { fetchConsultants } from '@/integrations/supabase/consultants';
+import { fetchChatRooms, fetchChatMessages, sendChatMessage, subscribeToChatMessages, ChatMessage, ChatRoom } from '@/integrations/supabase/chat';
+import { useToast } from "@/components/ui/use-toast";
 import ChatRoomsList from './ChatRoomsList';
 import ChatMessages from './ChatMessages';
 import ChatInput from './ChatInput';
-import { Users, MessageSquare } from 'lucide-react';
+import { Users, MessageSquare, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
-type Room = {
-  id: string;
-  name: string;
-  description: string;
-  level: number;
-  parentId: string | null;
+type LocationState = {
+  initialRoomId?: string;
 };
 
-// Dados de exemplo até implementar no Supabase
-const mockRooms: Room[] = [
-  { id: '1', name: 'Geral', description: 'Canal geral para todos os consultores', level: 1, parentId: null },
-  { id: '2', name: 'Projetos', description: 'Discussões sobre projetos', level: 1, parentId: null },
-  { id: '3', name: 'Vendas', description: 'Discussões sobre vendas e clientes', level: 1, parentId: null },
-  { id: '4', name: 'Projeto X', description: 'Detalhes do Projeto X', level: 2, parentId: '2' },
-  { id: '5', name: 'Projeto Y', description: 'Detalhes do Projeto Y', level: 2, parentId: '2' },
-  { id: '6', name: 'Fase 1', description: 'Fase inicial do Projeto X', level: 3, parentId: '4' },
-];
-
-// Dados de exemplo de mensagens
-const mockMessages = [
-  { id: '1', roomId: '1', senderId: '1', senderName: 'João Silva', content: 'Olá a todos!', timestamp: new Date().toISOString() },
-  { id: '2', roomId: '1', senderId: '2', senderName: 'Maria Oliveira', content: 'Bom dia, pessoal!', timestamp: new Date().toISOString() },
-  { id: '3', roomId: '1', senderId: '1', senderName: 'João Silva', content: 'Como estão os projetos?', timestamp: new Date().toISOString() },
-];
-
 const ChatPage = () => {
-  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const location = useLocation();
+  const locationState = location.state as LocationState;
+  const initialRoomId = locationState?.initialRoomId;
+  
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(initialRoomId || null);
   const [showConsultants, setShowConsultants] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const { toast } = useToast();
 
-  const { data: consultants, isLoading } = useQuery({
+  // Buscar consultores
+  const { 
+    data: consultants,
+    isLoading: isLoadingConsultants 
+  } = useQuery({
     queryKey: ['consultants'],
     queryFn: fetchConsultants
   });
 
-  const selectedRoom = mockRooms.find(room => room.id === selectedRoomId);
+  // Buscar salas de chat
+  const { 
+    data: rooms = [],
+    isLoading: isLoadingRooms,
+    refetch: refetchRooms
+  } = useQuery({
+    queryKey: ['chat_rooms'],
+    queryFn: fetchChatRooms,
+    onSuccess: (data) => {
+      // Se temos um initialRoomId mas a sala não foi encontrada nas salas disponíveis,
+      // resetamos o selectedRoomId para evitar erros
+      if (initialRoomId && !data.some(room => room.id === initialRoomId)) {
+        setSelectedRoomId(null);
+      }
+    }
+  });
+
+  // Buscar mensagens quando uma sala é selecionada
+  useEffect(() => {
+    let subscription: any;
+    
+    const loadMessages = async () => {
+      if (selectedRoomId) {
+        try {
+          const chatMessages = await fetchChatMessages(selectedRoomId);
+          setMessages(chatMessages);
+          
+          // Configurar escuta para novas mensagens
+          subscription = subscribeToChatMessages(selectedRoomId, (newMessage) => {
+            setMessages(prev => [...prev, newMessage]);
+          });
+        } catch (error) {
+          console.error('Erro ao carregar mensagens:', error);
+          toast({
+            variant: "destructive",
+            title: "Erro",
+            description: "Não foi possível carregar as mensagens."
+          });
+        }
+      } else {
+        setMessages([]);
+      }
+    };
+    
+    loadMessages();
+    
+    return () => {
+      // Limpar subscription ao desmontar ou trocar de sala
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
+  }, [selectedRoomId, toast]);
+
+  const selectedRoom = rooms.find(room => room.id === selectedRoomId);
   
   const handleRoomSelect = (roomId: string) => {
     setSelectedRoomId(roomId);
   };
 
-  const handleSendMessage = (message: string) => {
+  const handleSendMessage = async (messageContent: string) => {
     if (selectedRoomId) {
-      console.log('Enviando mensagem para sala', selectedRoomId, ':', message);
-      // Aqui implementaremos o envio da mensagem para o Supabase
+      // Como estamos numa PoC, usamos valores temporários para o remetente
+      // Num sistema real, estes dados viriam do usuário autenticado
+      const tempSenderId = "temp-user-id";
+      const tempSenderName = "Usuário Teste";
+      
+      await sendChatMessage(selectedRoomId, tempSenderId, tempSenderName, messageContent);
+      // Não precisamos atualizar manualmente os messages porque o subscription fará isso
     }
   };
 
@@ -102,9 +152,11 @@ const ChatPage = () => {
           <CardContent className="p-0 overflow-y-auto h-[calc(100%-56px)]">
             {showConsultants ? (
               <div className="p-4 space-y-2">
-                {isLoading ? (
-                  <p className="text-sm text-muted-foreground">Carregando consultores...</p>
-                ) : (
+                {isLoadingConsultants ? (
+                  <div className="flex justify-center items-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : consultants?.length ? (
                   consultants?.map(consultant => (
                     <div 
                       key={consultant.id}
@@ -118,13 +170,18 @@ const ChatPage = () => {
                       <span className="text-sm font-medium">{consultant.name}</span>
                     </div>
                   ))
+                ) : (
+                  <p className="text-center py-8 text-muted-foreground">
+                    Nenhum consultor encontrado
+                  </p>
                 )}
               </div>
             ) : (
               <ChatRoomsList 
-                rooms={mockRooms}
+                rooms={rooms}
                 selectedRoomId={selectedRoomId}
                 onRoomSelect={handleRoomSelect}
+                isLoading={isLoadingRooms}
               />
             )}
           </CardContent>
@@ -132,7 +189,7 @@ const ChatPage = () => {
 
         {/* Área de Chat */}
         <Card className="md:col-span-3 shadow-card h-full flex flex-col">
-          {selectedRoomId ? (
+          {selectedRoomId && selectedRoom ? (
             <>
               <CardHeader className="px-6 py-3">
                 <CardTitle className="text-lg">
@@ -146,9 +203,7 @@ const ChatPage = () => {
               </CardHeader>
               <Separator />
               <CardContent className="p-6 flex-grow overflow-y-auto">
-                <ChatMessages 
-                  messages={mockMessages.filter(msg => msg.roomId === selectedRoomId)} 
-                />
+                <ChatMessages messages={messages} />
               </CardContent>
               <div className="p-4 border-t">
                 <ChatInput onSendMessage={handleSendMessage} />

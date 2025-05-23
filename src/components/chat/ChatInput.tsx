@@ -1,34 +1,52 @@
 
 import React, { useState, useRef } from 'react';
-import { Send, Paperclip } from 'lucide-react';
+import { Send, Paperclip, Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/use-toast";
+import { sendChatMessage } from '@/integrations/supabase/chat';
 
 interface ChatInputProps {
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string) => Promise<void>;
+  disabled?: boolean;
 }
 
-const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage }) => {
+const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = false }) => {
   const [message, setMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (message.trim()) {
-      onSendMessage(message);
-      setMessage('');
+    if (message.trim() && !isSending && !disabled) {
+      setIsSending(true);
       
-      // Foco no textarea após enviar
-      if (textareaRef.current) {
-        textareaRef.current.focus();
+      try {
+        await onSendMessage(message);
+        setMessage('');
+        
+        // Foco no textarea após enviar
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      } catch (error) {
+        console.error('Erro ao enviar mensagem:', error);
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não foi possível enviar a mensagem. Tente novamente."
+        });
+      } finally {
+        setIsSending(false);
       }
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Enviar ao pressionar Enter sem shift
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !isSending && !disabled) {
       e.preventDefault();
       handleSubmit(e);
     }
@@ -42,9 +60,10 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage }) => {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Digite sua mensagem..."
+          placeholder={disabled ? "Selecione uma sala para enviar mensagens..." : "Digite sua mensagem..."}
           className="min-h-12 pr-20 resize-none"
           rows={1}
+          disabled={disabled || isSending}
         />
         <div className="absolute right-2 bottom-1.5 flex items-center gap-1">
           <Button 
@@ -52,6 +71,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage }) => {
             size="icon" 
             variant="ghost" 
             className="h-8 w-8 rounded-full"
+            disabled={true} // Desabilitado temporariamente
           >
             <Paperclip className="h-4 w-4" />
             <span className="sr-only">Anexar arquivo</span>
@@ -60,9 +80,13 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage }) => {
             type="submit"
             size="icon" 
             className="h-8 w-8 rounded-full"
-            disabled={!message.trim()}
+            disabled={!message.trim() || isSending || disabled}
           >
-            <Send className="h-4 w-4" />
+            {isSending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
             <span className="sr-only">Enviar mensagem</span>
           </Button>
         </div>
