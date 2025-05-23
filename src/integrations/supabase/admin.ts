@@ -112,7 +112,8 @@ export async function setAdminUsers(emails: string[]) {
     
     if (userError) throw userError;
     
-    const user = userData.users.find(u => u.email === email);
+    // Fix the TypeScript error by properly typing the users array
+    const user = userData?.users?.find(u => u.email === email);
     
     if (user) {
       // Atualizar perfil para administrador
@@ -154,4 +155,3 @@ export async function setAdminUsers(emails: string[]) {
   
   return true;
 }
-

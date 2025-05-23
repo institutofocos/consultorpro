@@ -147,8 +147,10 @@ export async function setupAdminUsers() {
     // Para cada email de administrador
     for (const email of adminEmails) {
       // Buscar usuário pelo email
-      const { data: { users } } = await supabase.auth.admin.listUsers();
-      const user = users.find(u => u.email === email);
+      const { data } = await supabase.auth.admin.listUsers();
+      
+      // Fix: proper typing to find the user by email
+      const user = data?.users?.find(u => u.email === email);
       
       if (user) {
         // Atualizar senha do usuário
@@ -165,7 +167,23 @@ export async function setupAdminUsers() {
         
         console.log(`Usuário ${email} configurado como administrador com sucesso.`);
       } else {
-        console.log(`Usuário com email ${email} não encontrado.`);
+        // If user doesn't exist, let's create it
+        const { data: newUser, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: email === 'contato@eron.dev.br' ? 'Eron Admin' : 'Augusto Admin',
+              role: 'admin'
+            }
+          }
+        });
+        
+        if (signUpError) {
+          console.error(`Erro ao criar usuário ${email}:`, signUpError);
+        } else {
+          console.log(`Novo usuário ${email} criado com sucesso.`);
+        }
       }
     }
     
@@ -175,4 +193,3 @@ export async function setupAdminUsers() {
     throw error;
   }
 }
-
