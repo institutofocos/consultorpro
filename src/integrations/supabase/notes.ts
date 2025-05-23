@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export type Note = {
@@ -116,13 +117,14 @@ export const fetchNotes = async (): Promise<Note[]> => {
 
       return {
         ...note,
+        status: note.status as 'a_fazer' | 'em_producao' | 'finalizado' | 'cancelado',
         client_name: note.client ? note.client.name : null,
         service_name: note.service ? note.service.name : null,
         consultant_names: consultantNames,
         tag_names: tagNames,
         checklists: checklists,
         linked_task: linkedTask
-      };
+      } as Note;
     });
 
     return transformedNotes;
