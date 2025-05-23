@@ -78,10 +78,22 @@ const ClientForm: React.FC<ClientFormProps> = ({ client, onSave, onCancel }) => 
         
         toast.success('Cliente atualizado com sucesso!');
       } else {
-        // Create new client
+        // Create new client - ensure required fields are present
+        const newClientData = {
+          name: data.name,
+          contact_name: data.contact_name,
+          email: data.email || null,
+          phone: data.phone || null,
+          address: data.address || null,
+          city: data.city || null,
+          state: data.state || null,
+          zip_code: data.zip_code || null,
+          notes: data.notes || null
+        };
+        
         const { error } = await supabase
           .from('clients')
-          .insert([data]);
+          .insert([newClientData]);
           
         if (error) throw error;
         
