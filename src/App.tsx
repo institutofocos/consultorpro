@@ -16,9 +16,14 @@ import KpiList from "./components/kpis/KpiList";
 import OkrList from "./components/okrs/OkrList";
 import Layout from "./components/layout/Layout";
 import ActivitiesList from "./components/activities/ActivitiesList";
-import ReportsList from "./components/reports/ReportsList";
 import SettingsPage from "./components/settings/SettingsPage";
 import ClientList from "./components/clients/ClientList";
+
+// Import reports components
+import ReportsLayout from "./components/reports/ReportsLayout";
+import ReportsCalendar from "./components/reports/ReportsCalendar";
+import ReportsKanban from "./components/reports/ReportsKanban";
+import ReportsGantt from "./components/reports/ReportsGantt";
 
 const queryClient = new QueryClient();
 
@@ -70,11 +75,15 @@ const App = () => (
               <ActivitiesList />
             </Layout>
           } />
-          <Route path="/reports" element={
-            <Layout>
-              <ReportsList />
-            </Layout>
-          } />
+          
+          {/* Reports routes */}
+          <Route path="/reports" element={<Layout><ReportsLayout /></Layout>}>
+            <Route index element={<ReportsCalendar />} />
+            <Route path="calendar" element={<ReportsCalendar />} />
+            <Route path="kanban" element={<ReportsKanban />} />
+            <Route path="gantt" element={<ReportsGantt />} /> 
+          </Route>
+          
           <Route path="/settings" element={
             <Layout>
               <SettingsPage />
