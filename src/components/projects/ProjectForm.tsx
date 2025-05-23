@@ -43,6 +43,9 @@ interface ProjectFormProps {
   onCancel: () => void;
 }
 
+// Style for required field labels
+const requiredLabelStyle = { color: 'red' };
+
 export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCancel }) => {
   const [name, setName] = useState(project?.name || '');
   const [description, setDescription] = useState(project?.description || '');
@@ -125,6 +128,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
     }
   };
   
+  // Handle consultant selection and set their default commission percentage
   const handleSupportConsultantChange = (id: string) => {
     setSupportConsultantId(id);
     if (id) {
@@ -389,7 +393,8 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     
-    if (!name.trim() || !mainConsultantId || !startDate || !endDate) {
+    // Updated validation to make only name, client, service, dates and total value required
+    if (!name.trim() || !clientId || !selectedServiceId || !startDate || !endDate || !totalValue) {
       toast({
         variant: "destructive",
         title: "Erro",
@@ -406,10 +411,10 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
       id: project?.id,
       name,
       description,
-      serviceId: selectedServiceId || null,
-      clientId: clientId || null,
+      serviceId: selectedServiceId,
+      clientId,
       clientName: selectedClient?.name || null,
-      mainConsultantId,
+      mainConsultantId: mainConsultantId || null, // Make main consultant optional
       mainConsultantName: mainConsultant?.name,
       mainConsultantPixKey: mainConsultant?.pixKey,
       mainConsultantCommission: parseFloat(mainConsultantCommission) || 0,
@@ -485,13 +490,14 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <Label htmlFor="name">Nome do Projeto</Label>
+          <Label htmlFor="name" style={requiredLabelStyle}>Nome do Projeto *</Label>
           <Input 
             type="text" 
             id="name" 
             value={name} 
             onChange={(e) => setName(e.target.value)} 
             placeholder="Nome do projeto" 
+            className={!name ? "border-red-500" : ""}
             required
           />
         </div>
@@ -506,11 +512,11 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
           />
         </div>
         
-        {/* Client selection field */}
+        {/* Client selection field - REQUIRED */}
         <div>
-          <Label htmlFor="client">Cliente</Label>
+          <Label htmlFor="client" style={requiredLabelStyle}>Cliente *</Label>
           <Select value={clientId} onValueChange={setClientId}>
-            <SelectTrigger>
+            <SelectTrigger className={!clientId ? "border-red-500" : ""}>
               <SelectValue placeholder="Selecione um cliente" />
             </SelectTrigger>
             <SelectContent>
@@ -584,14 +590,14 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
           </div>
         </div>
         
-        {/* Service field */}
+        {/* Service field - REQUIRED */}
         <div>
-          <Label htmlFor="service">Serviço Vinculado</Label>
+          <Label htmlFor="service" style={requiredLabelStyle}>Serviço Vinculado *</Label>
           <Select 
             value={selectedServiceId} 
             onValueChange={initializeStagesFromService}
           >
-            <SelectTrigger>
+            <SelectTrigger className={!selectedServiceId ? "border-red-500" : ""}>
               <SelectValue placeholder="Selecione um serviço para vincular ao projeto" />
             </SelectTrigger>
             <SelectContent>
@@ -616,6 +622,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                 <SelectValue placeholder="Selecione um consultor" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="">Nenhum</SelectItem>
                 {consultants.map(consultant => (
                   <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
                 ))}
@@ -631,13 +638,14 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
               value={mainConsultantCommission}
               onChange={(e) => setMainConsultantCommission(e.target.value)}
               placeholder="Percentual de repasse"
+              disabled={!mainConsultantId}
             />
           </div>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="supportConsultantId">Consultor de Apoio (Opcional)</Label>
+            <Label htmlFor="supportConsultantId">Consultor de Apoio</Label>
             <Select value={supportConsultantId} onValueChange={handleSupportConsultantChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um consultor (opcional)" />
@@ -668,14 +676,14 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label>Data de Início</Label>
+            <Label style={requiredLabelStyle}>Data de Início *</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant={"outline"}
                   className={cn(
                     "w-full justify-start text-left font-normal",
-                    !startDate && "text-muted-foreground"
+                    !startDate && "text-muted-foreground border-red-500"
                   )}
                 >
                   {startDate ? format(startDate, "dd/MM/yyyy") : (
@@ -696,14 +704,14 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
           </div>
           
           <div>
-            <Label>Data de Término</Label>
+            <Label style={requiredLabelStyle}>Data de Término *</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant={"outline"}
                   className={cn(
                     "w-full justify-start text-left font-normal",
-                    !endDate && "text-muted-foreground"
+                    !endDate && "text-muted-foreground border-red-500"
                   )}
                 >
                   {endDate ? format(endDate, "dd/MM/yyyy") : (
@@ -729,13 +737,14 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="totalValue">Valor Total do Projeto</Label>
+            <Label htmlFor="totalValue" style={requiredLabelStyle}>Valor Total do Projeto *</Label>
             <Input
               type="number"
               id="totalValue"
               value={totalValue}
               onChange={(e) => setTotalValue(e.target.value)}
               placeholder="Valor total"
+              className={!totalValue ? "border-red-500" : ""}
             />
           </div>
           
@@ -787,10 +796,13 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
               value={consultantValue}
               onChange={(e) => setConsultantValue(e.target.value)}
               placeholder="Valor do consultor principal"
+              disabled={!mainConsultantId}
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Sugestão: {mainConsultantCommission}% do valor após impostos e despesas
-            </p>
+            {mainConsultantId && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Sugestão: {mainConsultantCommission}% do valor após impostos e despesas
+              </p>
+            )}
           </div>
           
           <div>
@@ -972,6 +984,10 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
         <div className="flex justify-end space-x-2">
           <Button variant="ghost" onClick={onCancel} type="button">Cancelar</Button>
           <Button type="submit">{project ? 'Salvar Alterações' : 'Adicionar Projeto'}</Button>
+        </div>
+        
+        <div className="text-sm text-red-500 mt-2">
+          * Campos obrigatórios
         </div>
       </form>
     </div>
