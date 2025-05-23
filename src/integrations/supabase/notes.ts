@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export type Note = {
@@ -23,6 +22,8 @@ export type Note = {
   service_name?: string;
   tag_names?: string[];
   checklists?: NoteChecklist[];
+  linked_task_id?: string | null;
+  linked_task?: Note | null; // For recursive reference to another note
 };
 
 export type NoteChecklist = {
@@ -57,118 +58,76 @@ export type NoteTag = {
 
 export const fetchNotes = async (): Promise<Note[]> => {
   try {
-    const { data, error } = await supabase
+    const { data: notes, error } = await supabase
       .from('notes')
-      .select('*')
-      .order('updated_at', { ascending: false });
+      .select(`
+        *,
+        client:client_id(name),
+        service:service_id(name),
+        consultants:note_consultants(consultant:consultant_id(name)),
+        tags:note_tag_relations(tag:tag_id(name)),
+        checklists:note_checklists(
+          id, 
+          note_id, 
+          title, 
+          description, 
+          completed, 
+          completed_at, 
+          due_date, 
+          created_at, 
+          updated_at,
+          responsible_consultant:responsible_consultant_id(name)
+        ),
+        linked_task:linked_task_id(id, title, status)
+      `)
+      .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching notes:', error);
-      throw error;
-    }
+    if (error) throw error;
 
-    // Process notes to add related information
-    const notesWithRelations = await Promise.all(
-      (data || []).map(async (note) => {
-        let consultantNames: string[] = [];
-        let clientName: string | null = null;
-        let serviceName: string | null = null;
-        let tagNames: string[] = [];
-        let checklists: NoteChecklist[] = [];
-        
-        // Fetch consultant names from note_consultants table
-        const { data: noteConsultants } = await supabase
-          .from('note_consultants')
-          .select(`
-            consultant_id,
-            consultants (name)
-          `)
-          .eq('note_id', note.id);
-        
-        if (noteConsultants) {
-          consultantNames = noteConsultants.map(nc => (nc.consultants as any)?.name).filter(Boolean);
-        }
-        
-        // If no consultants in junction table, check direct consultant_id
-        if (consultantNames.length === 0 && note.consultant_id) {
-          const { data: consultant } = await supabase
-            .from('consultants')
-            .select('name')
-            .eq('id', note.consultant_id)
-            .single();
-          
-          if (consultant) {
-            consultantNames.push(consultant.name);
-          }
-        }
-        
-        // Fetch client name if client_id exists
-        if (note.client_id) {
-          const { data: client } = await supabase
-            .from('clients')
-            .select('name')
-            .eq('id', note.client_id)
-            .single();
-            
-          clientName = client?.name || null;
-        }
-        
-        // Fetch service name if service_id exists
-        if (note.service_id) {
-          const { data: service } = await supabase
-            .from('services')
-            .select('name')
-            .eq('id', note.service_id)
-            .single();
-            
-          serviceName = service?.name || null;
-        }
+    // Process and transform the data
+    const transformedNotes: Note[] = (notes || []).map(note => {
+      // Extract consultant names
+      const consultantNames = note.consultants
+        ? note.consultants
+            .filter(c => c.consultant && c.consultant.name)
+            .map(c => c.consultant.name)
+        : [];
 
-        // Fetch checklists for this note
-        const { data: checklistData } = await supabase
-          .from('note_checklists')
-          .select(`
-            *,
-            consultants (name)
-          `)
-          .eq('note_id', note.id)
-          .order('created_at', { ascending: true });
+      // Extract tag names
+      const tagNames = note.tags
+        ? note.tags
+            .filter(t => t.tag && t.tag.name)
+            .map(t => t.tag.name)
+        : [];
 
-        if (checklistData) {
-          checklists = checklistData.map(checklist => ({
+      // Process checklists
+      const checklists = note.checklists
+        ? note.checklists.map(checklist => ({
             ...checklist,
-            responsible_consultant_name: (checklist.consultants as any)?.name || null
-          }));
-        }
+            responsible_consultant_name: checklist.responsible_consultant ? checklist.responsible_consultant.name : null
+          }))
+        : [];
 
-        // Fetch tags from note_tag_relations
-        const { data: noteTags } = await supabase
-          .from('note_tag_relations')
-          .select(`
-            tag_id,
-            tags (name)
-          `)
-          .eq('note_id', note.id);
-        
-        if (noteTags) {
-          tagNames = noteTags.map(nt => (nt.tags as any)?.name).filter(Boolean);
-        }
+      // Process linked task
+      let linkedTask = null;
+      if (note.linked_task && note.linked_task.length > 0) {
+        linkedTask = note.linked_task[0];
+      }
 
-        return {
-          ...note,
-          consultant_names: consultantNames,
-          client_name: clientName,
-          service_name: serviceName,
-          tag_names: tagNames,
-          checklists: checklists,
-          status: note.status as 'a_fazer' | 'em_producao' | 'finalizado' | 'cancelado'
-        } as Note;
-      })
-    );
+      return {
+        ...note,
+        client_name: note.client ? note.client.name : null,
+        service_name: note.service ? note.service.name : null,
+        consultant_names: consultantNames,
+        tag_names: tagNames,
+        checklists: checklists,
+        linked_task: linkedTask
+      };
+    });
 
-    return notesWithRelations;
+    return transformedNotes;
   } catch (error) {
-    console.error('Error in fetchNotes:', error);
+    console.error('Error fetching notes:', error);
     return [];
   }
 };
