@@ -12,7 +12,7 @@ export type Consultant = {
   created_at?: string;
   updated_at?: string;
   hoursPerMonth?: number;
-  availableHours?: number;
+  availableHours?: number; // Adding this missing property
 };
 
 export const fetchConsultants = async (): Promise<Consultant[]> => {
