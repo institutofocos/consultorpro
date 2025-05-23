@@ -254,7 +254,7 @@ const FinancialPage = () => {
       />
 
       {/* Warning about automatic data */}
-      <Alert variant="warning">
+      <Alert>
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Transações do Sistema</AlertTitle>
         <AlertDescription>

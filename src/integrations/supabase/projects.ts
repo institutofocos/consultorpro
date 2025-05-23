@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 import { Project, Stage } from "@/components/projects/types";
 
@@ -35,6 +34,68 @@ export const updateProject = async (project: Project) => {
   } catch (error) {
     console.error('Error updating project:', error);
     throw error;
+  }
+};
+
+// Function to fetch all projects
+export const fetchProjects = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        id,
+        name,
+        description,
+        service_id,
+        client_id,
+        main_consultant_id,
+        main_consultant_commission,
+        support_consultant_id,
+        support_consultant_commission,
+        start_date,
+        end_date,
+        total_value,
+        tax_percent,
+        third_party_expenses,
+        main_consultant_value,
+        support_consultant_value,
+        status,
+        stages,
+        tags,
+        created_at,
+        updated_at
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Transform the data to match the Project type
+    return (data || []).map(project => ({
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      serviceId: project.service_id,
+      clientId: project.client_id,
+      mainConsultantId: project.main_consultant_id,
+      mainConsultantCommission: project.main_consultant_commission || 0,
+      supportConsultantId: project.support_consultant_id,
+      supportConsultantCommission: project.support_consultant_commission || 0,
+      startDate: project.start_date,
+      endDate: project.end_date,
+      totalValue: project.total_value,
+      taxPercent: project.tax_percent,
+      thirdPartyExpenses: project.third_party_expenses || 0,
+      consultantValue: project.main_consultant_value || 0,
+      supportConsultantValue: project.support_consultant_value || 0,
+      status: project.status,
+      stages: project.stages as Stage[] || [],
+      tags: project.tags || [],
+      createdAt: project.created_at,
+      updatedAt: project.updated_at
+    })) as Project[];
+  } catch (error) {
+    console.error('Error fetching projects:', error);
+    return [];
   }
 };
 
