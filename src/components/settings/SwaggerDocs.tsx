@@ -31,6 +31,84 @@ const SwaggerDocs: React.FC = () => {
           in: "header",
           name: "Authorization"
         }
+      },
+      schemas: {
+        Consultant: {
+          type: "object",
+          properties: {
+            id: { type: "string", format: "uuid" },
+            name: { type: "string" },
+            email: { type: "string" },
+            phone: { type: "string" },
+            salary: { type: "number" },
+            commission_percentage: { type: "number" },
+            hours_per_month: { type: "integer" },
+            created_at: { type: "string", format: "date-time" }
+          }
+        },
+        ConsultantInput: {
+          type: "object",
+          required: ["name", "email"],
+          properties: {
+            name: { type: "string" },
+            email: { type: "string" },
+            phone: { type: "string" },
+            salary: { type: "number" },
+            commission_percentage: { type: "number" },
+            hours_per_month: { type: "integer" }
+          }
+        },
+        Project: {
+          type: "object",
+          properties: {
+            id: { type: "string", format: "uuid" },
+            name: { type: "string" },
+            description: { type: "string" },
+            status: { type: "string" },
+            client_id: { type: "string", format: "uuid" },
+            main_consultant_id: { type: "string", format: "uuid" },
+            support_consultant_id: { type: "string", format: "uuid" },
+            total_value: { type: "number" },
+            created_at: { type: "string", format: "date-time" }
+          }
+        },
+        ProjectInput: {
+          type: "object",
+          required: ["name", "main_consultant_id", "start_date", "end_date"],
+          properties: {
+            name: { type: "string" },
+            description: { type: "string" },
+            client_id: { type: "string", format: "uuid" },
+            main_consultant_id: { type: "string", format: "uuid" },
+            support_consultant_id: { type: "string", format: "uuid" },
+            total_value: { type: "number" },
+            start_date: { type: "string", format: "date" },
+            end_date: { type: "string", format: "date" }
+          }
+        },
+        Service: {
+          type: "object",
+          properties: {
+            id: { type: "string", format: "uuid" },
+            name: { type: "string" },
+            description: { type: "string" },
+            total_hours: { type: "number" },
+            hourly_rate: { type: "number" },
+            total_value: { type: "number" },
+            created_at: { type: "string", format: "date-time" }
+          }
+        },
+        Client: {
+          type: "object",
+          properties: {
+            id: { type: "string", format: "uuid" },
+            name: { type: "string" },
+            contact_name: { type: "string" },
+            email: { type: "string" },
+            phone: { type: "string" },
+            created_at: { type: "string", format: "date-time" }
+          }
+        }
       }
     },
     security: [
@@ -213,86 +291,6 @@ const SwaggerDocs: React.FC = () => {
                 }
               }
             }
-          }
-        }
-      }
-    },
-    components: {
-      schemas: {
-        Consultant: {
-          type: "object",
-          properties: {
-            id: { type: "string", format: "uuid" },
-            name: { type: "string" },
-            email: { type: "string" },
-            phone: { type: "string" },
-            salary: { type: "number" },
-            commission_percentage: { type: "number" },
-            hours_per_month: { type: "integer" },
-            created_at: { type: "string", format: "date-time" }
-          }
-        },
-        ConsultantInput: {
-          type: "object",
-          required: ["name", "email"],
-          properties: {
-            name: { type: "string" },
-            email: { type: "string" },
-            phone: { type: "string" },
-            salary: { type: "number" },
-            commission_percentage: { type: "number" },
-            hours_per_month: { type: "integer" }
-          }
-        },
-        Project: {
-          type: "object",
-          properties: {
-            id: { type: "string", format: "uuid" },
-            name: { type: "string" },
-            description: { type: "string" },
-            status: { type: "string" },
-            client_id: { type: "string", format: "uuid" },
-            main_consultant_id: { type: "string", format: "uuid" },
-            support_consultant_id: { type: "string", format: "uuid" },
-            total_value: { type: "number" },
-            created_at: { type: "string", format: "date-time" }
-          }
-        },
-        ProjectInput: {
-          type: "object",
-          required: ["name", "main_consultant_id", "start_date", "end_date"],
-          properties: {
-            name: { type: "string" },
-            description: { type: "string" },
-            client_id: { type: "string", format: "uuid" },
-            main_consultant_id: { type: "string", format: "uuid" },
-            support_consultant_id: { type: "string", format: "uuid" },
-            total_value: { type: "number" },
-            start_date: { type: "string", format: "date" },
-            end_date: { type: "string", format: "date" }
-          }
-        },
-        Service: {
-          type: "object",
-          properties: {
-            id: { type: "string", format: "uuid" },
-            name: { type: "string" },
-            description: { type: "string" },
-            total_hours: { type: "number" },
-            hourly_rate: { type: "number" },
-            total_value: { type: "number" },
-            created_at: { type: "string", format: "date-time" }
-          }
-        },
-        Client: {
-          type: "object",
-          properties: {
-            id: { type: "string", format: "uuid" },
-            name: { type: "string" },
-            contact_name: { type: "string" },
-            email: { type: "string" },
-            phone: { type: "string" },
-            created_at: { type: "string", format: "date-time" }
           }
         }
       }
