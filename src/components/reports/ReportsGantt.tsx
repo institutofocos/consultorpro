@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { format, addDays, differenceInDays, startOfMonth, endOfMonth } from 'date-fns';
+import { format, addDays, differenceInDays, startOfMonth, endOfMonth, addMonths } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
 export default function ReportsGantt() {
@@ -27,7 +27,7 @@ export default function ReportsGantt() {
   const [projectsWithStages, setProjectsWithStages] = useState<any[]>([]);
 
   // Filter states
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedConsultant, setSelectedConsultant] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [timePeriod, setTimePeriod] = useState<string>("month");
@@ -36,13 +36,18 @@ export default function ReportsGantt() {
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date()));
   const [dateRange, setDateRange] = useState<Date[]>([]);
+  const [chartWidth, setChartWidth] = useState<number>(0);
 
   useEffect(() => {
+    // Update the period based on selected time period and date
     if (timePeriod === 'month') {
-      setStartDate(startOfMonth(selectedDate || new Date()));
-      setEndDate(endOfMonth(selectedDate || new Date()));
+      setStartDate(startOfMonth(selectedDate));
+      setEndDate(endOfMonth(selectedDate));
+    } else if (timePeriod === 'quarter') {
+      const quarterStart = startOfMonth(selectedDate);
+      setStartDate(quarterStart);
+      setEndDate(endOfMonth(addMonths(quarterStart, 2)));
     }
-    // Add other period calculations as needed
   }, [selectedDate, timePeriod]);
 
   useEffect(() => {
@@ -54,6 +59,7 @@ export default function ReportsGantt() {
       currentDate = addDays(currentDate, 1);
     }
     setDateRange(range);
+    setChartWidth(range.length * 25); // Each day is 25px wide
   }, [startDate, endDate]);
 
   useEffect(() => {
@@ -92,12 +98,12 @@ export default function ReportsGantt() {
 
   useEffect(() => {
     applyFilters();
-  }, [selectedDate, selectedConsultant, selectedStatus, timePeriod]);
+  }, [selectedDate, selectedConsultant, selectedStatus, timePeriod, projects]);
 
   useEffect(() => {
     // Process projects for Gantt chart display
     const processed = filteredProjects.map(project => {
-      const stages = project.stages || [];
+      const stages = Array.isArray(project.stages) ? project.stages : [];
       
       // Calculate project duration for Gantt chart
       const projectStart = new Date(project.start_date);
@@ -158,6 +164,18 @@ export default function ReportsGantt() {
       filtered = filtered.filter(project => project.status === selectedStatus);
     }
     
+    // Apply date filters for the time period
+    if (timePeriod !== 'all') {
+      filtered = filtered.filter(project => {
+        const projectStart = new Date(project.start_date);
+        const projectEnd = new Date(project.end_date);
+        
+        // Project overlaps with the selected period if:
+        // projectStart <= endDate AND projectEnd >= startDate
+        return projectStart <= endDate && projectEnd >= startDate;
+      });
+    }
+    
     setFilteredProjects(filtered);
   };
   
@@ -188,6 +206,12 @@ export default function ReportsGantt() {
     return statusMap[status] || status;
   };
 
+  const handleMonthChange = (change: number) => {
+    const newDate = new Date(selectedDate);
+    newDate.setMonth(newDate.getMonth() + change);
+    setSelectedDate(newDate);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -197,20 +221,26 @@ export default function ReportsGantt() {
         </div>
         
         <div className="flex flex-wrap gap-2 items-center">
-          {/* Date selection */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4" />
-                {selectedDate ? format(selectedDate, 'MM/yyyy', { locale: pt }) : 'Selecionar data'}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <div className="p-2">
-                {/* Add month picker ui here */}
-              </div>
-            </PopoverContent>
-          </Popover>
+          {/* Month navigation */}
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={() => handleMonthChange(-1)}
+            >
+              &lt;
+            </Button>
+            <span className="w-32 text-center">
+              {format(selectedDate, 'MMMM yyyy', { locale: pt })}
+            </span>
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={() => handleMonthChange(1)}
+            >
+              &gt;
+            </Button>
+          </div>
           
           {/* Time period filter */}
           <Select value={timePeriod} onValueChange={setTimePeriod}>
@@ -270,108 +300,109 @@ export default function ReportsGantt() {
               <p>Nenhum projeto encontrado com os filtros aplicados.</p>
             </div>
           ) : (
-            <>
-              {/* Gantt chart header */}
-              <div className="flex mb-4">
-                <div className="w-1/4 pr-4 font-medium">Projeto</div>
-                <div className="w-3/4 relative">
-                  <div className="flex absolute inset-0">
-                    {dateRange.map((date, i) => (
-                      <div 
-                        key={i} 
-                        className={`flex-1 text-center text-xs border-r border-gray-200 ${
-                          date.getDate() === 1 ? 'font-medium border-l border-gray-300' : ''
-                        } ${
-                          date.getDay() === 0 || date.getDay() === 6 ? 'bg-gray-50' : ''
-                        }`}
-                      >
-                        {date.getDate() === 1 || i === 0 ? format(date, 'dd/MM', { locale: pt }) : date.getDate()}
-                      </div>
-                    ))}
+            <div className="overflow-x-auto">
+              {/* Gantt chart container */}
+              <div style={{ minWidth: `max(100%, ${chartWidth}px)` }}>
+                {/* Gantt chart header */}
+                <div className="flex mb-4 sticky top-0 bg-white z-10 border-b pb-2">
+                  <div className="w-64 pr-4 font-medium">Projeto</div>
+                  <div className="flex-1 relative">
+                    <div className="flex absolute inset-0">
+                      {dateRange.map((date, i) => (
+                        <div 
+                          key={i} 
+                          className={`w-[25px] flex-shrink-0 text-center text-xs border-r border-gray-200 ${
+                            date.getDate() === 1 ? 'font-medium border-l border-gray-300' : ''
+                          } ${
+                            date.getDay() === 0 || date.getDay() === 6 ? 'bg-gray-50' : ''
+                          }`}
+                        >
+                          {date.getDate() === 1 || i === 0 ? format(date, 'dd/MM', { locale: pt }) : date.getDate()}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-              
-              {/* Gantt chart rows */}
-              <div className="space-y-6">
-                {projectsWithStages.map(project => (
-                  <div key={project.id} className="space-y-1">
-                    {/* Project row */}
-                    <div className="flex items-center">
-                      <div className="w-1/4 pr-4">
-                        <div className="font-medium">{project.name}</div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-1">
-                          <span className="inline-block w-2 h-2 rounded-full bg-gray-400"></span>
-                          {project.clients?.name}
-                        </div>
-                      </div>
-                      <div className="w-3/4 relative h-8">
-                        {/* Project timeline bar */}
-                        <div 
-                          className={`absolute top-1/2 -translate-y-1/2 h-6 rounded-md ${getStatusColor(project.status)}`}
-                          style={{
-                            left: `${project.startPosition}%`,
-                            width: `${project.width}%`,
-                            minWidth: '10px'
-                          }}
-                        >
-                          <div className="px-2 text-xs text-white truncate h-full flex items-center">
-                            {project.name}
+                
+                {/* Gantt chart rows */}
+                <div className="space-y-6">
+                  {projectsWithStages.map(project => (
+                    <div key={project.id} className="space-y-1 pb-4 border-b border-dashed">
+                      {/* Project row */}
+                      <div className="flex items-center h-10">
+                        <div className="w-64 pr-4 truncate">
+                          <div className="font-medium">{project.name}</div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-1">
+                            <span className="inline-block w-2 h-2 rounded-full bg-gray-400"></span>
+                            {project.clients?.name}
                           </div>
                         </div>
-                      </div>
-                    </div>
-                    
-                    {/* Stage rows */}
-                    {project.stages && project.stages.map((stage: any, idx: number) => (
-                      <div key={idx} className="flex items-center pl-8">
-                        <div className="w-1/4 pr-4">
-                          <div className="text-sm">{stage.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {stage.days} dias
-                          </div>
-                        </div>
-                        <div className="w-3/4 relative h-6">
-                          {/* Stage timeline bar */}
+                        <div className="flex-1 relative h-8">
+                          {/* Project timeline bar */}
                           <div 
-                            className="absolute top-1/2 -translate-y-1/2 h-4 rounded-sm bg-opacity-70 bg-gray-600"
+                            className={`absolute top-1/2 -translate-y-1/2 h-6 rounded-md ${getStatusColor(project.status)}`}
                             style={{
-                              left: `${stage.startPosition}%`,
-                              width: `${stage.width}%`,
-                              minWidth: '8px'
+                              left: `${project.startPosition}%`,
+                              width: `${project.width}%`,
+                              minWidth: '10px'
                             }}
                           >
                             <div className="px-2 text-xs text-white truncate h-full flex items-center">
-                              {stage.name}
+                              {project.name}
                             </div>
                           </div>
                         </div>
                       </div>
-                    ))}
-                    
-                    {/* Project info */}
-                    <div className="pl-8 text-xs text-muted-foreground grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="font-medium">Consultor Principal:</span> {project.main_consultant?.name}
-                      </div>
-                      {project.support_consultant && (
-                        <div>
-                          <span className="font-medium">Consultor de Apoio:</span> {project.support_consultant?.name}
+                      
+                      {/* Stage rows */}
+                      {project.stages && project.stages.map((stage: any, idx: number) => (
+                        <div key={idx} className="flex items-center pl-8 h-6">
+                          <div className="w-64 pr-4 truncate">
+                            <div className="text-sm">{stage.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {stage.days} dias {stage.completed && '(Concluída)'}
+                            </div>
+                          </div>
+                          <div className="flex-1 relative h-6">
+                            {/* Stage timeline bar */}
+                            <div 
+                              className={`absolute top-1/2 -translate-y-1/2 h-4 rounded-sm ${stage.completed ? 'bg-green-600' : 'bg-gray-600'} bg-opacity-70`}
+                              style={{
+                                left: `${stage.startPosition}%`,
+                                width: `${stage.width}%`,
+                                minWidth: '8px'
+                              }}
+                            >
+                              <div className="px-2 text-xs text-white truncate h-full flex items-center">
+                                {stage.name}
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      )}
-                      <div>
-                        <span className="font-medium">Status:</span> {formatStatus(project.status)}
-                      </div>
-                      <div>
-                        <span className="font-medium">Período:</span> {format(new Date(project.start_date), 'dd/MM/yyyy', { locale: pt })} - {format(new Date(project.end_date), 'dd/MM/yyyy', { locale: pt })}
+                      ))}
+                      
+                      {/* Project info */}
+                      <div className="pl-8 pt-2 mt-1 text-xs text-muted-foreground grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div>
+                          <span className="font-medium">Consultor Principal:</span> {project.main_consultant?.name}
+                        </div>
+                        {project.support_consultant && (
+                          <div>
+                            <span className="font-medium">Consultor de Apoio:</span> {project.support_consultant?.name}
+                          </div>
+                        )}
+                        <div>
+                          <span className="font-medium">Status:</span> {formatStatus(project.status)}
+                        </div>
+                        <div>
+                          <span className="font-medium">Período:</span> {format(new Date(project.start_date), 'dd/MM/yyyy', { locale: pt })} - {format(new Date(project.end_date), 'dd/MM/yyyy', { locale: pt })}
+                        </div>
                       </div>
                     </div>
-                    
-                    <hr className="border-gray-200 my-2" />
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </>
+            </div>
           )}
         </CardContent>
       </Card>

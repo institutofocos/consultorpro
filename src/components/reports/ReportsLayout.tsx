@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, Navigate } from 'react-router-dom';
 import { Calendar, KanbanSquare, ChartGantt } from 'lucide-react';
 import { Card } from "@/components/ui/card";
 

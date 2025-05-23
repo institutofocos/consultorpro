@@ -51,14 +51,40 @@ export default function ReportsKanban() {
         
         if (projectsError) throw projectsError;
         
+        // Process projects to determine real status based on stages completion
+        const processedProjects = projectsData?.map(project => {
+          let computedStatus = project.status;
+          
+          // If project has stages, compute status based on stage completion
+          if (project.stages && Array.isArray(project.stages)) {
+            const completedStages = project.stages.filter((stage: any) => stage.completed).length;
+            const totalStages = project.stages.length;
+            
+            if (totalStages > 0) {
+              if (completedStages === 0) {
+                computedStatus = 'planned';
+              } else if (completedStages < totalStages) {
+                computedStatus = 'in_progress';
+              } else if (completedStages === totalStages) {
+                computedStatus = 'completed';
+              }
+            }
+          }
+          
+          return {
+            ...project,
+            computedStatus
+          };
+        }) || [];
+        
         const { data: consultantsData, error: consultantsError } = await supabase
           .from('consultants')
           .select('id, name');
         
         if (consultantsError) throw consultantsError;
         
-        setProjects(projectsData || []);
-        setFilteredProjects(projectsData || []);
+        setProjects(processedProjects);
+        setFilteredProjects(processedProjects);
         setConsultants(consultantsData || []);
         setLoading(false);
       } catch (error) {
@@ -73,10 +99,10 @@ export default function ReportsKanban() {
   useEffect(() => {
     if (filteredProjects.length > 0) {
       const grouped = {
-        planned: filteredProjects.filter(p => p.status === 'planned'),
-        in_progress: filteredProjects.filter(p => p.status === 'in_progress'),
-        completed: filteredProjects.filter(p => p.status === 'completed'),
-        cancelled: filteredProjects.filter(p => p.status === 'cancelled'),
+        planned: filteredProjects.filter(p => p.computedStatus === 'planned'),
+        in_progress: filteredProjects.filter(p => p.computedStatus === 'in_progress'),
+        completed: filteredProjects.filter(p => p.computedStatus === 'completed'),
+        cancelled: filteredProjects.filter(p => p.computedStatus === 'cancelled' || p.status === 'cancelled'),
       };
       setProjectsByStatus(grouped);
     }
@@ -84,7 +110,7 @@ export default function ReportsKanban() {
 
   useEffect(() => {
     applyFilters();
-  }, [selectedDate, selectedConsultant, timePeriod]);
+  }, [selectedDate, selectedConsultant, timePeriod, projects]);
 
   const applyFilters = () => {
     let filtered = [...projects];
@@ -97,7 +123,41 @@ export default function ReportsKanban() {
       );
     }
     
-    // Apply date filters if needed
+    // Apply date filters
+    if (timePeriod !== 'all') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (timePeriod === 'today') {
+        filtered = filtered.filter(project => {
+          const startDate = new Date(project.start_date);
+          const endDate = new Date(project.end_date);
+          return (startDate <= today && today <= endDate);
+        });
+      } else if (timePeriod === 'week') {
+        // Get start and end of current week (Sunday to Saturday)
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay());
+        const weekEnd = new Date(today);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        
+        filtered = filtered.filter(project => {
+          const startDate = new Date(project.start_date);
+          const endDate = new Date(project.end_date);
+          return (startDate <= weekEnd && endDate >= weekStart);
+        });
+      } else if (timePeriod === 'month') {
+        // Get start and end of current month
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        
+        filtered = filtered.filter(project => {
+          const startDate = new Date(project.start_date);
+          const endDate = new Date(project.end_date);
+          return (startDate <= monthEnd && endDate >= monthStart);
+        });
+      }
+    }
     
     setFilteredProjects(filtered);
   };
@@ -126,6 +186,17 @@ export default function ReportsKanban() {
       case 'cancelled': return 'bg-red-100 border-red-300';
       default: return 'bg-gray-100 border-gray-300';
     }
+  };
+
+  const getStageCompletionText = (project: any) => {
+    if (!project.stages || !Array.isArray(project.stages)) {
+      return 'Sem etapas';
+    }
+    
+    const completedStages = project.stages.filter((stage: any) => stage.completed).length;
+    const totalStages = project.stages.length;
+    
+    return `${completedStages}/${totalStages} etapas`;
   };
 
   return (
@@ -234,12 +305,30 @@ export default function ReportsKanban() {
                                 <span>{project.support_consultant?.name}</span>
                               </div>
                             )}
-                            {project.stages && (
-                              <div className="text-xs flex justify-between">
-                                <span>Etapas:</span>
-                                <span>{project.stages.length}</span>
+                            <div className="text-xs flex justify-between">
+                              <span>Progresso:</span>
+                              <span>{getStageCompletionText(project)}</span>
+                            </div>
+                            <div className="mt-2">
+                              <div className="text-xs font-medium mb-1">Etapas:</div>
+                              <div className="space-y-1">
+                                {project.stages && Array.isArray(project.stages) ? (
+                                  project.stages.map((stage: any, idx: number) => (
+                                    <div 
+                                      key={idx} 
+                                      className={`text-xs p-1 rounded flex justify-between ${
+                                        stage.completed ? 'bg-green-50 text-green-700' : 'bg-gray-50'
+                                      }`}
+                                    >
+                                      <span>{stage.name}</span>
+                                      <span>{stage.completed ? 'Concluída' : 'Pendente'}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="text-xs text-muted-foreground">Sem etapas</div>
+                                )}
                               </div>
-                            )}
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
