@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -237,12 +236,22 @@ const UserManagement = () => {
     try {
       const newStatus = !user.is_disabled;
       
-      // Update user status
-      const { error } = newStatus 
-        ? await supabase.auth.admin.disableUser(user.id)
-        : await supabase.auth.admin.enableUser(user.id);
-
-      if (error) throw error;
+      // Update user status - Fix for admin API methods
+      if (newStatus) {
+        // Ban user instead of disableUser
+        const { error } = await supabase.auth.admin.updateUserById(
+          user.id,
+          { banned: true }
+        );
+        if (error) throw error;
+      } else {
+        // Unban user instead of enableUser
+        const { error } = await supabase.auth.admin.updateUserById(
+          user.id,
+          { banned: false }
+        );
+        if (error) throw error;
+      }
       
       // Update local state
       const updatedUsers = users.map(u => 
@@ -409,7 +418,7 @@ const UserManagement = () => {
                       {getRoleBadge(user.profile?.role)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={user.is_disabled ? "destructive" : "success"}>
+                      <Badge variant={user.is_disabled ? "destructive" : "outline"} className={!user.is_disabled ? "bg-green-500 hover:bg-green-600" : ""}>
                         {user.is_disabled ? "Inativo" : "Ativo"}
                       </Badge>
                     </TableCell>

@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,7 +24,12 @@ import ClientList from "./components/clients/ClientList";
 import FinancialPage from "./components/financial/FinancialPage";
 import NotesPage from "./pages/Notes";
 import ChatPage from "./components/chat/ChatPage";
-import DemandsList from "./components/demands/DemandsList"; // Import the new Demands component
+import DemandsList from "./components/demands/DemandsList";
+// Import report components
+import ReportsLayout from "./components/reports/ReportsLayout";
+import ReportsCalendar from "./components/reports/ReportsCalendar";
+import ReportsKanban from "./components/reports/ReportsKanban";
+import ReportsGantt from "./components/reports/ReportsGantt";
 
 // Modified to always render children without authentication check
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
