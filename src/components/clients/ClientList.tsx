@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -10,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Edit, Trash, Building } from "lucide-react";
+import { Plus, Edit, Trash, Building, Search } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import ClientForm from "./ClientForm";
@@ -24,6 +25,8 @@ interface ClientWithProjectStats extends BasicClient {
 
 const ClientList = () => {
   const [clients, setClients] = useState<ClientWithProjectStats[]>([]);
+  const [filteredClients, setFilteredClients] = useState<ClientWithProjectStats[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingClient, setIsAddingClient] = useState(false);
   const [editingClient, setEditingClient] = useState<BasicClient | null>(null);
@@ -86,6 +89,7 @@ const ClientList = () => {
       }));
       
       setClients(clientsWithStats);
+      setFilteredClients(clientsWithStats);
     } catch (error: any) {
       toast.error('Erro ao carregar clientes: ' + error.message);
     } finally {
@@ -96,6 +100,21 @@ const ClientList = () => {
   useEffect(() => {
     fetchClients();
   }, []);
+
+  // Filter clients based on search term
+  useEffect(() => {
+    if (!searchTerm) {
+      setFilteredClients(clients);
+    } else {
+      const filtered = clients.filter(client =>
+        client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.contact_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.phone?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredClients(filtered);
+    }
+  }, [searchTerm, clients]);
 
   const handleSaveClient = () => {
     setIsAddingClient(false);
@@ -153,6 +172,18 @@ const ClientList = () => {
         </Button>
       </div>
 
+      <div className="flex items-center space-x-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Buscar clientes..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      </div>
+
       <Card>
         <CardContent className="pt-6">
           <Table>
@@ -175,8 +206,8 @@ const ClientList = () => {
                     Carregando...
                   </TableCell>
                 </TableRow>
-              ) : clients.length > 0 ? (
-                clients.map((client) => (
+              ) : filteredClients.length > 0 ? (
+                filteredClients.map((client) => (
                   <TableRow key={client.id}>
                     <TableCell className="font-medium">
                       <div className="flex items-center">
@@ -217,7 +248,7 @@ const ClientList = () => {
               ) : (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
-                    Nenhum cliente encontrado
+                    {searchTerm ? 'Nenhum cliente encontrado para a busca' : 'Nenhum cliente encontrado'}
                   </TableCell>
                 </TableRow>
               )}

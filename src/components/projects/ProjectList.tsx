@@ -27,7 +27,7 @@ import { ProjectDetails } from './ProjectDetails';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
 import { Project, Stage } from './types';
-import { updateProject } from '@/integrations/supabase/projects';
+import { updateProject, deleteProject as deleteProjectFunction } from '@/integrations/supabase/projects';
 import { 
   Select, 
   SelectContent, 
@@ -41,7 +41,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { deleteChatRoom, fetchChatRoomsByProject } from '@/integrations/supabase/chat';
 
 // Use export type for re-exporting types when isolatedModules is enabled
 export type { Project, Stage };
@@ -263,43 +262,31 @@ export const ProjectList: React.FC = () => {
     setShowForm(true);
   };
   
-  const handleDeleteProject = async (id: string) => {
+  const handleDeleteProject = async (id: string, projectName?: string) => {
+    const confirmMessage = projectName 
+      ? `Tem certeza que deseja excluir o projeto "${projectName}"?`
+      : 'Tem certeza que deseja excluir este projeto?';
+      
+    if (!window.confirm(confirmMessage)) return;
+    
     try {
-      // First, delete all related chat rooms
-      const { error: chatRoomsError } = await supabase
-        .from('chat_rooms')
-        .delete()
-        .eq('project_id', id);
+      console.log(`Tentando excluir projeto: ${projectName || id}`);
       
-      if (chatRoomsError) {
-        console.error('Error deleting chat rooms:', chatRoomsError);
-        throw chatRoomsError;
-      }
-      
-      // Then delete the project
-      const { error: projectError } = await supabase
-        .from('projects')
-        .delete()
-        .eq('id', id);
-      
-      if (projectError) {
-        console.error('Error deleting project:', projectError);
-        throw projectError;
-      }
+      await deleteProjectFunction(id);
       
       // Update local state
       setProjects(projects.filter(p => p.id !== id));
       
       toast({
         title: "Sucesso",
-        description: "Projeto removido com sucesso!"
+        description: `Projeto ${projectName ? `"${projectName}"` : ''} removido com sucesso!`
       });
     } catch (error: any) {
       console.error('Error deleting project:', error);
       toast({
         variant: "destructive",
         title: "Erro",
-        description: error.message || "Não foi possível remover o projeto."
+        description: `Erro ao excluir projeto ${projectName ? `"${projectName}"` : ''}: ${error.message || "Erro desconhecido"}`
       });
     }
   };
@@ -413,140 +400,142 @@ export const ProjectList: React.FC = () => {
               />
             </div>
 
-            {/* Filter Popover */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <Filter className="h-4 w-4" />
-                  Filtrar
-                  {(consultantFilter || clientFilter || serviceFilter || statusFilter || startDateFilter || endDateFilter) && (
-                    <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center">
-                      {[consultantFilter, clientFilter, serviceFilter, statusFilter, startDateFilter, endDateFilter].filter(Boolean).length}
-                    </Badge>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <div className="grid gap-4">
-                  <h4 className="font-medium">Filtros</h4>
-                  
-                  <div className="grid gap-2">
-                    <label className="text-sm">Consultor</label>
-                    <Select value={consultantFilter} onValueChange={setConsultantFilter}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Todos</SelectItem>
-                        {consultants.map(consultant => (
-                          <SelectItem key={consultant.id} value={consultant.id}>
-                            {consultant.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+            <div className="flex items-center gap-4">
+              {/* Filter Popover */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filtrar
+                    {(consultantFilter || clientFilter || serviceFilter || statusFilter || startDateFilter || endDateFilter) && (
+                      <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center">
+                        {[consultantFilter, clientFilter, serviceFilter, statusFilter, startDateFilter, endDateFilter].filter(Boolean).length}
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                  <div className="grid gap-4">
+                    <h4 className="font-medium">Filtros</h4>
+                    
+                    <div className="grid gap-2">
+                      <label className="text-sm">Consultor</label>
+                      <Select value={consultantFilter} onValueChange={setConsultantFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Todos</SelectItem>
+                          {consultants.map(consultant => (
+                            <SelectItem key={consultant.id} value={consultant.id}>
+                              {consultant.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <label className="text-sm">Cliente</label>
+                      <Select value={clientFilter} onValueChange={setClientFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Todos</SelectItem>
+                          {clients.map(client => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <label className="text-sm">Serviço</label>
+                      <Select value={serviceFilter} onValueChange={setServiceFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Todos</SelectItem>
+                          {services.map(service => (
+                            <SelectItem key={service.id} value={service.id}>
+                              {service.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <label className="text-sm">Status</label>
+                      <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Todos</SelectItem>
+                          <SelectItem value="planned">Planejado</SelectItem>
+                          <SelectItem value="active">Em Andamento</SelectItem>
+                          <SelectItem value="completed">Concluído</SelectItem>
+                          <SelectItem value="cancelled">Cancelado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <label className="text-sm">Data de Início</label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline">
+                            {startDateFilter ? format(startDateFilter, 'dd/MM/yyyy', { locale: ptBR }) : "Selecionar..."}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={startDateFilter}
+                            onSelect={setStartDateFilter}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <label className="text-sm">Data de Término</label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline">
+                            {endDateFilter ? format(endDateFilter, 'dd/MM/yyyy', { locale: ptBR }) : "Selecionar..."}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={endDateFilter}
+                            onSelect={setEndDateFilter}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <Button variant="ghost" onClick={resetFilters}>Limpar Filtros</Button>
+                      <Button onClick={() => document.body.click()}>Aplicar</Button>
+                    </div>
                   </div>
-                  
-                  <div className="grid gap-2">
-                    <label className="text-sm">Cliente</label>
-                    <Select value={clientFilter} onValueChange={setClientFilter}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Todos</SelectItem>
-                        {clients.map(client => (
-                          <SelectItem key={client.id} value={client.id}>
-                            {client.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="grid gap-2">
-                    <label className="text-sm">Serviço</label>
-                    <Select value={serviceFilter} onValueChange={setServiceFilter}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Todos</SelectItem>
-                        {services.map(service => (
-                          <SelectItem key={service.id} value={service.id}>
-                            {service.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="grid gap-2">
-                    <label className="text-sm">Status</label>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Todos</SelectItem>
-                        <SelectItem value="planned">Planejado</SelectItem>
-                        <SelectItem value="active">Em Andamento</SelectItem>
-                        <SelectItem value="completed">Concluído</SelectItem>
-                        <SelectItem value="cancelled">Cancelado</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="grid gap-2">
-                    <label className="text-sm">Data de Início</label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline">
-                          {startDateFilter ? format(startDateFilter, 'dd/MM/yyyy', { locale: ptBR }) : "Selecionar..."}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={startDateFilter}
-                          onSelect={setStartDateFilter}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  
-                  <div className="grid gap-2">
-                    <label className="text-sm">Data de Término</label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline">
-                          {endDateFilter ? format(endDateFilter, 'dd/MM/yyyy', { locale: ptBR }) : "Selecionar..."}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={endDateFilter}
-                          onSelect={setEndDateFilter}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <Button variant="ghost" onClick={resetFilters}>Limpar Filtros</Button>
-                    <Button onClick={() => document.body.click()}>Aplicar</Button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+                </PopoverContent>
+              </Popover>
 
-            <Button onClick={() => setShowForm(true)} className="w-full md:w-auto">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Adicionar Projeto
-            </Button>
+              <Button onClick={() => setShowForm(true)}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Adicionar Projeto
+              </Button>
+            </div>
           </div>
           
           <Card className="shadow-card">
@@ -645,7 +634,7 @@ export const ProjectList: React.FC = () => {
                           <Button variant="ghost" size="icon" onClick={() => handleEditProject(project)} title="Editar">
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteProject(project.id)} title="Excluir">
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteProject(project.id, project.name)} title="Excluir">
                             <Trash className="h-4 w-4" />
                           </Button>
                         </TableCell>
