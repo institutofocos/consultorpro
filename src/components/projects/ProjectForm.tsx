@@ -1,915 +1,538 @@
+
 import React, { useState, useEffect } from 'react';
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CalendarIcon, PlusIcon, TrashIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Plus, Trash, MoreHorizontal, FileUp, Tag, Search } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { useToast } from "@/components/ui/use-toast";
-import { fetchConsultants } from '@/integrations/supabase/consultants';
-import { fetchServices, fetchServiceById } from '@/integrations/supabase/services';
-import { fetchTags } from '@/integrations/supabase/projects';
-import { fetchClients } from '@/integrations/supabase/clients';
-import { supabase } from '@/integrations/supabase/client';
-import { createChatRoom, addChatParticipant } from '@/integrations/supabase/chat';
-import { Consultant, Project, Stage } from './types';
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { addDays } from 'date-fns';
-import { BasicService } from '@/components/services/types';
-import { Badge } from "@/components/ui/badge";
-import { Client } from '@/integrations/supabase/clients';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import TaskLinkSelector from '@/components/notes/TaskLinkSelector';
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { createProject, updateProject } from "@/integrations/supabase/projects";
+import { Project, Stage } from "./types";
 
 interface ProjectFormProps {
-  project?: Project | null;
-  onSave: (project: any) => Promise<any>;
+  project?: Project;
+  onProjectSaved: (project: Project) => void;
   onCancel: () => void;
 }
 
-// Style for required field labels
-const requiredLabelStyle = { color: 'red' };
+export default function ProjectForm({ project, onProjectSaved, onCancel }: ProjectFormProps) {
+  const [formData, setFormData] = useState<Partial<Project>>({
+    name: '',
+    description: '',
+    serviceId: '',
+    clientId: '',
+    mainConsultantId: '',
+    mainConsultantCommission: 0,
+    supportConsultantId: '',
+    supportConsultantCommission: 0,
+    startDate: '',
+    endDate: '',
+    totalValue: 0,
+    taxPercent: 16,
+    thirdPartyExpenses: 0,
+    consultantValue: 0,
+    supportConsultantValue: 0,
+    status: 'planned',
+    tags: [],
+    stages: []
+  });
 
-export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCancel }) => {
-  const [name, setName] = useState(project?.name || '');
-  const [description, setDescription] = useState(project?.description || '');
-  const [mainConsultantId, setMainConsultantId] = useState(project?.mainConsultantId || '');
-  const [supportConsultantId, setSupportConsultantId] = useState(project?.supportConsultantId || '');
-  const [startDate, setStartDate] = useState<Date | undefined>(project ? new Date(project.startDate) : new Date());
-  const [endDate, setEndDate] = useState<Date | undefined>(project ? new Date(project.endDate) : addDays(new Date(), 30));
-  const [totalValue, setTotalValue] = useState(project?.totalValue?.toString() || '');
-  const [taxPercent, setTaxPercent] = useState(project?.taxPercent?.toString() || '16');
-  const [thirdPartyExpenses, setThirdPartyExpenses] = useState(project?.thirdPartyExpenses?.toString() || '0');
-  const [consultantValue, setConsultantValue] = useState(project?.consultantValue?.toString() || '');
-  const [supportConsultantValue, setSupportConsultantValue] = useState(project?.supportConsultantValue?.toString() || '0');
-  const [status, setStatus] = useState<'planned' | 'active' | 'completed' | 'cancelled'>(project?.status || 'planned');
-  const [stages, setStages] = useState<Stage[]>(project?.stages || []);
-  const [consultants, setConsultants] = useState<Consultant[]>([]);
-  const [services, setServices] = useState<BasicService[]>([]);
-  const [selectedServiceId, setSelectedServiceId] = useState(project?.serviceId || '');
-  const [clientId, setClientId] = useState(project?.clientId || '');
-  const [clients, setClients] = useState<Client[]>([]);
-  const [tags, setTags] = useState<string[]>(project?.tags || []);
-  const [newTag, setNewTag] = useState('');
-  const [mainConsultantCommission, setMainConsultantCommission] = useState(project?.mainConsultantCommission?.toString() || '0');
-  const [supportConsultantCommission, setSupportConsultantCommission] = useState(project?.supportConsultantCommission?.toString() || '0');
-  const [fileUploading, setFileUploading] = useState(false);
-  const [availableTags, setAvailableTags] = useState<{id: string, name: string}[]>([]);
-  const [tagSearch, setTagSearch] = useState('');
-  const [filteredTags, setFilteredTags] = useState<{id: string, name: string}[]>([]);
-  const { toast } = useToast();
-  
+  const [clients, setClients] = useState([]);
+  const [services, setServices] = useState([]);
+  const [consultants, setConsultants] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
   useEffect(() => {
-    // Fetch consultants
-    fetchConsultants().then(data => {
-      setConsultants(data as unknown as Consultant[]);
-      
-      // If a consultant is already selected, set their commission percentage
-      if (mainConsultantId) {
-        const consultant = data.find(c => c.id === mainConsultantId);
-        if (consultant && consultant.commissionPercentage && !project?.mainConsultantCommission) {
-          setMainConsultantCommission(consultant.commissionPercentage.toString());
-        }
-      }
-      
-      if (supportConsultantId) {
-        const consultant = data.find(c => c.id === supportConsultantId);
-        if (consultant && consultant.commissionPercentage && !project?.supportConsultantCommission) {
-          setSupportConsultantCommission(consultant.commissionPercentage.toString());
-        }
-      }
-    });
-    
-    // Fetch services
-    fetchServices().then(data => {
-      setServices(data as unknown as BasicService[]);
-    });
-    
-    // Fetch clients
-    fetchClients().then(data => {
-      setClients(data);
-    });
-    
-    // Fetch available tags
-    const loadTags = async () => {
-      const tagsList = await fetchTags();
-      setAvailableTags(tagsList);
-      setFilteredTags(tagsList);
-    };
-    
-    loadTags();
-  }, []);
-  
-  const handleMainConsultantChange = (id: string) => {
-    setMainConsultantId(id);
-    if (id) {
-      const consultant = consultants.find(c => c.id === id);
-      if (consultant && consultant.commissionPercentage) {
-        setMainConsultantCommission(consultant.commissionPercentage.toString());
-        recalculateConsultantValues(totalValue, taxPercent, thirdPartyExpenses, consultant.commissionPercentage.toString(), supportConsultantCommission);
-      }
-    }
-  };
-  
-  const handleSupportConsultantChange = (id: string) => {
-    setSupportConsultantId(id);
-    if (id) {
-      const consultant = consultants.find(c => c.id === id);
-      if (consultant && consultant.commissionPercentage) {
-        setSupportConsultantCommission(consultant.commissionPercentage.toString());
-        recalculateConsultantValues(totalValue, taxPercent, thirdPartyExpenses, mainConsultantCommission, consultant.commissionPercentage.toString());
-      } else {
-        setSupportConsultantCommission('0');
-        recalculateConsultantValues(totalValue, taxPercent, thirdPartyExpenses, mainConsultantCommission, '0');
-      }
-    } else {
-      setSupportConsultantCommission('0');
-      setSupportConsultantValue('0');
-    }
-  };
-  
-  const recalculateConsultantValues = (
-    total: string, 
-    tax: string, 
-    expenses: string, 
-    mainCommission: string, 
-    supportCommission: string
-  ) => {
-    const totalVal = parseFloat(total) || 0;
-    const taxVal = (parseFloat(tax) || 0) / 100 * totalVal;
-    const expensesVal = parseFloat(expenses) || 0;
-    
-    const baseAfterDeductions = totalVal - taxVal - expensesVal;
-    
-    const mainCommissionVal = parseFloat(mainCommission) || 0;
-    const mainConsultantVal = (mainCommissionVal / 100) * baseAfterDeductions;
-    setConsultantValue(mainConsultantVal.toFixed(2));
-    
-    const supportCommissionVal = parseFloat(supportCommission) || 0;
-    const supportConsultantVal = supportConsultantId ? (supportCommissionVal / 100) * mainConsultantVal : 0;
-    setSupportConsultantValue(supportConsultantVal.toFixed(2));
-  };
-  
-  useEffect(() => {
-    recalculateConsultantValues(
-      totalValue, 
-      taxPercent, 
-      thirdPartyExpenses,
-      mainConsultantCommission,
-      supportConsultantCommission
-    );
-  }, [totalValue, taxPercent, thirdPartyExpenses, mainConsultantCommission, supportConsultantCommission]);
-
-  const initializeStagesFromService = async (serviceId: string) => {
-    if (!serviceId) {
-      setSelectedServiceId('');
-      setDescription('');
-      return;
-    }
-
-    setSelectedServiceId(serviceId);
-    
-    try {
-      const selectedService = await fetchServiceById(serviceId);
-      if (selectedService) {
-        if (selectedService.description) {
-          setDescription(selectedService.description);
-        }
-        
-        if (selectedService.total_value) {
-          setTotalValue(selectedService.total_value.toString());
-        }
-        
-        if (selectedService.tax_rate) {
-          setTaxPercent(selectedService.tax_rate.toString());
-        }
-        
-        if (selectedService.stages) {
-          try {
-            let serviceStages: Stage[];
-            if (typeof selectedService.stages === 'string') {
-              serviceStages = JSON.parse(selectedService.stages);
-            } else {
-              serviceStages = selectedService.stages as any;
-            }
-            
-            if (Array.isArray(serviceStages)) {
-              const stagesWithDates = serviceStages.map((stage, index) => {
-                const stageDuration = stage.days || 1;
-                let stageStartDate;
-                
-                if (index === 0) {
-                  stageStartDate = startDate ? new Date(startDate) : new Date();
-                } else {
-                  const prevStage = serviceStages[index - 1];
-                  stageStartDate = addDays(
-                    new Date(prevStage.endDate || prevStage.startDate || new Date()), 
-                    1
-                  );
-                }
-                
-                const stageEndDate = addDays(stageStartDate, stageDuration - 1);
-                
-                return {
-                  ...stage,
-                  id: stage.id ? stage.id.toString() : Date.now().toString() + index,
-                  description: stage.description || '',
-                  startDate: stage.startDate || stageStartDate.toISOString().split('T')[0],
-                  endDate: stage.endDate || stageEndDate.toISOString().split('T')[0],
-                  completed: stage.completed || false,
-                  clientApproved: false,
-                  managerApproved: false,
-                  invoiceIssued: false,
-                  paymentReceived: false,
-                  consultantsSettled: false,
-                  attachment: stage.attachment || ''
-                } as Stage;
-              });
-              
-              setStages(stagesWithDates);
-            }
-          } catch (e) {
-            console.error("Error parsing service stages:", e);
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching service details:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível carregar os detalhes do serviço."
+    fetchSelectOptions();
+    if (project) {
+      setFormData({
+        ...project,
+        serviceId: project.serviceId || '',
+        clientId: project.clientId || '',
+        mainConsultantId: project.mainConsultantId || '',
+        supportConsultantId: project.supportConsultantId || '',
+        stages: project.stages || []
       });
     }
+  }, [project]);
+
+  const fetchSelectOptions = async () => {
+    try {
+      const [clientsRes, servicesRes, consultantsRes] = await Promise.all([
+        supabase.from('clients').select('id, name').order('name'),
+        supabase.from('services').select('id, name, stages').order('name'),
+        supabase.from('consultants').select('id, name').order('name')
+      ]);
+
+      if (clientsRes.data) setClients(clientsRes.data);
+      if (servicesRes.data) setServices(servicesRes.data);
+      if (consultantsRes.data) setConsultants(consultantsRes.data);
+    } catch (error) {
+      console.error('Error fetching select options:', error);
+      toast.error('Erro ao carregar opções do formulário');
+    }
   };
 
-  const handleAddStage = () => {
-    const newStageStartDate = stages.length > 0 
-      ? addDays(new Date(stages[stages.length - 1].endDate), 1)
-      : startDate || new Date();
-      
-    const newStageEndDate = addDays(newStageStartDate, 5);
+  const handleServiceChange = (serviceId: string) => {
+    setFormData(prev => ({ ...prev, serviceId }));
     
+    const selectedService = services.find(s => s.id === serviceId);
+    if (selectedService && selectedService.stages) {
+      const serviceStages = Array.isArray(selectedService.stages) 
+        ? selectedService.stages 
+        : JSON.parse(selectedService.stages || '[]');
+      
+      if (Array.isArray(serviceStages)) {
+        const newStages: Stage[] = serviceStages.map((stage: any, index: number) => ({
+          id: `temp-${Date.now()}-${index}`,
+          projectId: project?.id || '',
+          name: stage.name || `Etapa ${index + 1}`,
+          description: stage.description || '',
+          days: Number(stage.days) || 1,
+          hours: Number(stage.hours) || 8,
+          value: Number(stage.value) || 0,
+          startDate: '',
+          endDate: '',
+          completed: false,
+          clientApproved: false,
+          managerApproved: false,
+          invoiceIssued: false,
+          paymentReceived: false,
+          consultantsSettled: false,
+          attachment: '',
+          stageOrder: index + 1
+        }));
+        
+        setFormData(prev => ({ ...prev, stages: newStages }));
+      }
+    }
+  };
+
+  const addStage = () => {
     const newStage: Stage = {
-      id: Date.now().toString(),
-      name: `Nova Etapa ${stages.length + 1}`,
-      description: '', 
-      days: 5,
-      hours: 20,
-      value: 2200,
-      startDate: newStageStartDate.toISOString().split('T')[0],
-      endDate: newStageEndDate.toISOString().split('T')[0],
+      id: `temp-${Date.now()}`,
+      projectId: project?.id || '',
+      name: `Etapa ${(formData.stages?.length || 0) + 1}`,
+      description: '',
+      days: 1,
+      hours: 8,
+      value: 0,
+      startDate: '',
+      endDate: '',
       completed: false,
       clientApproved: false,
       managerApproved: false,
       invoiceIssued: false,
       paymentReceived: false,
       consultantsSettled: false,
-      attachment: ''
+      attachment: '',
+      stageOrder: (formData.stages?.length || 0) + 1
     };
     
-    setStages([...stages, newStage]);
+    setFormData(prev => ({
+      ...prev,
+      stages: [...(prev.stages || []), newStage]
+    }));
   };
 
-  const handleUpdateStage = (index: number, field: keyof Stage, value: any) => {
-    const updatedStages = [...stages];
+  const updateStage = (index: number, field: keyof Stage, value: any) => {
+    const updatedStages = [...(formData.stages || [])];
     updatedStages[index] = { ...updatedStages[index], [field]: value };
-    
-    if (field === 'days') {
-      const startDateObj = new Date(updatedStages[index].startDate);
-      updatedStages[index].endDate = addDays(startDateObj, Number(value) - 1)
-        .toISOString().split('T')[0];
-    }
-    
-    setStages(updatedStages);
+    setFormData(prev => ({ ...prev, stages: updatedStages }));
   };
 
-  const handleDeleteStage = (index: number) => {
-    setStages(stages.filter((_, i) => i !== index));
+  const removeStage = (index: number) => {
+    const updatedStages = (formData.stages || []).filter((_, i) => i !== index);
+    // Reorder stages
+    const reorderedStages = updatedStages.map((stage, i) => ({
+      ...stage,
+      stageOrder: i + 1
+    }));
+    setFormData(prev => ({ ...prev, stages: reorderedStages }));
   };
 
-  const calculateNetValue = () => {
-    const total = Number(totalValue) || 0;
-    const tax = (Number(taxPercent) || 0) / 100 * total;
-    const expenses = Number(thirdPartyExpenses) || 0;
-    const consultantCost = Number(consultantValue) || 0;
-    const supportConsultantCost = Number(supportConsultantValue) || 0;
+  const calculateTotals = () => {
+    const stagesTotal = (formData.stages || []).reduce((sum, stage) => sum + Number(stage.value || 0), 0);
+    const thirdPartyExpenses = Number(formData.thirdPartyExpenses || 0);
+    const totalValue = stagesTotal + thirdPartyExpenses;
     
-    return total - tax - expenses - consultantCost - supportConsultantCost;
+    setFormData(prev => ({ ...prev, totalValue }));
   };
-  
+
   useEffect(() => {
-    if (tagSearch.trim() === '') {
-      setFilteredTags(availableTags);
-    } else {
-      const filtered = availableTags.filter(tag => 
-        tag.name.toLowerCase().includes(tagSearch.toLowerCase())
-      );
-      setFilteredTags(filtered);
-    }
-  }, [tagSearch, availableTags]);
-  
-  const handleAddTag = (tagName: string) => {
-    if (tagName.trim() && !tags.includes(tagName.trim())) {
-      setTags([...tags, tagName.trim()]);
-      setNewTag('');
-      setTagSearch('');
-    }
-  };
+    calculateTotals();
+  }, [formData.stages, formData.thirdPartyExpenses]);
 
-  const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter(tag => tag !== tagToRemove));
-  };
-  
-  const handleFileUpload = async (index: number, files: FileList | null) => {
-    if (!files || !files[0]) return;
-    
-    const file = files[0];
-    setFileUploading(true);
-    
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
     try {
-      const updatedStages = [...stages];
-      updatedStages[index] = { 
-        ...updatedStages[index], 
-        attachment: file.name 
+      if (!formData.name || !formData.startDate || !formData.endDate) {
+        toast.error('Preencha todos os campos obrigatórios');
+        return;
+      }
+
+      const projectData: Project = {
+        id: project?.id || '',
+        name: formData.name,
+        description: formData.description || '',
+        serviceId: formData.serviceId || undefined,
+        clientId: formData.clientId || undefined,
+        mainConsultantId: formData.mainConsultantId || undefined,
+        mainConsultantCommission: Number(formData.mainConsultantCommission || 0),
+        supportConsultantId: formData.supportConsultantId || undefined,
+        supportConsultantCommission: Number(formData.supportConsultantCommission || 0),
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        totalValue: Number(formData.totalValue || 0),
+        taxPercent: Number(formData.taxPercent || 16),
+        thirdPartyExpenses: Number(formData.thirdPartyExpenses || 0),
+        consultantValue: Number(formData.consultantValue || 0),
+        supportConsultantValue: Number(formData.supportConsultantValue || 0),
+        status: formData.status as 'planned' | 'active' | 'completed' | 'cancelled',
+        tags: formData.tags || [],
+        stages: formData.stages || []
       };
-      setStages(updatedStages);
-      
-      toast({
-        title: "Sucesso",
-        description: "Arquivo anexado com sucesso!"
-      });
+
+      let savedProject: Project;
+      if (project?.id) {
+        savedProject = await updateProject(projectData);
+        toast.success('Projeto atualizado com sucesso!');
+      } else {
+        savedProject = await createProject(projectData);
+        toast.success('Projeto criado com sucesso!');
+      }
+
+      onProjectSaved(savedProject);
     } catch (error) {
-      console.error('Error uploading file:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível anexar o arquivo."
-      });
+      console.error('Error saving project:', error);
+      toast.error('Erro ao salvar projeto');
     } finally {
-      setFileUploading(false);
-    }
-  };
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    
-    if (!name.trim() || !clientId || !selectedServiceId || !startDate || !endDate || !totalValue) {
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Por favor, preencha todos os campos obrigatórios."
-      });
-      return;
-    }
-    
-    const mainConsultant = consultants.find(c => c.id === mainConsultantId);
-    const supportConsultant = consultants.find(c => c.id === supportConsultantId);
-    const selectedClient = clients.find(c => c.id === clientId);
-
-    const formData = {
-      id: project?.id,
-      name,
-      description,
-      serviceId: selectedServiceId,
-      clientId,
-      clientName: selectedClient?.name || null,
-      mainConsultantId: mainConsultantId || null,
-      mainConsultantName: mainConsultant?.name,
-      mainConsultantPixKey: mainConsultant?.pixKey,
-      mainConsultantCommission: parseFloat(mainConsultantCommission) || 0,
-      supportConsultantId: supportConsultantId || null,
-      supportConsultantName: supportConsultant?.name,
-      supportConsultantPixKey: supportConsultant?.pixKey,
-      supportConsultantCommission: parseFloat(supportConsultantCommission) || 0,
-      startDate: startDate ? startDate.toISOString() : null,
-      endDate: endDate ? endDate.toISOString() : null,
-      totalValue: parseFloat(totalValue) || 0,
-      taxPercent: parseFloat(taxPercent) || 0,
-      thirdPartyExpenses: parseFloat(thirdPartyExpenses) || 0,
-      consultantValue: parseFloat(consultantValue) || 0,
-      supportConsultantValue: parseFloat(supportConsultantValue) || 0,
-      status,
-      stages,
-      tags
-    };
-    
-    try {
-      await onSave(formData);
-    } catch (error) {
-      console.error('Erro ao salvar projeto:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível salvar o projeto."
-      });
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="max-h-[90vh] overflow-y-auto">
-      <div className="space-y-4 p-4">
-        <h2 className="text-xl font-bold">{project ? 'Editar Projeto' : 'Adicionar Projeto'}</h2>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>{project ? 'Editar Projeto' : 'Novo Projeto'}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Nome do Projeto */}
           <div>
-            <Label htmlFor="name" style={requiredLabelStyle}>Nome do Projeto *</Label>
-            <Input 
-              type="text" 
-              id="name" 
-              value={name} 
-              onChange={(e) => setName(e.target.value)} 
-              placeholder="Nome do projeto" 
-              className={!name ? "border-red-500" : ""}
+            <Label htmlFor="name">Nome do Projeto *</Label>
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Digite o nome do projeto"
               required
             />
           </div>
-          
+
+          {/* Descrição */}
           <div>
             <Label htmlFor="description">Descrição</Label>
             <Textarea
               id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Descrição do projeto"
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              placeholder="Descreva o projeto"
             />
           </div>
-          
-          <div>
-            <Label htmlFor="client" style={requiredLabelStyle}>Cliente *</Label>
-            <Select value={clientId} onValueChange={setClientId}>
-              <SelectTrigger className={!clientId ? "border-red-500" : ""}>
-                <SelectValue placeholder="Selecione um cliente" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Nenhum</SelectItem>
-                {clients.map(client => (
-                  <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div>
-            <Label>Tags</Label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {tags.map(tag => (
-                <Badge key={tag} className="flex items-center gap-1 bg-blue-500">
-                  {tag}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveTag(tag)}
-                    className="ml-1 text-xs hover:text-red-300"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              ))}
-            </div>
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-2">
-                <div className="relative flex-grow">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input 
-                    value={tagSearch} 
-                    onChange={(e) => setTagSearch(e.target.value)}
-                    placeholder="Buscar tags existentes" 
-                    className="pl-10"
-                  />
-                </div>
-                <Input 
-                  value={newTag} 
-                  onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Ou criar nova tag" 
-                  onKeyPress={(e) => e.key === 'Enter' && e.preventDefault()}
-                />
-                <Button 
-                  type="button" 
-                  onClick={() => handleAddTag(newTag)} 
-                  size="sm" 
-                  className="whitespace-nowrap"
-                >
-                  <Tag className="h-4 w-4 mr-1" /> Adicionar
-                </Button>
-              </div>
-              
-              {filteredTags.length > 0 && tagSearch && (
-                <div className="border rounded-md max-h-32 overflow-y-auto">
-                  <ul className="p-2">
-                    {filteredTags.map(tag => (
-                      <li 
-                        key={tag.id} 
-                        className="py-1 px-2 hover:bg-slate-100 cursor-pointer rounded"
-                        onClick={() => handleAddTag(tag.name)}
-                      >
-                        {tag.name}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div>
-            <Label htmlFor="service" style={requiredLabelStyle}>Serviço Vinculado *</Label>
-            <Select 
-              value={selectedServiceId} 
-              onValueChange={initializeStagesFromService}
-            >
-              <SelectTrigger className={!selectedServiceId ? "border-red-500" : ""}>
-                <SelectValue placeholder="Selecione um serviço para vincular ao projeto" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Nenhum</SelectItem>
-                {services.map(service => (
-                  <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedServiceId && (
-              <p className="text-sm text-muted-foreground mt-1">
-                As etapas e valores do serviço selecionado foram carregados automaticamente.
-              </p>
-            )}
-          </div>
-          
+
+          {/* Cliente e Serviço */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="mainConsultantId">Consultor Principal</Label>
-              <Select value={mainConsultantId} onValueChange={handleMainConsultantChange}>
+              <Label htmlFor="client">Cliente</Label>
+              <Select value={formData.clientId} onValueChange={(value) => setFormData(prev => ({ ...prev, clientId: value }))}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione um consultor" />
+                  <SelectValue placeholder="Selecione um cliente" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
-                  {consultants.map(consultant => (
-                    <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
+                  {clients.map(client => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
-              <Label htmlFor="mainConsultantCommission">Percentual de Repasse (%)</Label>
-              <Input
-                type="number"
-                id="mainConsultantCommission"
-                value={mainConsultantCommission}
-                onChange={(e) => setMainConsultantCommission(e.target.value)}
-                placeholder="Percentual de repasse"
-                disabled={!mainConsultantId}
-              />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="supportConsultantId">Consultor de Apoio</Label>
-              <Select value={supportConsultantId} onValueChange={handleSupportConsultantChange}>
+              <Label htmlFor="service">Serviço</Label>
+              <Select value={formData.serviceId} onValueChange={handleServiceChange}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione um consultor (opcional)" />
+                  <SelectValue placeholder="Selecione um serviço" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
-                  {consultants
-                    .filter(c => c.id !== mainConsultantId)
-                    .map(consultant => (
-                      <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
-                    ))}
+                  {services.map(service => (
+                    <SelectItem key={service.id} value={service.id}>
+                      {service.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-            
-            <div>
-              <Label htmlFor="supportConsultantCommission">Percentual de Repasse (%)</Label>
-              <Input
-                type="number"
-                id="supportConsultantCommission"
-                value={supportConsultantCommission}
-                onChange={(e) => setSupportConsultantCommission(e.target.value)}
-                placeholder="Percentual de repasse"
-                disabled={!supportConsultantId}
-              />
-            </div>
           </div>
-          
+
+          {/* Consultores */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label style={requiredLabelStyle}>Data de Início *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !startDate && "text-muted-foreground border-red-500"
-                    )}
-                  >
-                    {startDate ? format(startDate, "dd/MM/yyyy") : (
-                      <span>Selecione a data</span>
-                    )}
-                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={startDate}
-                    onSelect={setStartDate}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Label htmlFor="mainConsultant">Consultor Principal</Label>
+              <Select value={formData.mainConsultantId} onValueChange={(value) => setFormData(prev => ({ ...prev, mainConsultantId: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o consultor principal" />
+                </SelectTrigger>
+                <SelectContent>
+                  {consultants.map(consultant => (
+                    <SelectItem key={consultant.id} value={consultant.id}>
+                      {consultant.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            
+
             <div>
-              <Label style={requiredLabelStyle}>Data de Término *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !endDate && "text-muted-foreground border-red-500"
-                    )}
-                  >
-                    {endDate ? format(endDate, "dd/MM/yyyy") : (
-                      <span>Selecione a data</span>
-                    )}
-                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    onSelect={setEndDate}
-                    disabled={(date) =>
-                      startDate ? date < startDate : false
-                    }
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="totalValue" style={requiredLabelStyle}>Valor Total do Projeto *</Label>
-              <Input
-                type="number"
-                id="totalValue"
-                value={totalValue}
-                onChange={(e) => setTotalValue(e.target.value)}
-                placeholder="Valor total"
-                className={!totalValue ? "border-red-500" : ""}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="taxPercent">Taxa de Imposto (%)</Label>
-              <Input
-                type="number"
-                id="taxPercent"
-                value={taxPercent}
-                onChange={(e) => setTaxPercent(e.target.value)}
-                placeholder="Taxa de imposto"
-              />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="thirdPartyExpenses">Despesas de Terceiros</Label>
-              <Input
-                type="number"
-                id="thirdPartyExpenses"
-                value={thirdPartyExpenses}
-                onChange={(e) => setThirdPartyExpenses(e.target.value)}
-                placeholder="Despesas de terceiros"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="netValue">Valor Líquido (calculado)</Label>
-              <Input
-                type="number"
-                id="netValue"
-                value={calculateNetValue()}
-                disabled
-                className="bg-muted"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Valor total - imposto - despesas terceiros - valor consultores
-              </p>
+              <Label htmlFor="supportConsultant">Consultor de Apoio</Label>
+              <Select value={formData.supportConsultantId} onValueChange={(value) => setFormData(prev => ({ ...prev, supportConsultantId: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o consultor de apoio" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nenhum</SelectItem>
+                  {consultants.map(consultant => (
+                    <SelectItem key={consultant.id} value={consultant.id}>
+                      {consultant.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
+          {/* Datas */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="consultantValue">Valor do Consultor Principal</Label>
+              <Label>Data de Início *</Label>
               <Input
-                type="number"
-                id="consultantValue"
-                value={consultantValue}
-                onChange={(e) => setConsultantValue(e.target.value)}
-                placeholder="Valor do consultor principal"
-                disabled={!mainConsultantId}
+                type="date"
+                value={formData.startDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                required
               />
-              {mainConsultantId && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Sugestão: {mainConsultantCommission}% do valor após impostos e despesas
-                </p>
-              )}
             </div>
-            
+
             <div>
-              <Label htmlFor="supportConsultantValue">Valor do Consultor de Apoio</Label>
+              <Label>Data de Término *</Label>
               <Input
-                type="number"
-                id="supportConsultantValue"
-                value={supportConsultantValue}
-                onChange={(e) => setSupportConsultantValue(e.target.value)}
-                placeholder="Valor do consultor de apoio"
-                disabled={!supportConsultantId}
+                type="date"
+                value={formData.endDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                required
               />
-              {supportConsultantId && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Sugestão: {supportConsultantCommission}% do valor do consultor principal
-                </p>
-              )}
             </div>
           </div>
-          
+
+          {/* Status */}
           <div>
-            <Label htmlFor="status">Status do Projeto</Label>
-            <Select 
-              value={status} 
-              onValueChange={(value: 'planned' | 'active' | 'completed' | 'cancelled') => setStatus(value)}
-            >
+            <Label htmlFor="status">Status</Label>
+            <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as any }))}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="planned">Planejado</SelectItem>
-                <SelectItem value="active">Em Andamento</SelectItem>
+                <SelectItem value="active">Ativo</SelectItem>
                 <SelectItem value="completed">Concluído</SelectItem>
                 <SelectItem value="cancelled">Cancelado</SelectItem>
               </SelectContent>
             </Select>
           </div>
+        </CardContent>
+      </Card>
 
-          <Card>
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle>Etapas do Projeto</CardTitle>
-              <div className="flex gap-2">
-                <Button type="button" onClick={handleAddStage} size="sm">
-                  <Plus className="h-4 w-4 mr-1" /> Adicionar
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {stages.length === 0 ? (
-                <div className="text-center py-4 text-muted-foreground">
-                  Nenhuma etapa adicionada. Clique em "Adicionar" para criar etapas ou selecione um serviço para carregar etapas automaticamente.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {stages.map((stage, index) => (
-                    <div key={stage.id} className="border rounded-md p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <div className="font-medium">{stage.name}</div>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteStage(index)}>
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                          <Label htmlFor={`stage-name-${index}`} className="text-xs">Nome</Label>
-                          <Input
-                            id={`stage-name-${index}`}
-                            value={stage.name}
-                            onChange={(e) => handleUpdateStage(index, 'name', e.target.value)}
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor={`stage-description-${index}`} className="text-xs">Descrição</Label>
-                          <Input
-                            id={`stage-description-${index}`}
-                            value={stage.description || ''}
-                            onChange={(e) => handleUpdateStage(index, 'description', e.target.value)}
-                            placeholder="Descrição da etapa"
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor={`stage-consultant-${index}`} className="text-xs">Consultor Responsável</Label>
-                          <Select 
-                            value={stage.consultantId || ''} 
-                            onValueChange={(value) => handleUpdateStage(index, 'consultantId', value || undefined)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione um consultor" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="">Nenhum</SelectItem>
-                              {consultants.map(consultant => (
-                                <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor={`stage-days-${index}`} className="text-xs">Dias</Label>
-                          <Input
-                            id={`stage-days-${index}`}
-                            type="number"
-                            value={stage.days}
-                            onChange={(e) => handleUpdateStage(index, 'days', Number(e.target.value))}
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor={`stage-hours-${index}`} className="text-xs">Horas</Label>
-                          <Input
-                            id={`stage-hours-${index}`}
-                            type="number"
-                            value={stage.hours}
-                            onChange={(e) => handleUpdateStage(index, 'hours', Number(e.target.value))}
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor={`stage-value-${index}`} className="text-xs">Valor</Label>
-                          <Input
-                            id={`stage-value-${index}`}
-                            type="number"
-                            value={stage.value}
-                            onChange={(e) => handleUpdateStage(index, 'value', Number(e.target.value))}
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor={`stage-start-${index}`} className="text-xs">Data Início</Label>
-                          <Input
-                            id={`stage-start-${index}`}
-                            type="date"
-                            value={stage.startDate}
-                            onChange={(e) => handleUpdateStage(index, 'startDate', e.target.value)}
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor={`stage-end-${index}`} className="text-xs">Data Fim</Label>
-                          <Input
-                            id={`stage-end-${index}`}
-                            type="date"
-                            value={stage.endDate}
-                            onChange={(e) => handleUpdateStage(index, 'endDate', e.target.value)}
-                          />
-                        </div>
-                      </div>
+      {/* Etapas do Projeto */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle>Etapas do Projeto</CardTitle>
+          <Button type="button" variant="outline" size="sm" onClick={addStage}>
+            <PlusIcon className="h-4 w-4 mr-2" />
+            Adicionar Etapa
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {formData.stages && formData.stages.length > 0 ? (
+            <div className="space-y-4">
+              {formData.stages.map((stage, index) => (
+                <div key={stage.id} className="border rounded-lg p-4 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <h4 className="font-medium">Etapa {index + 1}</h4>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeStage(index)}
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>Nome da Etapa</Label>
+                      <Input
+                        value={stage.name}
+                        onChange={(e) => updateStage(index, 'name', e.target.value)}
+                        placeholder="Nome da etapa"
+                      />
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          
-          <div className="flex justify-end space-x-2">
-            <Button variant="ghost" onClick={onCancel} type="button">Cancelar</Button>
-            <Button type="submit">{project ? 'Salvar Alterações' : 'Adicionar Projeto'}</Button>
-          </div>
-          
-          <div className="text-sm text-red-500 mt-2">
-            * Campos obrigatórios
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
 
-export default ProjectForm;
+                    <div>
+                      <Label>Valor (R$)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={stage.value}
+                        onChange={(e) => updateStage(index, 'value', Number(e.target.value))}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Descrição</Label>
+                    <Textarea
+                      value={stage.description}
+                      onChange={(e) => updateStage(index, 'description', e.target.value)}
+                      placeholder="Descrição da etapa"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>Dias</Label>
+                      <Input
+                        type="number"
+                        value={stage.days}
+                        onChange={(e) => updateStage(index, 'days', Number(e.target.value))}
+                        min="1"
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Horas</Label>
+                      <Input
+                        type="number"
+                        value={stage.hours}
+                        onChange={(e) => updateStage(index, 'hours', Number(e.target.value))}
+                        min="1"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-center py-8">
+              Nenhuma etapa adicionada. Clique em "Adicionar Etapa" para começar.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Valores Financeiros */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Valores Financeiros</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="thirdPartyExpenses">Gastos com Terceiros (R$)</Label>
+              <Input
+                id="thirdPartyExpenses"
+                type="number"
+                step="0.01"
+                value={formData.thirdPartyExpenses}
+                onChange={(e) => setFormData(prev => ({ ...prev, thirdPartyExpenses: Number(e.target.value) }))}
+                placeholder="0.00"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="taxPercent">Taxa de Impostos (%)</Label>
+              <Input
+                id="taxPercent"
+                type="number"
+                step="0.01"
+                value={formData.taxPercent}
+                onChange={(e) => setFormData(prev => ({ ...prev, taxPercent: Number(e.target.value) }))}
+                placeholder="16"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="consultantValue">Valor Consultor Principal (R$)</Label>
+              <Input
+                id="consultantValue"
+                type="number"
+                step="0.01"
+                value={formData.consultantValue}
+                onChange={(e) => setFormData(prev => ({ ...prev, consultantValue: Number(e.target.value) }))}
+                placeholder="0.00"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="supportConsultantValue">Valor Consultor Apoio (R$)</Label>
+              <Input
+                id="supportConsultantValue"
+                type="number"
+                step="0.01"
+                value={formData.supportConsultantValue}
+                onChange={(e) => setFormData(prev => ({ ...prev, supportConsultantValue: Number(e.target.value) }))}
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+
+          <div className="border-t pt-4">
+            <div className="flex justify-between items-center font-medium">
+              <span>Valor Total do Projeto:</span>
+              <span className="text-lg">
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL'
+                }).format(formData.totalValue || 0)}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Botões */}
+      <div className="flex justify-end space-x-4">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? 'Salvando...' : project ? 'Atualizar' : 'Criar'} Projeto
+        </Button>
+      </div>
+    </form>
+  );
+}

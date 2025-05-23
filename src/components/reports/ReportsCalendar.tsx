@@ -12,7 +12,7 @@ interface Event {
   date: Date;
   type: 'meeting' | 'deadline' | 'task';
   projectId?: string;
-  stageId?: number;
+  stageId?: string;
 }
 
 export default function ReportsCalendar() {
@@ -27,15 +27,25 @@ export default function ReportsCalendar() {
   const fetchEvents = async () => {
     setIsLoading(true);
     try {
-      // Buscar projetos e suas etapas
-      const { data: projects, error } = await supabase
+      // Buscar projetos
+      const { data: projects, error: projectsError } = await supabase
         .from('projects')
         .select(`
-          id, name, start_date, end_date, stages,
+          id, name, start_date, end_date,
           main_consultant:consultants!main_consultant_id(name)
         `);
 
-      if (error) throw error;
+      if (projectsError) throw projectsError;
+
+      // Buscar etapas
+      const { data: stages, error: stagesError } = await supabase
+        .from('project_stages')
+        .select(`
+          id, name, start_date, end_date, project_id,
+          projects(name)
+        `);
+
+      if (stagesError) throw stagesError;
 
       const allEvents: Event[] = [];
       
@@ -43,43 +53,47 @@ export default function ReportsCalendar() {
       if (projects) {
         projects.forEach(project => {
           // Adicionar evento para a data de início do projeto
-          allEvents.push({
-            title: `Início: ${project.name}`,
-            date: new Date(project.start_date),
-            type: 'meeting',
-            projectId: project.id
-          });
+          if (project.start_date) {
+            allEvents.push({
+              title: `Início: ${project.name}`,
+              date: new Date(project.start_date),
+              type: 'meeting',
+              projectId: project.id
+            });
+          }
           
           // Adicionar evento para a data de término do projeto
-          allEvents.push({
-            title: `Entrega: ${project.name}`,
-            date: new Date(project.end_date),
-            type: 'deadline',
-            projectId: project.id
-          });
+          if (project.end_date) {
+            allEvents.push({
+              title: `Entrega: ${project.name}`,
+              date: new Date(project.end_date),
+              type: 'deadline',
+              projectId: project.id
+            });
+          }
+        });
+      }
+      
+      // Processar etapas
+      if (stages) {
+        stages.forEach(stage => {
+          if (stage.start_date) {
+            allEvents.push({
+              title: `Início ${stage.name} - ${stage.projects?.name || 'Projeto'}`,
+              date: new Date(stage.start_date),
+              type: 'task',
+              projectId: stage.project_id,
+              stageId: stage.id
+            });
+          }
           
-          // Adicionar eventos para o início e fim de cada etapa
-          if (project.stages && Array.isArray(project.stages)) {
-            project.stages.forEach((stage: any) => {
-              if (stage.startDate) {
-                allEvents.push({
-                  title: `Início ${stage.name} - ${project.name}`,
-                  date: new Date(stage.startDate),
-                  type: 'task',
-                  projectId: project.id,
-                  stageId: stage.id
-                });
-              }
-              
-              if (stage.endDate) {
-                allEvents.push({
-                  title: `Fim ${stage.name} - ${project.name}`,
-                  date: new Date(stage.endDate),
-                  type: 'deadline',
-                  projectId: project.id,
-                  stageId: stage.id
-                });
-              }
+          if (stage.end_date) {
+            allEvents.push({
+              title: `Fim ${stage.name} - ${stage.projects?.name || 'Projeto'}`,
+              date: new Date(stage.end_date),
+              type: 'deadline',
+              projectId: stage.project_id,
+              stageId: stage.id
             });
           }
         });

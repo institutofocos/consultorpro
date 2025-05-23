@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -166,7 +167,7 @@ export const Dashboard: React.FC = () => {
             main_consultant_id, support_consultant_id,
             start_date, end_date, total_value, tax_percent,
             third_party_expenses, main_consultant_value, 
-            support_consultant_value, net_value, status, stages,
+            support_consultant_value, status,
             clients(name),
             services(name),
             main_consultant:consultants!main_consultant_id(name),
@@ -195,20 +196,29 @@ export const Dashboard: React.FC = () => {
           completedProjects: completedProjects.toString()
         });
         
+        // Fetch stages separately
+        const { data: stagesData } = await supabase
+          .from('project_stages')
+          .select(`
+            *, 
+            projects(id, name, clients(name))
+          `);
+        
         // Process stages data
-        if (projectsData && projectsData.length > 0) {
-          processStagesData(projectsData);
-          processTopConsultants(projectsData);
-          processTopServices(projectsData, serviceData || []);
+        if (stagesData && stagesData.length > 0) {
+          processStagesData(stagesData);
         }
+        
+        // Process top consultants and services
+        processTopConsultants(projectsData || []);
+        processTopServices(projectsData || [], serviceData || []);
         
         // Apply filters and set filtered data
         const filteredProjects = applyFilters(projectsData || []);
         setUpcomingProjects(filteredProjects);
         
-        // Extract and filter stages
-        const allStages = extractStagesFromProjects(projectsData || []);
-        const filteredStages = applyStageFilters(allStages);
+        // Filter stages
+        const filteredStages = applyStageFilters(stagesData || []);
         setUpcomingStages(filteredStages);
         
       } catch (error) {
@@ -220,7 +230,7 @@ export const Dashboard: React.FC = () => {
     fetchDashboardData();
   }, [timeFilter, consultantFilter, serviceFilter, dateFrom, dateTo]);
   
-  const processStagesData = (projectsData) => {
+  const processStagesData = (stagesData) => {
     const openStagesList = [];
     const completedStagesList = [];
     const awaitingInvoiceList = [];
@@ -229,51 +239,47 @@ export const Dashboard: React.FC = () => {
     const awaitingConsultantPaymentList = [];
     const consultantsPaidList = [];
     
-    projectsData.forEach(project => {
-      if (project.stages && Array.isArray(project.stages)) {
-        project.stages.forEach(stage => {
-          const stageData = {
-            ...stage,
-            projectName: project.name,
-            projectId: project.id,
-            clientName: project.clients?.name || 'N/A'
-          };
-          
-          // Open stages (not approved by client)
-          if (!stage.clientApproved) {
-            openStagesList.push(stageData);
-          }
-          
-          // Completed stages (approved by manager)
-          if (stage.completed && stage.managerApproved) {
-            completedStagesList.push(stageData);
-          }
-          
-          // Awaiting invoice
-          if (stage.clientApproved && !stage.invoiceIssued) {
-            awaitingInvoiceList.push(stageData);
-          }
-          
-          // Invoices issued
-          if (stage.invoiceIssued && !stage.paymentReceived) {
-            invoicesIssuedList.push(stageData);
-          }
-          
-          // Awaiting payment
-          if (stage.invoiceIssued && !stage.paymentReceived) {
-            awaitingPaymentList.push(stageData);
-          }
-          
-          // Awaiting consultant payment
-          if (stage.paymentReceived && !stage.consultantPaid) {
-            awaitingConsultantPaymentList.push(stageData);
-          }
-          
-          // Consultants paid
-          if (stage.consultantPaid) {
-            consultantsPaidList.push(stageData);
-          }
-        });
+    stagesData.forEach(stage => {
+      const stageData = {
+        ...stage,
+        projectName: stage.projects?.name || 'N/A',
+        projectId: stage.project_id,
+        clientName: stage.projects?.clients?.name || 'N/A'
+      };
+      
+      // Open stages (not approved by client)
+      if (!stage.client_approved) {
+        openStagesList.push(stageData);
+      }
+      
+      // Completed stages (approved by manager)
+      if (stage.completed && stage.manager_approved) {
+        completedStagesList.push(stageData);
+      }
+      
+      // Awaiting invoice
+      if (stage.client_approved && !stage.invoice_issued) {
+        awaitingInvoiceList.push(stageData);
+      }
+      
+      // Invoices issued
+      if (stage.invoice_issued && !stage.payment_received) {
+        invoicesIssuedList.push(stageData);
+      }
+      
+      // Awaiting payment
+      if (stage.invoice_issued && !stage.payment_received) {
+        awaitingPaymentList.push(stageData);
+      }
+      
+      // Awaiting consultant payment
+      if (stage.payment_received && !stage.consultants_settled) {
+        awaitingConsultantPaymentList.push(stageData);
+      }
+      
+      // Consultants paid
+      if (stage.consultants_settled) {
+        consultantsPaidList.push(stageData);
       }
     });
     
@@ -319,18 +325,6 @@ export const Dashboard: React.FC = () => {
         consultantStats[project.support_consultant_id].projects++;
         consultantStats[project.support_consultant_id].totalValue += Number(project.support_consultant_value || 0);
       }
-      
-      // Calculate hours from stages
-      if (project.stages && Array.isArray(project.stages)) {
-        project.stages.forEach(stage => {
-          const hours = Number(stage.hours || 0);
-          if (stage.consultantId && consultantStats[stage.consultantId]) {
-            consultantStats[stage.consultantId].totalHours += hours;
-          } else if (project.main_consultant_id && consultantStats[project.main_consultant_id]) {
-            consultantStats[project.main_consultant_id].totalHours += hours;
-          }
-        });
-      }
     });
     
     const topConsultantsList = Object.values(consultantStats)
@@ -363,28 +357,6 @@ export const Dashboard: React.FC = () => {
       .slice(0, 5);
     
     setTopServices(topServicesList);
-  };
-  
-  const extractStagesFromProjects = (projectsData) => {
-    const allStages = [];
-    
-    projectsData.forEach(project => {
-      if (project.stages && Array.isArray(project.stages)) {
-        project.stages.forEach(stage => {
-          allStages.push({
-            ...stage,
-            projectName: project.name,
-            projectId: project.id,
-            clientName: project.clients?.name || 'N/A',
-            serviceName: project.services?.name || 'N/A',
-            mainConsultantId: project.main_consultant_id,
-            supportConsultantId: project.support_consultant_id
-          });
-        });
-      }
-    });
-    
-    return allStages;
   };
   
   const applyFilters = (projectsData) => {
@@ -438,37 +410,28 @@ export const Dashboard: React.FC = () => {
     const today = now.toISOString().split('T')[0];
     
     if (timeFilter === TIME_FILTERS.TODAY) {
-      filtered = filtered.filter(s => s.endDate === today);
+      filtered = filtered.filter(s => s.end_date === today);
     } else if (timeFilter === TIME_FILTERS.THIS_WEEK) {
       const weekStart = startOfWeek(now).toISOString().split('T')[0];
       const weekEnd = endOfWeek(now).toISOString().split('T')[0];
-      filtered = filtered.filter(s => s.endDate >= weekStart && s.endDate <= weekEnd);
+      filtered = filtered.filter(s => s.end_date >= weekStart && s.end_date <= weekEnd);
     } else if (timeFilter === TIME_FILTERS.THIS_MONTH) {
       const monthStart = startOfMonth(now).toISOString().split('T')[0];
       const monthEnd = endOfMonth(now).toISOString().split('T')[0];
-      filtered = filtered.filter(s => s.endDate >= monthStart && s.endDate <= monthEnd);
+      filtered = filtered.filter(s => s.end_date >= monthStart && s.end_date <= monthEnd);
     }
     
     // Apply date range filter
     if (dateFrom) {
-      filtered = filtered.filter(s => s.endDate >= dateFrom);
+      filtered = filtered.filter(s => s.end_date >= dateFrom);
     }
     if (dateTo) {
-      filtered = filtered.filter(s => s.endDate <= dateTo);
+      filtered = filtered.filter(s => s.end_date <= dateTo);
     }
     
     // Apply consultant filter
     if (consultantFilter !== 'all') {
-      filtered = filtered.filter(s => 
-        s.consultantId === consultantFilter ||
-        s.mainConsultantId === consultantFilter ||
-        s.supportConsultantId === consultantFilter
-      );
-    }
-    
-    // Apply service filter
-    if (serviceFilter !== 'all') {
-      filtered = filtered.filter(s => s.serviceId === serviceFilter);
+      filtered = filtered.filter(s => s.consultant_id === consultantFilter);
     }
     
     return filtered;
@@ -801,11 +764,11 @@ export const Dashboard: React.FC = () => {
                 </TableHeader>
                 <TableBody>
                   {upcomingStages.slice(0, 20).map((stage, idx) => (
-                    <TableRow key={`${stage.projectId}-${stage.id}`}>
+                    <TableRow key={`${stage.project_id}-${stage.id}`}>
                       <TableCell className="font-medium">{stage.name}</TableCell>
-                      <TableCell>{stage.projectName}</TableCell>
+                      <TableCell>{stage.projects?.name || 'N/A'}</TableCell>
                       <TableCell>{formatCurrency(stage.value)}</TableCell>
-                      <TableCell>{formatDate(stage.endDate)}</TableCell>
+                      <TableCell>{formatDate(stage.end_date)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

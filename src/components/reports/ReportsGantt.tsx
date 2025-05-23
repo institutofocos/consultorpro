@@ -5,7 +5,6 @@ import { ChartGantt } from 'lucide-react';
 import { addDays, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from "@/integrations/supabase/client";
-import { Project } from '../projects/types';
 
 export default function ReportsGantt() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -18,33 +17,28 @@ export default function ReportsGantt() {
   const fetchProjects = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      // Buscar projetos
+      const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select(`
-          id, name, description, stages, start_date, end_date, status,
+          id, name, description, start_date, end_date, status,
           main_consultant:consultants!main_consultant_id(name)
         `);
       
-      if (error) throw error;
+      if (projectsError) throw projectsError;
+
+      // Buscar etapas para calcular progresso
+      const { data: stagesData, error: stagesError } = await supabase
+        .from('project_stages')
+        .select('project_id, completed');
+
+      if (stagesError) throw stagesError;
       
-      const formattedProjects = data?.map(project => {
+      const formattedProjects = projectsData?.map(project => {
         // Count completed stages
-        let completedStages = 0;
-        let totalStages = 0;
-        
-        if (project.stages) {
-          // Check if stages is a JSON string that needs to be parsed
-          const stagesArray = Array.isArray(project.stages) 
-            ? project.stages 
-            : (typeof project.stages === 'string' 
-              ? JSON.parse(project.stages) 
-              : (typeof project.stages === 'object' ? [project.stages] : []));
-          
-          if (Array.isArray(stagesArray)) {
-            totalStages = stagesArray.length;
-            completedStages = stagesArray.filter((s: any) => s.completed).length;
-          }
-        }
+        const projectStages = stagesData?.filter(stage => stage.project_id === project.id) || [];
+        const totalStages = projectStages.length;
+        const completedStages = projectStages.filter(stage => stage.completed).length;
         
         // Determine color based on status
         let color = 'bg-slate-500'; // Default
