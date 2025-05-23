@@ -4,7 +4,6 @@ import { Send, Paperclip, Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { sendChatMessage } from '@/integrations/supabase/chat';
 
 interface ChatInputProps {
   onSendMessage: (message: string) => Promise<void>;

@@ -1,17 +1,9 @@
 
 import React, { useEffect, useRef } from 'react';
-
-type Message = {
-  id: string;
-  roomId: string;
-  senderId: string;
-  senderName: string;
-  content: string;
-  timestamp: string;
-};
+import type { ChatMessage } from '@/integrations/supabase/chat';
 
 interface ChatMessagesProps {
-  messages: Message[];
+  messages: ChatMessage[];
 }
 
 const ChatMessages: React.FC<ChatMessagesProps> = ({ messages }) => {
@@ -23,17 +15,18 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ messages }) => {
   }, [messages]);
 
   // Agrupar mensagens por data
-  const groupedMessages: { [date: string]: Message[] } = messages.reduce((groups, message) => {
-    const date = new Date(message.timestamp).toLocaleDateString();
+  const groupedMessages: { [date: string]: ChatMessage[] } = messages.reduce((groups, message) => {
+    const date = new Date(message.timestamp || '').toLocaleDateString();
     if (!groups[date]) {
       groups[date] = [];
     }
     groups[date].push(message);
     return groups;
-  }, {} as { [date: string]: Message[] });
+  }, {} as { [date: string]: ChatMessage[] });
 
   // Formatar horário da mensagem
-  const formatTime = (timestamp: string) => {
+  const formatTime = (timestamp: string | null) => {
+    if (!timestamp) return '';
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
@@ -60,14 +53,14 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ messages }) => {
           
           {dateMessages.map((message, index) => {
             // Verificar se esta mensagem é de um remetente diferente do anterior
-            const isNewSender = index === 0 || dateMessages[index - 1].senderId !== message.senderId;
+            const isNewSender = index === 0 || dateMessages[index - 1].sender_id !== message.sender_id;
             
             return (
               <div key={message.id} className={`flex ${!isNewSender ? 'pl-10 pt-0.5' : 'pt-3'}`}>
                 {isNewSender && (
                   <div className="h-8 w-8 bg-primary/20 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
                     <span className="text-sm font-medium">
-                      {message.senderName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                      {message.sender_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                     </span>
                   </div>
                 )}
@@ -75,7 +68,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ messages }) => {
                 <div className={`flex flex-col ${!isNewSender ? '' : 'flex-1'}`}>
                   {isNewSender && (
                     <div className="flex items-baseline gap-2 mb-1">
-                      <span className="font-medium">{message.senderName}</span>
+                      <span className="font-medium">{message.sender_name}</span>
                       <span className="text-xs text-muted-foreground">{formatTime(message.timestamp)}</span>
                     </div>
                   )}

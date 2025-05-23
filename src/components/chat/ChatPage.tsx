@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from '@tanstack/react-query';
@@ -41,15 +42,17 @@ const ChatPage = () => {
     refetch: refetchRooms
   } = useQuery({
     queryKey: ['chat_rooms'],
-    queryFn: fetchChatRooms,
-    onSuccess: (data) => {
-      // Se temos um initialRoomId mas a sala não foi encontrada nas salas disponíveis,
-      // resetamos o selectedRoomId para evitar erros
-      if (initialRoomId && !data.some(room => room.id === initialRoomId)) {
+    queryFn: fetchChatRooms
+  });
+
+  // Verificar se initialRoomId existe nas salas carregadas
+  useEffect(() => {
+    if (initialRoomId && rooms.length > 0) {
+      if (!rooms.some(room => room.id === initialRoomId)) {
         setSelectedRoomId(null);
       }
     }
-  });
+  }, [initialRoomId, rooms]);
 
   // Buscar mensagens quando uma sala é selecionada
   useEffect(() => {
@@ -182,6 +185,7 @@ const ChatPage = () => {
                 selectedRoomId={selectedRoomId}
                 onRoomSelect={handleRoomSelect}
                 isLoading={isLoadingRooms}
+                onRoomCreated={refetchRooms}
               />
             )}
           </CardContent>
