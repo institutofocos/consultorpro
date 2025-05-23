@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,7 +22,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Trash, Tag, Plus, Pencil } from "lucide-react";
+import { Trash, Tag, Plus, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -44,165 +44,188 @@ const TagList: React.FC = () => {
     }
   });
   
-  // Use React Query for data fetching
+  // Fetch tags with React Query
   const { 
     data: tags = [], 
-    isLoading 
+    isLoading,
+    error 
   } = useQuery({
     queryKey: ['tags'],
     queryFn: async () => {
+      console.log('Buscando tags...');
       const { data, error } = await supabase
         .from('tags')
         .select('*')
         .order('name');
         
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao buscar tags:', error);
+        throw error;
+      }
+      
+      console.log('Tags encontradas:', data?.length || 0);
       return data || [];
-    }
+    },
+    retry: 3,
+    retryDelay: 1000,
   });
 
-  // Mutations for create, update and delete
+  // Create tag mutation
   const createTagMutation = useMutation({
     mutationFn: async (name: string) => {
+      console.log('Criando tag:', name);
+      
       const { data, error } = await supabase
         .from('tags')
-        .insert([{ name }])
-        .select();
+        .insert([{ name: name.trim() }])
+        .select()
+        .single();
           
-      if (error) throw error;
-      return data[0];
+      if (error) {
+        console.error('Erro ao criar tag:', error);
+        throw error;
+      }
+      
+      console.log('Tag criada:', data);
+      return data;
     },
-    onSuccess: () => {
-      toast.success('Tag adicionada com sucesso!');
+    onSuccess: (data) => {
+      toast.success(`Tag "${data.name}" adicionada com sucesso!`);
       queryClient.invalidateQueries({ queryKey: ['tags'] });
       form.reset();
     },
     onError: (error: any) => {
-      toast.error('Erro ao adicionar tag: ' + error.message);
+      console.error('Erro na criação da tag:', error);
+      if (error.code === '23505') {
+        toast.error('Já existe uma tag com este nome');
+      } else {
+        toast.error('Erro ao adicionar tag: ' + error.message);
+      }
     }
   });
 
+  // Update tag mutation
   const updateTagMutation = useMutation({
     mutationFn: async ({ id, name }: { id: string, name: string }) => {
-      const { error } = await supabase
+      console.log('Atualizando tag:', id, name);
+      
+      const { data, error } = await supabase
         .from('tags')
-        .update({ name })
-        .eq('id', id);
+        .update({ name: name.trim() })
+        .eq('id', id)
+        .select()
+        .single();
           
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao atualizar tag:', error);
+        throw error;
+      }
+      
+      console.log('Tag atualizada:', data);
+      return data;
     },
-    onSuccess: () => {
-      toast.success('Tag atualizada com sucesso!');
+    onSuccess: (data) => {
+      toast.success(`Tag "${data.name}" atualizada com sucesso!`);
       queryClient.invalidateQueries({ queryKey: ['tags'] });
       setEditingTag(null);
       form.reset();
     },
     onError: (error: any) => {
-      toast.error('Erro ao atualizar tag: ' + error.message);
+      console.error('Erro na atualização da tag:', error);
+      if (error.code === '23505') {
+        toast.error('Já existe uma tag com este nome');
+      } else {
+        toast.error('Erro ao atualizar tag: ' + error.message);
+      }
     }
   });
 
+  // Delete tag mutation
   const deleteTagMutation = useMutation({
     mutationFn: async (id: string) => {
-      console.log('Tentando deletar tag:', id);
+      console.log('Deletando tag com ID:', id);
       
-      try {
-        // First check if the tag is being used in service_tags
-        const { data: serviceTagsUsage, error: serviceTagsError } = await supabase
-          .from('service_tags')
-          .select('id')
-          .eq('tag_id', id);
-          
-        if (serviceTagsError) {
-          console.error('Erro ao verificar uso em service_tags:', serviceTagsError);
-          throw serviceTagsError;
-        }
+      // Com as foreign keys CASCADE configuradas, podemos deletar diretamente
+      const { error } = await supabase
+        .from('tags')
+        .delete()
+        .eq('id', id);
         
-        if (serviceTagsUsage && serviceTagsUsage.length > 0) {
-          console.log('Tag está sendo usada em service_tags:', serviceTagsUsage.length);
-          throw new Error('Esta tag não pode ser removida pois está sendo usada em serviços');
-        }
-        
-        // Check if the tag is being used in note_tag_relations
-        const { data: noteTagsUsage, error: noteTagsError } = await supabase
-          .from('note_tag_relations')
-          .select('id')
-          .eq('tag_id', id);
-          
-        if (noteTagsError) {
-          console.error('Erro ao verificar uso em note_tag_relations:', noteTagsError);
-          throw noteTagsError;
-        }
-        
-        if (noteTagsUsage && noteTagsUsage.length > 0) {
-          console.log('Tag está sendo usada em note_tag_relations:', noteTagsUsage.length);
-          throw new Error('Esta tag não pode ser removida pois está sendo usada em notas');
-        }
-        
-        // If no usage found, proceed with deletion
-        console.log('Tag não está sendo usada, prosseguindo com a deleção');
-        const { error: deleteError } = await supabase
-          .from('tags')
-          .delete()
-          .eq('id', id);
-        
-        if (deleteError) {
-          console.error('Erro ao deletar tag:', deleteError);
-          throw deleteError;
-        }
-        
-        console.log('Tag deletada com sucesso!');
-      } catch (error) {
-        console.error('Erro no processo de deleção:', error);
+      if (error) {
+        console.error('Erro ao deletar tag:', error);
         throw error;
       }
+      
+      console.log('Tag deletada com sucesso');
     },
     onSuccess: () => {
       toast.success('Tag removida com sucesso!');
       queryClient.invalidateQueries({ queryKey: ['tags'] });
     },
     onError: (error: any) => {
-      console.error('Erro na mutation de deleção:', error);
+      console.error('Erro na deleção da tag:', error);
       toast.error('Erro ao remover tag: ' + error.message);
     }
   });
 
-  // Update form when editing tag changes
-  useEffect(() => {
-    if (editingTag) {
-      form.setValue('name', editingTag.name);
-    } else {
-      form.reset();
-    }
-  }, [editingTag, form]);
-  
+  // Form submission handler
   const onSubmit = async (data: FormValues) => {
     if (editingTag) {
-      // Update existing tag
       updateTagMutation.mutate({ id: editingTag.id, name: data.name });
     } else {
-      // Create new tag
       createTagMutation.mutate(data.name);
     }
   };
   
+  // Edit handler
   const handleEditTag = (tag: {id: string, name: string}) => {
     setEditingTag(tag);
+    form.setValue('name', tag.name);
   };
   
+  // Cancel edit handler
   const handleCancelEdit = () => {
     setEditingTag(null);
     form.reset();
   };
   
-  const handleDeleteTag = async (id: string, tagName: string) => {
-    if (!window.confirm(`Tem certeza que deseja excluir a tag "${tagName}"?`)) {
-      return;
+  // Delete handler
+  const handleDeleteTag = (id: string, tagName: string) => {
+    if (window.confirm(`Tem certeza que deseja excluir a tag "${tagName}"?`)) {
+      console.log('Iniciando deleção da tag:', tagName);
+      deleteTagMutation.mutate(id);
     }
-    
-    console.log('Usuário confirmou deleção da tag:', tagName, 'ID:', id);
-    deleteTagMutation.mutate(id);
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-8 animate-fade-in">
+        <div>
+          <h1 className="text-3xl font-bold">Tags</h1>
+          <p className="text-muted-foreground">Gerenciamento de tags para serviços</p>
+        </div>
+        <div className="flex justify-center py-8">
+          <p>Carregando tags...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-8 animate-fade-in">
+        <div>
+          <h1 className="text-3xl font-bold">Tags</h1>
+          <p className="text-muted-foreground">Gerenciamento de tags para serviços</p>
+        </div>
+        <div className="flex justify-center py-8">
+          <p className="text-red-500">Erro ao carregar tags: {error.message}</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="space-y-8 animate-fade-in">
@@ -214,7 +237,19 @@ const TagList: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="shadow-card md:col-span-1">
           <CardHeader className="pb-3">
-            <CardTitle>{editingTag ? 'Editar Tag' : 'Adicionar Tag'}</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              {editingTag ? 'Editar Tag' : 'Adicionar Tag'}
+              {editingTag && (
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={handleCancelEdit}
+                  className="h-6 w-6"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -226,36 +261,34 @@ const TagList: React.FC = () => {
                     <FormItem>
                       <FormLabel>Nome da Tag</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ex: Consultoria" {...field} />
+                        <Input 
+                          placeholder="Ex: Consultoria" 
+                          {...field} 
+                          disabled={createTagMutation.isPending || updateTagMutation.isPending}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 
-                <div className="flex gap-2">
-                  <Button 
-                    type="submit" 
-                    className="flex-1"
-                    disabled={createTagMutation.isPending || updateTagMutation.isPending}
-                  >
-                    {editingTag ? (
-                      <>
-                        <Pencil className="mr-2 h-4 w-4" /> Atualizar Tag
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="mr-2 h-4 w-4" /> Adicionar Tag
-                      </>
-                    )}
-                  </Button>
-                  
-                  {editingTag && (
-                    <Button type="button" variant="outline" onClick={handleCancelEdit}>
-                      Cancelar
-                    </Button>
+                <Button 
+                  type="submit" 
+                  className="w-full"
+                  disabled={createTagMutation.isPending || updateTagMutation.isPending}
+                >
+                  {editingTag ? (
+                    <>
+                      <Pencil className="mr-2 h-4 w-4" /> 
+                      {updateTagMutation.isPending ? 'Atualizando...' : 'Atualizar Tag'}
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="mr-2 h-4 w-4" /> 
+                      {createTagMutation.isPending ? 'Adicionando...' : 'Adicionar Tag'}
+                    </>
                   )}
-                </div>
+                </Button>
               </form>
             </Form>
           </CardContent>
@@ -263,7 +296,7 @@ const TagList: React.FC = () => {
         
         <Card className="shadow-card md:col-span-2">
           <CardHeader className="pb-3">
-            <CardTitle>Lista de Tags</CardTitle>
+            <CardTitle>Lista de Tags ({tags.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -274,15 +307,9 @@ const TagList: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={2} className="text-center py-4">
-                      Carregando...
-                    </TableCell>
-                  </TableRow>
-                ) : tags.length > 0 ? (
+                {tags.length > 0 ? (
                   tags.map((tag) => (
-                    <TableRow key={tag.id}>
+                    <TableRow key={tag.id} className={editingTag?.id === tag.id ? 'bg-muted/50' : ''}>
                       <TableCell className="flex items-center">
                         <Tag className="h-4 w-4 mr-2 text-blue-500" />
                         {tag.name}
@@ -294,6 +321,7 @@ const TagList: React.FC = () => {
                             size="icon" 
                             onClick={() => handleEditTag(tag)}
                             disabled={deleteTagMutation.isPending}
+                            title="Editar tag"
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -302,6 +330,7 @@ const TagList: React.FC = () => {
                             size="icon" 
                             onClick={() => handleDeleteTag(tag.id, tag.name)}
                             disabled={deleteTagMutation.isPending}
+                            title="Deletar tag"
                           >
                             <Trash className="h-4 w-4" />
                           </Button>
@@ -311,8 +340,12 @@ const TagList: React.FC = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={2} className="text-center py-4 text-muted-foreground">
-                      Nenhuma tag encontrada
+                    <TableCell colSpan={2} className="text-center py-8 text-muted-foreground">
+                      <div className="flex flex-col items-center gap-2">
+                        <Tag className="h-8 w-8 text-muted-foreground/50" />
+                        <p>Nenhuma tag encontrada</p>
+                        <p className="text-sm">Adicione a primeira tag usando o formulário ao lado</p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )}
