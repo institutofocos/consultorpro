@@ -22,6 +22,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { ServiceStage, BasicService, BasicClient } from "../services/types";
 
+// Modificado o esquema para garantir que o consultor principal é obrigatório
 const formSchema = z.object({
   name: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }),
   description: z.string().min(10, { message: 'Descrição deve ter pelo menos 10 caracteres' }),
@@ -104,7 +105,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
       mainConsultantValue: 0,
       supportConsultantValue: 0,
     }
-  });
+  };
   
   // Calculate net value whenever related values change
   React.useEffect(() => {
@@ -294,11 +295,19 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
   };
   
   const onSubmit = async (data: FormValues) => {
+    // Verificando explicitamente se o consultor principal está definido
+    if (!data.mainConsultant) {
+      toast.error("Consultor principal é obrigatório");
+      return;
+    }
+    
     const projectData = {
       ...data,
       status: 'planned',
       netValue,
-      stages: projectStages
+      stages: projectStages,
+      // Garantindo que o ID do consultor principal é passado corretamente
+      mainConsultantId: data.mainConsultant
     };
     onSave(projectData);
   };
@@ -423,7 +432,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                   name="mainConsultant"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Consultor Principal</FormLabel>
+                      <FormLabel>Consultor Principal *</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
                         defaultValue={field.value}

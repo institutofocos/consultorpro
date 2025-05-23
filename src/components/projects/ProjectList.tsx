@@ -147,6 +147,7 @@ export const ProjectList: React.FC = () => {
     if (editingProject) {
       // Update existing project in Supabase
       try {
+        // Garantir que main_consultant_id está definido explicitamente
         const { error } = await supabase
           .from('projects')
           .update({
@@ -185,12 +186,13 @@ export const ProjectList: React.FC = () => {
     } else {
       // Add new project to Supabase
       try {
+        // Garantir que main_consultant_id está definido explicitamente
         const { error } = await supabase
           .from('projects')
           .insert({
             name: project.name,
             description: project.description,
-            main_consultant_id: project.mainConsultantId,
+            main_consultant_id: project.mainConsultantId,  // Usar a propriedade correta
             support_consultant_id: project.supportConsultantId,
             start_date: project.startDate,
             end_date: project.endDate,
@@ -202,7 +204,10 @@ export const ProjectList: React.FC = () => {
             stages: project.stages
           });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error details:', error);
+          throw error;
+        }
         
         toast({
           title: "Sucesso",
