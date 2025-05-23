@@ -5,7 +5,7 @@ import {
   Users, Briefcase, BarChart2, LineChart, Target, Calendar, 
   FileText, Settings, ChevronLeft, ChevronRight, Layers, Tag,
   Building, ChevronDown, KanbanSquare, ChartGantt, DollarSign,
-  StickyNote, MessageSquare
+  StickyNote, MessageSquare, FileCheck
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -110,6 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     { to: '/projects', icon: <Briefcase size={20} />, label: 'Projetos' },
     { to: '/services', icon: <Layers size={20} />, label: 'Serviços' },
     { to: '/tags', icon: <Tag size={20} />, label: 'Tags' },
+    { to: '/demands', icon: <FileCheck size={20} />, label: 'Demandas' }, // New item for demands
     { to: '/financial', icon: <DollarSign size={20} />, label: 'Financeiro' },
     { to: '/notes', icon: <StickyNote size={20} />, label: 'Anotações' },
     { to: '/chat', icon: <MessageSquare size={20} />, label: 'Chat Interno' },

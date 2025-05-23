@@ -37,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Add permissions for all modules
       ...['dashboard', 'consultants', 'clients', 'projects', 'services', 
           'tags', 'kpis', 'okrs', 'financial', 'activities', 
-          'notes', 'chat', 'reports', 'settings'].map(module => ({
+          'notes', 'chat', 'reports', 'settings', 'demands'].map(module => ({
         id: `${module}-permission`,
         user_id: 'default-admin-id',
         module_name: module,
