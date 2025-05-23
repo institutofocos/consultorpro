@@ -36,6 +36,10 @@ export interface Stage {
   endDate: string;
   completed: boolean;
   clientApproved: boolean;
+  managerApproved?: boolean;
+  invoiceIssued?: boolean;
+  paymentReceived?: boolean;
+  consultantsSettled?: boolean;
   consultantPaid: boolean;
   attachment?: string;
 }

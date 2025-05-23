@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -25,7 +26,6 @@ import { ProjectForm } from './ProjectForm';
 import { ProjectDetails } from './ProjectDetails';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
-import { Json } from '@/integrations/supabase/types';
 import { Project, Stage } from './types';
 import { updateProject } from '@/integrations/supabase/projects';
 
@@ -271,6 +271,15 @@ export const ProjectList: React.FC = () => {
     }).format(value);
   };
   
+  // Calculate net value
+  const calculateNetValue = (project: Project) => {
+    const totalValue = project.totalValue || 0;
+    const consultantValue = project.consultantValue || 0;
+    const supportConsultantValue = project.supportConsultantValue || 0;
+    const thirdPartyExpenses = project.thirdPartyExpenses || 0;
+    return totalValue - consultantValue - supportConsultantValue - thirdPartyExpenses;
+  };
+  
   const filteredProjects = projects.filter(project => 
     project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -330,6 +339,7 @@ export const ProjectList: React.FC = () => {
                     <TableHead>Projeto</TableHead>
                     <TableHead>Consultor</TableHead>
                     <TableHead>Valor Total</TableHead>
+                    <TableHead>Valor Líquido</TableHead>
                     <TableHead>Progresso</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Tags</TableHead>
@@ -339,7 +349,7 @@ export const ProjectList: React.FC = () => {
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         Carregando projetos...
                       </TableCell>
                     </TableRow>
@@ -349,11 +359,11 @@ export const ProjectList: React.FC = () => {
                         <TableCell>
                           <div>
                             <div className="font-medium">{project.name}</div>
-                            <div className="text-sm text-muted-foreground">{project.description}</div>
                           </div>
                         </TableCell>
                         <TableCell>{project.mainConsultantName}</TableCell>
                         <TableCell>{formatCurrency(project.totalValue)}</TableCell>
+                        <TableCell>{formatCurrency(calculateNetValue(project))}</TableCell>
                         <TableCell>
                           <div className="flex items-center">
                             <span className="text-sm mr-2">
@@ -415,7 +425,7 @@ export const ProjectList: React.FC = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         Nenhum projeto encontrado
                       </TableCell>
                     </TableRow>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -7,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Clock } from "lucide-react";
+import { Check, Clock, FileText, Eye } from "lucide-react";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Project, Stage } from './ProjectList';
@@ -17,6 +18,24 @@ import { Link } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
 import { fetchChatRoomsByProject } from '@/integrations/supabase/chat';
 import { useQuery } from '@tanstack/react-query';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ProjectDetailsProps {
   project: Project;
@@ -24,8 +43,21 @@ interface ProjectDetailsProps {
   onProjectUpdated: () => void;
 }
 
+interface StageStatus {
+  completed: boolean;
+  clientApproved: boolean;
+  managerApproved: boolean;
+  invoiceIssued: boolean;
+  paymentReceived: boolean;
+  consultantsSettled: boolean;
+}
+
+type StageStatusKey = keyof StageStatus;
+
 export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose, onProjectUpdated }) => {
-  const [stages, setStages] = useState<Stage[]>(project.stages);
+  const [stages, setStages] = useState<Stage[]>(project.stages || []);
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
+  const [currentStageDescription, setCurrentStageDescription] = useState("");
   const { toast } = useToast();
   
   // Buscar salas de chat relacionadas a este projeto
@@ -34,9 +66,9 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
     queryFn: () => fetchChatRoomsByProject(project.id)
   });
 
-  const handleStageComplete = async (stageId: string) => {
+  const handleStageStatusUpdate = async (stageId: string, statusField: StageStatusKey, value: boolean) => {
     const updatedStages = stages.map(stage =>
-      stage.id === stageId ? { ...stage, completed: !stage.completed } : stage
+      stage.id === stageId ? { ...stage, [statusField]: value } : stage
     );
     
     setStages(updatedStages);
@@ -52,18 +84,23 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
       
       toast({
         title: "Sucesso",
-        description: "Etapa atualizada com sucesso!"
+        description: "Status da etapa atualizado com sucesso!"
       });
       
       onProjectUpdated(); // Refresh project list
     } catch (error: any) {
-      console.error('Error updating stage:', error);
+      console.error('Error updating stage status:', error);
       toast({
         variant: "destructive",
         title: "Erro",
-        description: error.message || "Não foi possível atualizar a etapa."
+        description: error.message || "Não foi possível atualizar o status da etapa."
       });
     }
+  };
+
+  const showStageDescription = (description: string) => {
+    setCurrentStageDescription(description || "Sem descrição disponível");
+    setShowDescriptionModal(true);
   };
 
   const formatDate = (dateString: string) => {
@@ -74,6 +111,15 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
       console.error("Error formatting date:", error);
       return 'Data inválida';
     }
+  };
+
+  // Calculate net value (company revenue)
+  const calculateNetValue = () => {
+    const totalValue = project.totalValue || 0;
+    const consultantValue = project.consultantValue || 0;
+    const supportConsultantValue = project.supportConsultantValue || 0;
+    const thirdPartyExpenses = project.thirdPartyExpenses || 0;
+    return totalValue - consultantValue - supportConsultantValue - thirdPartyExpenses;
   };
 
   return (
@@ -102,24 +148,39 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
             <div>
               <div className="text-sm font-medium">Consultor Principal</div>
               <div className="text-muted-foreground">{project.mainConsultantName}</div>
+              <div className="text-xs text-slate-500">Valor: {new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+              }).format(project.consultantValue)}</div>
+              {project.mainConsultantPixKey && (
+                <div className="text-xs text-slate-500">PIX: {project.mainConsultantPixKey}</div>
+              )}
             </div>
-            <div>
-              <div className="text-sm font-medium">Valor do Consultor</div>
-              <div className="text-muted-foreground">
-                {new Intl.NumberFormat('pt-BR', {
+            
+            {project.supportConsultantName && (
+              <div>
+                <div className="text-sm font-medium">Consultor de Apoio</div>
+                <div className="text-muted-foreground">{project.supportConsultantName}</div>
+                <div className="text-xs text-slate-500">Valor: {new Intl.NumberFormat('pt-BR', {
                   style: 'currency',
                   currency: 'BRL'
-                }).format(project.consultantValue)}
+                }).format(project.supportConsultantValue)}</div>
+                {project.supportConsultantPixKey && (
+                  <div className="text-xs text-slate-500">PIX: {project.supportConsultantPixKey}</div>
+                )}
               </div>
-            </div>
+            )}
+            
             <div>
               <div className="text-sm font-medium">Data de Início</div>
               <div className="text-muted-foreground">{formatDate(project.startDate)}</div>
             </div>
+            
             <div>
               <div className="text-sm font-medium">Data de Término</div>
               <div className="text-muted-foreground">{formatDate(project.endDate)}</div>
             </div>
+            
             <div>
               <div className="text-sm font-medium">Valor Total</div>
               <div className="text-muted-foreground">
@@ -129,6 +190,17 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
                 }).format(project.totalValue)}
               </div>
             </div>
+            
+            <div>
+              <div className="text-sm font-medium">Valor Líquido (Empresa)</div>
+              <div className="text-muted-foreground">
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL'
+                }).format(calculateNetValue())}
+              </div>
+            </div>
+            
             <div>
               <div className="text-sm font-medium">Status</div>
               <div>
@@ -152,6 +224,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
               </div>
             </div>
           </div>
+          
           <div>
             <div className="text-sm font-medium">Descrição</div>
             <div className="text-muted-foreground">{project.description}</div>
@@ -167,27 +240,130 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
           <div className="grid gap-4">
             {stages.map((stage) => (
               <div key={stage.id} className="border rounded-md p-4">
-                <div className="flex items-center justify-between">
-                  <div className="font-medium">{stage.name}</div>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleStageComplete(stage.id)}
-                  >
-                    {stage.completed ? 'Marcar como Incompleto' : 'Marcar como Concluído'}
-                  </Button>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <div className="font-medium">{stage.name}</div>
+                    {stage.description && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              className="ml-2 p-0 h-6 w-6"
+                              onClick={() => showStageDescription(stage.description || "")}
+                            >
+                              <FileText className="h-4 w-4 text-blue-500" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Ver descrição da etapa</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
+                  
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">Status da Etapa</Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56">
+                      <DropdownMenuLabel>Atualizar Status</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'clientApproved', !stage.clientApproved)}>
+                          <Check className={`mr-2 h-4 w-4 ${stage.clientApproved ? 'text-green-600' : 'text-gray-400'}`} />
+                          <span>Aprovado pelo cliente</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'managerApproved', !stage.managerApproved)}>
+                          <Check className={`mr-2 h-4 w-4 ${stage.managerApproved ? 'text-green-600' : 'text-gray-400'}`} />
+                          <span>Aprovado pelo gestor</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'invoiceIssued', !stage.invoiceIssued)}>
+                          <Check className={`mr-2 h-4 w-4 ${stage.invoiceIssued ? 'text-green-600' : 'text-gray-400'}`} />
+                          <span>Nota fiscal emitida</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'paymentReceived', !stage.paymentReceived)}>
+                          <Check className={`mr-2 h-4 w-4 ${stage.paymentReceived ? 'text-green-600' : 'text-gray-400'}`} />
+                          <span>Pagamento recebido</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'consultantsSettled', !stage.consultantsSettled)}>
+                          <Check className={`mr-2 h-4 w-4 ${stage.consultantsSettled ? 'text-green-600' : 'text-gray-400'}`} />
+                          <span>Consultores pagos</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'completed', !stage.completed)}>
+                          <Check className={`mr-2 h-4 w-4 ${stage.completed ? 'text-green-600' : 'text-gray-400'}`} />
+                          <span>Etapa Concluída</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  Data de Início: {formatDate(stage.startDate)}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Data de Término: {formatDate(stage.endDate)}
+                
+                <div className="text-sm text-muted-foreground grid grid-cols-2 gap-1">
+                  <div>Data de Início: {formatDate(stage.startDate)}</div>
+                  <div>Data de Término: {formatDate(stage.endDate)}</div>
+                  <div>Valor: {new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(stage.value)}</div>
+                  
+                  <div className="flex flex-wrap gap-1 col-span-2 mt-2">
+                    {stage.clientApproved && (
+                      <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                        Aprovado pelo cliente
+                      </Badge>
+                    )}
+                    {stage.managerApproved && (
+                      <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
+                        Aprovado pelo gestor
+                      </Badge>
+                    )}
+                    {stage.invoiceIssued && (
+                      <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-300">
+                        Nota fiscal emitida
+                      </Badge>
+                    )}
+                    {stage.paymentReceived && (
+                      <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                        Pagamento recebido
+                      </Badge>
+                    )}
+                    {stage.consultantsSettled && (
+                      <Badge variant="outline" className="bg-indigo-100 text-indigo-800 border-indigo-300">
+                        Consultores pagos
+                      </Badge>
+                    )}
+                    {stage.completed && (
+                      <Badge variant="outline" className="bg-slate-100 text-slate-800 border-slate-300">
+                        Etapa concluída
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal for displaying stage description */}
+      <Dialog open={showDescriptionModal} onOpenChange={setShowDescriptionModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Descrição da Etapa</DialogTitle>
+          </DialogHeader>
+          <DialogDescription>
+            <div className="mt-2 whitespace-pre-line">
+              {currentStageDescription}
+            </div>
+          </DialogDescription>
+          <div className="mt-4 flex justify-end">
+            <DialogClose asChild>
+              <Button variant="secondary">Fechar</Button>
+            </DialogClose>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
