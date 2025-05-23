@@ -60,3 +60,36 @@ export interface ServiceData {
   tax_rate: number;
   stages?: Json;
 }
+
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
+  client_id: string;
+  service_id?: string;
+  main_consultant_id: string;
+  support_consultant_id?: string;
+  start_date: string;
+  end_date: string;
+  total_value: number;
+  tax_percent: number;
+  third_party_expenses: number;
+  main_consultant_value: number;
+  support_consultant_value?: number;
+  net_value: number;
+  status: 'planned' | 'active' | 'completed' | 'delayed';
+  stages?: ProjectStage[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ProjectStage {
+  id: number;
+  name: string;
+  hours: number;
+  days: number;
+  value: number;
+  startDate: string;
+  endDate: string;
+  completed?: boolean;
+}
