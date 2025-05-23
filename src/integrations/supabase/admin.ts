@@ -15,7 +15,14 @@ export async function getUserProfiles() {
     .select('*');
   
   if (error) throw error;
-  return data as UserProfile[];
+  
+  // Convert string dates to Date objects
+  return (data as any[]).map(profile => ({
+    ...profile,
+    created_at: new Date(profile.created_at),
+    updated_at: new Date(profile.updated_at),
+    last_login: profile.last_login ? new Date(profile.last_login) : undefined
+  })) as UserProfile[];
 }
 
 export async function getUserPermissions(userId: string) {
@@ -66,9 +73,15 @@ export async function updateUserProfile(
     last_login?: Date;
   }
 ) {
+  // Convert Date objects to ISO strings for Supabase
+  const dbUpdates = {
+    ...updates,
+    last_login: updates.last_login?.toISOString()
+  };
+  
   const { data, error } = await supabase
     .from('user_profiles')
-    .update(updates)
+    .update(dbUpdates)
     .eq('id', userId);
   
   if (error) throw error;

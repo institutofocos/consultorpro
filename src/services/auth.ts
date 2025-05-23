@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { AuthUser, UserProfile, ModulePermission } from '@/types/auth';
 
@@ -37,6 +36,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   if (profile) {
     user.profile = {
       ...profile,
+      role: profile.role as 'admin' | 'consultant' | 'client',
       created_at: new Date(profile.created_at),
       updated_at: new Date(profile.updated_at),
       last_login: profile.last_login ? new Date(profile.last_login) : undefined
@@ -72,10 +72,16 @@ export async function registerUser(email: string, password: string, userData: {
   return data;
 }
 
-export async function updateUserProfile(userId: string, userData: Partial<UserProfile>) {
+export async function updateUserProfile(userId: string, userData: Partial<Omit<UserProfile, 'created_at' | 'updated_at' | 'id'>>) {
+  // Convert Date objects to ISO strings for Supabase
+  const dbUpdates = {
+    ...userData,
+    last_login: userData.last_login?.toISOString()
+  };
+  
   const { data, error } = await supabase
     .from('user_profiles')
-    .update(userData)
+    .update(dbUpdates)
     .eq('id', userId);
   
   if (error) throw error;

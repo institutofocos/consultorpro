@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -75,7 +74,7 @@ const UserManagement = () => {
         id: user.id,
         email: user.email,
         profile: profiles?.find(p => p.id === user.id) || null
-      }));
+      })) as UserWithProfile[];
     }
   });
   

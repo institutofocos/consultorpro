@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LockedIcon, Loader2, Mail } from "lucide-react";
+import { Lock, Loader2, Mail } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -201,7 +201,7 @@ const Auth = () => {
                       </>
                     ) : (
                       <>
-                        <LockedIcon className="mr-2 h-4 w-4" />
+                        <Lock className="mr-2 h-4 w-4" />
                         Entrar
                       </>
                     )}
