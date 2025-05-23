@@ -19,6 +19,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { fetchConsultants } from '@/integrations/supabase/consultants';
 import { fetchServices, fetchServiceById } from '@/integrations/supabase/services';
 import { fetchTags } from '@/integrations/supabase/projects';
+import { fetchClients } from '@/integrations/supabase/clients';
 import { supabase } from '@/integrations/supabase/client';
 import { createChatRoom, addChatParticipant } from '@/integrations/supabase/chat';
 import { Consultant, Project, Stage } from './types';
@@ -26,6 +27,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { addDays } from 'date-fns';
 import { BasicService } from '@/components/services/types';
 import { Badge } from "@/components/ui/badge";
+import { Client } from '@/integrations/supabase/clients';
 import {
   Dialog,
   DialogContent,
@@ -58,6 +60,8 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
   const [consultants, setConsultants] = useState<Consultant[]>([]);
   const [services, setServices] = useState<BasicService[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState(project?.serviceId || '');
+  const [clientId, setClientId] = useState(project?.clientId || '');
+  const [clients, setClients] = useState<Client[]>([]);
   const [tags, setTags] = useState<string[]>(project?.tags || []);
   const [newTag, setNewTag] = useState('');
   const [mainConsultantCommission, setMainConsultantCommission] = useState(project?.mainConsultantCommission?.toString() || '0');
@@ -92,6 +96,11 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
     // Fetch services
     fetchServices().then(data => {
       setServices(data as unknown as BasicService[]);
+    });
+    
+    // Fetch clients
+    fetchClients().then(data => {
+      setClients(data);
     });
     
     // Fetch available tags
@@ -391,17 +400,20 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
     
     const mainConsultant = consultants.find(c => c.id === mainConsultantId);
     const supportConsultant = consultants.find(c => c.id === supportConsultantId);
+    const selectedClient = clients.find(c => c.id === clientId);
 
     const formData = {
       id: project?.id,
       name,
       description,
-      serviceId: selectedServiceId || null, // Para aceitar valor vazio ou nulo
+      serviceId: selectedServiceId || null,
+      clientId: clientId || null,
+      clientName: selectedClient?.name || null,
       mainConsultantId,
       mainConsultantName: mainConsultant?.name,
       mainConsultantPixKey: mainConsultant?.pixKey,
       mainConsultantCommission: parseFloat(mainConsultantCommission) || 0,
-      supportConsultantId: supportConsultantId || null, // Para aceitar valor vazio ou nulo
+      supportConsultantId: supportConsultantId || null,
       supportConsultantName: supportConsultant?.name,
       supportConsultantPixKey: supportConsultant?.pixKey,
       supportConsultantCommission: parseFloat(supportConsultantCommission) || 0,
@@ -494,6 +506,22 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
           />
         </div>
         
+        {/* Client selection field */}
+        <div>
+          <Label htmlFor="client">Cliente</Label>
+          <Select value={clientId} onValueChange={setClientId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione um cliente" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Nenhum</SelectItem>
+              {clients.map(client => (
+                <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
         {/* Tags field */}
         <div>
           <Label>Tags</Label>
@@ -556,6 +584,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
           </div>
         </div>
         
+        {/* Service field */}
         <div>
           <Label htmlFor="service">Serviço Vinculado</Label>
           <Select 

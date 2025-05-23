@@ -16,11 +16,55 @@ import { supabase } from "@/integrations/supabase/client";
 import ClientForm from "./ClientForm";
 import { BasicClient } from '../services/types';
 
+interface ClientWithProjectStats extends BasicClient {
+  projectCount?: number;
+  activeProjectCount?: number;
+  totalSpent?: number;
+}
+
 const ClientList = () => {
-  const [clients, setClients] = useState<BasicClient[]>([]);
+  const [clients, setClients] = useState<ClientWithProjectStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingClient, setIsAddingClient] = useState(false);
   const [editingClient, setEditingClient] = useState<BasicClient | null>(null);
+
+  const fetchClientProjectStats = async (clientId: string) => {
+    try {
+      // Get all projects for this client
+      const { data: projects, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('client_id', clientId);
+        
+      if (error) throw error;
+      
+      if (!projects || projects.length === 0) {
+        return {
+          projectCount: 0,
+          activeProjectCount: 0,
+          totalSpent: 0
+        };
+      }
+      
+      // Calculate stats
+      const projectCount = projects.length;
+      const activeProjectCount = projects.filter(p => p.status !== 'completed' && p.status !== 'cancelled').length;
+      const totalSpent = projects.reduce((sum, project) => sum + (project.total_value || 0), 0);
+      
+      return {
+        projectCount,
+        activeProjectCount,
+        totalSpent
+      };
+    } catch (error) {
+      console.error('Error fetching project stats:', error);
+      return {
+        projectCount: 0,
+        activeProjectCount: 0,
+        totalSpent: 0
+      };
+    }
+  };
 
   const fetchClients = async () => {
     setIsLoading(true);
@@ -32,7 +76,16 @@ const ClientList = () => {
         
       if (error) throw error;
       
-      setClients(data || []);
+      // Fetch project stats for each client
+      const clientsWithStats = await Promise.all((data || []).map(async (client) => {
+        const stats = await fetchClientProjectStats(client.id);
+        return {
+          ...client,
+          ...stats
+        };
+      }));
+      
+      setClients(clientsWithStats);
     } catch (error: any) {
       toast.error('Erro ao carregar clientes: ' + error.message);
     } finally {
@@ -81,6 +134,13 @@ const ClientList = () => {
     );
   }
 
+  const formatCurrency = (value?: number) => {
+    return value ? new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value) : 'R$ 0,00';
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -102,13 +162,16 @@ const ClientList = () => {
                 <TableHead>Contato</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Telefone</TableHead>
+                <TableHead className="text-center">Projetos</TableHead>
+                <TableHead className="text-center">Projetos Ativos</TableHead>
+                <TableHead className="text-center">Valor Consumido</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-10">
+                  <TableCell colSpan={8} className="text-center py-10">
                     Carregando...
                   </TableCell>
                 </TableRow>
@@ -124,6 +187,15 @@ const ClientList = () => {
                     <TableCell>{client.contact_name}</TableCell>
                     <TableCell>{client.email}</TableCell>
                     <TableCell>{client.phone}</TableCell>
+                    <TableCell className="text-center">
+                      <span className="font-medium">{client.projectCount || 0}</span>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className="font-medium">{client.activeProjectCount || 0}</span>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className="font-medium">{formatCurrency(client.totalSpent)}</span>
+                    </TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"
@@ -144,7 +216,7 @@ const ClientList = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                     Nenhum cliente encontrado
                   </TableCell>
                 </TableRow>
