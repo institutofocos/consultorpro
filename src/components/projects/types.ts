@@ -2,6 +2,7 @@
 export interface Stage {
   id: string;
   name: string;
+  description?: string; // Added description field
   hours: number;
   days: number;
   value: number;
@@ -10,6 +11,7 @@ export interface Stage {
   completed: boolean;
   clientApproved: boolean;
   consultantPaid: boolean;
+  attachment?: string; // Added attachment field
 }
 
 export interface Consultant {
@@ -17,6 +19,7 @@ export interface Consultant {
   name: string;
   email: string;
   pix_key?: string;
+  commission_percentage?: number; // Added to access consultant's default commission
 }
 
 export interface Project {
@@ -27,9 +30,11 @@ export interface Project {
   mainConsultantId: string;
   mainConsultantName?: string;
   mainConsultantPixKey?: string;
+  mainConsultantCommission?: number; // Added field for project-specific commission
   supportConsultantId?: string;
   supportConsultantName?: string;
   supportConsultantPixKey?: string;
+  supportConsultantCommission?: number; // Added field for project-specific commission
   startDate: string;
   endDate: string;
   totalValue: number;
@@ -40,4 +45,5 @@ export interface Project {
   status: 'planned' | 'active' | 'completed' | 'cancelled';
   stages: Stage[];
   completedStages?: number;
+  tags?: string[]; // Added tags field
 }

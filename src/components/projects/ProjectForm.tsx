@@ -12,7 +12,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Plus, Trash, MoreHorizontal } from "lucide-react";
+import { CalendarIcon, Plus, Trash, MoreHorizontal, FileUp, Tag } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -25,6 +25,7 @@ import { Consultant, Project, Stage } from './types';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { addDays } from 'date-fns';
 import { BasicService } from '@/components/services/types';
+import { Badge } from "@/components/ui/badge";
 
 interface ProjectFormProps {
   project?: Project | null;
@@ -49,19 +50,106 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
   const [consultants, setConsultants] = useState<Consultant[]>([]);
   const [services, setServices] = useState<BasicService[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState(project?.serviceId || '');
+  const [tags, setTags] = useState<string[]>(project?.tags || []);
+  const [newTag, setNewTag] = useState('');
+  const [mainConsultantCommission, setMainConsultantCommission] = useState(project?.mainConsultantCommission?.toString() || '0');
+  const [supportConsultantCommission, setSupportConsultantCommission] = useState(project?.supportConsultantCommission?.toString() || '0');
+  const [fileUploading, setFileUploading] = useState(false);
   const { toast } = useToast();
   
   useEffect(() => {
     // Fetch consultants
-    fetchConsultants().then(data => setConsultants(data as unknown as Consultant[]));
+    fetchConsultants().then(data => {
+      setConsultants(data as unknown as Consultant[]);
+      
+      // If a consultant is already selected, set their commission percentage
+      if (mainConsultantId) {
+        const consultant = data.find(c => c.id === mainConsultantId);
+        if (consultant && consultant.commission_percentage && !project?.mainConsultantCommission) {
+          setMainConsultantCommission(consultant.commission_percentage.toString());
+        }
+      }
+      
+      if (supportConsultantId) {
+        const consultant = data.find(c => c.id === supportConsultantId);
+        if (consultant && consultant.commission_percentage && !project?.supportConsultantCommission) {
+          setSupportConsultantCommission(consultant.commission_percentage.toString());
+        }
+      }
+    });
     
     // Fetch services
     fetchServices().then(data => {
       setServices(data as unknown as BasicService[]);
-      console.log("Services loaded:", data);
     });
     
   }, []);
+  
+  // Handle consultant selection and set their default commission percentage
+  const handleMainConsultantChange = (id: string) => {
+    setMainConsultantId(id);
+    if (id) {
+      const consultant = consultants.find(c => c.id === id);
+      if (consultant && consultant.commission_percentage) {
+        setMainConsultantCommission(consultant.commission_percentage.toString());
+        recalculateConsultantValues(totalValue, taxPercent, thirdPartyExpenses, consultant.commission_percentage.toString(), supportConsultantCommission);
+      }
+    }
+  };
+  
+  const handleSupportConsultantChange = (id: string) => {
+    setSupportConsultantId(id);
+    if (id) {
+      const consultant = consultants.find(c => c.id === id);
+      if (consultant && consultant.commission_percentage) {
+        setSupportConsultantCommission(consultant.commission_percentage.toString());
+        recalculateConsultantValues(totalValue, taxPercent, thirdPartyExpenses, mainConsultantCommission, consultant.commission_percentage.toString());
+      } else {
+        setSupportConsultantCommission('0');
+        recalculateConsultantValues(totalValue, taxPercent, thirdPartyExpenses, mainConsultantCommission, '0');
+      }
+    } else {
+      setSupportConsultantCommission('0');
+      setSupportConsultantValue('0');
+    }
+  };
+  
+  // Calculate consultant values based on commissions
+  const recalculateConsultantValues = (
+    total: string, 
+    tax: string, 
+    expenses: string, 
+    mainCommission: string, 
+    supportCommission: string
+  ) => {
+    const totalVal = parseFloat(total) || 0;
+    const taxVal = (parseFloat(tax) || 0) / 100 * totalVal;
+    const expensesVal = parseFloat(expenses) || 0;
+    
+    // Base for consultant calculation
+    const baseAfterDeductions = totalVal - taxVal - expensesVal;
+    
+    // Calculate main consultant value based on commission
+    const mainCommissionVal = parseFloat(mainCommission) || 0;
+    const mainConsultantVal = (mainCommissionVal / 100) * baseAfterDeductions;
+    setConsultantValue(mainConsultantVal.toFixed(2));
+    
+    // Calculate support consultant value - based on a percentage of the main consultant's value
+    const supportCommissionVal = parseFloat(supportCommission) || 0;
+    const supportConsultantVal = supportConsultantId ? (supportCommissionVal / 100) * mainConsultantVal : 0;
+    setSupportConsultantValue(supportConsultantVal.toFixed(2));
+  };
+  
+  // Watch for changes in values that affect consultant calculations
+  useEffect(() => {
+    recalculateConsultantValues(
+      totalValue, 
+      taxPercent, 
+      thirdPartyExpenses,
+      mainConsultantCommission,
+      supportConsultantCommission
+    );
+  }, [totalValue, taxPercent, thirdPartyExpenses, mainConsultantCommission, supportConsultantCommission]);
 
   // Initialize stages from a service template if no stages provided
   const initializeStagesFromService = async (serviceId: string) => {
@@ -127,11 +215,13 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                 return {
                   ...stage,
                   id: stage.id ? stage.id.toString() : Date.now().toString() + index,
+                  description: stage.description || '', // Make sure description field is present
                   startDate: stage.startDate || stageStartDate.toISOString().split('T')[0],
                   endDate: stage.endDate || stageEndDate.toISOString().split('T')[0],
                   completed: stage.completed || false,
                   clientApproved: false,
-                  consultantPaid: false
+                  consultantPaid: false,
+                  attachment: stage.attachment || '' // Make sure attachment field is present
                 } as Stage;
               });
               
@@ -163,6 +253,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
     const newStage: Stage = {
       id: Date.now().toString(),
       name: `Nova Etapa ${stages.length + 1}`,
+      description: '', // Added description field
       days: 5,
       hours: 20,
       value: 2200,
@@ -170,7 +261,8 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
       endDate: newStageEndDate.toISOString().split('T')[0],
       completed: false,
       clientApproved: false,
-      consultantPaid: false
+      consultantPaid: false,
+      attachment: '' // Added attachment field
     };
     
     setStages([...stages, newStage]);
@@ -204,6 +296,54 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
     // Descontar todos os valores conforme solicitado
     return total - tax - expenses - consultantCost - supportConsultantCost;
   };
+  
+  const handleAddTag = () => {
+    if (newTag.trim() && !tags.includes(newTag.trim())) {
+      setTags([...tags, newTag.trim()]);
+      setNewTag('');
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setTags(tags.filter(tag => tag !== tagToRemove));
+  };
+  
+  // Handle file upload for stage attachments
+  const handleFileUpload = async (index: number, files: FileList | null) => {
+    if (!files || !files[0]) return;
+    
+    const file = files[0];
+    setFileUploading(true);
+    
+    // Here you would typically upload to a file storage service
+    // For now we'll just store the file name to demonstrate functionality
+    try {
+      // In a real implementation, upload to storage and get the file URL
+      // const { data, error } = await supabase.storage.from('stage-attachments').upload(...)
+      
+      // For demo purposes, just store the file name
+      const updatedStages = [...stages];
+      updatedStages[index] = { 
+        ...updatedStages[index], 
+        attachment: file.name 
+      };
+      setStages(updatedStages);
+      
+      toast({
+        title: "Sucesso",
+        description: "Arquivo anexado com sucesso!"
+      });
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível anexar o arquivo."
+      });
+    } finally {
+      setFileUploading(false);
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -228,9 +368,11 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
       mainConsultantId,
       mainConsultantName: mainConsultant?.name,
       mainConsultantPixKey: mainConsultant?.pix_key,
+      mainConsultantCommission: parseFloat(mainConsultantCommission) || 0,
       supportConsultantId: supportConsultantId || null, // Para aceitar valor vazio ou nulo
       supportConsultantName: supportConsultant?.name,
       supportConsultantPixKey: supportConsultant?.pix_key,
+      supportConsultantCommission: parseFloat(supportConsultantCommission) || 0,
       startDate: startDate ? startDate.toISOString() : null,
       endDate: endDate ? endDate.toISOString() : null,
       totalValue: parseFloat(totalValue) || 0,
@@ -239,7 +381,8 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
       consultantValue: parseFloat(consultantValue) || 0,
       supportConsultantValue: parseFloat(supportConsultantValue) || 0,
       status,
-      stages
+      stages,
+      tags
     };
     
     try {
@@ -319,6 +462,41 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
           />
         </div>
         
+        {/* Tags field */}
+        <div>
+          <Label>Tags</Label>
+          <div className="flex flex-wrap gap-2 mb-2">
+            {tags.map(tag => (
+              <Badge key={tag} className="flex items-center gap-1 bg-blue-500">
+                {tag}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveTag(tag)}
+                  className="ml-1 text-xs hover:text-red-300"
+                >
+                  ×
+                </button>
+              </Badge>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <Input 
+              value={newTag} 
+              onChange={(e) => setNewTag(e.target.value)}
+              placeholder="Adicionar tag" 
+              onKeyPress={(e) => e.key === 'Enter' && e.preventDefault()}
+            />
+            <Button 
+              type="button" 
+              onClick={handleAddTag} 
+              size="sm" 
+              className="whitespace-nowrap"
+            >
+              <Tag className="h-4 w-4 mr-1" /> Adicionar
+            </Button>
+          </div>
+        </div>
+        
         <div>
           <Label htmlFor="service">Serviço Vinculado</Label>
           <Select 
@@ -342,35 +520,62 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
           )}
         </div>
         
-        <div>
-          <Label htmlFor="mainConsultantId">Consultor Principal</Label>
-          <Select value={mainConsultantId} onValueChange={setMainConsultantId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione um consultor" />
-            </SelectTrigger>
-            <SelectContent>
-              {consultants.map(consultant => (
-                <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div>
-          <Label htmlFor="supportConsultantId">Consultor de Apoio (Opcional)</Label>
-          <Select value={supportConsultantId} onValueChange={setSupportConsultantId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione um consultor (opcional)" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">Nenhum</SelectItem>
-              {consultants
-                .filter(c => c.id !== mainConsultantId)
-                .map(consultant => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="mainConsultantId">Consultor Principal</Label>
+            <Select value={mainConsultantId} onValueChange={handleMainConsultantChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um consultor" />
+              </SelectTrigger>
+              <SelectContent>
+                {consultants.map(consultant => (
                   <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
                 ))}
-            </SelectContent>
-          </Select>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Label htmlFor="mainConsultantCommission">Percentual de Repasse (%)</Label>
+            <Input
+              type="number"
+              id="mainConsultantCommission"
+              value={mainConsultantCommission}
+              onChange={(e) => setMainConsultantCommission(e.target.value)}
+              placeholder="Percentual de repasse"
+            />
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="supportConsultantId">Consultor de Apoio (Opcional)</Label>
+            <Select value={supportConsultantId} onValueChange={handleSupportConsultantChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um consultor (opcional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Nenhum</SelectItem>
+                {consultants
+                  .filter(c => c.id !== mainConsultantId)
+                  .map(consultant => (
+                    <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Label htmlFor="supportConsultantCommission">Percentual de Repasse (%)</Label>
+            <Input
+              type="number"
+              id="supportConsultantCommission"
+              value={supportConsultantCommission}
+              onChange={(e) => setSupportConsultantCommission(e.target.value)}
+              placeholder="Percentual de repasse"
+              disabled={!supportConsultantId}
+            />
+          </div>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -495,6 +700,9 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
               onChange={(e) => setConsultantValue(e.target.value)}
               placeholder="Valor do consultor principal"
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Sugestão: {mainConsultantCommission}% do valor após impostos e despesas
+            </p>
           </div>
           
           <div>
@@ -507,6 +715,11 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
               placeholder="Valor do consultor de apoio"
               disabled={!supportConsultantId}
             />
+            {supportConsultantId && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Sugestão: {supportConsultantCommission}% do valor do consultor principal
+              </p>
+            )}
           </div>
         </div>
         
@@ -554,7 +767,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                       </Button>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
                         <Label htmlFor={`stage-name-${index}`} className="text-xs">Nome</Label>
                         <Input
@@ -562,6 +775,17 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                           value={stage.name}
                           onChange={(e) => handleUpdateStage(index, 'name', e.target.value)}
                           size={10}
+                        />
+                      </div>
+                      
+                      {/* Added description field for stages */}
+                      <div>
+                        <Label htmlFor={`stage-description-${index}`} className="text-xs">Descrição</Label>
+                        <Input
+                          id={`stage-description-${index}`}
+                          value={stage.description || ''}
+                          onChange={(e) => handleUpdateStage(index, 'description', e.target.value)}
+                          placeholder="Descrição da etapa"
                         />
                       </div>
                       
@@ -595,6 +819,24 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                           value={stage.value}
                           onChange={(e) => handleUpdateStage(index, 'value', Number(e.target.value))}
                         />
+                      </div>
+                      
+                      {/* File attachment field */}
+                      <div>
+                        <Label htmlFor={`stage-attachment-${index}`} className="text-xs">Anexo</Label>
+                        <div className="flex gap-2 items-center">
+                          <Input
+                            id={`stage-attachment-${index}`}
+                            type="file"
+                            onChange={(e) => handleFileUpload(index, e.target.files)}
+                            className="w-full"
+                          />
+                          {stage.attachment && (
+                            <div className="text-xs text-green-600">
+                              {stage.attachment}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       
                       <div>

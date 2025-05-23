@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -16,7 +17,8 @@ import {
   Trash,
   Check,
   Clock,
-  Eye
+  Eye,
+  Tag
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -54,8 +56,8 @@ export const ProjectList: React.FC = () => {
         .from('projects')
         .select(`
           *,
-          main_consultant:consultants!main_consultant_id(id, name, pix_key),
-          support_consultant:consultants!support_consultant_id(id, name, pix_key)
+          main_consultant:consultants!main_consultant_id(id, name, pix_key, commission_percentage),
+          support_consultant:consultants!support_consultant_id(id, name, pix_key, commission_percentage)
         `);
       
       if (projectsError) throw projectsError;
@@ -73,6 +75,16 @@ export const ProjectList: React.FC = () => {
             console.error("Error parsing stages:", e);
           }
           
+          // Parse tags if they exist
+          let tags: string[] = [];
+          try {
+            if (project.tags && Array.isArray(project.tags)) {
+              tags = project.tags as string[];
+            }
+          } catch (e) {
+            console.error("Error parsing tags:", e);
+          }
+          
           return {
             id: project.id,
             name: project.name,
@@ -82,9 +94,11 @@ export const ProjectList: React.FC = () => {
             // Using optional chaining to safely access nested properties
             mainConsultantName: project.main_consultant?.name || 'Não especificado',
             mainConsultantPixKey: project.main_consultant?.pix_key || '',
+            mainConsultantCommission: project.main_consultant_commission || project.main_consultant?.commission_percentage || 0,
             supportConsultantId: project.support_consultant_id || undefined,
             supportConsultantName: project.support_consultant?.name || undefined,
             supportConsultantPixKey: project.support_consultant?.pix_key || '',
+            supportConsultantCommission: project.support_consultant_commission || project.support_consultant?.commission_percentage || 0,
             startDate: project.start_date,
             endDate: project.end_date,
             totalValue: Number(project.total_value) || 0,
@@ -94,7 +108,8 @@ export const ProjectList: React.FC = () => {
             supportConsultantValue: Number(project.support_consultant_value) || 0,
             status: project.status as any || 'planned',
             stages: stages,
-            completedStages: stages.filter(s => s.completed).length
+            completedStages: stages.filter(s => s.completed).length,
+            tags: tags
           };
         });
         
@@ -123,7 +138,9 @@ export const ProjectList: React.FC = () => {
             description: project.description,
             service_id: project.serviceId || null, // Para aceitar valor vazio ou nulo
             main_consultant_id: project.mainConsultantId,
+            main_consultant_commission: project.mainConsultantCommission,
             support_consultant_id: project.supportConsultantId || null, // Para aceitar valor vazio ou nulo
+            support_consultant_commission: project.supportConsultantCommission,
             start_date: project.startDate,
             end_date: project.endDate,
             total_value: project.totalValue,
@@ -132,7 +149,8 @@ export const ProjectList: React.FC = () => {
             main_consultant_value: project.consultantValue,
             support_consultant_value: project.supportConsultantValue,
             status: project.status,
-            stages: project.stages
+            stages: project.stages,
+            tags: project.tags || []
           })
           .eq('id', editingProject.id);
 
@@ -163,7 +181,9 @@ export const ProjectList: React.FC = () => {
             description: project.description,
             service_id: project.serviceId || null, // Para aceitar valor vazio ou nulo
             main_consultant_id: project.mainConsultantId,
+            main_consultant_commission: project.mainConsultantCommission,
             support_consultant_id: project.supportConsultantId || null, // Para aceitar valor vazio ou nulo
+            support_consultant_commission: project.supportConsultantCommission,
             start_date: project.startDate,
             end_date: project.endDate,
             total_value: project.totalValue,
@@ -172,7 +192,8 @@ export const ProjectList: React.FC = () => {
             main_consultant_value: project.consultantValue,
             support_consultant_value: project.supportConsultantValue,
             status: project.status,
-            stages: project.stages
+            stages: project.stages,
+            tags: project.tags || []
           });
 
         if (error) {
@@ -250,7 +271,9 @@ export const ProjectList: React.FC = () => {
   const filteredProjects = projects.filter(project => 
     project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.mainConsultantName?.toLowerCase().includes(searchTerm.toLowerCase())
+    project.mainConsultantName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    // Also search by tags
+    (project.tags && project.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
   );
   
   return (
@@ -306,13 +329,14 @@ export const ProjectList: React.FC = () => {
                     <TableHead>Valor Total</TableHead>
                     <TableHead>Progresso</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Tags</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         Carregando projetos...
                       </TableCell>
                     </TableRow>
@@ -359,6 +383,20 @@ export const ProjectList: React.FC = () => {
                             </Badge>
                           )}
                         </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {project.tags && project.tags.length > 0 ? (
+                              project.tags.map((tag, idx) => (
+                                <Badge key={idx} variant="secondary" className="mr-1">
+                                  <Tag className="h-3 w-3 mr-1" />
+                                  {tag}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Sem tags</span>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="icon" onClick={() => handleViewProject(project)} title="Visualizar detalhes">
                             <Eye className="h-4 w-4" />
@@ -374,7 +412,7 @@ export const ProjectList: React.FC = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         Nenhum projeto encontrado
                       </TableCell>
                     </TableRow>
