@@ -80,31 +80,43 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
         } else if (Array.isArray(project.stages)) {
           // If stages is already an array, use it directly
           parsedStages = project.stages;
-        } else if (typeof project.stages === 'object') {
+        } else if (typeof project.stages === 'object' && project.stages !== null) {
           // If stages is an object but not an array, try to extract array
-          if (project.stages.stages && Array.isArray(project.stages.stages)) {
-            parsedStages = project.stages.stages;
+          const stagesObj = project.stages as any;
+          if (stagesObj.stages && Array.isArray(stagesObj.stages)) {
+            parsedStages = stagesObj.stages;
+          } else {
+            // Try to convert object to array
+            parsedStages = Object.values(stagesObj).filter(item => 
+              item && typeof item === 'object' && 'id' in item
+            ) as Stage[];
           }
         }
       }
       
-      // Ensure each stage has the required properties
+      // Ensure parsedStages is actually an array
+      if (!Array.isArray(parsedStages)) {
+        console.warn('Stages is not an array after parsing:', parsedStages);
+        parsedStages = [];
+      }
+      
+      // Validate and clean stage data
       parsedStages = parsedStages.map((stage, index) => ({
         id: stage.id || `stage-${index}`,
         name: stage.name || `Etapa ${index + 1}`,
         description: stage.description || '',
-        days: stage.days || 1,
-        hours: stage.hours || 8,
-        value: stage.value || 0,
+        days: Number(stage.days) || 1,
+        hours: Number(stage.hours) || 8,
+        value: Number(stage.value) || 0,
         startDate: stage.startDate || '',
         endDate: stage.endDate || '',
         consultantId: stage.consultantId || undefined,
-        completed: stage.completed || false,
-        clientApproved: stage.clientApproved || false,
-        managerApproved: stage.managerApproved || false,
-        invoiceIssued: stage.invoiceIssued || false,
-        paymentReceived: stage.paymentReceived || false,
-        consultantsSettled: stage.consultantsSettled || false,
+        completed: Boolean(stage.completed),
+        clientApproved: Boolean(stage.clientApproved),
+        managerApproved: Boolean(stage.managerApproved),
+        invoiceIssued: Boolean(stage.invoiceIssued),
+        paymentReceived: Boolean(stage.paymentReceived),
+        consultantsSettled: Boolean(stage.consultantsSettled),
         attachment: stage.attachment || ''
       }));
       

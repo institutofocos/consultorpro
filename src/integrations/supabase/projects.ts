@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 import { Project, Stage } from "@/components/projects/types";
 import { createProjectTasks, updateProjectTasks } from "./project-tasks";
@@ -89,19 +88,21 @@ export const fetchProjects = async () => {
         try {
           if (typeof project.stages === 'string') {
             // If it's a JSON string, parse it
-            stages = JSON.parse(project.stages);
+            stages = JSON.parse(project.stages) as Stage[];
           } else if (Array.isArray(project.stages)) {
-            // If it's already an array, use it
+            // If it's already an array, cast it properly
             stages = project.stages as unknown as Stage[];
           } else if (typeof project.stages === 'object' && project.stages !== null) {
             // If it's an object, try to extract array or convert
-            if ('stages' in project.stages && Array.isArray(project.stages.stages)) {
-              stages = project.stages.stages;
+            const stagesObj = project.stages as any;
+            if ('stages' in stagesObj && Array.isArray(stagesObj.stages)) {
+              stages = stagesObj.stages as Stage[];
             } else {
               // Try to convert object to array
-              stages = Object.values(project.stages).filter(item => 
+              const values = Object.values(stagesObj).filter(item => 
                 item && typeof item === 'object' && 'id' in item
-              ) as Stage[];
+              );
+              stages = values as Stage[];
             }
           }
           
@@ -376,12 +377,15 @@ export const fetchProjectById = async (projectId: string): Promise<Project | nul
     let stages: Stage[] = [];
     if (data.stages) {
       try {
-        // Parse stages from JSON if needed
-        stages = typeof data.stages === 'string'
-          ? JSON.parse(data.stages)
-          : Array.isArray(data.stages) 
-            ? data.stages as unknown as Stage[]
-            : [];
+        // Parse stages from JSON if needed with proper type casting
+        if (typeof data.stages === 'string') {
+          stages = JSON.parse(data.stages) as Stage[];
+        } else if (Array.isArray(data.stages)) {
+          stages = data.stages as unknown as Stage[];
+        } else {
+          // Handle other potential formats
+          stages = [];
+        }
       } catch (e) {
         console.error('Error parsing stages for project:', data.id, e);
         stages = [];
@@ -447,10 +451,15 @@ export const assignConsultantToStage = async (
     if (fetchError) throw fetchError;
     if (!projectData) throw new Error('Project not found');
     
-    // Parse the stages
-    const stages = typeof projectData.stages === 'string' 
-      ? JSON.parse(projectData.stages) 
-      : projectData.stages;
+    // Parse the stages with proper type handling
+    let stages: Stage[];
+    if (typeof projectData.stages === 'string') {
+      stages = JSON.parse(projectData.stages) as Stage[];
+    } else if (Array.isArray(projectData.stages)) {
+      stages = projectData.stages as unknown as Stage[];
+    } else {
+      throw new Error('Invalid stages format');
+    }
     
     if (!Array.isArray(stages)) {
       throw new Error('Invalid stages format');
