@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -27,7 +26,7 @@ import { PlusCircle, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
-import { Service } from '@/components/services/types';
+import { BasicService } from '@/components/services/types';
 
 const formSchema = z.object({
   name: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }),
@@ -55,7 +54,7 @@ export const ConsultantForm: React.FC<ConsultantFormProps> = ({ consultant, onSa
   const [selectedServices, setSelectedServices] = useState<string[]>(consultant?.services || []);
   const [selectedServiceInput, setSelectedServiceInput] = useState<string>('');
   const [documents, setDocuments] = useState<File[]>([]);
-  const [availableServices, setAvailableServices] = useState<Service[]>([]);
+  const [availableServices, setAvailableServices] = useState<BasicService[]>([]);
   const { toast } = useToast();
 
   // Fetch services from database
@@ -71,7 +70,7 @@ export const ConsultantForm: React.FC<ConsultantFormProps> = ({ consultant, onSa
         }
         
         if (data) {
-          setAvailableServices(data);
+          setAvailableServices(data as BasicService[]);
         }
       } catch (error) {
         console.error('Error fetching services:', error);

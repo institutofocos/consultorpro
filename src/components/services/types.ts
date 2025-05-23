@@ -28,6 +28,12 @@ export interface Service {
   created_at?: string;
 }
 
+// Novo tipo para serviços básicos (usado na lista de seleção)
+export interface BasicService {
+  id: string;
+  name: string;
+}
+
 export interface ServiceData {
   name: string;
   description: string;
