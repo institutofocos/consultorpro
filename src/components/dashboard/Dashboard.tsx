@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -153,20 +154,23 @@ export const Dashboard: React.FC = () => {
           projectsData.forEach(project => {
             if (project.stages && Array.isArray(project.stages)) {
               project.stages.forEach(stage => {
-                // Safely extract properties with type checking
-                const stageObj = typeof stage === 'object' && stage !== null ? stage : {};
-                
-                allStages.push({
-                  id: typeof stageObj.id === 'number' ? stageObj.id : 0,
-                  name: typeof stageObj.name === 'string' ? stageObj.name : '',
-                  hours: typeof stageObj.hours === 'number' ? stageObj.hours : 0,
-                  days: typeof stageObj.days === 'number' ? stageObj.days : 0,
-                  value: typeof stageObj.value === 'number' ? stageObj.value : 0,
-                  startDate: typeof stageObj.startDate === 'string' ? stageObj.startDate : '',
-                  endDate: typeof stageObj.endDate === 'string' ? stageObj.endDate : '',
-                  projectName: project.name || '',
-                  projectId: project.id || ''
-                });
+                // Type assertions to safely handle the Json type
+                if (typeof stage === 'object' && stage !== null) {
+                  // Type assertion to treat stage as a record
+                  const stageObj = stage as Record<string, any>;
+                  
+                  allStages.push({
+                    id: typeof stageObj.id === 'number' ? stageObj.id : 0,
+                    name: typeof stageObj.name === 'string' ? stageObj.name : '',
+                    hours: typeof stageObj.hours === 'number' ? stageObj.hours : 0,
+                    days: typeof stageObj.days === 'number' ? stageObj.days : 0,
+                    value: typeof stageObj.value === 'number' ? stageObj.value : 0,
+                    startDate: typeof stageObj.startDate === 'string' ? stageObj.startDate : '',
+                    endDate: typeof stageObj.endDate === 'string' ? stageObj.endDate : '',
+                    projectName: project.name || '',
+                    projectId: project.id || ''
+                  });
+                }
               });
             }
           });
