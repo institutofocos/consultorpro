@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Card, 
@@ -47,8 +46,7 @@ const WebhookManager: React.FC = () => {
         setWebhooks(JSON.parse(savedWebhooks));
       }
     } catch (error) {
-      toast({
-        title: "Error loading webhooks",
+      toast.error("Error loading webhooks", {
         description: "Failed to load registered webhooks",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
@@ -60,8 +58,7 @@ const WebhookManager: React.FC = () => {
 
   const handleRegisterWebhook = async () => {
     if (!webhookUrl.trim()) {
-      toast({
-        title: "Invalid URL",
+      toast.error("Invalid URL", {
         description: "Please enter a valid webhook URL",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
@@ -72,8 +69,7 @@ const WebhookManager: React.FC = () => {
     try {
       new URL(webhookUrl);
     } catch (e) {
-      toast({
-        title: "Invalid URL",
+      toast.error("Invalid URL", {
         description: "Please enter a valid URL including http:// or https://",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
@@ -84,8 +80,7 @@ const WebhookManager: React.FC = () => {
     const tables = Object.keys(selectedTables).filter(key => selectedTables[key]);
 
     if (events.length === 0) {
-      toast({
-        title: "No events selected",
+      toast.error("No events selected", {
         description: "Please select at least one event type",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
@@ -93,8 +88,7 @@ const WebhookManager: React.FC = () => {
     }
 
     if (tables.length === 0) {
-      toast({
-        title: "No tables selected",
+      toast.error("No tables selected", {
         description: "Please select at least one table",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
@@ -118,8 +112,7 @@ const WebhookManager: React.FC = () => {
       localStorage.setItem('webhooks', JSON.stringify(updatedWebhooks));
       setWebhooks(updatedWebhooks);
       
-      toast({
-        title: "Webhook registered",
+      toast.success("Webhook registered", {
         description: "Your webhook has been registered successfully",
         icon: <CheckCircle2 className="h-5 w-5 text-success" />
       });
@@ -129,8 +122,7 @@ const WebhookManager: React.FC = () => {
       
     } catch (error) {
       console.error("Error registering webhook:", error);
-      toast({
-        title: "Registration failed",
+      toast.error("Registration failed", {
         description: "Failed to register webhook",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
@@ -144,8 +136,7 @@ const WebhookManager: React.FC = () => {
     localStorage.setItem('webhooks', JSON.stringify(updatedWebhooks));
     setWebhooks(updatedWebhooks);
     
-    toast({
-      title: "Webhook removed",
+    toast.success("Webhook removed", {
       description: "The webhook has been removed successfully"
     });
   };
@@ -153,15 +144,13 @@ const WebhookManager: React.FC = () => {
   const testWebhook = async (url: string) => {
     try {
       // In a real implementation, this would call an edge function to test the webhook
-      toast({
-        title: "Testing webhook",
+      toast.info("Testing webhook", {
         description: "Sending test payload to " + url
       });
       
       // Simulate webhook test
       setTimeout(() => {
-        toast({
-          title: "Test successful",
+        toast.success("Test successful", {
           description: "Webhook test completed successfully",
           icon: <CheckCircle2 className="h-5 w-5 text-success" />
         });
@@ -169,8 +158,7 @@ const WebhookManager: React.FC = () => {
       
     } catch (error) {
       console.error("Error testing webhook:", error);
-      toast({
-        title: "Test failed",
+      toast.error("Test failed", {
         description: "Failed to test webhook",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
