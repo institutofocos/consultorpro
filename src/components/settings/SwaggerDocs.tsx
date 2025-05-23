@@ -1,8 +1,9 @@
-
 import React from 'react';
 import SwaggerUI from 'swagger-ui-react';
 import "swagger-ui-react/swagger-ui.css";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { InfoIcon } from "lucide-react";
 
 const SwaggerDocs: React.FC = () => {
   // Swagger specification in OpenAPI format
@@ -24,12 +25,14 @@ const SwaggerDocs: React.FC = () => {
         apiKey: {
           type: "apiKey",
           in: "header",
-          name: "apikey"
+          name: "apikey",
+          description: "Supabase anon key - Você pode usar esta apiKey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmZnBpb2VwdmtmdnB1cWRiYm5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MzQ5NDIsImV4cCI6MjA2MzUxMDk0Mn0.ZD1AuPVDNuqTeYz8Eyt4QZHf_Qt1K-9oZcK3_fxSx-w"
         },
         authToken: {
           type: "apiKey",
           in: "header",
-          name: "Authorization"
+          name: "Authorization",
+          description: "Bearer token for authenticated users"
         }
       },
       schemas: {
@@ -304,9 +307,24 @@ const SwaggerDocs: React.FC = () => {
         <p className="text-muted-foreground">Explore the ConsultorPRO API</p>
       </div>
 
+      <Alert>
+        <InfoIcon className="h-4 w-4" />
+        <AlertTitle>Informação sobre autenticação</AlertTitle>
+        <AlertDescription>
+          <p>Para utilizar a API, você precisará da chave de API (apiKey):</p>
+          <code className="bg-muted px-2 py-1 rounded text-sm break-all mt-1 block">
+            eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmZnBpb2VwdmtmdnB1cWRiYm5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MzQ5NDIsImV4cCI6MjA2MzUxMDk0Mn0.ZD1AuPVDNuqTeYz8Eyt4QZHf_Qt1K-9oZcK3_fxSx-w
+          </code>
+          <p className="mt-2">Para usuários autenticados, você também precisará incluir um token de autorização no formato <code className="bg-muted px-1 py-0.5 rounded text-xs">Bearer [seu-token]</code>.</p>
+        </AlertDescription>
+      </Alert>
+
       <Card className="shadow-card">
         <CardHeader>
           <CardTitle>Swagger Documentation</CardTitle>
+          <CardDescription>
+            Documentação interativa da API ConsultorPRO usando OpenAPI
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <SwaggerUI spec={spec} />
