@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -266,27 +265,29 @@ export const ProjectList: React.FC = () => {
   
   const handleDeleteProject = async (id: string) => {
     try {
-      // First, we need to get all chat rooms related to this project
-      const chatRooms = await fetchChatRoomsByProject(id);
+      // First, delete all related chat rooms
+      const { error: chatRoomsError } = await supabase
+        .from('chat_rooms')
+        .delete()
+        .eq('project_id', id);
       
-      // Delete each chat room related to this project
-      for (const room of chatRooms) {
-        try {
-          await deleteChatRoom(room.id);
-        } catch (error) {
-          console.error('Error deleting chat room:', error);
-          // Continue with other deletions even if this one fails
-        }
+      if (chatRoomsError) {
+        console.error('Error deleting chat rooms:', chatRoomsError);
+        throw chatRoomsError;
       }
       
-      // Now we can safely delete the project
-      const { error } = await supabase
+      // Then delete the project
+      const { error: projectError } = await supabase
         .from('projects')
         .delete()
         .eq('id', id);
       
-      if (error) throw error;
+      if (projectError) {
+        console.error('Error deleting project:', projectError);
+        throw projectError;
+      }
       
+      // Update local state
       setProjects(projects.filter(p => p.id !== id));
       
       toast({
