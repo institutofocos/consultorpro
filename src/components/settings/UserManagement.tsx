@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -236,19 +237,22 @@ const UserManagement = () => {
     try {
       const newStatus = !user.is_disabled;
       
-      // Update user status - Fix for admin API methods
+      // Update user status using banned_until instead of banned
       if (newStatus) {
-        // Ban user instead of disableUser
+        // Ban user by setting banned_until to a future date (100 years from now)
+        const futureDate = new Date();
+        futureDate.setFullYear(futureDate.getFullYear() + 100);
+        
         const { error } = await supabase.auth.admin.updateUserById(
           user.id,
-          { banned: true }
+          { banned_until: futureDate.toISOString() }
         );
         if (error) throw error;
       } else {
-        // Unban user instead of enableUser
+        // Unban user by setting banned_until to null
         const { error } = await supabase.auth.admin.updateUserById(
           user.id,
-          { banned: false }
+          { banned_until: null }
         );
         if (error) throw error;
       }
