@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </header>
       
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
+        <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
         <main className="flex-1 overflow-auto p-6 md:p-8 pt-6">
           {children}
         </main>

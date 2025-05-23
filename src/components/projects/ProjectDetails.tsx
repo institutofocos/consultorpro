@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check, Clock } from "lucide-react";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Project as ProjectType, Stage } from './ProjectList';
+import { Project, Stage } from './ProjectList';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
 import { Link } from 'react-router-dom';
@@ -19,7 +19,7 @@ import { fetchChatRoomsByProject } from '@/integrations/supabase/chat';
 import { useQuery } from '@tanstack/react-query';
 
 interface ProjectDetailsProps {
-  project: ProjectType;
+  project: Project;
   onClose: () => void;
   onProjectUpdated: () => void;
 }

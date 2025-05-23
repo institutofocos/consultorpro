@@ -28,7 +28,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Json } from '@/integrations/supabase/types';
 
 // Project type definition
-interface Project {
+export interface Project {
   id: string;
   name: string;
   description: string;
@@ -50,7 +50,7 @@ interface Project {
 }
 
 // Stage type definition for type safety
-interface Stage {
+export interface Stage {
   id: string;
   name: string;
   hours: number;

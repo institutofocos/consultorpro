@@ -22,7 +22,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
 import { Tables } from '@/integrations/supabase/types';
 
-type Consultant = {
+export type Consultant = {
   id: string;
   name: string;
   email: string;
