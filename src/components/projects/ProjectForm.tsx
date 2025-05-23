@@ -105,7 +105,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
       mainConsultantValue: 0,
       supportConsultantValue: 0,
     }
-  };
+  });
   
   // Calculate net value whenever related values change
   React.useEffect(() => {
