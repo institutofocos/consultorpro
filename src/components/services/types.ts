@@ -47,6 +47,9 @@ export interface BasicClient {
   notes?: string | null;
 }
 
+// Import Stage type from the projects module
+import { Stage } from "../projects/types";
+
 export interface Project {
   id: string;
   name: string;

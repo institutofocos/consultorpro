@@ -76,15 +76,15 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
       // If a consultant is already selected, set their commission percentage
       if (mainConsultantId) {
         const consultant = data.find(c => c.id === mainConsultantId);
-        if (consultant && consultant.commission_percentage && !project?.mainConsultantCommission) {
-          setMainConsultantCommission(consultant.commission_percentage.toString());
+        if (consultant && consultant.commissionPercentage && !project?.mainConsultantCommission) {
+          setMainConsultantCommission(consultant.commissionPercentage.toString());
         }
       }
       
       if (supportConsultantId) {
         const consultant = data.find(c => c.id === supportConsultantId);
-        if (consultant && consultant.commission_percentage && !project?.supportConsultantCommission) {
-          setSupportConsultantCommission(consultant.commission_percentage.toString());
+        if (consultant && consultant.commissionPercentage && !project?.supportConsultantCommission) {
+          setSupportConsultantCommission(consultant.commissionPercentage.toString());
         }
       }
     });
@@ -109,9 +109,9 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
     setMainConsultantId(id);
     if (id) {
       const consultant = consultants.find(c => c.id === id);
-      if (consultant && consultant.commission_percentage) {
-        setMainConsultantCommission(consultant.commission_percentage.toString());
-        recalculateConsultantValues(totalValue, taxPercent, thirdPartyExpenses, consultant.commission_percentage.toString(), supportConsultantCommission);
+      if (consultant && consultant.commissionPercentage) {
+        setMainConsultantCommission(consultant.commissionPercentage.toString());
+        recalculateConsultantValues(totalValue, taxPercent, thirdPartyExpenses, consultant.commissionPercentage.toString(), supportConsultantCommission);
       }
     }
   };
@@ -120,9 +120,9 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
     setSupportConsultantId(id);
     if (id) {
       const consultant = consultants.find(c => c.id === id);
-      if (consultant && consultant.commission_percentage) {
-        setSupportConsultantCommission(consultant.commission_percentage.toString());
-        recalculateConsultantValues(totalValue, taxPercent, thirdPartyExpenses, mainConsultantCommission, consultant.commission_percentage.toString());
+      if (consultant && consultant.commissionPercentage) {
+        setSupportConsultantCommission(consultant.commissionPercentage.toString());
+        recalculateConsultantValues(totalValue, taxPercent, thirdPartyExpenses, mainConsultantCommission, consultant.commissionPercentage.toString());
       } else {
         setSupportConsultantCommission('0');
         recalculateConsultantValues(totalValue, taxPercent, thirdPartyExpenses, mainConsultantCommission, '0');
@@ -399,11 +399,11 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
       serviceId: selectedServiceId || null, // Para aceitar valor vazio ou nulo
       mainConsultantId,
       mainConsultantName: mainConsultant?.name,
-      mainConsultantPixKey: mainConsultant?.pix_key,
+      mainConsultantPixKey: mainConsultant?.pixKey,
       mainConsultantCommission: parseFloat(mainConsultantCommission) || 0,
       supportConsultantId: supportConsultantId || null, // Para aceitar valor vazio ou nulo
       supportConsultantName: supportConsultant?.name,
-      supportConsultantPixKey: supportConsultant?.pix_key,
+      supportConsultantPixKey: supportConsultant?.pixKey,
       supportConsultantCommission: parseFloat(supportConsultantCommission) || 0,
       startDate: startDate ? startDate.toISOString() : null,
       endDate: endDate ? endDate.toISOString() : null,
