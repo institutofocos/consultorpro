@@ -41,7 +41,8 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
   const [taxPercent, setTaxPercent] = useState(project?.taxPercent?.toString() || '16');
   const [thirdPartyExpenses, setThirdPartyExpenses] = useState(project?.thirdPartyExpenses?.toString() || '0');
   const [consultantValue, setConsultantValue] = useState(project?.consultantValue?.toString() || '');
-  const [supportConsultantValue, setSupportConsultantValue] = useState(project?.supportConsultantValue?.toString() || '0');
+  // Since supportConsultantValue doesn't exist on Project type, we'll use a default empty string
+  const [supportConsultantValue, setSupportConsultantValue] = useState('0');
   const [status, setStatus] = useState<'planned' | 'active' | 'completed' | 'cancelled'>(project?.status || 'planned');
   const [stages, setStages] = useState<Stage[]>(project?.stages || []);
   const [consultants, setConsultants] = useState<Consultant[]>([]);
@@ -97,13 +98,14 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
             
             const stageEndDate = addDays(stageStartDate, stageDuration - 1);
             
+            // Convert all ids to strings to match the Stage type
             return {
               ...stage,
-              id: stage.id || Date.now() + index,
+              id: stage.id ? stage.id.toString() : Date.now().toString() + index,
               startDate: stage.startDate || stageStartDate.toISOString().split('T')[0],
               endDate: stage.endDate || stageEndDate.toISOString().split('T')[0],
               completed: stage.completed || false
-            };
+            } as Stage;
           });
           
           setStages(stagesWithDates);
@@ -127,7 +129,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
     const newStageEndDate = addDays(newStageStartDate, 5);
     
     const newStage: Stage = {
-      id: Date.now(),
+      id: Date.now().toString(),
       name: `Nova Etapa ${stages.length + 1}`,
       days: 5,
       hours: 20,

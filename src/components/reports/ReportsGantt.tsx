@@ -30,8 +30,20 @@ export default function ReportsGantt() {
       const formattedProjects = data?.map(project => {
         // Count completed stages
         let completedStages = 0;
-        if (project.stages && Array.isArray(project.stages)) {
-          completedStages = project.stages.filter((s: any) => s.completed).length;
+        let totalStages = 0;
+        
+        if (project.stages) {
+          // Check if stages is a JSON string that needs to be parsed
+          const stagesArray = Array.isArray(project.stages) 
+            ? project.stages 
+            : (typeof project.stages === 'string' 
+              ? JSON.parse(project.stages) 
+              : (typeof project.stages === 'object' ? [project.stages] : []));
+          
+          if (Array.isArray(stagesArray)) {
+            totalStages = stagesArray.length;
+            completedStages = stagesArray.filter((s: any) => s.completed).length;
+          }
         }
         
         // Determine color based on status
@@ -47,9 +59,7 @@ export default function ReportsGantt() {
           start: new Date(project.start_date),
           end: new Date(project.end_date),
           consultant: project.main_consultant?.name,
-          progress: project.stages?.length 
-            ? Math.round((completedStages / project.stages.length) * 100) 
-            : 0,
+          progress: totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0,
           color
         };
       }) || [];

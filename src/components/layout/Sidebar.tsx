@@ -102,8 +102,17 @@ const NavDropdownItem: React.FC<NavDropdownItemProps> = ({ label, icon, options,
   );
 };
 
+// Define a new interface for navItems that includes the optional isDropdown and options properties
+interface NavItemType {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+  isDropdown?: boolean;
+  options?: { label: string; to: string; icon: React.ReactNode }[];
+}
+
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
-  const navItems = [
+  const navItems: NavItemType[] = [
     { to: '/', icon: <BarChart2 size={20} />, label: 'Dashboard' },
     { to: '/consultants', icon: <Users size={20} />, label: 'Consultores' },
     { to: '/clients', icon: <Building size={20} />, label: 'Clientes' },
