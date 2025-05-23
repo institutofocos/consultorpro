@@ -91,3 +91,67 @@ export async function updateUserProfile(
 export async function updateUserLastLogin(userId: string) {
   return updateUserProfile(userId, { last_login: new Date() });
 }
+
+export async function resetUserPassword(email: string, newPassword: string) {
+  const { data, error } = await supabase.auth.admin.updateUserById(
+    'email', // Este valor será ignorado, usaremos o email para buscar o usuário
+    {
+      email,
+      password: newPassword,
+    }
+  );
+  
+  if (error) throw error;
+  return data;
+}
+
+export async function setAdminUsers(emails: string[]) {
+  for (const email of emails) {
+    // Buscar usuário pelo email
+    const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
+    
+    if (userError) throw userError;
+    
+    const user = userData.users.find(u => u.email === email);
+    
+    if (user) {
+      // Atualizar perfil para administrador
+      await updateUserProfile(user.id, { role: 'admin' });
+      
+      // Garantir que o usuário tenha todas as permissões de módulo
+      const systemModules = [
+        'dashboard', 'consultants', 'clients', 'projects', 'services', 
+        'tags', 'kpis', 'okrs', 'financial', 'activities', 
+        'notes', 'chat', 'reports', 'settings'
+      ];
+      
+      for (const moduleName of systemModules) {
+        const { data: existingPermission } = await supabase
+          .from('module_permissions')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('module_name', moduleName)
+          .maybeSingle();
+        
+        if (existingPermission) {
+          // Atualizar permissão existente
+          await updateUserPermission(existingPermission.id, {
+            can_view: true,
+            can_edit: true
+          });
+        } else {
+          // Criar nova permissão
+          await createUserPermission({
+            user_id: user.id,
+            module_name: moduleName,
+            can_view: true,
+            can_edit: true
+          });
+        }
+      }
+    }
+  }
+  
+  return true;
+}
+

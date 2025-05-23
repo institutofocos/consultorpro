@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
+import AdminSetup from "./pages/AdminSetup";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 // Import components
@@ -104,8 +104,9 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Rota de autenticação pública */}
+            {/* Rotas de autenticação públicas */}
             <Route path="/auth" element={<Auth />} />
+            <Route path="/admin-setup" element={<AdminSetup />} />
             
             {/* Rotas protegidas */}
             <Route path="/" element={

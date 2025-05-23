@@ -69,12 +69,20 @@ const UserManagement = () => {
         
       if (profilesError) throw profilesError;
       
-      // Combinar usuários com seus perfis
-      return authUsers.users.map(user => ({
-        id: user.id,
-        email: user.email,
-        profile: profiles?.find(p => p.id === user.id) || null
-      })) as UserWithProfile[];
+      // Combinar usuários com seus perfis e converter dates
+      return authUsers.users.map(user => {
+        const userProfile = profiles?.find(p => p.id === user.id);
+        return {
+          id: user.id,
+          email: user.email,
+          profile: userProfile ? {
+            ...userProfile,
+            created_at: userProfile.created_at ? new Date(userProfile.created_at) : new Date(),
+            updated_at: userProfile.updated_at ? new Date(userProfile.updated_at) : new Date(),
+            last_login: userProfile.last_login ? new Date(userProfile.last_login) : undefined
+          } : null
+        } as UserWithProfile;
+      });
     }
   });
   

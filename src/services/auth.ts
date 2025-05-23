@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { AuthUser, UserProfile, ModulePermission } from '@/types/auth';
 
@@ -135,3 +136,43 @@ export function hasPermission(user: AuthUser | null, moduleName: string, actionT
   
   return actionType === 'view' ? permission.can_view : permission.can_edit;
 }
+
+// Função para configurar usuários administradores com senhas específicas
+export async function setupAdminUsers() {
+  try {
+    // Lista de emails de administradores e suas senhas
+    const adminEmails = ['contato@eron.dev.br', 'augusto.andrademelo@gmail.com'];
+    const password = '123456789';
+    
+    // Para cada email de administrador
+    for (const email of adminEmails) {
+      // Buscar usuário pelo email
+      const { data: { users } } = await supabase.auth.admin.listUsers();
+      const user = users.find(u => u.email === email);
+      
+      if (user) {
+        // Atualizar senha do usuário
+        await supabase.auth.admin.updateUserById(
+          user.id,
+          { password }
+        );
+        
+        // Atualizar perfil para administrador
+        await supabase
+          .from('user_profiles')
+          .update({ role: 'admin' })
+          .eq('id', user.id);
+        
+        console.log(`Usuário ${email} configurado como administrador com sucesso.`);
+      } else {
+        console.log(`Usuário com email ${email} não encontrado.`);
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Erro ao configurar usuários administradores:', error);
+    throw error;
+  }
+}
+
