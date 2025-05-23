@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -103,30 +104,65 @@ const TagList: React.FC = () => {
 
   const deleteTagMutation = useMutation({
     mutationFn: async (id: string) => {
-      // First verify if the tag is being used in any service
-      const { data: usedTags, error: checkError } = await supabase
-        .from('service_tags')
-        .select('*')
-        .eq('tag_id', id);
-        
-      if (checkError) throw checkError;
+      console.log('Tentando deletar tag:', id);
       
-      if (usedTags && usedTags.length > 0) {
-        throw new Error('Esta tag não pode ser removida pois está sendo usada em serviços');
+      try {
+        // First check if the tag is being used in service_tags
+        const { data: serviceTagsUsage, error: serviceTagsError } = await supabase
+          .from('service_tags')
+          .select('id')
+          .eq('tag_id', id);
+          
+        if (serviceTagsError) {
+          console.error('Erro ao verificar uso em service_tags:', serviceTagsError);
+          throw serviceTagsError;
+        }
+        
+        if (serviceTagsUsage && serviceTagsUsage.length > 0) {
+          console.log('Tag está sendo usada em service_tags:', serviceTagsUsage.length);
+          throw new Error('Esta tag não pode ser removida pois está sendo usada em serviços');
+        }
+        
+        // Check if the tag is being used in note_tag_relations
+        const { data: noteTagsUsage, error: noteTagsError } = await supabase
+          .from('note_tag_relations')
+          .select('id')
+          .eq('tag_id', id);
+          
+        if (noteTagsError) {
+          console.error('Erro ao verificar uso em note_tag_relations:', noteTagsError);
+          throw noteTagsError;
+        }
+        
+        if (noteTagsUsage && noteTagsUsage.length > 0) {
+          console.log('Tag está sendo usada em note_tag_relations:', noteTagsUsage.length);
+          throw new Error('Esta tag não pode ser removida pois está sendo usada em notas');
+        }
+        
+        // If no usage found, proceed with deletion
+        console.log('Tag não está sendo usada, prosseguindo com a deleção');
+        const { error: deleteError } = await supabase
+          .from('tags')
+          .delete()
+          .eq('id', id);
+        
+        if (deleteError) {
+          console.error('Erro ao deletar tag:', deleteError);
+          throw deleteError;
+        }
+        
+        console.log('Tag deletada com sucesso!');
+      } catch (error) {
+        console.error('Erro no processo de deleção:', error);
+        throw error;
       }
-      
-      const { error } = await supabase
-        .from('tags')
-        .delete()
-        .eq('id', id);
-        
-      if (error) throw error;
     },
     onSuccess: () => {
       toast.success('Tag removida com sucesso!');
       queryClient.invalidateQueries({ queryKey: ['tags'] });
     },
     onError: (error: any) => {
+      console.error('Erro na mutation de deleção:', error);
       toast.error('Erro ao remover tag: ' + error.message);
     }
   });
@@ -159,7 +195,12 @@ const TagList: React.FC = () => {
     form.reset();
   };
   
-  const handleDeleteTag = async (id: string) => {
+  const handleDeleteTag = async (id: string, tagName: string) => {
+    if (!window.confirm(`Tem certeza que deseja excluir a tag "${tagName}"?`)) {
+      return;
+    }
+    
+    console.log('Usuário confirmou deleção da tag:', tagName, 'ID:', id);
     deleteTagMutation.mutate(id);
   };
   
@@ -259,7 +300,7 @@ const TagList: React.FC = () => {
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            onClick={() => handleDeleteTag(tag.id)}
+                            onClick={() => handleDeleteTag(tag.id, tag.name)}
                             disabled={deleteTagMutation.isPending}
                           >
                             <Trash className="h-4 w-4" />
