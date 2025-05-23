@@ -35,6 +35,8 @@ const keyResultSchema = z.object({
   unit: z.string().min(1, "Unidade é obrigatória"),
 });
 
+type KeyResultFormData = z.infer<typeof keyResultSchema>;
+
 const formSchema = z.object({
   name: z.string().min(3, "Nome é obrigatório (mínimo 3 caracteres)"),
   description: z.string().optional(),
@@ -113,8 +115,13 @@ const OkrForm: React.FC<OkrFormProps> = ({ okr, onSave, onCancel }) => {
         responsible: data.responsible || ''
       };
 
-      const keyResultsData = data.keyResults.map(kr => ({
-        ...kr,
+      const keyResultsData: KeyResult[] = data.keyResults.map(kr => ({
+        id: kr.id ?? `new-${Date.now()}-${Math.random()}`,
+        name: kr.name,
+        description: kr.description || '',
+        target: kr.target,
+        current: kr.current,
+        unit: kr.unit,
         status: 'not_started' as IndicatorStatus
       }));
 
@@ -124,7 +131,7 @@ const OkrForm: React.FC<OkrFormProps> = ({ okr, onSave, onCancel }) => {
         indicator.id = okr.id;
         success = await updateIndicator(indicator, keyResultsData);
       } else {
-        const id = await createIndicator(indicator, keyResultsData);
+        const id = await createIndicator(indicator, data.keyResults as Omit<KeyResult, 'id' | 'status'>[]);
         success = !!id;
       }
 

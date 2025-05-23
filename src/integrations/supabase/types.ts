@@ -360,6 +360,107 @@ export type Database = {
           },
         ]
       }
+      indicators: {
+        Row: {
+          category: string
+          created_at: string
+          current: number | null
+          data_source: string
+          description: string | null
+          end_date: string
+          formula: string | null
+          id: string
+          name: string
+          period: string
+          responsible: string | null
+          start_date: string
+          status: string
+          target: number
+          type: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          current?: number | null
+          data_source: string
+          description?: string | null
+          end_date: string
+          formula?: string | null
+          id?: string
+          name: string
+          period: string
+          responsible?: string | null
+          start_date: string
+          status?: string
+          target: number
+          type: string
+          unit: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          current?: number | null
+          data_source?: string
+          description?: string | null
+          end_date?: string
+          formula?: string | null
+          id?: string
+          name?: string
+          period?: string
+          responsible?: string | null
+          start_date?: string
+          status?: string
+          target?: number
+          type?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      key_results: {
+        Row: {
+          current: number | null
+          description: string | null
+          id: string
+          indicator_id: string
+          name: string
+          status: string
+          target: number
+          unit: string
+        }
+        Insert: {
+          current?: number | null
+          description?: string | null
+          id?: string
+          indicator_id: string
+          name: string
+          status?: string
+          target: number
+          unit: string
+        }
+        Update: {
+          current?: number | null
+          description?: string | null
+          id?: string
+          indicator_id?: string
+          name?: string
+          status?: string
+          target?: number
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "key_results_indicator_id_fkey"
+            columns: ["indicator_id"]
+            isOneToOne: false
+            referencedRelation: "indicators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       module_permissions: {
         Row: {
           can_edit: boolean

@@ -9,8 +9,7 @@ export const fetchIndicators = async (): Promise<{kpis: KPI[], okrs: OKR[]}> => 
     // Try to fetch from API
     const { data: indicators, error } = await supabase
       .from('indicators')
-      .select('*, key_results(*)')
-      .order('created_at');
+      .select('*, key_results(*)');
 
     if (error) {
       console.error('Error fetching indicators:', error);
@@ -38,8 +37,8 @@ export const fetchIndicators = async (): Promise<{kpis: KPI[], okrs: OKR[]}> => 
         description: ind.description,
         type: 'kpi' as const,
         category: ind.category,
-        target: ind.target,
-        current: ind.current,
+        target: parseFloat(ind.target),
+        current: parseFloat(ind.current),
         unit: ind.unit,
         period: ind.period,
         startDate: ind.start_date,
@@ -60,8 +59,8 @@ export const fetchIndicators = async (): Promise<{kpis: KPI[], okrs: OKR[]}> => 
         description: ind.description,
         type: 'okr' as const,
         category: ind.category,
-        target: ind.target,
-        current: ind.current,
+        target: parseFloat(ind.target),
+        current: parseFloat(ind.current),
         unit: ind.unit,
         period: ind.period,
         startDate: ind.start_date,
@@ -76,8 +75,8 @@ export const fetchIndicators = async (): Promise<{kpis: KPI[], okrs: OKR[]}> => 
           id: kr.id,
           name: kr.name,
           description: kr.description,
-          target: kr.target,
-          current: kr.current,
+          target: parseFloat(kr.target),
+          current: parseFloat(kr.current),
           unit: kr.unit,
           status: kr.status
         })) || []
@@ -227,7 +226,9 @@ export const updateIndicator = async (indicator: Indicator, keyResults?: KeyResu
     // For OKRs, update key results
     if (indicator.type === 'okr' && keyResults && keyResults.length > 0) {
       // First, remove any deleted key results
-      const keyResultIds = keyResults.map(kr => kr.id);
+      const keyResultIds = keyResults.filter(kr => !kr.id.startsWith('new-')).map(kr => kr.id);
+      
+      // Delete key results that aren't in our current list
       if (keyResultIds.length > 0) {
         const { error: deleteError } = await supabase
           .from('key_results')
@@ -237,6 +238,16 @@ export const updateIndicator = async (indicator: Indicator, keyResults?: KeyResu
 
         if (deleteError) {
           console.error('Error deleting key results:', deleteError);
+        }
+      } else {
+        // If there are no existing key results, delete all key results for this indicator
+        const { error: deleteAllError } = await supabase
+          .from('key_results')
+          .delete()
+          .eq('indicator_id', indicator.id);
+          
+        if (deleteAllError) {
+          console.error('Error deleting all key results:', deleteAllError);
         }
       }
 
@@ -290,17 +301,7 @@ export const updateIndicator = async (indicator: Indicator, keyResults?: KeyResu
 // Function to delete an indicator
 export const deleteIndicator = async (id: string): Promise<boolean> => {
   try {
-    // Delete key results first if it's an OKR
-    const { error: krError } = await supabase
-      .from('key_results')
-      .delete()
-      .eq('indicator_id', id);
-
-    if (krError) {
-      console.error('Error deleting key results:', krError);
-    }
-
-    // Then delete the indicator
+    // Delete the indicator (key results will be cascaded due to FK constraint)
     const { error } = await supabase
       .from('indicators')
       .delete()
@@ -328,8 +329,8 @@ export const calculateKPIValues = async (): Promise<void> => {
       .from('projects')
       .select('count', { count: 'exact' });
     
-    if (!projectsError) {
-      const projectsCount = projectsData?.[0]?.count || 0;
+    if (!projectsError && projectsData) {
+      const projectsCount = projectsData.length;
       
       // Update corresponding KPI
       await supabase
@@ -342,11 +343,11 @@ export const calculateKPIValues = async (): Promise<void> => {
     // 2. Active Projects Count
     const { data: activeProjectsData, error: activeProjectsError } = await supabase
       .from('projects')
-      .select('count', { count: 'exact' })
+      .select('*')
       .eq('status', 'active');
     
-    if (!activeProjectsError) {
-      const activeProjectsCount = activeProjectsData?.[0]?.count || 0;
+    if (!activeProjectsError && activeProjectsData) {
+      const activeProjectsCount = activeProjectsData.length;
       
       // Update corresponding KPI
       await supabase
