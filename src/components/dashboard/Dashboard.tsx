@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -30,6 +29,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter } from "date-fns";
+import { Project, ProjectStage } from '../services/types';
 
 // Time period filter options
 const TIME_FILTERS = {
@@ -116,7 +116,8 @@ export const Dashboard: React.FC = () => {
           .order('name');
         setTags(tagData || []);
         
-        // Fetch projects
+        // Fetch projects - using the any type to bypass type checking temporarily
+        // until Supabase types are refreshed
         const { data: projects } = await supabase
           .from('projects')
           .select(`
@@ -126,7 +127,7 @@ export const Dashboard: React.FC = () => {
             third_party_expenses, main_consultant_value, 
             support_consultant_value, net_value, status, stages
           `)
-          .order('end_date');
+          .order('end_date') as { data: Project[] };
           
         // Format project data for charts
         if (projects) {
@@ -142,7 +143,7 @@ export const Dashboard: React.FC = () => {
           setUpcomingProjects(filtered);
           
           // Extract stages from projects
-          const allStages = [];
+          const allStages: any[] = [];
           projects.forEach(project => {
             if (project.stages && Array.isArray(project.stages)) {
               project.stages.forEach(stage => {

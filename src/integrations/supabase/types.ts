@@ -176,6 +176,101 @@ export type Database = {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          client_id: string | null
+          created_at: string | null
+          description: string | null
+          end_date: string
+          id: string
+          main_consultant_id: string
+          main_consultant_value: number | null
+          name: string
+          net_value: number | null
+          service_id: string | null
+          stages: Json | null
+          start_date: string
+          status: string
+          support_consultant_id: string | null
+          support_consultant_value: number | null
+          tax_percent: number
+          third_party_expenses: number | null
+          total_value: number
+          updated_at: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_date: string
+          id?: string
+          main_consultant_id: string
+          main_consultant_value?: number | null
+          name: string
+          net_value?: number | null
+          service_id?: string | null
+          stages?: Json | null
+          start_date: string
+          status?: string
+          support_consultant_id?: string | null
+          support_consultant_value?: number | null
+          tax_percent?: number
+          third_party_expenses?: number | null
+          total_value?: number
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string
+          id?: string
+          main_consultant_id?: string
+          main_consultant_value?: number | null
+          name?: string
+          net_value?: number | null
+          service_id?: string | null
+          stages?: Json | null
+          start_date?: string
+          status?: string
+          support_consultant_id?: string | null
+          support_consultant_value?: number | null
+          tax_percent?: number
+          third_party_expenses?: number | null
+          total_value?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_main_consultant_id_fkey"
+            columns: ["main_consultant_id"]
+            isOneToOne: false
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_support_consultant_id_fkey"
+            columns: ["support_consultant_id"]
+            isOneToOne: false
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_tags: {
         Row: {
           created_at: string
