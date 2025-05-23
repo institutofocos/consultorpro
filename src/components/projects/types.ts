@@ -1,52 +1,51 @@
 
-export interface Project {
+export interface Stage {
   id: string;
   name: string;
   description: string;
+  days: number;
+  hours: number;
+  startDate?: string;
+  endDate?: string;
+  consultantId?: string;
+  value: number;
+  completed: boolean;
+  clientApproved: boolean;
+  managerApproved: boolean;
+  invoiceIssued: boolean;
+  paymentReceived: boolean;
+  consultantsSettled: boolean;
+  attachment?: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
   serviceId?: string;
-  serviceName?: string;
   clientId?: string;
-  clientName?: string;
   mainConsultantId?: string;
-  mainConsultantName?: string;
-  mainConsultantPixKey?: string;
-  mainConsultantCommission?: number;
+  mainConsultantCommission: number;
   supportConsultantId?: string;
-  supportConsultantName?: string;
-  supportConsultantPixKey?: string;
-  supportConsultantCommission?: number;
+  supportConsultantCommission: number;
   startDate: string;
   endDate: string;
   totalValue: number;
   taxPercent: number;
-  thirdPartyExpenses: number;
-  consultantValue: number;
-  supportConsultantValue: number;
+  thirdPartyExpenses?: number;
+  consultantValue?: number;
+  supportConsultantValue?: number;
   status: 'planned' | 'active' | 'completed' | 'cancelled';
   stages: Stage[];
+  tags?: string[];
+  // Extended properties from joins
+  mainConsultantName?: string;
+  mainConsultantPixKey?: string;
+  supportConsultantName?: string;
+  supportConsultantPixKey?: string;
+  serviceName?: string;
+  clientName?: string;
   completedStages?: number;
-  tags: string[];
-}
-
-export interface Stage {
-  id: string;
-  name: string;
-  description?: string;
-  days: number;
-  hours: number;
-  value: number;
-  startDate: string;
-  endDate: string;
-  completed: boolean;
-  clientApproved: boolean;
-  managerApproved?: boolean;
-  invoiceIssued?: boolean;
-  paymentReceived?: boolean;
-  consultantsSettled?: boolean;
-  consultantPaid: boolean;
-  attachment?: string;
-  consultantId?: string; // Added consultantId field for stage-specific consultant
-  consultantName?: string;
 }
 
 export interface Consultant {
@@ -54,14 +53,15 @@ export interface Consultant {
   name: string;
   email: string;
   phone?: string;
-  hoursPerMonth?: number;
+  pixKey?: string;
   commissionPercentage?: number;
   salary?: number;
-  pixKey?: string;
+  hoursPerMonth?: number;
   street?: string;
   city?: string;
   state?: string;
   zipCode?: string;
   education?: string;
-  availableHours?: number; // Added available hours field
+  createdAt?: string;
+  updatedAt?: string;
 }

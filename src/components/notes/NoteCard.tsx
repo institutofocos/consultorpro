@@ -2,7 +2,10 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Calendar, Tag, UserCircle, Building, Layers, MessageCircle, Clock, CheckSquare, Edit3, Trash2, Check } from 'lucide-react';
+import { 
+  Calendar, Tag, UserCircle, Building, Layers, MessageCircle, 
+  Clock, CheckSquare, Edit3, Trash2, Check, FileText, Link as LinkIcon
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { Note, updateNoteStatus, updateChecklist } from '@/integrations/supabase/notes';
@@ -14,6 +17,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import NoteForm from './NoteForm';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface NoteCardProps {
   note: Note;
@@ -45,10 +56,21 @@ const NoteCard: React.FC<NoteCardProps> = ({
   viewMode = 'cards'
 }) => {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
 
   const handleStatusChange = async (newStatus: Note['status']) => {
     setIsUpdatingStatus(true);
     try {
+      // Check if there are any linked tasks preventing completion
+      if (newStatus === 'finalizado' && note.linked_task_id) {
+        const linkedTask = note.linked_task;
+        if (linkedTask && linkedTask.status !== 'finalizado') {
+          toast.error(`Não é possível finalizar esta tarefa antes que "${linkedTask.title}" seja concluída`);
+          setIsUpdatingStatus(false);
+          return;
+        }
+      }
+
       const updatedNote = await updateNoteStatus(note.id, newStatus);
       if (updatedNote) {
         await onUpdate(updatedNote);
@@ -64,6 +86,16 @@ const NoteCard: React.FC<NoteCardProps> = ({
   const handleMarkAsCompleted = async () => {
     setIsUpdatingStatus(true);
     try {
+      // Check if there are any linked tasks preventing completion
+      if (note.linked_task_id) {
+        const linkedTask = note.linked_task;
+        if (linkedTask && linkedTask.status !== 'finalizado') {
+          toast.error(`Não é possível finalizar esta tarefa antes que "${linkedTask.title}" seja concluída`);
+          setIsUpdatingStatus(false);
+          return;
+        }
+      }
+
       const updatedNote = await updateNoteStatus(note.id, 'finalizado');
       if (updatedNote) {
         await onUpdate(updatedNote);
@@ -121,6 +153,11 @@ const NoteCard: React.FC<NoteCardProps> = ({
   };
 
   const showChecklists = viewMode !== 'cards';
+  
+  // Only show short content in the card, full content in the modal
+  const shortContent = note.content && note.content.length > 100
+    ? note.content.slice(0, 100) + '...'
+    : note.content;
 
   return (
     <Card 
@@ -140,6 +177,12 @@ const NoteCard: React.FC<NoteCardProps> = ({
               <Badge variant="outline" className="bg-purple-50 text-purple-700">
                 <MessageCircle className="h-3 w-3 mr-1" />
                 Chat
+              </Badge>
+            )}
+            {note.linked_task_id && (
+              <Badge variant="outline" className="bg-indigo-50 text-indigo-700">
+                <LinkIcon className="h-3 w-3 mr-1" />
+                Vinculada
               </Badge>
             )}
             <Badge 
@@ -172,9 +215,35 @@ const NoteCard: React.FC<NoteCardProps> = ({
       </CardHeader>
 
       <CardContent className="pb-3 space-y-3">
-        {note.content && (
-          <p className="text-sm text-gray-600 whitespace-pre-wrap">{note.content}</p>
-        )}
+        {/* Content with description button */}
+        <div className="flex justify-between items-center">
+          {note.content && (
+            <Dialog open={descriptionOpen} onOpenChange={setDescriptionOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="text-xs flex gap-1">
+                  <FileText className="h-3 w-3" />
+                  Ver descrição
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>{note.title}</DialogTitle>
+                </DialogHeader>
+                <div className="whitespace-pre-wrap text-sm">{note.content}</div>
+              </DialogContent>
+            </Dialog>
+          )}
+          
+          {note.linked_task && (
+            <Badge 
+              variant="outline" 
+              className="bg-indigo-50 text-indigo-700 text-xs flex items-center"
+            >
+              <LinkIcon className="h-3 w-3 mr-1" />
+              Vinculada a: {note.linked_task.title}
+            </Badge>
+          )}
+        </div>
 
         {/* Datas */}
         <div className="grid grid-cols-1 gap-1 text-xs text-gray-500">

@@ -4,6 +4,14 @@ import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautif
 import { Note, updateNoteStatus } from '@/integrations/supabase/notes';
 import NoteCard from './NoteCard';
 import { toast } from 'sonner';
+import { FileText, Info } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface NotesKanbanProps {
   notes: Note[];
@@ -47,6 +55,7 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     'finalizado': [],
     'cancelado': [],
   });
+  const [openDescriptions, setOpenDescriptions] = useState<{[id: string]: boolean}>({});
 
   // Organiza as notas em colunas de acordo com o status
   useEffect(() => {
@@ -66,6 +75,13 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     setColumns(newColumns);
   }, [notes]);
 
+  const toggleDescription = (id: string, state?: boolean) => {
+    setOpenDescriptions(prev => ({
+      ...prev,
+      [id]: state !== undefined ? state : !prev[id]
+    }));
+  };
+
   // Manipula o evento de arrastar e soltar
   const handleDragEnd = useCallback(async (result: DropResult) => {
     const { source, destination, draggableId } = result;
@@ -79,6 +95,18 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
 
     const sourceColumn = source.droppableId as Note['status'];
     const destColumn = destination.droppableId as Note['status'];
+    
+    // Check for linked tasks before dropping into "finalizado"
+    if (destColumn === "finalizado") {
+      const draggedNote = notes.find(note => note.id === draggableId);
+      if (draggedNote && draggedNote.linked_task_id) {
+        const linkedTask = draggedNote.linked_task;
+        if (linkedTask && linkedTask.status !== 'finalizado') {
+          toast.error(`Não é possível finalizar "${draggedNote.title}" antes que "${linkedTask.title}" seja concluída`);
+          return;
+        }
+      }
+    }
     
     // Se a coluna de origem e destino for a mesma, apenas reordenação
     if (sourceColumn === destColumn) {
@@ -129,7 +157,7 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
         [destColumn]: columns[destColumn].filter(note => note.id !== draggableId),
       });
     }
-  }, [columns, onStatusChanged]);
+  }, [columns, onStatusChanged, notes]);
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
@@ -164,12 +192,38 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
                               snapshot.isDragging ? 'shadow-lg' : ''
                             }`}
                           >
-                            <NoteCard
-                              note={note}
-                              onUpdate={onUpdateNote}
-                              onDelete={onDeleteNote}
-                              isDraggable={true}
-                            />
+                            <div className="relative">
+                              {note.content && (
+                                <Dialog 
+                                  open={openDescriptions[note.id]} 
+                                  onOpenChange={(state) => toggleDescription(note.id, state)}
+                                >
+                                  <Button 
+                                    variant="outline"
+                                    size="sm"
+                                    className="absolute -top-1 -right-1 h-6 w-6 p-0 rounded-full bg-primary/20 hover:bg-primary/30 text-primary z-10"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleDescription(note.id);
+                                    }}
+                                  >
+                                    <Info className="h-3 w-3" />
+                                  </Button>
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle>{note.title}</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="whitespace-pre-wrap">{note.content}</div>
+                                  </DialogContent>
+                                </Dialog>
+                              )}
+                              <NoteCard
+                                note={note}
+                                onUpdate={onUpdateNote}
+                                onDelete={onDeleteNote}
+                                isDraggable={true}
+                              />
+                            </div>
                           </div>
                         )}
                       </Draggable>

@@ -252,7 +252,10 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                   endDate: stage.endDate || stageEndDate.toISOString().split('T')[0],
                   completed: stage.completed || false,
                   clientApproved: false,
-                  consultantPaid: false,
+                  managerApproved: false,
+                  invoiceIssued: false,
+                  paymentReceived: false,
+                  consultantsSettled: false,
                   attachment: stage.attachment || '' // Make sure attachment field is present
                 } as Stage;
               });
@@ -293,7 +296,10 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
       endDate: newStageEndDate.toISOString().split('T')[0],
       completed: false,
       clientApproved: false,
-      consultantPaid: false,
+      managerApproved: false,
+      invoiceIssued: false,
+      paymentReceived: false,
+      consultantsSettled: false,
       attachment: '' // Added attachment field
     };
     
