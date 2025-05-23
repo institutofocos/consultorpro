@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -80,7 +81,7 @@ export const ProjectList: React.FC = () => {
     try {
       setIsLoading(true);
       
-      // Fetch projects from Supabase with correct consultant reference
+      // Fetch projects from Supabase with properly aliased consultant references
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select(`
@@ -94,7 +95,15 @@ export const ProjectList: React.FC = () => {
       if (projectsData) {
         // Transform the data for frontend use
         const transformedProjects: Project[] = projectsData.map(project => {
-          const stages = project.stages as Stage[] || [];
+          // Safely parse stages with proper type handling
+          let stages: Stage[] = [];
+          try {
+            if (project.stages && Array.isArray(project.stages)) {
+              stages = project.stages as unknown as Stage[];
+            }
+          } catch (e) {
+            console.error("Error parsing stages:", e);
+          }
           
           return {
             id: project.id,
@@ -113,8 +122,8 @@ export const ProjectList: React.FC = () => {
             thirdPartyExpenses: Number(project.third_party_expenses) || 0,
             consultantValue: Number(project.main_consultant_value) || 0,
             status: project.status as any || 'planned',
-            stages: Array.isArray(stages) ? stages : [],
-            completedStages: Array.isArray(stages) ? stages.filter(s => s.completed).length : 0
+            stages: stages,
+            completedStages: stages.filter(s => s.completed).length
           };
         });
         
