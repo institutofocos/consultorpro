@@ -49,9 +49,21 @@ interface ServiceFormProps {
 }
 
 export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCancel }) => {
-  const [stages, setStages] = useState<ServiceStage[]>(
-    service?.stages || []
-  );
+  // Parse service stages from JSON if needed
+  let initialStages: ServiceStage[] = [];
+  if (service?.stages) {
+    if (typeof service.stages === 'string') {
+      try {
+        initialStages = JSON.parse(service.stages);
+      } catch (e) {
+        console.error('Error parsing stages:', e);
+      }
+    } else {
+      initialStages = service.stages;
+    }
+  }
+
+  const [stages, setStages] = useState<ServiceStage[]>(initialStages || []);
   const [stageName, setStageName] = useState("");
   const [stageHours, setStageHours] = useState<number>(0);
   const [stageDays, setStageDays] = useState<number>(0);
@@ -59,19 +71,27 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
   const [error, setError] = useState<string | null>(null);
   const [editingStage, setEditingStage] = useState<ServiceStage | null>(null);
   const [tags, setTags] = useState<any[]>([]);
-  const [selectedTags, setSelectedTags] = useState<string[]>(service?.tags || []);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState<string>("");
+
+  // Set initial selected tags from service
+  useEffect(() => {
+    if (service?.tags) {
+      const tagIds = service.tags.map((tag: any) => tag.id);
+      setSelectedTags(tagIds);
+    }
+  }, [service]);
 
   const form = useForm<ServiceFormValues>({
     resolver: zodResolver(serviceSchema),
     defaultValues: service ? {
       name: service.name,
-      description: service.description,
-      totalHours: service.totalHours,
-      hourlyRate: service.hourlyRate || 0,
-      totalValue: service.totalValue || 0,
-      taxRate: service.taxRate || 16,
-      extraCosts: service.extraCosts || 0,
+      description: service.description || '',
+      totalHours: service.total_hours || service.totalHours || 0,
+      hourlyRate: service.hourly_rate || service.hourlyRate || 0,
+      totalValue: service.total_value || service.totalValue || 0,
+      taxRate: service.tax_rate || service.taxRate || 16,
+      extraCosts: service.extra_costs || service.extraCosts || 0,
     } : {
       name: '',
       description: '',
@@ -256,7 +276,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
 
     // Save to database
     try {
-      // Convert stages to Json-compatible format
+      // Convert data to match Supabase column names and convert stages to JSON
       const serviceData = {
         name: data.name,
         description: data.description,
@@ -266,7 +286,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
         tax_rate: data.taxRate,
         extra_costs: data.extraCosts || 0,
         net_value: calculatedNetValue,
-        stages: stages as unknown as Json // Type assertion to match Json type
+        stages: JSON.stringify(stages) // Convert to JSON string
       };
       
       console.log('Saving service data:', serviceData);
@@ -307,16 +327,21 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
             .eq('service_id', savedServiceId);
         }
         
-        const serviceTags = selectedTags.map(tagId => ({
+        // Create unique tag entries to avoid duplicate constraint violations
+        const uniqueTagIds = [...new Set(selectedTags)];
+        
+        const serviceTags = uniqueTagIds.map(tagId => ({
           service_id: savedServiceId,
           tag_id: tagId
         }));
         
-        const { error: tagError } = await supabase
-          .from('service_tags')
-          .insert(serviceTags);
-          
-        if (tagError) throw tagError;
+        if (serviceTags.length > 0) {
+          const { error: tagError } = await supabase
+            .from('service_tags')
+            .insert(serviceTags);
+            
+          if (tagError) throw tagError;
+        }
       }
       
       toast.success('Serviço cadastrado com sucesso!');

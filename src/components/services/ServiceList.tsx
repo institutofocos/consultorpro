@@ -16,7 +16,6 @@ import {
   Trash,
   Clock,
   DollarSign,
-  Calendar,
   Tag
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -89,12 +88,14 @@ export const ServiceList: React.FC = () => {
     setIsLoading(true);
     try {
       // Fetch services
-      const { data: servicesData, error } = await (supabase as any)
+      const { data: servicesData, error } = await supabase
         .from('services')
         .select('*')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
+      
+      console.log('Services data:', servicesData);
       
       // Fetch tags for each service
       const servicesWithTags = await Promise.all(
@@ -115,25 +116,39 @@ export const ServiceList: React.FC = () => {
           // Parse stages from JSON
           let stages = [];
           try {
-            stages = JSON.parse(service.stages || '[]');
+            if (typeof service.stages === 'string') {
+              stages = JSON.parse(service.stages);
+            } else if (service.stages) {
+              stages = service.stages;
+            }
           } catch (e) {
             console.error('Error parsing stages JSON:', e);
           }
           
           return { 
             ...service,
+            // Map database column names to our component property names for consistency
+            id: service.id,
+            name: service.name,
+            description: service.description,
+            totalHours: service.total_hours,
+            hourlyRate: service.hourly_rate,
+            totalValue: service.total_value,
+            taxRate: service.tax_rate,
+            extraCosts: service.extra_costs,
+            netValue: service.net_value,
             tags,
             stages
           };
         })
       );
       
+      console.log('Services with tags:', servicesWithTags);
       setServices(servicesWithTags || []);
     } catch (error: any) {
       console.error('Error fetching services:', error);
       toast.error(`Erro ao carregar serviços: ${error.message}`);
-      // Fallback to mock data for demo purposes
-      setServices(mockServices);
+      setServices([]);
     } finally {
       setIsLoading(false);
     }
@@ -148,58 +163,12 @@ export const ServiceList: React.FC = () => {
   );
   
   const handleAddService = async (service: any) => {
-    if (editingService) {
-      try {
-        // Update existing service
-        const { error } = await (supabase as any)
-          .from('services')
-          .update({
-            name: service.name,
-            description: service.description,
-            totalHours: service.totalHours,
-            hourlyRate: service.hourlyRate,
-            totalValue: service.totalValue,
-            taxRate: service.taxRate,
-            extraCosts: service.extraCosts,
-            netValue: service.netValue,
-            stages: JSON.stringify(service.stages)
-          })
-          .eq('id', editingService.id);
-          
-        if (error) throw error;
-        
-        // Delete existing tag relationships and add new ones
-        await supabase
-          .from('service_tags')
-          .delete()
-          .eq('service_id', editingService.id);
-          
-        if (service.tags && service.tags.length > 0) {
-          const serviceTags = service.tags.map((tagId: string) => ({
-            service_id: editingService.id,
-            tag_id: tagId
-          }));
-          
-          const { error: tagError } = await supabase
-            .from('service_tags')
-            .insert(serviceTags);
-            
-          if (tagError) throw tagError;
-        }
-        
-        toast.success('Serviço atualizado com sucesso!');
-        setEditingService(null);
-      } catch (error: any) {
-        console.error('Error updating service:', error);
-        toast.error(`Erro ao atualizar serviço: ${error.message}`);
-      }
-    }
-    
     setShowForm(false);
-    fetchServices();
+    fetchServices(); // Refresh the list
   };
   
   const handleEditService = (service: Service) => {
+    console.log('Editing service:', service);
     setEditingService(service);
     setShowForm(true);
   };
@@ -213,7 +182,7 @@ export const ServiceList: React.FC = () => {
         .eq('service_id', id);
         
       // Then delete the service
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('services')
         .delete()
         .eq('id', id);
