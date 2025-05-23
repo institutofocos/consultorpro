@@ -273,7 +273,7 @@ export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'upd
 export const updateNote = async (id: string, noteData: Partial<Note>): Promise<Note | null> => {
   try {
     // Extract fields that shouldn't be directly updated in the notes table
-    const { consultant_ids, tag_ids, checklists, chat_room_id, has_internal_chat, ...noteFields } = noteData;
+    const { consultant_ids, tag_ids, checklists, chat_room_id, has_internal_chat, consultant_names, client_name, service_name, tag_names, ...noteFields } = noteData;
 
     // Check if trying to mark as finalizado
     if (noteFields.status === 'finalizado') {
@@ -296,7 +296,7 @@ export const updateNote = async (id: string, noteData: Partial<Note>): Promise<N
       due_date: noteFields.due_date,
       client_id: noteFields.client_id,
       service_id: noteFields.service_id,
-      consultant_id: consultant_ids?.[0] || noteFields.consultant_id,
+      consultant_id: consultant_ids?.[0] || undefined,
     };
 
     // Remove undefined values
