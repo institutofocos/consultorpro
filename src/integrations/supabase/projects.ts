@@ -65,5 +65,23 @@ export const createProjectWithChat = async (projectData: any) => {
   return data;
 };
 
+/**
+ * Updates an existing project in the database
+ */
+export const updateProject = async (id: string, projectData: any) => {
+  const { data, error } = await supabase
+    .from('projects')
+    .update(projectData)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating project:', error);
+    throw error;
+  }
+
+  return data;
+};
+
 // Exportar outras funções relacionadas a projetos, se necessário
-// ...

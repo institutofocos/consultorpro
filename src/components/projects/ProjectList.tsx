@@ -51,7 +51,6 @@ export const ProjectList: React.FC = () => {
       setIsLoading(true);
       
       // Fetch projects from Supabase with properly aliased consultant references
-      // Fix: Use explicit column names in foreign table references to avoid ambiguity
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select(`
@@ -75,9 +74,10 @@ export const ProjectList: React.FC = () => {
             console.error("Error parsing stages:", e);
           }
           
-          // Parse tags if they exist
+          // Parse tags if they exist (handle if property doesn't exist)
           let tags: string[] = [];
           try {
+            // Check if project has tags property and it's an array
             if (project.tags && Array.isArray(project.tags)) {
               tags = project.tags as string[];
             }
@@ -94,11 +94,15 @@ export const ProjectList: React.FC = () => {
             // Using optional chaining to safely access nested properties
             mainConsultantName: project.main_consultant?.name || 'Não especificado',
             mainConsultantPixKey: project.main_consultant?.pix_key || '',
-            mainConsultantCommission: project.main_consultant_commission || project.main_consultant?.commission_percentage || 0,
+            // Use commission from specific field if available, or from consultant profile, or default to 0
+            mainConsultantCommission: project.main_consultant_commission || 
+                                      project.main_consultant?.commission_percentage || 0,
             supportConsultantId: project.support_consultant_id || undefined,
             supportConsultantName: project.support_consultant?.name || undefined,
             supportConsultantPixKey: project.support_consultant?.pix_key || '',
-            supportConsultantCommission: project.support_consultant_commission || project.support_consultant?.commission_percentage || 0,
+            // Use commission from specific field if available, or from consultant profile, or default to 0
+            supportConsultantCommission: project.support_consultant_commission || 
+                                         project.support_consultant?.commission_percentage || 0,
             startDate: project.start_date,
             endDate: project.end_date,
             totalValue: Number(project.total_value) || 0,
@@ -109,7 +113,7 @@ export const ProjectList: React.FC = () => {
             status: project.status as any || 'planned',
             stages: stages,
             completedStages: stages.filter(s => s.completed).length,
-            tags: tags || []
+            tags: tags
           };
         });
         
@@ -272,7 +276,7 @@ export const ProjectList: React.FC = () => {
     project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     project.mainConsultantName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    // Also search by tags
+    // Also search by tags, safely handling potential undefined
     (project.tags && project.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
   );
   
