@@ -7,7 +7,7 @@ export interface Project {
   serviceName?: string;
   clientId?: string;
   clientName?: string;
-  mainConsultantId: string;
+  mainConsultantId?: string;
   mainConsultantName?: string;
   mainConsultantPixKey?: string;
   mainConsultantCommission?: number;

@@ -621,7 +621,7 @@ export type Database = {
           end_date: string
           id: string
           main_consultant_commission: number | null
-          main_consultant_id: string
+          main_consultant_id: string | null
           main_consultant_value: number | null
           name: string
           net_value: number | null
@@ -645,7 +645,7 @@ export type Database = {
           end_date: string
           id?: string
           main_consultant_commission?: number | null
-          main_consultant_id: string
+          main_consultant_id?: string | null
           main_consultant_value?: number | null
           name: string
           net_value?: number | null
@@ -669,7 +669,7 @@ export type Database = {
           end_date?: string
           id?: string
           main_consultant_commission?: number | null
-          main_consultant_id?: string
+          main_consultant_id?: string | null
           main_consultant_value?: number | null
           name?: string
           net_value?: number | null

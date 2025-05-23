@@ -12,7 +12,7 @@ export const updateProject = async (project: Project) => {
         description: project.description,
         service_id: project.serviceId || null,
         client_id: project.clientId || null,
-        main_consultant_id: project.mainConsultantId || null, // Allow null consultants
+        main_consultant_id: project.mainConsultantId || null, // Now properly supports null consultants
         main_consultant_commission: project.mainConsultantCommission || 0,
         support_consultant_id: project.supportConsultantId || null,
         support_consultant_commission: project.supportConsultantCommission || 0,
