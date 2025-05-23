@@ -65,8 +65,9 @@ export const fetchNotes = async (): Promise<Note[]> => {
           client_name: client,
           service_name: service,
           tags,
-          custom_fields: customFields
-        };
+          custom_fields: customFields,
+          status: note.status as 'a_fazer' | 'em_producao' | 'finalizado' | 'cancelado'
+        } as Note;
       })
     );
 
@@ -105,8 +106,9 @@ export const fetchNoteById = async (id: string): Promise<Note | null> => {
       client_name: client,
       service_name: service,
       tags,
-      custom_fields: customFields
-    };
+      custom_fields: customFields,
+      status: data.status as 'a_fazer' | 'em_producao' | 'finalizado' | 'cancelado'
+    } as Note;
   } catch (error) {
     console.error('Error in fetchNoteById:', error);
     return null;

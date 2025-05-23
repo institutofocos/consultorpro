@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -7,6 +6,7 @@ import { cn } from '@/lib/utils';
 
 import { Note } from '@/integrations/supabase/notes';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import NoteForm from './NoteForm';
 
@@ -129,7 +129,6 @@ const NoteCard: React.FC<NoteCardProps> = ({
           />
           <Button 
             variant="outline" 
-            color="destructive"
             className="border-red-200 hover:border-red-500 hover:text-red-600"
             onClick={() => onDelete(note.id)}
           >
