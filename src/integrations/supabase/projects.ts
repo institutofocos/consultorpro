@@ -221,34 +221,40 @@ export const createProject = async (project: Project) => {
 // Function to delete a project (with proper cleanup)
 export const deleteProject = async (id: string) => {
   try {
-    // First, delete all chat room participants
-    const { error: participantsError } = await supabase
-      .from('chat_room_participants')
-      .delete()
-      .in('room_id', 
-        supabase
-          .from('chat_rooms')
-          .select('id')
-          .eq('project_id', id)
-      );
+    // First, get all chat room IDs for this project
+    const { data: chatRooms, error: chatRoomsSelectError } = await supabase
+      .from('chat_rooms')
+      .select('id')
+      .eq('project_id', id);
     
-    if (participantsError) {
-      console.error('Error deleting chat room participants:', participantsError);
+    if (chatRoomsSelectError) {
+      console.error('Error fetching chat rooms:', chatRoomsSelectError);
+      throw chatRoomsSelectError;
     }
     
-    // Then delete all chat messages
-    const { error: messagesError } = await supabase
-      .from('chat_messages')
-      .delete()
-      .in('room_id', 
-        supabase
-          .from('chat_rooms')
-          .select('id')
-          .eq('project_id', id)
-      );
-    
-    if (messagesError) {
-      console.error('Error deleting chat messages:', messagesError);
+    // If there are chat rooms, delete their participants and messages
+    if (chatRooms && chatRooms.length > 0) {
+      const roomIds = chatRooms.map(room => room.id);
+      
+      // Delete all chat room participants
+      const { error: participantsError } = await supabase
+        .from('chat_room_participants')
+        .delete()
+        .in('room_id', roomIds);
+      
+      if (participantsError) {
+        console.error('Error deleting chat room participants:', participantsError);
+      }
+      
+      // Delete all chat messages
+      const { error: messagesError } = await supabase
+        .from('chat_messages')
+        .delete()
+        .in('room_id', roomIds);
+      
+      if (messagesError) {
+        console.error('Error deleting chat messages:', messagesError);
+      }
     }
     
     // Then delete all chat rooms
