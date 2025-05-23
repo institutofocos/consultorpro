@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -278,7 +277,7 @@ export const ProjectList: React.FC = () => {
       {showForm ? (
         <ProjectForm 
           project={editingProject} 
-          onSave={handleAddProject} 
+          onProjectSaved={handleAddProject} 
           onCancel={() => {
             setShowForm(false);
             setEditingProject(null);
