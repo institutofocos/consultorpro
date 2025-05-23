@@ -125,6 +125,19 @@ const TagList: React.FC = () => {
   
   const handleDeleteTag = async (id: string) => {
     try {
+      // First verify if the tag is being used in any service
+      const { data: usedTags, error: checkError } = await supabase
+        .from('service_tags')
+        .select('*')
+        .eq('tag_id', id);
+        
+      if (checkError) throw checkError;
+      
+      if (usedTags && usedTags.length > 0) {
+        toast.error('Esta tag não pode ser removida pois está sendo usada em serviços');
+        return;
+      }
+      
       const { error } = await supabase
         .from('tags')
         .delete()
@@ -133,10 +146,11 @@ const TagList: React.FC = () => {
       if (error) throw error;
       
       toast.success('Tag removida com sucesso!');
-      // Atualizar lista de tags após exclusão
+      // Atualizar lista de tags após exclusão (remove da lista local)
       setTags(tags.filter(tag => tag.id !== id));
     } catch (error: any) {
       toast.error('Erro ao remover tag: ' + error.message);
+      console.error('Delete tag error details:', error);
     }
   };
   

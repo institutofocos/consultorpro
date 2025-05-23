@@ -12,7 +12,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Plus, Trash, MoreHorizontal } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -21,6 +21,8 @@ import { fetchConsultants } from '@/integrations/supabase/consultants';
 import { supabase } from '@/integrations/supabase/client';
 import { createChatRoom, addChatParticipant } from '@/integrations/supabase/chat';
 import { Consultant, Project, Stage } from './types';
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { addDays } from 'date-fns';
 
 interface ProjectFormProps {
   project?: Project | null;
@@ -33,21 +35,135 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
   const [description, setDescription] = useState(project?.description || '');
   const [mainConsultantId, setMainConsultantId] = useState(project?.mainConsultantId || '');
   const [supportConsultantId, setSupportConsultantId] = useState(project?.supportConsultantId || '');
-  const [startDate, setStartDate] = useState<Date | undefined>(project ? new Date(project.startDate) : undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(project ? new Date(project.endDate) : undefined);
+  const [startDate, setStartDate] = useState<Date | undefined>(project ? new Date(project.startDate) : new Date());
+  const [endDate, setEndDate] = useState<Date | undefined>(project ? new Date(project.endDate) : addDays(new Date(), 30));
   const [totalValue, setTotalValue] = useState(project?.totalValue?.toString() || '');
-  const [taxPercent, setTaxPercent] = useState(project?.taxPercent?.toString() || '');
-  const [thirdPartyExpenses, setThirdPartyExpenses] = useState(project?.thirdPartyExpenses?.toString() || '');
+  const [taxPercent, setTaxPercent] = useState(project?.taxPercent?.toString() || '16');
+  const [thirdPartyExpenses, setThirdPartyExpenses] = useState(project?.thirdPartyExpenses?.toString() || '0');
   const [consultantValue, setConsultantValue] = useState(project?.consultantValue?.toString() || '');
+  const [supportConsultantValue, setSupportConsultantValue] = useState(project?.supportConsultantValue?.toString() || '0');
   const [status, setStatus] = useState<'planned' | 'active' | 'completed' | 'cancelled'>(project?.status || 'planned');
   const [stages, setStages] = useState<Stage[]>(project?.stages || []);
   const [consultants, setConsultants] = useState<Consultant[]>([]);
+  const [services, setServices] = useState<any[]>([]);
   const { toast } = useToast();
   
   useEffect(() => {
-    // We use TypeScript type assertion to handle the consultant type mismatch
+    // Fetch consultants
     fetchConsultants().then(data => setConsultants(data as unknown as Consultant[]));
+    
+    // Fetch services for stage templates
+    const fetchServices = async () => {
+      const { data, error } = await supabase
+        .from('services')
+        .select('*');
+      
+      if (!error && data) {
+        setServices(data);
+      }
+    };
+    
+    fetchServices();
   }, []);
+
+  // Initialize stages from a service template if no stages provided
+  const initializeStagesFromService = (serviceId: string) => {
+    const selectedService = services.find(s => s.id === serviceId);
+    if (selectedService && selectedService.stages) {
+      try {
+        let serviceStages: Stage[];
+        if (typeof selectedService.stages === 'string') {
+          serviceStages = JSON.parse(selectedService.stages);
+        } else {
+          serviceStages = selectedService.stages;
+        }
+        
+        if (Array.isArray(serviceStages)) {
+          // Add required fields that exist on projects but might not on service templates
+          const stagesWithDates = serviceStages.map((stage, index) => {
+            // Calculate the start and end date for each stage
+            const stageDuration = stage.days || 1;
+            let stageStartDate;
+            
+            if (index === 0) {
+              stageStartDate = startDate ? new Date(startDate) : new Date();
+            } else {
+              const prevStage = serviceStages[index - 1];
+              stageStartDate = addDays(
+                new Date(prevStage.endDate || prevStage.startDate || new Date()), 
+                1
+              );
+            }
+            
+            const stageEndDate = addDays(stageStartDate, stageDuration - 1);
+            
+            return {
+              ...stage,
+              id: stage.id || Date.now() + index,
+              startDate: stage.startDate || stageStartDate.toISOString().split('T')[0],
+              endDate: stage.endDate || stageEndDate.toISOString().split('T')[0],
+              completed: stage.completed || false
+            };
+          });
+          
+          setStages(stagesWithDates);
+          
+          // Set the total value from service if not set
+          if (!totalValue && selectedService.total_value) {
+            setTotalValue(selectedService.total_value.toString());
+          }
+        }
+      } catch (e) {
+        console.error("Error parsing service stages:", e);
+      }
+    }
+  };
+
+  const handleAddStage = () => {
+    const newStageStartDate = stages.length > 0 
+      ? addDays(new Date(stages[stages.length - 1].endDate), 1)
+      : startDate || new Date();
+      
+    const newStageEndDate = addDays(newStageStartDate, 5);
+    
+    const newStage: Stage = {
+      id: Date.now(),
+      name: `Nova Etapa ${stages.length + 1}`,
+      days: 5,
+      hours: 20,
+      value: 2200,
+      startDate: newStageStartDate.toISOString().split('T')[0],
+      endDate: newStageEndDate.toISOString().split('T')[0],
+      completed: false
+    };
+    
+    setStages([...stages, newStage]);
+  };
+
+  const handleUpdateStage = (index: number, field: keyof Stage, value: any) => {
+    const updatedStages = [...stages];
+    updatedStages[index] = { ...updatedStages[index], [field]: value };
+    
+    // If updating days, recalculate endDate
+    if (field === 'days') {
+      const startDateObj = new Date(updatedStages[index].startDate);
+      updatedStages[index].endDate = addDays(startDateObj, Number(value) - 1)
+        .toISOString().split('T')[0];
+    }
+    
+    setStages(updatedStages);
+  };
+
+  const handleDeleteStage = (index: number) => {
+    setStages(stages.filter((_, i) => i !== index));
+  };
+
+  const calculateNetValue = () => {
+    const total = Number(totalValue) || 0;
+    const tax = (Number(taxPercent) || 0) / 100 * total;
+    const expenses = Number(thirdPartyExpenses) || 0;
+    return total - tax - expenses;
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -80,14 +196,13 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
       taxPercent: parseFloat(taxPercent),
       thirdPartyExpenses: parseFloat(thirdPartyExpenses),
       consultantValue: parseFloat(consultantValue),
+      supportConsultantValue: parseFloat(supportConsultantValue),
       status,
       stages
     };
     
     try {
       // Passar os dados para a função onSave do componente pai
-      // Quando o projeto é criado no ProjectList, esta chamada insere no banco de dados
-      // o que ativa o trigger para criar a sala de chat
       const savedProject = await onSave(formData);
       
       // Se for um novo projeto, vamos adicionar os participantes à sala de chat criada pelo trigger
@@ -124,7 +239,6 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
           }
         } catch (error) {
           console.error("Erro ao configurar sala de chat para o projeto:", error);
-          // Não falhar a operação principal se houver erro ao configurar a sala
         }
       }
     } catch (error) {
@@ -150,6 +264,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
             value={name} 
             onChange={(e) => setName(e.target.value)} 
             placeholder="Nome do projeto" 
+            required
           />
         </div>
         
@@ -185,9 +300,11 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">Nenhum</SelectItem>
-              {consultants.map(consultant => (
-                <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
-              ))}
+              {consultants
+                .filter(c => c.id !== mainConsultantId)
+                .map(consultant => (
+                  <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>
@@ -204,7 +321,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                     !startDate && "text-muted-foreground"
                   )}
                 >
-                  {startDate ? format(startDate, "PPP") : (
+                  {startDate ? format(startDate, "dd/MM/yyyy") : (
                     <span>Selecione a data</span>
                   )}
                   <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
@@ -215,9 +332,6 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                   mode="single"
                   selected={startDate}
                   onSelect={setStartDate}
-                  disabled={(date) =>
-                    date > new Date()
-                  }
                   initialFocus
                 />
               </PopoverContent>
@@ -235,7 +349,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                     !endDate && "text-muted-foreground"
                   )}
                 >
-                  {endDate ? format(endDate, "PPP") : (
+                  {endDate ? format(endDate, "dd/MM/yyyy") : (
                     <span>Selecione a data</span>
                   )}
                   <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
@@ -247,7 +361,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
                   selected={endDate}
                   onSelect={setEndDate}
                   disabled={(date) =>
-                    date < startDate!
+                    startDate ? date < startDate : false
                   }
                   initialFocus
                 />
@@ -280,26 +394,53 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
           </div>
         </div>
         
-        <div>
-          <Label htmlFor="thirdPartyExpenses">Despesas de Terceiros</Label>
-          <Input
-            type="number"
-            id="thirdPartyExpenses"
-            value={thirdPartyExpenses}
-            onChange={(e) => setThirdPartyExpenses(e.target.value)}
-            placeholder="Despesas de terceiros"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="thirdPartyExpenses">Despesas de Terceiros</Label>
+            <Input
+              type="number"
+              id="thirdPartyExpenses"
+              value={thirdPartyExpenses}
+              onChange={(e) => setThirdPartyExpenses(e.target.value)}
+              placeholder="Despesas de terceiros"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="netValue">Valor Líquido (calculado)</Label>
+            <Input
+              type="number"
+              id="netValue"
+              value={calculateNetValue()}
+              disabled
+              className="bg-muted"
+            />
+          </div>
         </div>
-        
-        <div>
-          <Label htmlFor="consultantValue">Valor do Consultor</Label>
-          <Input
-            type="number"
-            id="consultantValue"
-            value={consultantValue}
-            onChange={(e) => setConsultantValue(e.target.value)}
-            placeholder="Valor do consultor"
-          />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="consultantValue">Valor do Consultor Principal</Label>
+            <Input
+              type="number"
+              id="consultantValue"
+              value={consultantValue}
+              onChange={(e) => setConsultantValue(e.target.value)}
+              placeholder="Valor do consultor principal"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="supportConsultantValue">Valor do Consultor de Apoio</Label>
+            <Input
+              type="number"
+              id="supportConsultantValue"
+              value={supportConsultantValue}
+              onChange={(e) => setSupportConsultantValue(e.target.value)}
+              placeholder="Valor do consultor de apoio"
+              disabled={!supportConsultantId}
+            />
+          </div>
         </div>
         
         <div>
@@ -319,9 +460,132 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSave, onCan
             </SelectContent>
           </Select>
         </div>
+
+        {/* Seção para etapas do projeto */}
+        <Card>
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle>Etapas do Projeto</CardTitle>
+            <div className="flex gap-2">
+              {services.length > 0 && (
+                <Select onValueChange={initializeStagesFromService}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Carregar de serviço" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {services.map(service => (
+                      <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <Button type="button" onClick={handleAddStage} size="sm">
+                <Plus className="h-4 w-4 mr-1" /> Adicionar
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {stages.length === 0 ? (
+              <div className="text-center py-4 text-muted-foreground">
+                Nenhuma etapa adicionada. Clique em "Adicionar" para criar etapas.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {stages.map((stage, index) => (
+                  <div key={stage.id} className="border rounded-md p-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="font-medium">{stage.name}</div>
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteStage(index)}>
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <Label htmlFor={`stage-name-${index}`} className="text-xs">Nome</Label>
+                        <Input
+                          id={`stage-name-${index}`}
+                          value={stage.name}
+                          onChange={(e) => handleUpdateStage(index, 'name', e.target.value)}
+                          size={10}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor={`stage-days-${index}`} className="text-xs">Dias</Label>
+                        <Input
+                          id={`stage-days-${index}`}
+                          type="number"
+                          value={stage.days}
+                          onChange={(e) => handleUpdateStage(index, 'days', Number(e.target.value))}
+                          size={5}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor={`stage-hours-${index}`} className="text-xs">Horas</Label>
+                        <Input
+                          id={`stage-hours-${index}`}
+                          type="number"
+                          value={stage.hours}
+                          onChange={(e) => handleUpdateStage(index, 'hours', Number(e.target.value))}
+                          size={5}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor={`stage-value-${index}`} className="text-xs">Valor</Label>
+                        <Input
+                          id={`stage-value-${index}`}
+                          type="number"
+                          value={stage.value}
+                          onChange={(e) => handleUpdateStage(index, 'value', Number(e.target.value))}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor={`stage-start-${index}`} className="text-xs">Data Início</Label>
+                        <Input
+                          id={`stage-start-${index}`}
+                          type="date"
+                          value={stage.startDate}
+                          onChange={(e) => handleUpdateStage(index, 'startDate', e.target.value)}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor={`stage-end-${index}`} className="text-xs">Data Fim</Label>
+                        <Input
+                          id={`stage-end-${index}`}
+                          type="date"
+                          value={stage.endDate}
+                          onChange={(e) => handleUpdateStage(index, 'endDate', e.target.value)}
+                        />
+                      </div>
+                      
+                      {project && (
+                        <div className="flex items-center space-x-2 pt-6">
+                          <input
+                            type="checkbox"
+                            id={`stage-completed-${index}`}
+                            checked={stage.completed}
+                            onChange={(e) => handleUpdateStage(index, 'completed', e.target.checked)}
+                            className="rounded border-gray-300"
+                          />
+                          <Label htmlFor={`stage-completed-${index}`} className="text-xs cursor-pointer">
+                            Concluída
+                          </Label>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
         
         <div className="flex justify-end space-x-2">
-          <Button variant="ghost" onClick={onCancel}>Cancelar</Button>
+          <Button variant="ghost" onClick={onCancel} type="button">Cancelar</Button>
           <Button type="submit">{project ? 'Salvar Alterações' : 'Adicionar Projeto'}</Button>
         </div>
       </form>

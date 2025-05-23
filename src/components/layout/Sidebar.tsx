@@ -114,14 +114,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     { to: '/financial', icon: <DollarSign size={20} />, label: 'Financeiro' },
     { to: '/notes', icon: <StickyNote size={20} />, label: 'Anotações' },
     { to: '/chat', icon: <MessageSquare size={20} />, label: 'Chat Interno' },
-    // Agrupando KPIs e OKRs em um dropdown
-    { to: '/kpis-okrs', icon: <LineChart size={20} />, label: 'KPIs / OKRs', isDropdown: true, 
-      options: [
-        { label: 'KPIs', to: '/kpis', icon: <LineChart size={16} /> },
-        { label: 'OKRs', to: '/okrs', icon: <Target size={16} /> }
-      ]
-    },
-    // Removendo dropdown de Relatórios e direcionando diretamente para agenda
+    // KPIs/OKRs como um item único
+    { to: '/kpis', icon: <LineChart size={20} />, label: 'KPIs / OKRs' },
+    // Direcionando relatórios diretamente para agenda
     { to: '/reports/calendar', icon: <FileText size={20} />, label: 'Relatórios' },
     { to: '/settings', icon: <Settings size={20} />, label: 'Configurações' }
   ];
@@ -189,3 +184,5 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     </aside>
   );
 };
+
+export default Sidebar;
