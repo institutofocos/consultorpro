@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 import { Project, Stage } from "@/components/projects/types";
 
@@ -70,29 +71,42 @@ export const fetchProjects = async () => {
     if (error) throw error;
 
     // Transform the data to match the Project type
-    return (data || []).map(project => ({
-      id: project.id,
-      name: project.name,
-      description: project.description,
-      serviceId: project.service_id,
-      clientId: project.client_id,
-      mainConsultantId: project.main_consultant_id,
-      mainConsultantCommission: project.main_consultant_commission || 0,
-      supportConsultantId: project.support_consultant_id,
-      supportConsultantCommission: project.support_consultant_commission || 0,
-      startDate: project.start_date,
-      endDate: project.end_date,
-      totalValue: project.total_value,
-      taxPercent: project.tax_percent,
-      thirdPartyExpenses: project.third_party_expenses || 0,
-      consultantValue: project.main_consultant_value || 0,
-      supportConsultantValue: project.support_consultant_value || 0,
-      status: project.status,
-      stages: project.stages as Stage[] || [],
-      tags: project.tags || [],
-      createdAt: project.created_at,
-      updatedAt: project.updated_at
-    })) as Project[];
+    return (data || []).map(project => {
+      // Safely parse stages from JSON
+      let stages: Stage[] = [];
+      if (project.stages) {
+        try {
+          stages = Array.isArray(project.stages) ? project.stages as Stage[] : [];
+        } catch (e) {
+          console.error('Error parsing stages for project:', project.id, e);
+          stages = [];
+        }
+      }
+
+      return {
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        serviceId: project.service_id,
+        clientId: project.client_id,
+        mainConsultantId: project.main_consultant_id,
+        mainConsultantCommission: project.main_consultant_commission || 0,
+        supportConsultantId: project.support_consultant_id,
+        supportConsultantCommission: project.support_consultant_commission || 0,
+        startDate: project.start_date,
+        endDate: project.end_date,
+        totalValue: project.total_value,
+        taxPercent: project.tax_percent,
+        thirdPartyExpenses: project.third_party_expenses || 0,
+        consultantValue: project.main_consultant_value || 0,
+        supportConsultantValue: project.support_consultant_value || 0,
+        status: project.status,
+        stages: stages,
+        tags: project.tags || [],
+        createdAt: project.created_at,
+        updatedAt: project.updated_at
+      };
+    }) as Project[];
   } catch (error) {
     console.error('Error fetching projects:', error);
     return [];
