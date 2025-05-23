@@ -237,22 +237,30 @@ const UserManagement = () => {
     try {
       const newStatus = !user.is_disabled;
       
-      // Update user status using banned_until instead of banned
+      // Instead of using banned_until which doesn't exist in AdminUserAttributes,
+      // we'll use user_metadata to store the disabled state
       if (newStatus) {
-        // Ban user by setting banned_until to a future date (100 years from now)
-        const futureDate = new Date();
-        futureDate.setFullYear(futureDate.getFullYear() + 100);
-        
+        // Mark user as disabled in metadata
         const { error } = await supabase.auth.admin.updateUserById(
           user.id,
-          { banned_until: futureDate.toISOString() }
+          { 
+            user_metadata: { 
+              is_disabled: true,
+              disabled_at: new Date().toISOString()
+            } 
+          }
         );
         if (error) throw error;
       } else {
-        // Unban user by setting banned_until to null
+        // Mark user as enabled in metadata
         const { error } = await supabase.auth.admin.updateUserById(
           user.id,
-          { banned_until: null }
+          { 
+            user_metadata: { 
+              is_disabled: false,
+              disabled_at: null
+            } 
+          }
         );
         if (error) throw error;
       }
