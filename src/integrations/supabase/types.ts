@@ -242,6 +242,134 @@ export type Database = {
           },
         ]
       }
+      note_custom_fields: {
+        Row: {
+          created_at: string | null
+          field_name: string
+          field_value: string | null
+          id: string
+          note_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          field_name: string
+          field_value?: string | null
+          id?: string
+          note_id: string
+        }
+        Update: {
+          created_at?: string | null
+          field_name?: string
+          field_value?: string | null
+          id?: string
+          note_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_custom_fields_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      note_tags: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          id: string
+          name: string
+          note_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          note_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          note_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_tags_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notes: {
+        Row: {
+          client_id: string | null
+          color: string | null
+          consultant_id: string | null
+          content: string | null
+          created_at: string | null
+          due_date: string | null
+          id: string
+          service_id: string | null
+          status: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          color?: string | null
+          consultant_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          due_date?: string | null
+          id?: string
+          service_id?: string | null
+          status?: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          color?: string | null
+          consultant_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          due_date?: string | null
+          id?: string
+          service_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_consultant_id_fkey"
+            columns: ["consultant_id"]
+            isOneToOne: false
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           client_id: string | null

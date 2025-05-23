@@ -1,9 +1,11 @@
+
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
   Users, Briefcase, BarChart2, LineChart, Target, Calendar, 
   FileText, Settings, ChevronLeft, ChevronRight, Layers, Tag,
-  Building, ChevronDown, KanbanSquare, ChartGantt, DollarSign
+  Building, ChevronDown, KanbanSquare, ChartGantt, DollarSign,
+  StickyNote
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -109,6 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     { to: '/services', icon: <Layers size={20} />, label: 'Serviços' },
     { to: '/tags', icon: <Tag size={20} />, label: 'Tags' },
     { to: '/financial', icon: <DollarSign size={20} />, label: 'Financeiro' },
+    { to: '/notes', icon: <StickyNote size={20} />, label: 'Anotações' },
     { to: '/kpis', icon: <LineChart size={20} />, label: 'KPIs' },
     { to: '/okrs', icon: <Target size={20} />, label: 'OKRs' },
     { to: '/activities', icon: <Calendar size={20} />, label: 'Lançamentos' },

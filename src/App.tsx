@@ -19,6 +19,7 @@ import ActivitiesList from "./components/activities/ActivitiesList";
 import SettingsPage from "./components/settings/SettingsPage";
 import ClientList from "./components/clients/ClientList";
 import FinancialPage from "./components/financial/FinancialPage";
+import NotesPage from "./pages/Notes"; // Importar a nova página de anotações
 
 // Import reports components
 import ReportsLayout from "./components/reports/ReportsLayout";
@@ -79,6 +80,11 @@ const App = () => (
           <Route path="/activities" element={
             <Layout>
               <ActivitiesList />
+            </Layout>
+          } />
+          <Route path="/notes" element={
+            <Layout>
+              <NotesPage />
             </Layout>
           } />
           
