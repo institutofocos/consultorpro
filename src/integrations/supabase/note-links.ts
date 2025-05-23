@@ -1,6 +1,24 @@
 
 import { supabase } from './client';
-import { Note } from './notes';
+
+export interface Note {
+  id: string;
+  title: string;
+  content?: string;
+  status: 'a_fazer' | 'em_producao' | 'finalizado' | 'cancelado';
+  dueDate?: string;
+  startDate?: string;
+  endDate?: string;
+  color?: string;
+  clientId?: string;
+  serviceId?: string;
+  consultantId?: string;
+  linkedTaskId?: string;
+  hasInternalChat?: boolean;
+  chatRoomId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 /**
  * Links two tasks together, making the dependent task require completion of the parent task
@@ -18,7 +36,7 @@ export const linkTasks = async (dependentTaskId: string, parentTaskId: string): 
       .from('notes')
       .update({
         linked_task_id: parentTaskId
-      })
+      } as any)
       .eq('id', dependentTaskId);
 
     if (error) throw error;
@@ -39,7 +57,7 @@ export const unlinkTask = async (taskId: string): Promise<boolean> => {
       .from('notes')
       .update({
         linked_task_id: null
-      })
+      } as any)
       .eq('id', taskId);
 
     if (error) throw error;
@@ -63,7 +81,11 @@ export const fetchTasksForLinking = async (excludeTaskId: string): Promise<Note[
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data as Note[];
+    return data?.map(item => ({
+      id: item.id,
+      title: item.title,
+      status: item.status as 'a_fazer' | 'em_producao' | 'finalizado' | 'cancelado'
+    })) || [];
   } catch (error) {
     console.error('Error fetching tasks for linking:', error);
     return [];
@@ -82,7 +104,11 @@ export const getDependentTasks = async (taskId: string): Promise<Note[]> => {
       .eq('linked_task_id', taskId);
 
     if (error) throw error;
-    return data as Note[];
+    return data?.map(item => ({
+      id: item.id,
+      title: item.title,
+      status: item.status as 'a_fazer' | 'em_producao' | 'finalizado' | 'cancelado'
+    })) || [];
   } catch (error) {
     console.error('Error fetching dependent tasks:', error);
     return [];

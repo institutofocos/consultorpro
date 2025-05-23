@@ -8,6 +8,14 @@ export interface Stage {
   startDate?: string;
   endDate?: string;
   consultantId?: string;
+  value: number;
+  completed: boolean;
+  clientApproved: boolean;
+  managerApproved: boolean;
+  invoiceIssued: boolean;
+  paymentReceived: boolean;
+  consultantsSettled: boolean;
+  attachment?: string;
 }
 
 export interface Project {
@@ -30,4 +38,30 @@ export interface Project {
   status: 'planned' | 'active' | 'completed' | 'cancelled';
   stages: Stage[];
   tags?: string[];
+  // Extended properties from joins
+  mainConsultantName?: string;
+  mainConsultantPixKey?: string;
+  supportConsultantName?: string;
+  supportConsultantPixKey?: string;
+  serviceName?: string;
+  clientName?: string;
+  completedStages?: number;
+}
+
+export interface Consultant {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  pixKey?: string;
+  commissionPercentage?: number;
+  salary?: number;
+  hoursPerMonth?: number;
+  street?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  education?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

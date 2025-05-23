@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { fetchTasksForLinking, linkTasks, unlinkTask } from '@/integrations/supabase/note-links';
-import { Note } from '@/integrations/supabase/notes';
+import { fetchTasksForLinking, linkTasks, unlinkTask, Note } from '@/integrations/supabase/note-links';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Loader2, X, Link as LinkIcon } from 'lucide-react';
