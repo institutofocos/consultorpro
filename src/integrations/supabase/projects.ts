@@ -3,6 +3,74 @@ import { Project, Stage } from "@/components/projects/types";
 import { createProjectTasks, updateProjectTasks } from "./project-tasks";
 import { toast } from "sonner";
 
+// Função para criar transações financeiras do projeto
+const createProjectFinancialTransactions = async (project: Project) => {
+  try {
+    console.log('Criando transações financeiras para o projeto:', project.name);
+    
+    if (!project.stages || !Array.isArray(project.stages)) {
+      console.log('Projeto sem etapas, pulando criação de transações');
+      return;
+    }
+
+    // Criar transações para cada etapa do projeto
+    for (const stage of project.stages) {
+      // Transação de receita (a receber do cliente)
+      await supabase
+        .from('financial_transactions')
+        .insert({
+          project_id: project.id,
+          transaction_type: 'receita',
+          stage_name: stage.name,
+          amount: stage.value || 0,
+          net_amount: stage.value || 0,
+          due_date: stage.endDate || project.endDate,
+          status: 'pendente'
+        });
+
+      // Se há consultor principal, criar transação de pagamento
+      if (project.mainConsultantId && project.consultantValue && project.consultantValue > 0) {
+        const consultantAmount = (project.consultantValue / project.stages.length);
+        await supabase
+          .from('financial_transactions')
+          .insert({
+            project_id: project.id,
+            consultant_id: project.mainConsultantId,
+            transaction_type: 'despesa',
+            stage_name: stage.name,
+            amount: consultantAmount,
+            net_amount: consultantAmount,
+            due_date: stage.endDate || project.endDate,
+            status: 'pendente',
+            is_support_consultant: false
+          });
+      }
+
+      // Se há consultor de apoio, criar transação de pagamento
+      if (project.supportConsultantId && project.supportConsultantValue && project.supportConsultantValue > 0) {
+        const supportAmount = (project.supportConsultantValue / project.stages.length);
+        await supabase
+          .from('financial_transactions')
+          .insert({
+            project_id: project.id,
+            consultant_id: project.supportConsultantId,
+            transaction_type: 'despesa',
+            stage_name: stage.name,
+            amount: supportAmount,
+            net_amount: supportAmount,
+            due_date: stage.endDate || project.endDate,
+            status: 'pendente',
+            is_support_consultant: true
+          });
+      }
+    }
+
+    console.log('Transações financeiras criadas com sucesso');
+  } catch (error) {
+    console.error('Erro ao criar transações financeiras:', error);
+  }
+};
+
 export const updateProject = async (project: Project) => {
   try {
     // Convert the Stage[] array to a proper JSON string that Supabase can handle
@@ -200,17 +268,30 @@ export const createProject = async (project: Project) => {
 
     if (error) throw error;
 
+    // Criar o projeto com o ID retornado do banco
+    const createdProject = { ...project, id: data.id };
+
     // Create tasks for this project
     try {
-      const result = await createProjectTasks(project);
+      const result = await createProjectTasks(createdProject);
       if (result.mainTask) {
-        toast.success("Projeto e tarefas associadas criados com sucesso!");
+        console.log("Tarefas criadas com sucesso para o projeto");
       }
     } catch (taskError) {
       console.error('Error creating project tasks:', taskError);
       // Don't throw here, we want to still return the project
     }
+
+    // Create financial transactions for this project
+    try {
+      await createProjectFinancialTransactions(createdProject);
+      console.log("Transações financeiras criadas com sucesso");
+    } catch (financialError) {
+      console.error('Error creating financial transactions:', financialError);
+      // Don't throw here, we want to still return the project
+    }
     
+    toast.success("Projeto, tarefas e transações financeiras criados com sucesso!");
     return data;
   } catch (error) {
     console.error('Error creating project:', error);

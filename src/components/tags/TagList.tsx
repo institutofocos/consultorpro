@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -140,12 +139,11 @@ const TagList: React.FC = () => {
     }
   });
 
-  // Delete tag mutation
+  // Delete tag mutation - REMOVIDA A CONFIRMAÇÃO
   const deleteTagMutation = useMutation({
     mutationFn: async (id: string) => {
       console.log('Deletando tag com ID:', id);
       
-      // Com as foreign keys CASCADE configuradas, podemos deletar diretamente
       const { error } = await supabase
         .from('tags')
         .delete()
@@ -189,12 +187,10 @@ const TagList: React.FC = () => {
     form.reset();
   };
   
-  // Delete handler
+  // Delete handler - REMOVIDA A CONFIRMAÇÃO
   const handleDeleteTag = (id: string, tagName: string) => {
-    if (window.confirm(`Tem certeza que deseja excluir a tag "${tagName}"?`)) {
-      console.log('Iniciando deleção da tag:', tagName);
-      deleteTagMutation.mutate(id);
-    }
+    console.log('Iniciando deleção da tag:', tagName);
+    deleteTagMutation.mutate(id);
   };
 
   // Loading state
