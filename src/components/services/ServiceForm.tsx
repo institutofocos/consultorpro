@@ -227,8 +227,8 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
   };
   
   const onSubmit = async (data: ServiceFormValues) => {
-    // Validate that total hours match stage hours
-    if (currentTotalStageHours !== totalHours) {
+    // Fix validation to properly compare the hours
+    if (Math.abs(currentTotalStageHours - totalHours) > 0.001) {
       toast.error(`A soma das horas das etapas (${currentTotalStageHours}h) deve ser igual ao total definido (${totalHours}h)`);
       return;
     }
@@ -511,7 +511,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
               )}
               
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   <div className="md:col-span-2">
                     <FormLabel>Nome da Etapa</FormLabel>
                     <Input
@@ -530,7 +530,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                       onChange={(e) => setStageHours(parseFloat(e.target.value) || 0)}
                     />
                     <FormDescription className="text-xs">
-                      Restante: {remainingHours}h
+                      Restante: {remainingHours.toFixed(1)}h
                     </FormDescription>
                   </div>
 
@@ -542,6 +542,16 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                       value={stageDays || ""}
                       onChange={(e) => setStageDays(parseFloat(e.target.value) || 0)}
                     />
+                  </div>
+
+                  <div>
+                    <FormLabel>Valor da Etapa</FormLabel>
+                    <div className="flex items-center h-10 px-3 rounded-md border bg-muted/50">
+                      R$ {(stageHours * (hourlyRate || 0)).toFixed(2)}
+                    </div>
+                    <FormDescription className="text-xs">
+                      Calculado: Horas × Valor hora
+                    </FormDescription>
                   </div>
                 </div>
                 
@@ -638,7 +648,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancelar
             </Button>
-            <Button type="submit">Cadastrar</Button>
+            <Button type="submit">{service ? 'Atualizar' : 'Cadastrar'}</Button>
           </CardFooter>
         </form>
       </Form>

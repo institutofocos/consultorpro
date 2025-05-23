@@ -1,7 +1,7 @@
-
 // This file contains services related to services management
-import { supabase } from './client';
-import { Service, ServiceData, ServiceTag } from '../components/services/types';
+import { supabase } from "./client";
+import { Database } from "./types";
+import { Service, ServiceData } from "../../components/services/types"; // Fixed import path;
 
 export const getServices = async (): Promise<Service[]> => {
   try {
