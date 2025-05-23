@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check, Clock, FileText, Eye } from "lucide-react";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Project, Stage } from './ProjectList';
+import { Project, Stage } from './types';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
 import { Link } from 'react-router-dom';
@@ -55,10 +55,21 @@ interface StageStatus {
 type StageStatusKey = keyof StageStatus;
 
 export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose, onProjectUpdated }) => {
-  const [stages, setStages] = useState<Stage[]>(project.stages || []);
+  const [stages, setStages] = useState<Stage[]>([]);
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
   const [currentStageDescription, setCurrentStageDescription] = useState("");
   const { toast } = useToast();
+  
+  // Initialize stages from project
+  useEffect(() => {
+    console.log('ProjectDetails - project.stages:', project.stages);
+    if (project.stages && Array.isArray(project.stages)) {
+      setStages(project.stages);
+    } else {
+      console.warn('Project stages is not an array or is undefined:', project.stages);
+      setStages([]);
+    }
+  }, [project]);
   
   // Buscar salas de chat relacionadas a este projeto
   const { data: projectChatRooms = [] } = useQuery({
@@ -91,7 +102,10 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
       try {
         const { error } = await supabase
           .from('projects')
-          .update({ status: newStatus })
+          .update({ 
+            status: newStatus,
+            stages: JSON.stringify(updatedStages)
+          })
           .eq('id', project.id);
         
         if (error) throw error;
@@ -132,7 +146,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
       // Update stages in database
       const { error } = await supabase
         .from('projects')
-        .update({ stages: updatedStages as any })
+        .update({ stages: JSON.stringify(updatedStages) })
         .eq('id', project.id);
       
       if (error) throw error;
@@ -183,258 +197,267 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
   const projectProgress = calculateProjectProgress();
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">{project.name}</h2>
-        <div className="space-x-2">
-          {projectChatRooms.length > 0 && (
-            <Link to="/chat" state={{ initialRoomId: projectChatRooms[0].id }}>
-              <Button variant="outline" className="gap-2">
-                <MessageSquare size={16} />
-                Sala de Chat
-              </Button>
-            </Link>
-          )}
-          <Button variant="outline" onClick={onClose}>Voltar</Button>
+    <div className="max-h-[90vh] overflow-y-auto">
+      <div className="space-y-6 p-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">{project.name}</h2>
+          <div className="space-x-2">
+            {projectChatRooms.length > 0 && (
+              <Link to="/chat" state={{ initialRoomId: projectChatRooms[0].id }}>
+                <Button variant="outline" className="gap-2">
+                  <MessageSquare size={16} />
+                  Sala de Chat
+                </Button>
+              </Link>
+            )}
+            <Button variant="outline" onClick={onClose}>Voltar</Button>
+          </div>
         </div>
-      </div>
 
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle>Detalhes do Projeto</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <div className="text-sm font-medium">Consultor Principal</div>
-              <div className="text-muted-foreground">{project.mainConsultantName}</div>
-              <div className="text-xs text-slate-500">Valor: {new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: 'BRL'
-              }).format(project.consultantValue)}</div>
-              {project.mainConsultantPixKey && (
-                <div className="text-xs text-slate-500">PIX: {project.mainConsultantPixKey}</div>
-              )}
-            </div>
-            
-            {project.supportConsultantName && (
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle>Detalhes do Projeto</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <div className="text-sm font-medium">Consultor de Apoio</div>
-                <div className="text-muted-foreground">{project.supportConsultantName}</div>
+                <div className="text-sm font-medium">Consultor Principal</div>
+                <div className="text-muted-foreground">{project.mainConsultantName}</div>
                 <div className="text-xs text-slate-500">Valor: {new Intl.NumberFormat('pt-BR', {
                   style: 'currency',
                   currency: 'BRL'
-                }).format(project.supportConsultantValue)}</div>
-                {project.supportConsultantPixKey && (
-                  <div className="text-xs text-slate-500">PIX: {project.supportConsultantPixKey}</div>
+                }).format(project.consultantValue || 0)}</div>
+                {project.mainConsultantPixKey && (
+                  <div className="text-xs text-slate-500">PIX: {project.mainConsultantPixKey}</div>
                 )}
+              </div>
+              
+              {project.supportConsultantName && (
+                <div>
+                  <div className="text-sm font-medium">Consultor de Apoio</div>
+                  <div className="text-muted-foreground">{project.supportConsultantName}</div>
+                  <div className="text-xs text-slate-500">Valor: {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                  }).format(project.supportConsultantValue || 0)}</div>
+                  {project.supportConsultantPixKey && (
+                    <div className="text-xs text-slate-500">PIX: {project.supportConsultantPixKey}</div>
+                  )}
+                </div>
+              )}
+              
+              <div>
+                <div className="text-sm font-medium">Data de Início</div>
+                <div className="text-muted-foreground">{formatDate(project.startDate)}</div>
+              </div>
+              
+              <div>
+                <div className="text-sm font-medium">Data de Término</div>
+                <div className="text-muted-foreground">{formatDate(project.endDate)}</div>
+              </div>
+              
+              <div>
+                <div className="text-sm font-medium">Valor Total</div>
+                <div className="text-muted-foreground">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                  }).format(project.totalValue)}
+                </div>
+              </div>
+              
+              <div>
+                <div className="text-sm font-medium">Valor Líquido (Empresa)</div>
+                <div className="text-muted-foreground">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                  }).format(calculateNetValue())}
+                </div>
+              </div>
+              
+              <div>
+                <div className="text-sm font-medium">Status</div>
+                <div>
+                  {project.status === 'active' && (
+                    <Badge className="bg-green-500">
+                      <Clock className="mr-1 h-3 w-3" />
+                      Em Andamento
+                    </Badge>
+                  )}
+                  {project.status === 'completed' && (
+                    <Badge className="bg-blue-500">
+                      <Check className="mr-1 h-3 w-3" />
+                      Concluído
+                    </Badge>
+                  )}
+                  {project.status === 'planned' && (
+                    <Badge variant="outline">
+                      Planejado
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              
+              <div>
+                <div className="text-sm font-medium">Progresso do Projeto</div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                      style={{ width: `${projectProgress}%` }}
+                    ></div>
+                  </div>
+                  <span className="text-sm font-medium">{projectProgress}%</span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {stages.filter(s => s.managerApproved).length} de {stages.length} etapas aprovadas pelo gestor
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <div className="text-sm font-medium">Descrição</div>
+              <div className="text-muted-foreground">{project.description}</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle>Etapas do Projeto</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {stages.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Nenhuma etapa encontrada para este projeto.</p>
+                <p className="text-sm mt-2">As etapas são definidas durante a criação/edição do projeto.</p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {stages.map((stage) => (
+                  <div key={stage.id} className="border rounded-md p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        <div className="font-medium">{stage.name}</div>
+                        {stage.description && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="ml-2 p-0 h-6 w-6"
+                                  onClick={() => showStageDescription(stage.description || "")}
+                                >
+                                  <FileText className="h-4 w-4 text-blue-500" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Ver descrição da etapa</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
+                      
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">Gerenciar Status</Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-56">
+                          <DropdownMenuLabel>Atualizar Status da Etapa</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuGroup>
+                            <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'clientApproved', !stage.clientApproved)}>
+                              <Check className={`mr-2 h-4 w-4 ${stage.clientApproved ? 'text-green-600' : 'text-gray-400'}`} />
+                              <span>Aprovado pelo cliente</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'managerApproved', !stage.managerApproved)}>
+                              <Check className={`mr-2 h-4 w-4 ${stage.managerApproved ? 'text-green-600' : 'text-gray-400'}`} />
+                              <span>Aprovado pelo gestor</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'invoiceIssued', !stage.invoiceIssued)}>
+                              <Check className={`mr-2 h-4 w-4 ${stage.invoiceIssued ? 'text-green-600' : 'text-gray-400'}`} />
+                              <span>Nota fiscal emitida</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'paymentReceived', !stage.paymentReceived)}>
+                              <Check className={`mr-2 h-4 w-4 ${stage.paymentReceived ? 'text-green-600' : 'text-gray-400'}`} />
+                              <span>Pagamento recebido</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'consultantsSettled', !stage.consultantsSettled)}>
+                              <Check className={`mr-2 h-4 w-4 ${stage.consultantsSettled ? 'text-green-600' : 'text-gray-400'}`} />
+                              <span>Consultores pagos</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    
+                    <div className="text-sm text-muted-foreground grid grid-cols-2 gap-1">
+                      <div>Data de Início: {stage.startDate ? formatDate(stage.startDate) : 'Não definida'}</div>
+                      <div>Data de Término: {stage.endDate ? formatDate(stage.endDate) : 'Não definida'}</div>
+                      <div>Valor: {new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(stage.value || 0)}</div>
+                      
+                      <div className="flex flex-wrap gap-1 col-span-2 mt-2">
+                        {stage.completed && (
+                          <Badge variant="outline" className="bg-slate-100 text-slate-800 border-slate-300">
+                            Etapa concluída
+                          </Badge>
+                        )}
+                        {stage.clientApproved && (
+                          <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                            Aprovado pelo cliente
+                          </Badge>
+                        )}
+                        {stage.managerApproved && (
+                          <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
+                            Aprovado pelo gestor
+                          </Badge>
+                        )}
+                        {stage.invoiceIssued && (
+                          <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-300">
+                            Nota fiscal emitida
+                          </Badge>
+                        )}
+                        {stage.paymentReceived && (
+                          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                            Pagamento recebido
+                          </Badge>
+                        )}
+                        {stage.consultantsSettled && (
+                          <Badge variant="outline" className="bg-indigo-100 text-indigo-800 border-indigo-300">
+                            Consultores pagos
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
-            
-            <div>
-              <div className="text-sm font-medium">Data de Início</div>
-              <div className="text-muted-foreground">{formatDate(project.startDate)}</div>
-            </div>
-            
-            <div>
-              <div className="text-sm font-medium">Data de Término</div>
-              <div className="text-muted-foreground">{formatDate(project.endDate)}</div>
-            </div>
-            
-            <div>
-              <div className="text-sm font-medium">Valor Total</div>
-              <div className="text-muted-foreground">
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL'
-                }).format(project.totalValue)}
-              </div>
-            </div>
-            
-            <div>
-              <div className="text-sm font-medium">Valor Líquido (Empresa)</div>
-              <div className="text-muted-foreground">
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL'
-                }).format(calculateNetValue())}
-              </div>
-            </div>
-            
-            <div>
-              <div className="text-sm font-medium">Status</div>
-              <div>
-                {project.status === 'active' && (
-                  <Badge className="bg-green-500">
-                    <Clock className="mr-1 h-3 w-3" />
-                    Em Andamento
-                  </Badge>
-                )}
-                {project.status === 'completed' && (
-                  <Badge className="bg-blue-500">
-                    <Check className="mr-1 h-3 w-3" />
-                    Concluído
-                  </Badge>
-                )}
-                {project.status === 'planned' && (
-                  <Badge variant="outline">
-                    Planejado
-                  </Badge>
-                )}
-              </div>
-            </div>
-            
-            <div>
-              <div className="text-sm font-medium">Progresso do Projeto</div>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                    style={{ width: `${projectProgress}%` }}
-                  ></div>
-                </div>
-                <span className="text-sm font-medium">{projectProgress}%</span>
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {stages.filter(s => s.managerApproved).length} de {stages.length} etapas aprovadas pelo gestor
-              </div>
-            </div>
-          </div>
-          
-          <div>
-            <div className="text-sm font-medium">Descrição</div>
-            <div className="text-muted-foreground">{project.description}</div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle>Etapas do Projeto</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            {stages.map((stage) => (
-              <div key={stage.id} className="border rounded-md p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center">
-                    <div className="font-medium">{stage.name}</div>
-                    {stage.description && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              className="ml-2 p-0 h-6 w-6"
-                              onClick={() => showStageDescription(stage.description || "")}
-                            >
-                              <FileText className="h-4 w-4 text-blue-500" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Ver descrição da etapa</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                  </div>
-                  
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm">Gerenciar Status</Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56">
-                      <DropdownMenuLabel>Atualizar Status da Etapa</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'clientApproved', !stage.clientApproved)}>
-                          <Check className={`mr-2 h-4 w-4 ${stage.clientApproved ? 'text-green-600' : 'text-gray-400'}`} />
-                          <span>Aprovado pelo cliente</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'managerApproved', !stage.managerApproved)}>
-                          <Check className={`mr-2 h-4 w-4 ${stage.managerApproved ? 'text-green-600' : 'text-gray-400'}`} />
-                          <span>Aprovado pelo gestor</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'invoiceIssued', !stage.invoiceIssued)}>
-                          <Check className={`mr-2 h-4 w-4 ${stage.invoiceIssued ? 'text-green-600' : 'text-gray-400'}`} />
-                          <span>Nota fiscal emitida</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'paymentReceived', !stage.paymentReceived)}>
-                          <Check className={`mr-2 h-4 w-4 ${stage.paymentReceived ? 'text-green-600' : 'text-gray-400'}`} />
-                          <span>Pagamento recebido</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'consultantsSettled', !stage.consultantsSettled)}>
-                          <Check className={`mr-2 h-4 w-4 ${stage.consultantsSettled ? 'text-green-600' : 'text-gray-400'}`} />
-                          <span>Consultores pagos</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                
-                <div className="text-sm text-muted-foreground grid grid-cols-2 gap-1">
-                  <div>Data de Início: {formatDate(stage.startDate)}</div>
-                  <div>Data de Término: {formatDate(stage.endDate)}</div>
-                  <div>Valor: {new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(stage.value)}</div>
-                  
-                  <div className="flex flex-wrap gap-1 col-span-2 mt-2">
-                    {stage.completed && (
-                      <Badge variant="outline" className="bg-slate-100 text-slate-800 border-slate-300">
-                        Etapa concluída
-                      </Badge>
-                    )}
-                    {stage.clientApproved && (
-                      <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
-                        Aprovado pelo cliente
-                      </Badge>
-                    )}
-                    {stage.managerApproved && (
-                      <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
-                        Aprovado pelo gestor
-                      </Badge>
-                    )}
-                    {stage.invoiceIssued && (
-                      <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-300">
-                        Nota fiscal emitida
-                      </Badge>
-                    )}
-                    {stage.paymentReceived && (
-                      <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
-                        Pagamento recebido
-                      </Badge>
-                    )}
-                    {stage.consultantsSettled && (
-                      <Badge variant="outline" className="bg-indigo-100 text-indigo-800 border-indigo-300">
-                        Consultores pagos
-                      </Badge>
-                    )}
-                  </div>
-                </div>
+        {/* Modal for displaying stage description */}
+        <Dialog open={showDescriptionModal} onOpenChange={setShowDescriptionModal}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Descrição da Etapa</DialogTitle>
+            </DialogHeader>
+            <DialogDescription>
+              <div className="mt-2 whitespace-pre-line">
+                {currentStageDescription}
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Modal for displaying stage description */}
-      <Dialog open={showDescriptionModal} onOpenChange={setShowDescriptionModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Descrição da Etapa</DialogTitle>
-          </DialogHeader>
-          <DialogDescription>
-            <div className="mt-2 whitespace-pre-line">
-              {currentStageDescription}
+            </DialogDescription>
+            <div className="mt-4 flex justify-end">
+              <DialogClose asChild>
+                <Button variant="secondary">Fechar</Button>
+              </DialogClose>
             </div>
-          </DialogDescription>
-          <div className="mt-4 flex justify-end">
-            <DialogClose asChild>
-              <Button variant="secondary">Fechar</Button>
-            </DialogClose>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 };
