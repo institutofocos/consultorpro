@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { fetchTasksForLinking, linkTasks, unlinkTask, Note } from '@/integrations/supabase/note-links';
+import { fetchTasksForLinking, linkTasks, unlinkTask } from '@/integrations/supabase/note-links';
+import { Note } from '@/integrations/supabase/notes';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Loader2, X, Link as LinkIcon } from 'lucide-react';
@@ -17,7 +18,7 @@ const TaskLinkSelector: React.FC<TaskLinkSelectorProps> = ({
   linkedTaskId,
   onLinkChange,
 }) => {
-  const [availableTasks, setAvailableTasks] = useState<Note[]>([]);
+  const [availableTasks, setAvailableTasks] = useState<Pick<Note, 'id' | 'title' | 'status'>[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(linkedTaskId || null);
 

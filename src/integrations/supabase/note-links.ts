@@ -1,6 +1,12 @@
 
 import { supabase } from './client';
-import { Note } from './notes';
+
+// Simple type definition to avoid circular references
+type TaskInfo = {
+  id: string;
+  title: string;
+  status: 'a_fazer' | 'em_producao' | 'finalizado' | 'cancelado';
+};
 
 /**
  * Links two tasks together, making the dependent task require completion of the parent task
@@ -18,7 +24,7 @@ export const linkTasks = async (dependentTaskId: string, parentTaskId: string): 
       .from('notes')
       .update({
         linked_task_id: parentTaskId
-      } as any)
+      })
       .eq('id', dependentTaskId);
 
     if (error) throw error;
@@ -39,7 +45,7 @@ export const unlinkTask = async (taskId: string): Promise<boolean> => {
       .from('notes')
       .update({
         linked_task_id: null
-      } as any)
+      })
       .eq('id', taskId);
 
     if (error) throw error;
@@ -54,7 +60,7 @@ export const unlinkTask = async (taskId: string): Promise<boolean> => {
  * Fetches all available tasks to link with
  * @param excludeTaskId The task to exclude from results (typically the current task)
  */
-export const fetchTasksForLinking = async (excludeTaskId: string): Promise<Pick<Note, 'id' | 'title' | 'status'>[]> => {
+export const fetchTasksForLinking = async (excludeTaskId: string): Promise<TaskInfo[]> => {
   try {
     const { data, error } = await supabase
       .from('notes')
@@ -78,7 +84,7 @@ export const fetchTasksForLinking = async (excludeTaskId: string): Promise<Pick<
  * Gets all tasks that depend on the specified task
  * @param taskId The parent task ID
  */
-export const getDependentTasks = async (taskId: string): Promise<Pick<Note, 'id' | 'title' | 'status'>[]> => {
+export const getDependentTasks = async (taskId: string): Promise<TaskInfo[]> => {
   try {
     const { data, error } = await supabase
       .from('notes')
