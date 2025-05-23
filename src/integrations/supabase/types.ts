@@ -179,6 +179,69 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_transactions: {
+        Row: {
+          amount: number
+          consultant_id: string | null
+          created_at: string | null
+          due_date: string
+          id: string
+          is_support_consultant: boolean
+          net_amount: number
+          payment_date: string | null
+          project_id: string | null
+          stage_name: string
+          status: string
+          transaction_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount?: number
+          consultant_id?: string | null
+          created_at?: string | null
+          due_date: string
+          id?: string
+          is_support_consultant?: boolean
+          net_amount?: number
+          payment_date?: string | null
+          project_id?: string | null
+          stage_name: string
+          status: string
+          transaction_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          consultant_id?: string | null
+          created_at?: string | null
+          due_date?: string
+          id?: string
+          is_support_consultant?: boolean
+          net_amount?: number
+          payment_date?: string | null
+          project_id?: string | null
+          stage_name?: string
+          status?: string
+          transaction_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_transactions_consultant_id_fkey"
+            columns: ["consultant_id"]
+            isOneToOne: false
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_transactions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           client_id: string | null

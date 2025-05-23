@@ -6,44 +6,47 @@ export type Consultant = {
   name: string;
   email: string;
   phone?: string;
-  street?: string;
-  city?: string;
-  state?: string;
-  zip_code?: string;
-  education?: string;
-  hours_per_month?: number;
   commission_percentage?: number;
   salary?: number;
-  pix_key?: string;
   created_at?: string;
   updated_at?: string;
 };
 
 export const fetchConsultants = async (): Promise<Consultant[]> => {
-  const { data, error } = await supabase
-    .from('consultants')
-    .select('*')
-    .order('name', { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from('consultants')
+      .select('id, name, email, phone, commission_percentage, salary, created_at, updated_at')
+      .order('name');
 
-  if (error) {
-    console.error('Error fetching consultants:', error);
-    throw error;
+    if (error) {
+      console.error('Error fetching consultants:', error);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in fetchConsultants:', error);
+    return [];
   }
-
-  return data || [];
 };
 
 export const fetchConsultantById = async (id: string): Promise<Consultant | null> => {
-  const { data, error } = await supabase
-    .from('consultants')
-    .select('*')
-    .eq('id', id)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('consultants')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-  if (error) {
-    console.error(`Error fetching consultant with ID ${id}:`, error);
-    throw error;
+    if (error) {
+      console.error('Error fetching consultant:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in fetchConsultantById:', error);
+    return null;
   }
-
-  return data;
 };

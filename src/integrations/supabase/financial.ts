@@ -29,18 +29,10 @@ export type FinancialFilter = {
 
 export const fetchFinancialTransactions = async (filters: FinancialFilter = {}): Promise<FinancialTransaction[]> => {
   try {
+    // Use a simpler query format first 
     const query = supabase
       .from('financial_transactions')
-      .select(`
-        *,
-        projects!project_id (
-          name,
-          client_id,
-          service_id,
-          clients!client_id (name)
-        ),
-        consultants!consultant_id (name)
-      `);
+      .select();
 
     // Apply filters
     if (filters.status && filters.status.length > 0) {
@@ -81,11 +73,6 @@ export const fetchFinancialTransactions = async (filters: FinancialFilter = {}):
       query.eq('consultant_id', filters.consultantId);
     }
 
-    if (filters.serviceId) {
-      // We need to filter by projects that have the specified service_id
-      query.eq('projects.service_id', filters.serviceId);
-    }
-
     // Sort by date
     query.order('due_date', { ascending: true });
 
@@ -96,33 +83,62 @@ export const fetchFinancialTransactions = async (filters: FinancialFilter = {}):
       throw error;
     }
 
-    // Transform data for easier consumption
-    const result: FinancialTransaction[] = (data || []).map((item: any) => {
-      const projects = item.projects || {};
-      const consultants = item.consultants || {};
-      const clients = projects?.clients || {};
+    // Fetch additional data for each transaction
+    const transactions: FinancialTransaction[] = [];
+    
+    for (const transaction of (data || [])) {
+      let projectName = '';
+      let consultantName = '';
+      let clientName = '';
       
-      return {
-        id: item.id,
-        project_id: item.project_id,
-        transaction_type: item.transaction_type,
-        amount: item.amount,
-        net_amount: item.net_amount,
-        due_date: item.due_date,
-        payment_date: item.payment_date,
-        stage_name: item.stage_name,
-        consultant_id: item.consultant_id,
-        is_support_consultant: item.is_support_consultant,
-        status: item.status,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-        project_name: projects?.name || '',
-        consultant_name: consultants?.name || '',
-        client_name: clients?.name || ''
-      };
-    });
+      // Get project details if project_id exists
+      if (transaction.project_id) {
+        const { data: projectData } = await supabase
+          .from('projects')
+          .select('name, client_id, service_id')
+          .eq('id', transaction.project_id)
+          .single();
+          
+        if (projectData) {
+          projectName = projectData.name;
+          
+          // Get client name if client_id exists
+          if (projectData.client_id) {
+            const { data: clientData } = await supabase
+              .from('clients')
+              .select('name')
+              .eq('id', projectData.client_id)
+              .single();
+              
+            if (clientData) {
+              clientName = clientData.name;
+            }
+          }
+        }
+      }
+      
+      // Get consultant name if consultant_id exists
+      if (transaction.consultant_id) {
+        const { data: consultantData } = await supabase
+          .from('consultants')
+          .select('name')
+          .eq('id', transaction.consultant_id)
+          .single();
+          
+        if (consultantData) {
+          consultantName = consultantData.name;
+        }
+      }
+      
+      transactions.push({
+        ...transaction,
+        project_name: projectName,
+        consultant_name: consultantName,
+        client_name: clientName
+      } as FinancialTransaction);
+    }
 
-    return result;
+    return transactions;
   } catch (error) {
     console.error('Error in fetchFinancialTransactions:', error);
     return [];
