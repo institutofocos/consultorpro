@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -25,15 +25,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { PlusCircle, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-
-// Mock services data (to be replaced with actual data)
-const availableServices = [
-  { id: 1, name: "Consultoria Estratégica" },
-  { id: 2, name: "Gestão de Projetos" },
-  { id: 3, name: "Análise de Dados" },
-  { id: 4, name: "Design Thinking" },
-  { id: 5, name: "Transformação Digital" }
-];
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from "@/components/ui/use-toast";
+import { Service } from '@/components/services/types';
 
 const formSchema = z.object({
   name: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }),
@@ -53,14 +47,44 @@ type FormValues = z.infer<typeof formSchema>;
 
 interface ConsultantFormProps {
   consultant?: any;
-  onSave: (data: FormValues & { services: number[], documents: File[] }) => void;
+  onSave: (data: FormValues & { services: string[], documents: File[] }) => void;
   onCancel: () => void;
 }
 
 export const ConsultantForm: React.FC<ConsultantFormProps> = ({ consultant, onSave, onCancel }) => {
-  const [selectedServices, setSelectedServices] = useState<number[]>(consultant?.services || []);
+  const [selectedServices, setSelectedServices] = useState<string[]>(consultant?.services || []);
   const [selectedServiceInput, setSelectedServiceInput] = useState<string>('');
   const [documents, setDocuments] = useState<File[]>([]);
+  const [availableServices, setAvailableServices] = useState<Service[]>([]);
+  const { toast } = useToast();
+
+  // Fetch services from database
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('services')
+          .select('id, name');
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data) {
+          setAvailableServices(data);
+        }
+      } catch (error) {
+        console.error('Error fetching services:', error);
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não foi possível carregar os serviços."
+        });
+      }
+    };
+
+    fetchServices();
+  }, [toast]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -100,14 +124,13 @@ export const ConsultantForm: React.FC<ConsultantFormProps> = ({ consultant, onSa
   };
 
   const handleServiceAdd = (serviceId: string) => {
-    const id = parseInt(serviceId);
-    if (!selectedServices.includes(id)) {
-      setSelectedServices([...selectedServices, id]);
+    if (!selectedServices.includes(serviceId) && serviceId) {
+      setSelectedServices([...selectedServices, serviceId]);
     }
     setSelectedServiceInput('');
   };
 
-  const handleServiceRemove = (serviceId: number) => {
+  const handleServiceRemove = (serviceId: string) => {
     setSelectedServices(selectedServices.filter(id => id !== serviceId));
   };
 

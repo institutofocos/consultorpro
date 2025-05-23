@@ -9,6 +9,131 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      consultant_documents: {
+        Row: {
+          consultant_id: string
+          created_at: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+        }
+        Insert: {
+          consultant_id: string
+          created_at?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+        }
+        Update: {
+          consultant_id?: string
+          created_at?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultant_documents_consultant_id_fkey"
+            columns: ["consultant_id"]
+            isOneToOne: false
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consultant_services: {
+        Row: {
+          consultant_id: string
+          created_at: string | null
+          id: string
+          service_id: string
+        }
+        Insert: {
+          consultant_id: string
+          created_at?: string | null
+          id?: string
+          service_id: string
+        }
+        Update: {
+          consultant_id?: string
+          created_at?: string | null
+          id?: string
+          service_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultant_services_consultant_id_fkey"
+            columns: ["consultant_id"]
+            isOneToOne: false
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consultant_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consultants: {
+        Row: {
+          city: string | null
+          commission_percentage: number | null
+          created_at: string | null
+          education: string | null
+          email: string
+          hours_per_month: number | null
+          id: string
+          name: string
+          phone: string | null
+          salary: number | null
+          state: string | null
+          street: string | null
+          updated_at: string | null
+          zip_code: string | null
+        }
+        Insert: {
+          city?: string | null
+          commission_percentage?: number | null
+          created_at?: string | null
+          education?: string | null
+          email: string
+          hours_per_month?: number | null
+          id?: string
+          name: string
+          phone?: string | null
+          salary?: number | null
+          state?: string | null
+          street?: string | null
+          updated_at?: string | null
+          zip_code?: string | null
+        }
+        Update: {
+          city?: string | null
+          commission_percentage?: number | null
+          created_at?: string | null
+          education?: string | null
+          email?: string
+          hours_per_month?: number | null
+          id?: string
+          name?: string
+          phone?: string | null
+          salary?: number | null
+          state?: string | null
+          street?: string | null
+          updated_at?: string | null
+          zip_code?: string | null
+        }
+        Relationships: []
+      }
       service_tags: {
         Row: {
           created_at: string
