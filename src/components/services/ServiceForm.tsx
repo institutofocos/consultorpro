@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { PlusCircle, X, AlertCircle, Edit2, Tag, FileUp, AlignLeft } from "lucide-react";
+import { PlusCircle, X, AlertCircle, Edit2, Tag, FileUp, AlignLeft, Eye } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { 
@@ -92,6 +92,10 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
   const [descriptionDialogOpen, setDescriptionDialogOpen] = useState(false);
   const [currentEditingIndex, setCurrentEditingIndex] = useState<number | null>(null);
   const [currentDescription, setCurrentDescription] = useState("");
+  
+  // Dialog for file preview
+  const [filePreviewDialogOpen, setFilePreviewDialogOpen] = useState(false);
+  const [currentFilePreview, setCurrentFilePreview] = useState<string | null>(null);
 
   // Set initial selected tags from service
   useEffect(() => {
@@ -432,6 +436,12 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
     }
   };
   
+  // Handle opening the file preview dialog
+  const handleOpenFilePreview = (fileName: string) => {
+    setCurrentFilePreview(fileName);
+    setFilePreviewDialogOpen(true);
+  };
+
   return (
     <Card className="shadow-card animate-slide-in">
       <CardHeader>
@@ -757,7 +767,9 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                                   onClick={() => handleOpenDescriptionDialog(index)}
                                   title="Adicionar/Editar descrição"
                                 >
-                                  <AlignLeft className="h-4 w-4" />
+                                  <AlignLeft 
+                                    className={`h-4 w-4 ${stage.description ? 'text-green-500' : 'text-red-500'}`} 
+                                  />
                                 </Button>
                                 <Button
                                   type="button"
@@ -766,7 +778,9 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                                   title="Anexar arquivo"
                                 >
                                   <label htmlFor={`file-upload-${index}`} className="cursor-pointer">
-                                    <FileUp className="h-4 w-4" />
+                                    <FileUp 
+                                      className={`h-4 w-4 ${stage.attachment ? 'text-green-500' : 'text-red-500'}`} 
+                                    />
                                     <input
                                       id={`file-upload-${index}`}
                                       type="file"
@@ -776,6 +790,17 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                                     />
                                   </label>
                                 </Button>
+                                {stage.attachment && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleOpenFilePreview(stage.attachment || '')}
+                                    title="Visualizar anexo"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                )}
                                 <Button
                                   type="button"
                                   variant="ghost"
@@ -827,7 +852,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
         </form>
       </Form>
       
-      {/* Add description dialog */}
+      {/* Description dialog */}
       <Dialog open={descriptionDialogOpen} onOpenChange={setDescriptionDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -850,6 +875,32 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
             </Button>
             <Button type="button" onClick={handleSaveDescription}>
               Salvar Descrição
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* File Preview Dialog */}
+      <Dialog open={filePreviewDialogOpen} onOpenChange={setFilePreviewDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Visualização do Arquivo</DialogTitle>
+            <DialogDescription>
+              {currentFilePreview}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="border rounded p-4 text-center">
+              {/* In a real implementation, this would show the actual file */}
+              <p>Arquivo: {currentFilePreview}</p>
+              <p className="text-sm text-gray-500 mt-2">
+                Visualização de arquivos será implementada quando o upload estiver funcional
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" onClick={() => setFilePreviewDialogOpen(false)}>
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>
