@@ -1,6 +1,8 @@
 
 import { supabase } from "./client";
 import { Project, Stage } from "@/components/projects/types";
+import { createProjectTasks, updateProjectTasks } from "./project-tasks";
+import { toast } from "sonner";
 
 export const updateProject = async (project: Project) => {
   try {
@@ -31,6 +33,15 @@ export const updateProject = async (project: Project) => {
       .eq('id', project.id);
 
     if (error) throw error;
+    
+    // Create or update tasks for this project
+    try {
+      await updateProjectTasks(project);
+    } catch (taskError) {
+      console.error('Error updating project tasks:', taskError);
+      // Don't throw here, we want to still return the project
+    }
+    
     return project;
   } catch (error) {
     console.error('Error updating project:', error);
@@ -110,6 +121,54 @@ export const fetchProjects = async () => {
   } catch (error) {
     console.error('Error fetching projects:', error);
     return [];
+  }
+};
+
+// Function to create a new project
+export const createProject = async (project: Project) => {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .insert({
+        name: project.name,
+        description: project.description,
+        service_id: project.serviceId,
+        client_id: project.clientId,
+        main_consultant_id: project.mainConsultantId,
+        main_consultant_commission: project.mainConsultantCommission || 0,
+        support_consultant_id: project.supportConsultantId,
+        support_consultant_commission: project.supportConsultantCommission || 0,
+        start_date: project.startDate,
+        end_date: project.endDate,
+        total_value: project.totalValue,
+        tax_percent: project.taxPercent,
+        third_party_expenses: project.thirdPartyExpenses || 0,
+        main_consultant_value: project.consultantValue || 0,
+        support_consultant_value: project.supportConsultantValue || 0,
+        status: project.status,
+        stages: project.stages,
+        tags: project.tags || []
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Create tasks for this project
+    try {
+      const result = await createProjectTasks(project);
+      if (result.mainTask) {
+        toast.success("Projeto e tarefas associadas criados com sucesso!");
+      }
+    } catch (taskError) {
+      console.error('Error creating project tasks:', taskError);
+      // Don't throw here, we want to still return the project
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error creating project:', error);
+    throw error;
   }
 };
 
@@ -213,10 +272,98 @@ export const assignConsultantsToDemand = async (
       .select();
       
     if (error) throw error;
+
+    // After assigning consultants, update the project tasks
+    try {
+      if (data && data[0]) {
+        const project = await fetchProjectById(projectId);
+        if (project) {
+          await updateProjectTasks(project);
+        }
+      }
+    } catch (taskError) {
+      console.error('Error updating project tasks after consultant assignment:', taskError);
+    }
+
     return data;
   } catch (error) {
     console.error('Error assigning consultants to demand:', error);
     throw error;
+  }
+};
+
+// Helper function to fetch a single project by ID
+export const fetchProjectById = async (projectId: string): Promise<Project | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        id,
+        name,
+        description,
+        service_id,
+        client_id,
+        main_consultant_id,
+        main_consultant_commission,
+        support_consultant_id,
+        support_consultant_commission,
+        start_date,
+        end_date,
+        total_value,
+        tax_percent,
+        third_party_expenses,
+        main_consultant_value,
+        support_consultant_value,
+        status,
+        stages,
+        tags,
+        created_at,
+        updated_at
+      `)
+      .eq('id', projectId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching project by ID:', error);
+      return null;
+    }
+
+    let stages: Stage[] = [];
+    if (data.stages) {
+      try {
+        stages = Array.isArray(data.stages) ? data.stages as unknown as Stage[] : [];
+      } catch (e) {
+        console.error('Error parsing stages for project:', data.id, e);
+        stages = [];
+      }
+    }
+
+    return {
+      id: data.id,
+      name: data.name,
+      description: data.description,
+      serviceId: data.service_id,
+      clientId: data.client_id,
+      mainConsultantId: data.main_consultant_id,
+      mainConsultantCommission: data.main_consultant_commission || 0,
+      supportConsultantId: data.support_consultant_id,
+      supportConsultantCommission: data.support_consultant_commission || 0,
+      startDate: data.start_date,
+      endDate: data.end_date,
+      totalValue: data.total_value,
+      taxPercent: data.tax_percent,
+      thirdPartyExpenses: data.third_party_expenses || 0,
+      consultantValue: data.main_consultant_value || 0,
+      supportConsultantValue: data.support_consultant_value || 0,
+      status: data.status,
+      stages: stages,
+      tags: data.tags || [],
+      createdAt: data.created_at,
+      updatedAt: data.updated_at
+    };
+  } catch (error) {
+    console.error('Error fetching project by ID:', error);
+    return null;
   }
 };
 
@@ -261,6 +408,17 @@ export const assignConsultantToStage = async (
       .eq('id', projectId);
     
     if (updateError) throw updateError;
+
+    // After updating the stage consultant, update the project tasks
+    try {
+      const project = await fetchProjectById(projectId);
+      if (project) {
+        await updateProjectTasks(project);
+      }
+    } catch (taskError) {
+      console.error('Error updating project tasks after stage consultant assignment:', taskError);
+    }
+    
     return updatedStages;
   } catch (error) {
     console.error('Error assigning consultant to stage:', error);

@@ -2,9 +2,9 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
-  Users, Briefcase, BarChart2, LineChart, Target, Calendar, 
+  Users, Briefcase, BarChart2, LineChart, Target, 
   FileText, Settings, ChevronLeft, ChevronRight, Layers, Tag,
-  Building, ChevronDown, KanbanSquare, ChartGantt, DollarSign,
+  Building, ChevronDown, KanbanSquare, DollarSign,
   CheckSquare, MessageSquare, FileCheck
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -125,8 +125,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     { to: '/chat', icon: <MessageSquare size={20} />, label: 'Chat Interno' },
     // KPIs/OKRs como um item único
     { to: '/kpis', icon: <LineChart size={20} />, label: 'KPIs / OKRs' },
-    // Direcionando relatórios diretamente para agenda
-    { to: '/reports/calendar', icon: <FileText size={20} />, label: 'Relatórios' },
     { to: '/settings', icon: <Settings size={20} />, label: 'Configurações' }
   ];
 

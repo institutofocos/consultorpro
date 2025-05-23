@@ -24,11 +24,6 @@ import FinancialPage from "./components/financial/FinancialPage";
 import NotesPage from "./pages/Notes";
 import ChatPage from "./components/chat/ChatPage";
 import DemandsList from "./components/demands/DemandsList";
-// Import report components
-import ReportsLayout from "./components/reports/ReportsLayout";
-import ReportsCalendar from "./components/reports/ReportsCalendar";
-import ReportsKanban from "./components/reports/ReportsKanban";
-import ReportsGantt from "./components/reports/ReportsGantt";
 
 // Modified to always render children without authentication check
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -113,16 +108,6 @@ const App = () => (
             <Route path="/chat" element={
               <Layout><ChatPage /></Layout>
             } />
-            
-            {/* Reports routes */}
-            <Route path="/reports" element={
-              <Layout><ReportsLayout /></Layout>
-            }>
-              <Route index element={<Navigate to="/reports/calendar" replace />} />
-              <Route path="calendar" element={<ReportsCalendar />} />
-              <Route path="kanban" element={<ReportsKanban />} />
-              <Route path="gantt" element={<ReportsGantt />} /> 
-            </Route>
             
             <Route path="/settings" element={
               <Layout><SettingsPage /></Layout>
