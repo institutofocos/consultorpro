@@ -1,10 +1,10 @@
 
 import { supabase } from "./client";
-import { Project } from "@/components/projects/types";
-import { fetchTags } from "./projects";
+import { Project, Stage } from "@/components/projects/types";
 
 export const updateProject = async (project: Project) => {
   try {
+    // Convert the Stage[] array to a proper JSON object that Supabase can handle
     const { error } = await supabase
       .from('projects')
       .update({
@@ -24,7 +24,8 @@ export const updateProject = async (project: Project) => {
         main_consultant_value: project.consultantValue,
         support_consultant_value: project.supportConsultantValue,
         status: project.status,
-        stages: project.stages,
+        // Convert the stages array to a JSON object
+        stages: project.stages as unknown as Record<string, any>,
         tags: project.tags || []
       })
       .eq('id', project.id);
@@ -37,7 +38,7 @@ export const updateProject = async (project: Project) => {
   }
 };
 
-// New function to fetch all available tags
+// Function to fetch all available tags
 export const fetchTags = async () => {
   try {
     const { data, error } = await supabase
