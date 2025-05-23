@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 import { Indicator, KPI, OKR, KeyResult, IndicatorCategory, IndicatorStatus, IndicatorPeriod } from "@/components/indicators/types";
 import { defaultKPIs, defaultOKRs } from "@/components/indicators/defaultIndicators";
@@ -374,5 +373,34 @@ export const calculateKPIValues = async (): Promise<void> => {
     // For more complex formulas, we would need to parse the formula string and execute the corresponding database queries
   } catch (error) {
     console.error('Error calculating KPI values:', error);
+  }
+};
+
+// Function to calculate consultant performance
+export const calculateConsultantPerformance = async (consultantId: string): Promise<number> => {
+  try {
+    // Get all projects where the consultant is the main consultant or support consultant
+    const { data: projects, error: projectsError } = await supabase
+      .from('projects')
+      .select('id, status')
+      .or(`main_consultant_id.eq.${consultantId},support_consultant_id.eq.${consultantId}`);
+    
+    if (projectsError) {
+      console.error('Error fetching consultant projects:', projectsError);
+      return 0;
+    }
+    
+    if (!projects || projects.length === 0) {
+      return 0; // No projects, so no performance data
+    }
+    
+    // Calculate completion rate (completed projects / total projects)
+    const completedProjects = projects.filter(p => p.status === 'completed').length;
+    const performance = (completedProjects / projects.length) * 100;
+    
+    return parseFloat(performance.toFixed(2));
+  } catch (error) {
+    console.error('Error calculating consultant performance:', error);
+    return 0;
   }
 };

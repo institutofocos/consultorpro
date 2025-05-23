@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -21,6 +20,8 @@ import { ConsultantForm } from './ConsultantForm';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
 import { Tables } from '@/integrations/supabase/types';
+import { Progress } from "@/components/ui/progress";
+import { calculateConsultantPerformance } from "@/integrations/supabase/indicators";
 
 export type Consultant = {
   id: string;
@@ -68,6 +69,7 @@ export const ConsultantList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingConsultant, setEditingConsultant] = useState<Consultant | null>(null);
+  const [performances, setPerformances] = useState<{[key: string]: number}>({});
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   
@@ -120,6 +122,23 @@ export const ConsultantList: React.FC = () => {
 
     fetchConsultants();
   }, [toast]);
+  
+  useEffect(() => {
+    const loadPerformances = async () => {
+      if (!consultants || consultants.length === 0) return;
+      
+      const performanceMap: {[key: string]: number} = {};
+      
+      for (const consultant of consultants) {
+        const performance = await calculateConsultantPerformance(consultant.id);
+        performanceMap[consultant.id] = performance;
+      }
+      
+      setPerformances(performanceMap);
+    };
+    
+    loadPerformances();
+  }, [consultants]);
   
   const filteredConsultants = consultants.filter(consultant => 
     consultant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -331,22 +350,11 @@ export const ConsultantList: React.FC = () => {
                         <TableCell>{consultant.hoursPerMonth}h</TableCell>
                         <TableCell>{consultant.activeProjects || 0}</TableCell>
                         <TableCell>
-                          <div className="flex items-center">
-                            <span className={`text-sm mr-2 ${
-                              (consultant.performance || 0) >= 80 ? 'text-green-500' : 
-                              (consultant.performance || 0) >= 60 ? 'text-yellow-500' : 'text-red-500'
-                            }`}>
-                              {consultant.performance || 0}%
-                            </span>
-                            <div className="bg-muted h-2 w-16 rounded-full overflow-hidden">
-                              <div 
-                                className={`h-full rounded-full ${
-                                  (consultant.performance || 0) >= 80 ? 'bg-green-500' : 
-                                  (consultant.performance || 0) >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                                }`}
-                                style={{ width: `${consultant.performance || 0}%` }}
-                              ></div>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex justify-between text-xs">
+                              <span>{performances[consultant.id] || 0}%</span>
                             </div>
+                            <Progress value={performances[consultant.id] || 0} />
                           </div>
                         </TableCell>
                         <TableCell className="text-right">

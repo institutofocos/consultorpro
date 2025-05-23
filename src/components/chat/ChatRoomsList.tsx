@@ -1,13 +1,20 @@
-
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, ChevronDown, Plus, Loader2, UserPlus, Users } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, Loader2, UserPlus, Users, Edit, Trash } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { fetchChatRooms, createChatRoom, createDirectChatRoom, addChatParticipant, ChatRoom } from '@/integrations/supabase/chat';
+import { 
+  fetchChatRooms, 
+  createChatRoom, 
+  createDirectChatRoom, 
+  addChatParticipant, 
+  updateChatRoom,
+  deleteChatRoom,
+  ChatRoom 
+} from '@/integrations/supabase/chat';
 import { fetchConsultants } from '@/integrations/supabase/consultants';
 import { 
   Select,
@@ -16,6 +23,16 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ChatRoomsListProps {
   rooms: ChatRoom[];
@@ -34,11 +51,16 @@ const ChatRoomsList: React.FC<ChatRoomsListProps> = ({
 }) => {
   const [expandedRooms, setExpandedRooms] = useState<string[]>([]);
   const [newRoomDialogOpen, setNewRoomDialogOpen] = useState(false);
+  const [editRoomDialogOpen, setEditRoomDialogOpen] = useState(false);
+  const [deleteRoomDialogOpen, setDeleteRoomDialogOpen] = useState(false);
   const [newRoomParent, setNewRoomParent] = useState<string | null>(null);
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomDescription, setNewRoomDescription] = useState('');
   const [newRoomLevel, setNewRoomLevel] = useState('1');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedRoomForEdit, setSelectedRoomForEdit] = useState<ChatRoom | null>(null);
+  const [selectedRoomForDelete, setSelectedRoomForDelete] = useState<ChatRoom | null>(null);
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
   
   // Estado para o diálogo de participantes
   const [participantDialogOpen, setParticipantDialogOpen] = useState(false);
@@ -257,11 +279,119 @@ const ChatRoomsList: React.FC<ChatRoomsListProps> = ({
     }
   };
   
+  const handleEditRoom = (room: ChatRoom, event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    
+    // Check if room is linked to a project
+    if (room.project_id && room.projects?.status !== 'completed') {
+      toast({
+        variant: "destructive",
+        title: "Sala de projeto",
+        description: "Esta sala não pode ser editada pois está vinculada a um projeto em andamento."
+      });
+      return;
+    }
+    
+    setSelectedRoomForEdit(room);
+    setNewRoomName(room.name);
+    setNewRoomDescription(room.description || '');
+    setEditRoomDialogOpen(true);
+  };
+  
+  const handleSubmitEditRoom = async (event: React.FormEvent) => {
+    event.preventDefault();
+    
+    if (!selectedRoomForEdit || !newRoomName.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Nome obrigatório",
+        description: "Por favor, digite um nome para a sala."
+      });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      await updateChatRoom(selectedRoomForEdit.id, {
+        name: newRoomName,
+        description: newRoomDescription || null
+      });
+      
+      toast({
+        title: "Sala atualizada",
+        description: "A sala foi atualizada com sucesso!"
+      });
+      
+      if (onRoomCreated) {
+        onRoomCreated();
+      }
+      
+      setEditRoomDialogOpen(false);
+    } catch (error) {
+      console.error('Erro ao atualizar sala:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível atualizar a sala. Tente novamente."
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  const handleDeleteRoom = (room: ChatRoom, event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    
+    setSelectedRoomForDelete(room);
+    setDeleteErrorMessage(null);
+    setDeleteRoomDialogOpen(true);
+  };
+  
+  const handleConfirmDeleteRoom = async () => {
+    if (!selectedRoomForDelete) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setDeleteErrorMessage(null);
+    
+    try {
+      await deleteChatRoom(selectedRoomForDelete.id);
+      
+      toast({
+        title: "Sala removida",
+        description: "A sala foi removida com sucesso!"
+      });
+      
+      if (onRoomCreated) {
+        onRoomCreated();
+      }
+      
+      setDeleteRoomDialogOpen(false);
+    } catch (error: any) {
+      console.error('Erro ao remover sala:', error);
+      setDeleteErrorMessage(error.message || "Não foi possível remover a sala. Tente novamente.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  const canModifyRoom = (room: ChatRoom) => {
+    // A room can be modified if it's not linked to a project or if the project is completed
+    return !room.project_id || room.projects?.status === 'completed';
+  };
+  
   const renderRoom = (room: ChatRoom) => {
     const hasChildren = rooms.some(r => r.parent_id === room.id);
     const isExpanded = expandedRooms.includes(room.id);
     const childRooms = rooms.filter(r => r.parent_id === room.id);
     const isFromProject = room.project_id !== null;
+    const isModifiable = canModifyRoom(room);
     
     return (
       <div key={room.id} className="select-none">
@@ -290,8 +420,12 @@ const ChatRoomsList: React.FC<ChatRoomsListProps> = ({
           >
             {room.name}
             {isFromProject && (
-              <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">
-                Projeto
+              <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${
+                room.projects?.status === 'completed' 
+                  ? 'bg-green-100 text-green-600' 
+                  : 'bg-blue-100 text-blue-600'
+              }`}>
+                {room.projects?.status === 'completed' ? 'Projeto Concluído' : 'Projeto'}
               </span>
             )}
           </span>
@@ -307,6 +441,26 @@ const ChatRoomsList: React.FC<ChatRoomsListProps> = ({
             >
               <UserPlus size={14} />
             </button>
+            
+            {isModifiable && (
+              <>
+                <button
+                  onClick={(e) => handleEditRoom(room, e)}
+                  className="p-1 hover:bg-muted rounded mr-1"
+                  title="Editar sala"
+                >
+                  <Edit size={14} />
+                </button>
+                
+                <button
+                  onClick={(e) => handleDeleteRoom(room, e)}
+                  className="p-1 hover:bg-muted rounded mr-1"
+                  title="Remover sala"
+                >
+                  <Trash size={14} />
+                </button>
+              </>
+            )}
             
             {room.level < 3 && (
               <button
@@ -583,6 +737,86 @@ const ChatRoomsList: React.FC<ChatRoomsListProps> = ({
           </form>
         </DialogContent>
       </Dialog>
+      
+      {/* Dialog for editing room */}
+      <Dialog open={editRoomDialogOpen} onOpenChange={setEditRoomDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar sala</DialogTitle>
+          </DialogHeader>
+          
+          <form onSubmit={handleSubmitEditRoom} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-room-name">Nome da sala</Label>
+              <Input 
+                id="edit-room-name" 
+                placeholder="Digite o nome da sala" 
+                value={newRoomName}
+                onChange={(e) => setNewRoomName(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-room-description">Descrição</Label>
+              <Textarea 
+                id="edit-room-description" 
+                placeholder="Descrição opcional" 
+                value={newRoomDescription}
+                onChange={(e) => setNewRoomDescription(e.target.value)}
+              />
+            </div>
+            
+            <DialogFooter>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting || !newRoomName.trim()}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Atualizando...
+                  </>
+                ) : "Atualizar sala"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Alert dialog for deleting room */}
+      <AlertDialog open={deleteRoomDialogOpen} onOpenChange={setDeleteRoomDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover sala</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover esta sala? Esta ação não pode ser desfeita.
+              Todas as mensagens e participantes serão removidos permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          {deleteErrorMessage && (
+            <div className="bg-destructive/10 text-destructive p-3 rounded-md text-sm mb-4">
+              {deleteErrorMessage}
+            </div>
+          )}
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDeleteRoom}
+              disabled={isSubmitting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Removendo...
+                </>
+              ) : "Remover"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

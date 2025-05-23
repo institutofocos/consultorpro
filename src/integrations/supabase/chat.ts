@@ -1,4 +1,3 @@
-
 import { supabase } from './client';
 import type { Database } from './types';
 
@@ -12,7 +11,7 @@ export type ChatRoomType = 'PROJECT' | 'DIRECT' | 'GROUP';
 export const fetchChatRooms = async () => {
   const { data, error } = await supabase
     .from('chat_rooms')
-    .select('*')
+    .select('*, projects(status)')
     .order('level', { ascending: true })
     .order('created_at', { ascending: true });
   
@@ -293,4 +292,77 @@ export const ensureProjectChatRoom = async (projectId: string, projectName: stri
   }
   
   return data[0];
+};
+
+// Update chat room
+export const updateChatRoom = async (
+  id: string, 
+  updates: { name?: string; description?: string }
+): Promise<ChatRoom> => {
+  const { data, error } = await supabase
+    .from('chat_rooms')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Erro ao atualizar sala de chat:', error);
+    throw error;
+  }
+  
+  return data;
+};
+
+// Delete chat room
+export const deleteChatRoom = async (id: string): Promise<void> => {
+  // First check if this room can be deleted (not linked to an active project)
+  const { data: room, error: roomError } = await supabase
+    .from('chat_rooms')
+    .select('project_id, projects(status)')
+    .eq('id', id)
+    .maybeSingle();
+  
+  if (roomError) {
+    console.error('Erro ao verificar sala de chat:', roomError);
+    throw roomError;
+  }
+  
+  // If room is linked to a project and project is not completed
+  if (room?.project_id && room.projects?.status !== 'completed') {
+    throw new Error('Esta sala não pode ser removida pois está vinculada a um projeto em andamento');
+  }
+  
+  // Delete all participants
+  const { error: participantsError } = await supabase
+    .from('chat_room_participants')
+    .delete()
+    .eq('room_id', id);
+  
+  if (participantsError) {
+    console.error('Erro ao remover participantes da sala:', participantsError);
+    throw participantsError;
+  }
+  
+  // Delete all messages
+  const { error: messagesError } = await supabase
+    .from('chat_messages')
+    .delete()
+    .eq('room_id', id);
+  
+  if (messagesError) {
+    console.error('Erro ao remover mensagens da sala:', messagesError);
+    throw messagesError;
+  }
+  
+  // Delete the room itself
+  const { error } = await supabase
+    .from('chat_rooms')
+    .delete()
+    .eq('id', id);
+  
+  if (error) {
+    console.error('Erro ao remover sala de chat:', error);
+    throw error;
+  }
 };

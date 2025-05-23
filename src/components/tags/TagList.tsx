@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -25,6 +24,7 @@ import {
 import { Trash, Tag, Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Nome da tag deve ter pelo menos 2 caracteres' })
@@ -33,9 +33,8 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const TagList: React.FC = () => {
-  const [tags, setTags] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [editingTag, setEditingTag] = useState<{id: string, name: string} | null>(null);
+  const queryClient = useQueryClient();
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -44,27 +43,93 @@ const TagList: React.FC = () => {
     }
   });
   
-  const fetchTags = async () => {
-    setIsLoading(true);
-    try {
+  // Use React Query for data fetching
+  const { 
+    data: tags = [], 
+    isLoading 
+  } = useQuery({
+    queryKey: ['tags'],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('tags')
         .select('*')
         .order('name');
         
       if (error) throw error;
-      
-      setTags(data || []);
-    } catch (error: any) {
-      toast.error('Erro ao carregar tags: ' + error.message);
-    } finally {
-      setIsLoading(false);
+      return data || [];
     }
-  };
-  
-  useEffect(() => {
-    fetchTags();
-  }, []);
+  });
+
+  // Mutations for create, update and delete
+  const createTagMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const { data, error } = await supabase
+        .from('tags')
+        .insert([{ name }])
+        .select();
+          
+      if (error) throw error;
+      return data[0];
+    },
+    onSuccess: () => {
+      toast.success('Tag adicionada com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      form.reset();
+    },
+    onError: (error: any) => {
+      toast.error('Erro ao adicionar tag: ' + error.message);
+    }
+  });
+
+  const updateTagMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string, name: string }) => {
+      const { error } = await supabase
+        .from('tags')
+        .update({ name })
+        .eq('id', id);
+          
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Tag atualizada com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      setEditingTag(null);
+      form.reset();
+    },
+    onError: (error: any) => {
+      toast.error('Erro ao atualizar tag: ' + error.message);
+    }
+  });
+
+  const deleteTagMutation = useMutation({
+    mutationFn: async (id: string) => {
+      // First verify if the tag is being used in any service
+      const { data: usedTags, error: checkError } = await supabase
+        .from('service_tags')
+        .select('*')
+        .eq('tag_id', id);
+        
+      if (checkError) throw checkError;
+      
+      if (usedTags && usedTags.length > 0) {
+        throw new Error('Esta tag não pode ser removida pois está sendo usada em serviços');
+      }
+      
+      const { error } = await supabase
+        .from('tags')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Tag removida com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
+    },
+    onError: (error: any) => {
+      toast.error('Erro ao remover tag: ' + error.message);
+    }
+  });
 
   // Update form when editing tag changes
   useEffect(() => {
@@ -76,41 +141,12 @@ const TagList: React.FC = () => {
   }, [editingTag, form]);
   
   const onSubmit = async (data: FormValues) => {
-    try {
-      if (editingTag) {
-        // Updating existing tag
-        const { error } = await supabase
-          .from('tags')
-          .update({ name: data.name })
-          .eq('id', editingTag.id);
-          
-        if (error) throw error;
-        
-        toast.success('Tag atualizada com sucesso!');
-        // Atualizar a lista localmente para refletir a alteração
-        setTags(tags.map(tag => 
-          tag.id === editingTag.id ? { ...tag, name: data.name } : tag
-        ));
-      } else {
-        // Creating new tag
-        const { data: newTag, error } = await supabase
-          .from('tags')
-          .insert([{ name: data.name }])
-          .select();
-          
-        if (error) throw error;
-        
-        toast.success('Tag adicionada com sucesso!');
-        // Adicionar a nova tag à lista local
-        if (newTag && newTag.length > 0) {
-          setTags([...tags, newTag[0]]);
-        }
-      }
-      
-      form.reset();
-      setEditingTag(null);
-    } catch (error: any) {
-      toast.error(`Erro ao ${editingTag ? 'atualizar' : 'adicionar'} tag: ` + error.message);
+    if (editingTag) {
+      // Update existing tag
+      updateTagMutation.mutate({ id: editingTag.id, name: data.name });
+    } else {
+      // Create new tag
+      createTagMutation.mutate(data.name);
     }
   };
   
@@ -124,34 +160,7 @@ const TagList: React.FC = () => {
   };
   
   const handleDeleteTag = async (id: string) => {
-    try {
-      // First verify if the tag is being used in any service
-      const { data: usedTags, error: checkError } = await supabase
-        .from('service_tags')
-        .select('*')
-        .eq('tag_id', id);
-        
-      if (checkError) throw checkError;
-      
-      if (usedTags && usedTags.length > 0) {
-        toast.error('Esta tag não pode ser removida pois está sendo usada em serviços');
-        return;
-      }
-      
-      const { error } = await supabase
-        .from('tags')
-        .delete()
-        .eq('id', id);
-        
-      if (error) throw error;
-      
-      toast.success('Tag removida com sucesso!');
-      // Atualizar lista de tags após exclusão (remove da lista local)
-      setTags(tags.filter(tag => tag.id !== id));
-    } catch (error: any) {
-      toast.error('Erro ao remover tag: ' + error.message);
-      console.error('Delete tag error details:', error);
-    }
+    deleteTagMutation.mutate(id);
   };
   
   return (
@@ -184,7 +193,11 @@ const TagList: React.FC = () => {
                 />
                 
                 <div className="flex gap-2">
-                  <Button type="submit" className="flex-1">
+                  <Button 
+                    type="submit" 
+                    className="flex-1"
+                    disabled={createTagMutation.isPending || updateTagMutation.isPending}
+                  >
                     {editingTag ? (
                       <>
                         <Pencil className="mr-2 h-4 w-4" /> Atualizar Tag
@@ -235,10 +248,20 @@ const TagList: React.FC = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditTag(tag)}>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleEditTag(tag)}
+                            disabled={deleteTagMutation.isPending}
+                          >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteTag(tag.id)}>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleDeleteTag(tag.id)}
+                            disabled={deleteTagMutation.isPending}
+                          >
                             <Trash className="h-4 w-4" />
                           </Button>
                         </div>
