@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { defaultKPIs, defaultOKRs } from "./defaultIndicators";
+import { IndicatorCategory, IndicatorPeriod, IndicatorStatus } from "./types";
 
 export const seedIndicators = async (): Promise<boolean> => {
   try {
@@ -29,8 +30,8 @@ export const seedIndicators = async (): Promise<boolean> => {
           description: kpi.description,
           type: 'kpi',
           category: kpi.category,
-          target: kpi.target,
-          current: kpi.current,
+          target: kpi.target.toString(), // Convert to string for DB
+          current: kpi.current.toString(), // Convert to string for DB
           unit: kpi.unit,
           period: kpi.period,
           start_date: kpi.startDate,
@@ -55,8 +56,8 @@ export const seedIndicators = async (): Promise<boolean> => {
           description: okr.description,
           type: 'okr',
           category: okr.category,
-          target: okr.target,
-          current: okr.current,
+          target: okr.target.toString(), // Convert to string for DB
+          current: okr.current.toString(), // Convert to string for DB
           unit: okr.unit,
           period: okr.period,
           start_date: okr.startDate,
@@ -82,8 +83,8 @@ export const seedIndicators = async (): Promise<boolean> => {
             indicator_id: data?.id,
             name: kr.name,
             description: kr.description || '',
-            target: kr.target,
-            current: kr.current,
+            target: kr.target.toString(), // Convert to string for DB
+            current: kr.current.toString(), // Convert to string for DB
             unit: kr.unit,
             status: kr.status
           });

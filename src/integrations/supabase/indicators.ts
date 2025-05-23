@@ -1,6 +1,6 @@
 
 import { supabase } from "./client";
-import { Indicator, KPI, OKR, KeyResult } from "@/components/indicators/types";
+import { Indicator, KPI, OKR, KeyResult, IndicatorCategory, IndicatorStatus, IndicatorPeriod } from "@/components/indicators/types";
 import { defaultKPIs, defaultOKRs } from "@/components/indicators/defaultIndicators";
 
 // Function to fetch all indicators
@@ -34,19 +34,19 @@ export const fetchIndicators = async (): Promise<{kpis: KPI[], okrs: OKR[]}> => 
       .map(ind => ({
         id: ind.id,
         name: ind.name,
-        description: ind.description,
+        description: ind.description || '',
         type: 'kpi' as const,
-        category: ind.category,
+        category: ind.category as IndicatorCategory, // Cast to the enum type
         target: parseFloat(ind.target),
-        current: parseFloat(ind.current),
+        current: parseFloat(ind.current || '0'),
         unit: ind.unit,
-        period: ind.period,
+        period: ind.period as IndicatorPeriod, // Cast to the enum type
         startDate: ind.start_date,
         endDate: ind.end_date,
-        status: ind.status,
+        status: ind.status as IndicatorStatus, // Cast to the enum type
         dataSource: ind.data_source,
-        formula: ind.formula,
-        responsible: ind.responsible,
+        formula: ind.formula || '',
+        responsible: ind.responsible || '',
         createdAt: ind.created_at,
         updatedAt: ind.updated_at
       }));
@@ -56,29 +56,29 @@ export const fetchIndicators = async (): Promise<{kpis: KPI[], okrs: OKR[]}> => 
       .map(ind => ({
         id: ind.id,
         name: ind.name,
-        description: ind.description,
+        description: ind.description || '',
         type: 'okr' as const,
-        category: ind.category,
+        category: ind.category as IndicatorCategory, // Cast to the enum type
         target: parseFloat(ind.target),
-        current: parseFloat(ind.current),
+        current: parseFloat(ind.current || '0'),
         unit: ind.unit,
-        period: ind.period,
+        period: ind.period as IndicatorPeriod, // Cast to the enum type
         startDate: ind.start_date,
         endDate: ind.end_date,
-        status: ind.status,
+        status: ind.status as IndicatorStatus, // Cast to the enum type
         dataSource: ind.data_source,
-        formula: ind.formula,
-        responsible: ind.responsible,
+        formula: ind.formula || '',
+        responsible: ind.responsible || '',
         createdAt: ind.created_at,
         updatedAt: ind.updated_at,
         keyResults: ind.key_results?.map((kr: any) => ({
           id: kr.id,
           name: kr.name,
-          description: kr.description,
+          description: kr.description || '',
           target: parseFloat(kr.target),
-          current: parseFloat(kr.current),
+          current: parseFloat(kr.current || '0'),
           unit: kr.unit,
-          status: kr.status
+          status: kr.status as IndicatorStatus // Cast to the enum type
         })) || []
       }));
 
@@ -145,8 +145,8 @@ export const createIndicator = async (indicator: Omit<Indicator, 'id' | 'created
         description: indicator.description,
         type: indicator.type,
         category: indicator.category,
-        target: indicator.target,
-        current: indicator.current || 0,
+        target: indicator.target.toString(), // Convert to string for DB
+        current: (indicator.current || 0).toString(), // Convert to string for DB
         unit: indicator.unit,
         period: indicator.period,
         start_date: indicator.startDate,
@@ -172,8 +172,8 @@ export const createIndicator = async (indicator: Omit<Indicator, 'id' | 'created
         indicator_id: indicatorId,
         name: kr.name,
         description: kr.description || '',
-        target: kr.target,
-        current: kr.current || 0,
+        target: kr.target.toString(), // Convert to string for DB
+        current: (kr.current || 0).toString(), // Convert to string for DB
         unit: kr.unit,
         status: 'not_started'
       }));
@@ -204,8 +204,8 @@ export const updateIndicator = async (indicator: Indicator, keyResults?: KeyResu
         name: indicator.name,
         description: indicator.description,
         category: indicator.category,
-        target: indicator.target,
-        current: indicator.current,
+        target: indicator.target.toString(), // Convert to string for DB
+        current: indicator.current.toString(), // Convert to string for DB
         unit: indicator.unit,
         period: indicator.period,
         start_date: indicator.startDate,
@@ -261,8 +261,8 @@ export const updateIndicator = async (indicator: Indicator, keyResults?: KeyResu
               indicator_id: indicator.id,
               name: kr.name,
               description: kr.description || '',
-              target: kr.target,
-              current: kr.current,
+              target: kr.target.toString(), // Convert to string for DB
+              current: kr.current.toString(), // Convert to string for DB
               unit: kr.unit,
               status: kr.status
             });
@@ -277,8 +277,8 @@ export const updateIndicator = async (indicator: Indicator, keyResults?: KeyResu
             .update({
               name: kr.name,
               description: kr.description || '',
-              target: kr.target,
-              current: kr.current,
+              target: kr.target.toString(), // Convert to string for DB
+              current: kr.current.toString(), // Convert to string for DB
               unit: kr.unit,
               status: kr.status
             })
