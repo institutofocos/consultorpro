@@ -676,6 +676,96 @@ export type Database = {
         }
         Relationships: []
       }
+      note_checklists: {
+        Row: {
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          note_id: string
+          responsible_consultant_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          note_id: string
+          responsible_consultant_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          note_id?: string
+          responsible_consultant_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_checklists_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "note_checklists_responsible_consultant_id_fkey"
+            columns: ["responsible_consultant_id"]
+            isOneToOne: false
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      note_consultants: {
+        Row: {
+          consultant_id: string
+          created_at: string
+          id: string
+          note_id: string
+        }
+        Insert: {
+          consultant_id: string
+          created_at?: string
+          id?: string
+          note_id: string
+        }
+        Update: {
+          consultant_id?: string
+          created_at?: string
+          id?: string
+          note_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_consultants_consultant_id_fkey"
+            columns: ["consultant_id"]
+            isOneToOne: false
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "note_consultants_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       note_custom_fields: {
         Row: {
           created_at: string | null
@@ -704,6 +794,42 @@ export type Database = {
             columns: ["note_id"]
             isOneToOne: false
             referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      note_tag_relations: {
+        Row: {
+          created_at: string
+          id: string
+          note_id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note_id: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_tag_relations_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "note_tag_relations_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
             referencedColumns: ["id"]
           },
         ]
@@ -742,45 +868,64 @@ export type Database = {
       }
       notes: {
         Row: {
+          chat_room_id: string | null
           client_id: string | null
           color: string | null
           consultant_id: string | null
           content: string | null
           created_at: string | null
           due_date: string | null
+          end_date: string | null
+          has_internal_chat: boolean | null
           id: string
           service_id: string | null
+          start_date: string | null
           status: string
           title: string
           updated_at: string | null
         }
         Insert: {
+          chat_room_id?: string | null
           client_id?: string | null
           color?: string | null
           consultant_id?: string | null
           content?: string | null
           created_at?: string | null
           due_date?: string | null
+          end_date?: string | null
+          has_internal_chat?: boolean | null
           id?: string
           service_id?: string | null
+          start_date?: string | null
           status?: string
           title: string
           updated_at?: string | null
         }
         Update: {
+          chat_room_id?: string | null
           client_id?: string | null
           color?: string | null
           consultant_id?: string | null
           content?: string | null
           created_at?: string | null
           due_date?: string | null
+          end_date?: string | null
+          has_internal_chat?: boolean | null
           id?: string
           service_id?: string | null
+          start_date?: string | null
           status?: string
           title?: string
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "notes_chat_room_id_fkey"
+            columns: ["chat_room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "notes_client_id_fkey"
             columns: ["client_id"]

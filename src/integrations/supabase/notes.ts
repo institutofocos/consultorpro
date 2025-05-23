@@ -36,6 +36,7 @@ export type NoteChecklist = {
   completed: boolean;
   completed_at?: string;
   created_at?: string;
+  updated_at?: string;
 };
 
 export type NoteConsultant = {
@@ -75,8 +76,21 @@ export const fetchNotes = async (): Promise<Note[]> => {
         let tagNames: string[] = [];
         let checklists: NoteChecklist[] = [];
         
-        // Fetch consultant names if consultant_id exists
-        if (note.consultant_id) {
+        // Fetch consultant names from note_consultants table
+        const { data: noteConsultants } = await supabase
+          .from('note_consultants')
+          .select(`
+            consultant_id,
+            consultants (name)
+          `)
+          .eq('note_id', note.id);
+        
+        if (noteConsultants) {
+          consultantNames = noteConsultants.map(nc => (nc.consultants as any)?.name).filter(Boolean);
+        }
+        
+        // If no consultants in junction table, check direct consultant_id
+        if (consultantNames.length === 0 && note.consultant_id) {
           const { data: consultant } = await supabase
             .from('consultants')
             .select('name')
@@ -110,8 +124,35 @@ export const fetchNotes = async (): Promise<Note[]> => {
           serviceName = service?.name || null;
         }
 
-        // For now, return empty checklists array since the table doesn't exist yet
-        checklists = [];
+        // Fetch checklists for this note
+        const { data: checklistData } = await supabase
+          .from('note_checklists')
+          .select(`
+            *,
+            consultants (name)
+          `)
+          .eq('note_id', note.id)
+          .order('created_at', { ascending: true });
+
+        if (checklistData) {
+          checklists = checklistData.map(checklist => ({
+            ...checklist,
+            responsible_consultant_name: (checklist.consultants as any)?.name || null
+          }));
+        }
+
+        // Fetch tags from note_tag_relations
+        const { data: noteTags } = await supabase
+          .from('note_tag_relations')
+          .select(`
+            tag_id,
+            tags (name)
+          `)
+          .eq('note_id', note.id);
+        
+        if (noteTags) {
+          tagNames = noteTags.map(nt => (nt.tags as any)?.name).filter(Boolean);
+        }
 
         return {
           ...note,
@@ -152,8 +193,21 @@ export const fetchNoteById = async (id: string): Promise<Note | null> => {
     let tagNames: string[] = [];
     let checklists: NoteChecklist[] = [];
 
-    // Fetch consultant name if consultant_id exists
-    if (data.consultant_id) {
+    // Fetch consultant names from note_consultants table
+    const { data: noteConsultants } = await supabase
+      .from('note_consultants')
+      .select(`
+        consultant_id,
+        consultants (name)
+      `)
+      .eq('note_id', data.id);
+    
+    if (noteConsultants) {
+      consultantNames = noteConsultants.map(nc => (nc.consultants as any)?.name).filter(Boolean);
+    }
+    
+    // If no consultants in junction table, check direct consultant_id
+    if (consultantNames.length === 0 && data.consultant_id) {
       const { data: consultant } = await supabase
         .from('consultants')
         .select('name')
@@ -187,8 +241,35 @@ export const fetchNoteById = async (id: string): Promise<Note | null> => {
       serviceName = service?.name || null;
     }
 
-    // For now, return empty checklists array since the table doesn't exist yet
-    checklists = [];
+    // Fetch checklists for this note
+    const { data: checklistData } = await supabase
+      .from('note_checklists')
+      .select(`
+        *,
+        consultants (name)
+      `)
+      .eq('note_id', data.id)
+      .order('created_at', { ascending: true });
+
+    if (checklistData) {
+      checklists = checklistData.map(checklist => ({
+        ...checklist,
+        responsible_consultant_name: (checklist.consultants as any)?.name || null
+      }));
+    }
+
+    // Fetch tags from note_tag_relations
+    const { data: noteTags } = await supabase
+      .from('note_tag_relations')
+      .select(`
+        tag_id,
+        tags (name)
+      `)
+      .eq('note_id', data.id);
+    
+    if (noteTags) {
+      tagNames = noteTags.map(nt => (nt.tags as any)?.name).filter(Boolean);
+    }
 
     return {
       ...data,
@@ -217,9 +298,12 @@ export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'upd
       status: noteFields.status,
       color: noteFields.color,
       due_date: noteFields.due_date,
+      start_date: noteFields.start_date,
+      end_date: noteFields.end_date,
       client_id: noteFields.client_id,
       service_id: noteFields.service_id,
-      consultant_id: consultant_ids?.[0] || null, // Use first consultant as main consultant
+      consultant_id: consultant_ids?.[0] || null,
+      has_internal_chat: noteFields.has_internal_chat,
     };
 
     // Create the note with only the fields that exist in the database
@@ -230,6 +314,45 @@ export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'upd
       .single();
 
     if (error) throw error;
+
+    // Handle consultants
+    if (consultant_ids && consultant_ids.length > 0) {
+      const consultantRelations = consultant_ids.map(consultantId => ({
+        note_id: noteResult.id,
+        consultant_id: consultantId
+      }));
+      
+      await supabase
+        .from('note_consultants')
+        .insert(consultantRelations);
+    }
+
+    // Handle tags
+    if (tag_ids && tag_ids.length > 0) {
+      const tagRelations = tag_ids.map(tagId => ({
+        note_id: noteResult.id,
+        tag_id: tagId
+      }));
+      
+      await supabase
+        .from('note_tag_relations')
+        .insert(tagRelations);
+    }
+
+    // Handle checklists
+    if (checklists && checklists.length > 0) {
+      const checklistData = checklists.map(checklist => ({
+        note_id: noteResult.id,
+        title: checklist.title,
+        description: checklist.description,
+        due_date: checklist.due_date,
+        responsible_consultant_id: checklist.responsible_consultant_id
+      }));
+      
+      await supabase
+        .from('note_checklists')
+        .insert(checklistData);
+    }
 
     // Create chat room if requested
     if (noteData.has_internal_chat) {
@@ -244,12 +367,18 @@ export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'upd
           .single();
         
         if (!chatError && chatRoom) {
+          // Update note with chat_room_id
+          await supabase
+            .from('notes')
+            .update({ chat_room_id: chatRoom.id })
+            .eq('id', noteResult.id);
+
           // Add consultants to chat room if consultant_ids provided
           if (consultant_ids && consultant_ids.length > 0) {
             const participantsData = consultant_ids.map(consultantId => ({
               room_id: chatRoom.id,
               user_id: consultantId,
-              user_name: 'Consultor', // We'll fetch the actual name later
+              user_name: 'Consultor',
               user_role: 'consultant'
             }));
             
@@ -294,9 +423,12 @@ export const updateNote = async (id: string, noteData: Partial<Note>): Promise<N
       status: noteFields.status,
       color: noteFields.color,
       due_date: noteFields.due_date,
+      start_date: noteFields.start_date,
+      end_date: noteFields.end_date,
       client_id: noteFields.client_id,
       service_id: noteFields.service_id,
       consultant_id: consultant_ids?.[0] || undefined,
+      has_internal_chat: noteFields.has_internal_chat,
     };
 
     // Remove undefined values
@@ -313,6 +445,74 @@ export const updateNote = async (id: string, noteData: Partial<Note>): Promise<N
       .eq('id', id);
 
     if (error) throw error;
+
+    // Handle consultants update
+    if (consultant_ids !== undefined) {
+      // Delete existing consultant relations
+      await supabase
+        .from('note_consultants')
+        .delete()
+        .eq('note_id', id);
+      
+      // Insert new consultant relations
+      if (consultant_ids.length > 0) {
+        const consultantRelations = consultant_ids.map(consultantId => ({
+          note_id: id,
+          consultant_id: consultantId
+        }));
+        
+        await supabase
+          .from('note_consultants')
+          .insert(consultantRelations);
+      }
+    }
+
+    // Handle tags update
+    if (tag_ids !== undefined) {
+      // Delete existing tag relations
+      await supabase
+        .from('note_tag_relations')
+        .delete()
+        .eq('note_id', id);
+      
+      // Insert new tag relations
+      if (tag_ids.length > 0) {
+        const tagRelations = tag_ids.map(tagId => ({
+          note_id: id,
+          tag_id: tagId
+        }));
+        
+        await supabase
+          .from('note_tag_relations')
+          .insert(tagRelations);
+      }
+    }
+
+    // Handle checklists update
+    if (checklists !== undefined) {
+      // Delete existing checklists
+      await supabase
+        .from('note_checklists')
+        .delete()
+        .eq('note_id', id);
+      
+      // Insert new checklists
+      if (checklists.length > 0) {
+        const checklistData = checklists.map(checklist => ({
+          note_id: id,
+          title: checklist.title,
+          description: checklist.description,
+          due_date: checklist.due_date,
+          responsible_consultant_id: checklist.responsible_consultant_id,
+          completed: checklist.completed || false,
+          completed_at: checklist.completed_at
+        }));
+        
+        await supabase
+          .from('note_checklists')
+          .insert(checklistData);
+      }
+    }
     
     return await fetchNoteById(id);
   } catch (error) {
@@ -340,17 +540,17 @@ export const updateNoteStatus = async (id: string, status: Note['status']): Prom
   return updateNote(id, { status });
 };
 
-// Checklist functions - These will be implemented once the tables are created
-export const createChecklist = async (checklist: Omit<NoteChecklist, 'id' | 'created_at'>): Promise<NoteChecklist | null> => {
+// Checklist functions
+export const createChecklist = async (checklist: Omit<NoteChecklist, 'id' | 'created_at' | 'updated_at'>): Promise<NoteChecklist | null> => {
   try {
-    // For now, return a mock checklist since the table doesn't exist yet
-    console.log('Creating checklist:', checklist);
-    const mockChecklist: NoteChecklist = {
-      id: `temp-${Date.now()}`,
-      ...checklist,
-      created_at: new Date().toISOString()
-    };
-    return mockChecklist;
+    const { data, error } = await supabase
+      .from('note_checklists')
+      .insert(checklist)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   } catch (error) {
     console.error('Error creating checklist:', error);
     return null;
@@ -359,8 +559,17 @@ export const createChecklist = async (checklist: Omit<NoteChecklist, 'id' | 'cre
 
 export const updateChecklist = async (id: string, updates: Partial<NoteChecklist>): Promise<boolean> => {
   try {
-    // For now, just log the update since the table doesn't exist yet
-    console.log('Updating checklist:', id, updates);
+    const updateData = {
+      ...updates,
+      completed_at: updates.completed ? new Date().toISOString() : null
+    };
+
+    const { error } = await supabase
+      .from('note_checklists')
+      .update(updateData)
+      .eq('id', id);
+
+    if (error) throw error;
     return true;
   } catch (error) {
     console.error('Error updating checklist:', error);
@@ -370,8 +579,12 @@ export const updateChecklist = async (id: string, updates: Partial<NoteChecklist
 
 export const deleteChecklist = async (id: string): Promise<boolean> => {
   try {
-    // For now, just log the deletion since the table doesn't exist yet
-    console.log('Deleting checklist:', id);
+    const { error } = await supabase
+      .from('note_checklists')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
     return true;
   } catch (error) {
     console.error('Error deleting checklist:', error);
