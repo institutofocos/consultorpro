@@ -3,6 +3,77 @@ import { Project, Stage } from "@/components/projects/types";
 import { createProjectTasks, updateProjectTasks } from "./project-tasks";
 import { toast } from "sonner";
 
+// Função para validar e limpar as etapas
+const validateAndCleanStages = (stages: any): Stage[] => {
+  console.log('Validando stages:', stages);
+  
+  if (!stages) {
+    console.log('Stages é null/undefined, retornando array vazio');
+    return [];
+  }
+
+  let stagesArray: any[] = [];
+  
+  try {
+    if (typeof stages === 'string') {
+      // Se é string, tentar fazer parse
+      if (stages.trim() === '' || stages === 'null') {
+        console.log('String vazia ou null, retornando array vazio');
+        return [];
+      }
+      stagesArray = JSON.parse(stages);
+    } else if (Array.isArray(stages)) {
+      // Se já é array
+      stagesArray = stages;
+    } else if (typeof stages === 'object' && stages !== null) {
+      // Se é objeto, verificar se tem propriedades de array
+      if (Array.isArray(Object.values(stages))) {
+        stagesArray = Object.values(stages);
+      } else {
+        console.log('Objeto não reconhecido como array, retornando array vazio');
+        return [];
+      }
+    } else {
+      console.log('Tipo não reconhecido:', typeof stages);
+      return [];
+    }
+  } catch (e) {
+    console.error('Erro no parse das stages:', e);
+    return [];
+  }
+
+  // Garantir que é um array
+  if (!Array.isArray(stagesArray)) {
+    console.log('Não é um array após conversão, retornando array vazio');
+    return [];
+  }
+
+  // Validar cada stage
+  return stagesArray.map((stage, index) => {
+    const validStage: Stage = {
+      id: stage?.id || `stage-${Date.now()}-${index}`,
+      name: stage?.name || `Etapa ${index + 1}`,
+      description: stage?.description || '',
+      days: Number(stage?.days) || 1,
+      hours: Number(stage?.hours) || 8,
+      value: Number(stage?.value) || 0,
+      startDate: stage?.startDate || '',
+      endDate: stage?.endDate || '',
+      consultantId: stage?.consultantId || undefined,
+      completed: Boolean(stage?.completed),
+      clientApproved: Boolean(stage?.clientApproved),
+      managerApproved: Boolean(stage?.managerApproved),
+      invoiceIssued: Boolean(stage?.invoiceIssued),
+      paymentReceived: Boolean(stage?.paymentReceived),
+      consultantsSettled: Boolean(stage?.consultantsSettled),
+      attachment: stage?.attachment || ''
+    };
+    
+    console.log(`Stage ${index} validada:`, validStage);
+    return validStage;
+  });
+};
+
 // Função para criar transações financeiras do projeto
 const createProjectFinancialTransactions = async (project: Project) => {
   try {
@@ -73,29 +144,15 @@ const createProjectFinancialTransactions = async (project: Project) => {
 
 export const updateProject = async (project: Project) => {
   try {
-    console.log('Atualizando projeto com etapas:', project.stages);
+    console.log('Atualizando projeto. Stages recebidas:', project.stages);
     
     // Validar e limpar as etapas antes de salvar
-    const validStages = project.stages?.map(stage => ({
-      id: stage.id || Date.now().toString(),
-      name: stage.name || '',
-      description: stage.description || '',
-      days: Number(stage.days) || 1,
-      hours: Number(stage.hours) || 8,
-      value: Number(stage.value) || 0,
-      startDate: stage.startDate || '',
-      endDate: stage.endDate || '',
-      consultantId: stage.consultantId || undefined,
-      completed: Boolean(stage.completed),
-      clientApproved: Boolean(stage.clientApproved),
-      managerApproved: Boolean(stage.managerApproved),
-      invoiceIssued: Boolean(stage.invoiceIssued),
-      paymentReceived: Boolean(stage.paymentReceived),
-      consultantsSettled: Boolean(stage.consultantsSettled),
-      attachment: stage.attachment || ''
-    })) || [];
+    const validStages = validateAndCleanStages(project.stages);
+    console.log('Stages validadas para atualização:', validStages);
 
-    console.log('Etapas validadas para salvar:', validStages);
+    // Converter para JSON string para armazenar no banco
+    const stagesJson = JSON.stringify(validStages);
+    console.log('JSON das stages para salvar:', stagesJson);
 
     const { error } = await supabase
       .from('projects')
@@ -116,7 +173,7 @@ export const updateProject = async (project: Project) => {
         main_consultant_value: project.consultantValue || 0,
         support_consultant_value: project.supportConsultantValue || 0,
         status: project.status,
-        stages: JSON.stringify(validStages),
+        stages: stagesJson,
         tags: project.tags || []
       })
       .eq('id', project.id);
@@ -183,65 +240,11 @@ export const fetchProjects = async () => {
 
     // Transform the data to match the Project type
     return (data || []).map(project => {
-      console.log('Processando projeto:', project.id, 'com stages:', project.stages);
+      console.log('Processando projeto:', project.id, 'com stages raw:', project.stages);
       
-      // Safely parse stages from JSON with improved error handling
-      let stages: Stage[] = [];
-      if (project.stages) {
-        try {
-          if (typeof project.stages === 'string') {
-            console.log('Parseando stages de string:', project.stages);
-            stages = JSON.parse(project.stages) as Stage[];
-          } else if (Array.isArray(project.stages)) {
-            console.log('Stages já é array:', project.stages);
-            stages = project.stages as unknown as Stage[];
-          } else if (typeof project.stages === 'object' && project.stages !== null) {
-            console.log('Stages é objeto, tentando converter:', project.stages);
-            const stagesObj = project.stages as any;
-            if (Array.isArray(stagesObj)) {
-              stages = stagesObj as Stage[];
-            } else {
-              console.warn('Formato de stages não reconhecido:', stagesObj);
-              stages = [];
-            }
-          }
-          
-          // Ensure stages is actually an array and validate each stage
-          if (!Array.isArray(stages)) {
-            console.warn('Stages não é um array após parsing:', stages);
-            stages = [];
-          } else {
-            // Validate and clean stage data
-            stages = stages.map((stage, index) => ({
-              id: stage.id || `stage-${Date.now()}-${index}`,
-              name: stage.name || `Etapa ${index + 1}`,
-              description: stage.description || '',
-              days: Number(stage.days) || 1,
-              hours: Number(stage.hours) || 8,
-              value: Number(stage.value) || 0,
-              startDate: stage.startDate || '',
-              endDate: stage.endDate || '',
-              consultantId: stage.consultantId || undefined,
-              completed: Boolean(stage.completed),
-              clientApproved: Boolean(stage.clientApproved),
-              managerApproved: Boolean(stage.managerApproved),
-              invoiceIssued: Boolean(stage.invoiceIssued),
-              paymentReceived: Boolean(stage.paymentReceived),
-              consultantsSettled: Boolean(stage.consultantsSettled),
-              attachment: stage.attachment || ''
-            }));
-          }
-          
-          console.log('Stages processadas para projeto', project.id, ':', stages);
-          
-        } catch (e) {
-          console.error('Erro ao processar stages para o projeto:', project.id, e);
-          console.error('Dados brutos das stages:', project.stages);
-          stages = [];
-        }
-      } else {
-        console.log('Projeto sem stages:', project.id);
-      }
+      // Usar a função de validação para processar as stages
+      const stages = validateAndCleanStages(project.stages);
+      console.log('Stages processadas para projeto', project.id, ':', stages);
 
       return {
         id: project.id,
@@ -276,29 +279,15 @@ export const fetchProjects = async () => {
 // Function to create a new project
 export const createProject = async (project: Project) => {
   try {
-    console.log('Criando novo projeto com etapas:', project.stages);
+    console.log('Criando novo projeto. Stages recebidas:', project.stages);
     
     // Validar e limpar as etapas antes de salvar
-    const validStages = project.stages?.map(stage => ({
-      id: stage.id || Date.now().toString(),
-      name: stage.name || '',
-      description: stage.description || '',
-      days: Number(stage.days) || 1,
-      hours: Number(stage.hours) || 8,
-      value: Number(stage.value) || 0,
-      startDate: stage.startDate || '',
-      endDate: stage.endDate || '',
-      consultantId: stage.consultantId || undefined,
-      completed: Boolean(stage.completed),
-      clientApproved: Boolean(stage.clientApproved),
-      managerApproved: Boolean(stage.managerApproved),
-      invoiceIssued: Boolean(stage.invoiceIssued),
-      paymentReceived: Boolean(stage.paymentReceived),
-      consultantsSettled: Boolean(stage.consultantsSettled),
-      attachment: stage.attachment || ''
-    })) || [];
+    const validStages = validateAndCleanStages(project.stages);
+    console.log('Stages validadas para criação:', validStages);
 
-    console.log('Etapas validadas para criação:', validStages);
+    // Converter para JSON string para armazenar no banco
+    const stagesJson = JSON.stringify(validStages);
+    console.log('JSON das stages para criar:', stagesJson);
 
     const { data, error } = await supabase
       .from('projects')
@@ -319,7 +308,7 @@ export const createProject = async (project: Project) => {
         main_consultant_value: project.consultantValue || 0,
         support_consultant_value: project.supportConsultantValue || 0,
         status: project.status,
-        stages: JSON.stringify(validStages),
+        stages: stagesJson,
         tags: project.tags || []
       })
       .select()
@@ -588,48 +577,11 @@ export const fetchProjectById = async (projectId: string): Promise<Project | nul
     }
 
     console.log('Projeto encontrado:', data);
-    console.log('Stages do projeto:', data.stages);
+    console.log('Stages do projeto (raw):', data.stages);
 
-    let stages: Stage[] = [];
-    if (data.stages) {
-      try {
-        if (typeof data.stages === 'string') {
-          console.log('Parseando stages de string para projeto individual:', data.stages);
-          stages = JSON.parse(data.stages) as Stage[];
-        } else if (Array.isArray(data.stages)) {
-          console.log('Stages já é array para projeto individual:', data.stages);
-          stages = data.stages as unknown as Stage[];
-        } else {
-          console.log('Formato não reconhecido de stages:', data.stages);
-          stages = [];
-        }
-        
-        // Validate and clean stage data
-        stages = stages.map((stage, index) => ({
-          id: stage.id || `stage-${Date.now()}-${index}`,
-          name: stage.name || `Etapa ${index + 1}`,
-          description: stage.description || '',
-          days: Number(stage.days) || 1,
-          hours: Number(stage.hours) || 8,
-          value: Number(stage.value) || 0,
-          startDate: stage.startDate || '',
-          endDate: stage.endDate || '',
-          consultantId: stage.consultantId || undefined,
-          completed: Boolean(stage.completed),
-          clientApproved: Boolean(stage.clientApproved),
-          managerApproved: Boolean(stage.managerApproved),
-          invoiceIssued: Boolean(stage.invoiceIssued),
-          paymentReceived: Boolean(stage.paymentReceived),
-          consultantsSettled: Boolean(stage.consultantsSettled),
-          attachment: stage.attachment || ''
-        }));
-        
-        console.log('Stages processadas para projeto individual:', stages);
-      } catch (e) {
-        console.error('Error parsing stages for project:', data.id, e);
-        stages = [];
-      }
-    }
+    // Usar a função de validação para processar as stages
+    const stages = validateAndCleanStages(data.stages);
+    console.log('Stages processadas para projeto individual:', stages);
 
     // Map the status to a valid project status
     let projectStatus: 'planned' | 'active' | 'completed' | 'cancelled';
@@ -689,19 +641,8 @@ export const assignConsultantToStage = async (
     if (fetchError) throw fetchError;
     if (!projectData) throw new Error('Project not found');
     
-    // Parse the stages with proper type handling
-    let stages: Stage[];
-    if (typeof projectData.stages === 'string') {
-      stages = JSON.parse(projectData.stages) as Stage[];
-    } else if (Array.isArray(projectData.stages)) {
-      stages = projectData.stages as unknown as Stage[];
-    } else {
-      throw new Error('Invalid stages format');
-    }
-    
-    if (!Array.isArray(stages)) {
-      throw new Error('Invalid stages format');
-    }
+    // Usar a função de validação para processar as stages
+    const stages = validateAndCleanStages(projectData.stages);
     
     // Find and update the specific stage
     const updatedStages = stages.map(stage => {
