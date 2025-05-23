@@ -76,7 +76,7 @@ export const fetchProjects = async () => {
       let stages: Stage[] = [];
       if (project.stages) {
         try {
-          stages = Array.isArray(project.stages) ? project.stages as Stage[] : [];
+          stages = Array.isArray(project.stages) ? project.stages as unknown as Stage[] : [];
         } catch (e) {
           console.error('Error parsing stages for project:', project.id, e);
           stages = [];
