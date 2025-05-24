@@ -116,11 +116,14 @@ export const ProjectList: React.FC = () => {
 
   const handleAddProject = async (project: Project) => {
     try {
+      console.log('Iniciando criação/atualização do projeto:', project.name);
+      
       if (editingProject) {
         // Update existing project
+        console.log('Atualizando projeto existente:', editingProject.id);
         const updatedProject = await updateProject(project);
         
-        // Update the project in the local state
+        // Update the project in the local state without reloading
         setProjects(prevProjects => 
           prevProjects.map(p => p.id === updatedProject.id ? updatedProject : p)
         );
@@ -133,9 +136,10 @@ export const ProjectList: React.FC = () => {
         setEditingProject(null);
       } else {
         // Add new project
+        console.log('Criando novo projeto');
         const savedProject = await createProject(project);
         
-        // Add the new project to the local state
+        // Add the new project to the beginning of the list without reloading
         setProjects(prevProjects => [savedProject, ...prevProjects]);
         
         toast({
@@ -145,6 +149,7 @@ export const ProjectList: React.FC = () => {
       }
       
       setShowForm(false);
+      console.log('Processo de criação/atualização concluído com sucesso');
     } catch (error: any) {
       console.error('Error saving project:', error);
       toast({

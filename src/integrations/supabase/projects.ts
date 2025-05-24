@@ -1,7 +1,7 @@
-
 import { supabase } from "./client";
 import { Project, Stage } from "@/components/projects/types";
 import { createProjectTasks, updateProjectTasks } from "./project-tasks";
+import { ensureProjectChatRoom } from "./chat";
 import { toast } from "sonner";
 
 // Função para buscar etapas de um projeto
@@ -193,14 +193,14 @@ export const updateStageStatus = async (stageId: string, updates: Partial<Stage>
 // Função para criar transações financeiras do projeto
 const createProjectFinancialTransactions = async (project: Project) => {
   try {
-    console.log('Criando transações financeiras para o projeto:', project.name);
+    console.log('Verificando necessidade de criar transações financeiras para o projeto:', project.name);
     
     if (!project.stages || !Array.isArray(project.stages)) {
       console.log('Projeto sem etapas, pulando criação de transações');
       return;
     }
 
-    // Verificar se já existem transações para este projeto
+    // Verificar se já existem transações para este projeto ANTES de criar
     const { data: existingTransactions, error: checkError } = await supabase
       .from('financial_transactions')
       .select('id')
@@ -216,6 +216,8 @@ const createProjectFinancialTransactions = async (project: Project) => {
       console.log('Transações já existem para este projeto, pulando criação');
       return;
     }
+
+    console.log('Criando transações financeiras para o projeto:', project.name);
 
     // Criar transações para cada etapa do projeto
     for (const stage of project.stages) {
@@ -272,7 +274,7 @@ const createProjectFinancialTransactions = async (project: Project) => {
       }
     }
 
-    console.log('Transações financeiras criadas com sucesso');
+    console.log('Transações financeiras criadas com sucesso para o projeto:', project.name);
   } catch (error) {
     console.error('Erro ao criar transações financeiras:', error);
   }
@@ -348,8 +350,10 @@ export const fetchProjects = async (): Promise<Project[]> => {
 // Função para criar um novo projeto
 export const createProject = async (project: Project): Promise<Project> => {
   try {
+    console.log('=== INÍCIO DA CRIAÇÃO DO PROJETO ===');
     console.log('Criando novo projeto:', project.name);
     
+    // 1. Criar o projeto no banco
     const { data: projectData, error: projectError } = await supabase
       .from('projects')
       .insert({
@@ -374,15 +378,19 @@ export const createProject = async (project: Project): Promise<Project> => {
       .select()
       .single();
 
-    if (projectError) throw projectError;
+    if (projectError) {
+      console.error('Erro ao criar projeto no banco:', projectError);
+      throw projectError;
+    }
 
-    console.log('Projeto criado no banco:', projectData);
+    console.log('Projeto criado no banco com ID:', projectData.id);
 
-    // Criar etapas se existirem
+    // 2. Criar etapas se existirem
     let createdStages: Stage[] = [];
     if (project.stages && project.stages.length > 0) {
+      console.log('Criando', project.stages.length, 'etapas para o projeto');
       createdStages = await createProjectStages(projectData.id, project.stages);
-      console.log('Etapas criadas:', createdStages);
+      console.log('Etapas criadas com sucesso:', createdStages.length);
     }
 
     const createdProject: Project = {
@@ -393,25 +401,42 @@ export const createProject = async (project: Project): Promise<Project> => {
       updatedAt: projectData.updated_at
     };
 
-    // Criar tarefas para o projeto (apenas uma vez)
+    // 3. Criar tarefas para o projeto (apenas uma vez, com verificação interna)
+    console.log('Iniciando criação de tarefas...');
     try {
       const result = await createProjectTasks(createdProject);
       if (result.mainTask) {
-        console.log("Tarefas criadas com sucesso para o projeto");
+        console.log("Tarefa criada com sucesso para o projeto");
+      } else {
+        console.log("Tarefa não foi criada (possivelmente já existia)");
       }
     } catch (taskError) {
       console.error('Error creating project tasks:', taskError);
     }
 
-    // Criar transações financeiras (apenas uma vez)
+    // 4. Criar sala de chat (apenas uma vez, com verificação interna)
+    console.log('Iniciando criação de sala de chat...');
+    try {
+      await ensureProjectChatRoom(projectData.id, project.name);
+      console.log("Sala de chat processada com sucesso");
+    } catch (chatError) {
+      console.error('Error creating chat room:', chatError);
+    }
+
+    // 5. Criar transações financeiras (apenas uma vez, com verificação interna)
+    console.log('Iniciando criação de transações financeiras...');
     try {
       await createProjectFinancialTransactions(createdProject);
-      console.log("Transações financeiras criadas com sucesso");
+      console.log("Transações financeiras processadas com sucesso");
     } catch (financialError) {
       console.error('Error creating financial transactions:', financialError);
     }
     
-    console.log("Projeto criado com sucesso:", createdProject.name);
+    console.log("=== PROJETO CRIADO COM SUCESSO ===");
+    console.log("Nome:", createdProject.name);
+    console.log("ID:", createdProject.id);
+    console.log("Etapas:", createdProject.stages?.length || 0);
+    
     return createdProject;
   } catch (error) {
     console.error('Error creating project:', error);
