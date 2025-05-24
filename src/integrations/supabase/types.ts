@@ -1190,6 +1190,60 @@ export type Database = {
         }
         Relationships: []
       }
+      system_logs: {
+        Row: {
+          category: string
+          created_at: string
+          details: Json | null
+          id: string
+          log_type: string
+          message: string
+          user_id: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          log_type?: string
+          message: string
+          user_id?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          log_type?: string
+          message?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          created_at: string
+          id: string
+          setting_key: string
+          setting_value: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          setting_key: string
+          setting_value: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          setting_key?: string
+          setting_value?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tags: {
         Row: {
           created_at: string
@@ -1334,6 +1388,16 @@ export type Database = {
           consultant_payments_made: number
           consultant_payments_pending: number
         }[]
+      }
+      insert_system_log: {
+        Args: {
+          p_log_type?: string
+          p_category?: string
+          p_message?: string
+          p_details?: Json
+          p_user_id?: string
+        }
+        Returns: string
       }
     }
     Enums: {

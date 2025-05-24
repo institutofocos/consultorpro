@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -24,11 +23,17 @@ interface Webhook {
   created_at: string;
 }
 
+interface WebhookConfig {
+  interval_seconds: number;
+  enabled: boolean;
+}
+
 const WebhookManager: React.FC = () => {
   const [webhookUrl, setWebhookUrl] = useState<string>('');
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isTesting, setIsTesting] = useState<string>('');
+  const [webhookConfig, setWebhookConfig] = useState<WebhookConfig>({ interval_seconds: 10, enabled: true });
   const [selectedEvents, setSelectedEvents] = useState<Record<string, boolean>>({
     INSERT: true,
     UPDATE: true,
@@ -44,17 +49,42 @@ const WebhookManager: React.FC = () => {
     financial_transactions: true
   });
 
-  // Load existing webhooks on component mount
+  // Load existing webhooks and settings on component mount
   useEffect(() => {
     fetchWebhooks();
+    loadWebhookSettings();
     
-    // Set up automatic webhook processing every 10 seconds for real-time processing
-    const interval = setInterval(() => {
-      processWebhookQueueSilently();
-    }, 10000);
+    // Set up automatic webhook processing with dynamic interval
+    const setupInterval = () => {
+      return setInterval(() => {
+        if (webhookConfig.enabled) {
+          processWebhookQueueSilently();
+        }
+      }, webhookConfig.interval_seconds * 1000);
+    };
+
+    const interval = setupInterval();
 
     return () => clearInterval(interval);
-  }, []);
+  }, [webhookConfig]);
+
+  const loadWebhookSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('setting_value')
+        .eq('setting_key', 'webhook_interval')
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (data) {
+        setWebhookConfig(data.setting_value as WebhookConfig);
+      }
+    } catch (error) {
+      console.error('Error loading webhook settings:', error);
+    }
+  };
 
   const callWebhookFunction = async (action: string, data: any = {}) => {
     console.log(`=== CALLING WEBHOOK FUNCTION: ${action} ===`, data);
@@ -66,14 +96,39 @@ const WebhookManager: React.FC = () => {
 
       if (error) {
         console.error('Webhook function error:', error);
+        
+        // Log error to system logs
+        await supabase.rpc('insert_system_log', {
+          p_log_type: 'error',
+          p_category: 'webhook',
+          p_message: `Erro na função webhook: ${action}`,
+          p_details: { error: error.message, action, data }
+        });
+        
         throw new Error(error.message || 'Webhook function failed');
       }
 
       console.log('Webhook function result:', result);
       
       if (!result || result.success === false) {
+        // Log warning to system logs
+        await supabase.rpc('insert_system_log', {
+          p_log_type: 'warning',
+          p_category: 'webhook',
+          p_message: `Webhook operation failed: ${action}`,
+          p_details: { result, action, data }
+        });
+        
         throw new Error(result?.message || 'Webhook operation failed');
       }
+
+      // Log success to system logs
+      await supabase.rpc('insert_system_log', {
+        p_log_type: 'success',
+        p_category: 'webhook',
+        p_message: `Webhook operation successful: ${action}`,
+        p_details: { result, action }
+      });
       
       return result;
     } catch (error) {
@@ -109,6 +164,14 @@ const WebhookManager: React.FC = () => {
       console.log('Auto queue processing result:', result.message);
     } catch (error) {
       console.error('Error in auto webhook queue processing:', error);
+      
+      // Log error silently
+      await supabase.rpc('insert_system_log', {
+        p_log_type: 'error',
+        p_category: 'webhook',
+        p_message: 'Erro no processamento automático de webhooks',
+        p_details: { error: error instanceof Error ? error.message : 'Unknown error' }
+      });
     }
   };
 
@@ -172,7 +235,6 @@ const WebhookManager: React.FC = () => {
       return;
     }
 
-    // Validate URL format
     try {
       new URL(webhookUrl);
     } catch (e) {
@@ -218,7 +280,6 @@ const WebhookManager: React.FC = () => {
         icon: <CheckCircle2 className="h-5 w-5 text-success" />
       });
 
-      // Clear form and reload webhooks
       setWebhookUrl('');
       await fetchWebhooks();
       
@@ -339,7 +400,7 @@ const WebhookManager: React.FC = () => {
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
             Certifique-se de que todos os triggers de webhook estejam funcionando corretamente no banco de dados.
-            Os webhooks são disparados automaticamente a cada 10 segundos.
+            Os webhooks são disparados automaticamente a cada {webhookConfig.interval_seconds} segundos.
           </p>
           <Button 
             onClick={verifyTriggers}
@@ -511,7 +572,8 @@ const WebhookManager: React.FC = () => {
             <div className="space-y-4">
               <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
                 <p className="text-sm text-green-800">
-                  ✅ Processamento automático ativo - Os webhooks são disparados automaticamente a cada 10 segundos
+                  ✅ Processamento automático {webhookConfig.enabled ? 'ativo' : 'inativo'} - 
+                  Webhooks são disparados automaticamente a cada {webhookConfig.interval_seconds} segundos
                 </p>
               </div>
               {webhooks.map((webhook) => (
@@ -526,7 +588,7 @@ const WebhookManager: React.FC = () => {
                         Tabelas: {webhook.tables.join(', ')}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Status: {webhook.is_active ? 'Ativo (Auto)' : 'Inativo'}
+                        Status: {webhook.is_active ? `Ativo (Auto ${webhookConfig.interval_seconds}s)` : 'Inativo'}
                       </p>
                     </div>
                   </div>

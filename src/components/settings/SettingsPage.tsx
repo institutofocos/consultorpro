@@ -6,8 +6,11 @@ import WebhookManager from './WebhookManager';
 import SwaggerDocs from './SwaggerDocs';
 import APIKeyManager from './APIKeyManager';
 import UserManagement from './UserManagement';
+import TimezoneSettings from './TimezoneSettings';
+import SystemLogs from './SystemLogs';
+import WebhookSettings from './WebhookSettings';
 import { useAuth } from '@/contexts/AuthContext';
-import { Settings, Users } from 'lucide-react';
+import { Settings, Users, Clock, FileText, Zap } from 'lucide-react';
 
 const SettingsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("general");
@@ -27,6 +30,14 @@ const SettingsPage: React.FC = () => {
             <Settings className="h-4 w-4 mr-2" />
             Geral
           </TabsTrigger>
+          <TabsTrigger value="timezone">
+            <Clock className="h-4 w-4 mr-2" />
+            Horário
+          </TabsTrigger>
+          <TabsTrigger value="logs">
+            <FileText className="h-4 w-4 mr-2" />
+            Logs
+          </TabsTrigger>
           {canViewUsers && (
             <TabsTrigger value="users">
               <Users className="h-4 w-4 mr-2" />
@@ -34,21 +45,36 @@ const SettingsPage: React.FC = () => {
             </TabsTrigger>
           )}
           <TabsTrigger value="api_keys">API Keys</TabsTrigger>
-          <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+          <TabsTrigger value="webhooks">
+            <Zap className="h-4 w-4 mr-2" />
+            Webhooks
+          </TabsTrigger>
           <TabsTrigger value="api">API</TabsTrigger>
         </TabsList>
         
         <TabsContent value="general">
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle>Configurações Gerais</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-40">
-                <p className="text-muted-foreground">Recurso em desenvolvimento</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle>Configurações Gerais</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-center h-40">
+                  <p className="text-muted-foreground">Recurso em desenvolvimento</p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <WebhookSettings />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="timezone">
+          <TimezoneSettings />
+        </TabsContent>
+
+        <TabsContent value="logs">
+          <SystemLogs />
         </TabsContent>
         
         {canViewUsers && (
