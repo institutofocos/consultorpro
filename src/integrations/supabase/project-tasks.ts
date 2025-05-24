@@ -16,6 +16,26 @@ export interface ProjectTaskCreationResult {
  */
 export const createProjectTasks = async (project: Project): Promise<ProjectTaskCreationResult> => {
   try {
+    // Verificar se já existe uma tarefa para este projeto
+    const { data: existingTasks, error: checkError } = await supabase
+      .from('notes')
+      .select('id')
+      .ilike('title', `Projeto: ${project.name}%`)
+      .limit(1);
+
+    if (checkError) {
+      console.error('Erro ao verificar tarefas existentes:', checkError);
+    }
+
+    if (existingTasks && existingTasks.length > 0) {
+      console.log('Tarefa já existe para este projeto, pulando criação');
+      return {
+        mainTask: null,
+        stageTasks: [],
+        error: 'Task already exists'
+      };
+    }
+
     // Create the main task for the project
     const { data: mainTask, error: mainTaskError } = await supabase
       .from('notes')

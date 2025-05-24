@@ -200,6 +200,23 @@ const createProjectFinancialTransactions = async (project: Project) => {
       return;
     }
 
+    // Verificar se já existem transações para este projeto
+    const { data: existingTransactions, error: checkError } = await supabase
+      .from('financial_transactions')
+      .select('id')
+      .eq('project_id', project.id)
+      .limit(1);
+
+    if (checkError) {
+      console.error('Erro ao verificar transações existentes:', checkError);
+      return;
+    }
+
+    if (existingTransactions && existingTransactions.length > 0) {
+      console.log('Transações já existem para este projeto, pulando criação');
+      return;
+    }
+
     // Criar transações para cada etapa do projeto
     for (const stage of project.stages) {
       // Transação de receita (a receber do cliente)
@@ -376,7 +393,7 @@ export const createProject = async (project: Project): Promise<Project> => {
       updatedAt: projectData.updated_at
     };
 
-    // Criar tarefas para o projeto
+    // Criar tarefas para o projeto (apenas uma vez)
     try {
       const result = await createProjectTasks(createdProject);
       if (result.mainTask) {
@@ -386,7 +403,7 @@ export const createProject = async (project: Project): Promise<Project> => {
       console.error('Error creating project tasks:', taskError);
     }
 
-    // Criar transações financeiras
+    // Criar transações financeiras (apenas uma vez)
     try {
       await createProjectFinancialTransactions(createdProject);
       console.log("Transações financeiras criadas com sucesso");
@@ -394,7 +411,7 @@ export const createProject = async (project: Project): Promise<Project> => {
       console.error('Error creating financial transactions:', financialError);
     }
     
-    toast.success("Projeto, tarefas e transações financeiras criados com sucesso!");
+    console.log("Projeto criado com sucesso:", createdProject.name);
     return createdProject;
   } catch (error) {
     console.error('Error creating project:', error);

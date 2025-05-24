@@ -276,6 +276,7 @@ export const ensureProjectChatRoom = async (projectId: string, projectName: stri
   
   // Se a sala já existe, retorne-a
   if (existingRooms) {
+    console.log('Sala de chat já existe para o projeto:', projectName);
     return existingRooms;
   }
   
@@ -295,6 +296,7 @@ export const ensureProjectChatRoom = async (projectId: string, projectName: stri
     throw error;
   }
   
+  console.log('Nova sala de chat criada para o projeto:', projectName);
   return data[0];
 };
 
