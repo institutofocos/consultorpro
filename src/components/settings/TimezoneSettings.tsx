@@ -70,9 +70,9 @@ const TimezoneSettings: React.FC = () => {
 
       settings?.forEach(setting => {
         if (setting.setting_key === 'timezone') {
-          setTimezoneConfig(setting.setting_value as TimezoneConfig);
+          setTimezoneConfig(setting.setting_value as unknown as TimezoneConfig);
         } else if (setting.setting_key === 'datetime_format') {
-          setDateTimeFormat(setting.setting_value as DateTimeFormat);
+          setDateTimeFormat(setting.setting_value as unknown as DateTimeFormat);
         }
       });
     } catch (error) {
@@ -92,7 +92,7 @@ const TimezoneSettings: React.FC = () => {
         .from('system_settings')
         .upsert({
           setting_key: 'timezone',
-          setting_value: timezoneConfig
+          setting_value: timezoneConfig as any
         });
 
       if (timezoneError) throw timezoneError;
@@ -102,7 +102,7 @@ const TimezoneSettings: React.FC = () => {
         .from('system_settings')
         .upsert({
           setting_key: 'datetime_format',
-          setting_value: dateTimeFormat
+          setting_value: dateTimeFormat as any
         });
 
       if (formatError) throw formatError;
@@ -112,7 +112,7 @@ const TimezoneSettings: React.FC = () => {
         p_log_type: 'info',
         p_category: 'settings',
         p_message: 'Configurações de horário atualizadas',
-        p_details: { timezone: timezoneConfig, datetime_format: dateTimeFormat }
+        p_details: { timezone: timezoneConfig, datetime_format: dateTimeFormat } as any
       });
 
       toast.success("Configurações de horário salvas com sucesso");

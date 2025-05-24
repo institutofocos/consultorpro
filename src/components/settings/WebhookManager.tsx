@@ -79,7 +79,7 @@ const WebhookManager: React.FC = () => {
       if (error && error.code !== 'PGRST116') throw error;
 
       if (data) {
-        setWebhookConfig(data.setting_value as WebhookConfig);
+        setWebhookConfig(data.setting_value as unknown as WebhookConfig);
       }
     } catch (error) {
       console.error('Error loading webhook settings:', error);
@@ -102,7 +102,7 @@ const WebhookManager: React.FC = () => {
           p_log_type: 'error',
           p_category: 'webhook',
           p_message: `Erro na função webhook: ${action}`,
-          p_details: { error: error.message, action, data }
+          p_details: { error: error.message, action, data } as any
         });
         
         throw new Error(error.message || 'Webhook function failed');
@@ -116,7 +116,7 @@ const WebhookManager: React.FC = () => {
           p_log_type: 'warning',
           p_category: 'webhook',
           p_message: `Webhook operation failed: ${action}`,
-          p_details: { result, action, data }
+          p_details: { result, action, data } as any
         });
         
         throw new Error(result?.message || 'Webhook operation failed');
@@ -127,7 +127,7 @@ const WebhookManager: React.FC = () => {
         p_log_type: 'success',
         p_category: 'webhook',
         p_message: `Webhook operation successful: ${action}`,
-        p_details: { result, action }
+        p_details: { result, action } as any
       });
       
       return result;
@@ -170,7 +170,7 @@ const WebhookManager: React.FC = () => {
         p_log_type: 'error',
         p_category: 'webhook',
         p_message: 'Erro no processamento automático de webhooks',
-        p_details: { error: error instanceof Error ? error.message : 'Unknown error' }
+        p_details: { error: error instanceof Error ? error.message : 'Unknown error' } as any
       });
     }
   };

@@ -38,7 +38,7 @@ const WebhookSettings: React.FC = () => {
       if (error && error.code !== 'PGRST116') throw error;
 
       if (data) {
-        setWebhookConfig(data.setting_value as WebhookConfig);
+        setWebhookConfig(data.setting_value as unknown as WebhookConfig);
       }
     } catch (error) {
       console.error('Error loading webhook settings:', error);
@@ -56,7 +56,7 @@ const WebhookSettings: React.FC = () => {
         .from('system_settings')
         .upsert({
           setting_key: 'webhook_interval',
-          setting_value: webhookConfig
+          setting_value: webhookConfig as any
         });
 
       if (error) throw error;
@@ -66,7 +66,7 @@ const WebhookSettings: React.FC = () => {
         p_log_type: 'info',
         p_category: 'webhook',
         p_message: `Configurações de webhook atualizadas: intervalo ${webhookConfig.interval_seconds}s, ${webhookConfig.enabled ? 'ativado' : 'desativado'}`,
-        p_details: webhookConfig
+        p_details: webhookConfig as any
       });
 
       toast.success("Configurações de webhook salvas com sucesso");
