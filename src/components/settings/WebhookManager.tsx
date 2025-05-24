@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -11,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { AlertCircle, CheckCircle2, X, RefreshCw, Play, Loader2, TestTube, Settings } from "lucide-react";
+import { AlertCircle, CheckCircle2, X, RefreshCw, TestTube, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Webhook {
@@ -27,7 +28,6 @@ const WebhookManager: React.FC = () => {
   const [webhookUrl, setWebhookUrl] = useState<string>('');
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [isTesting, setIsTesting] = useState<string>('');
   const [selectedEvents, setSelectedEvents] = useState<Record<string, boolean>>({
     INSERT: true,
@@ -48,10 +48,10 @@ const WebhookManager: React.FC = () => {
   useEffect(() => {
     fetchWebhooks();
     
-    // Set up automatic webhook processing every 30 seconds
+    // Set up automatic webhook processing every 10 seconds for real-time processing
     const interval = setInterval(() => {
-      processWebhookQueue();
-    }, 30000);
+      processWebhookQueueSilently();
+    }, 10000);
 
     return () => clearInterval(interval);
   }, []);
@@ -102,18 +102,13 @@ const WebhookManager: React.FC = () => {
     }
   };
 
-  const processWebhookQueue = async () => {
-    if (isProcessing) return;
-    
+  const processWebhookQueueSilently = async () => {
     try {
-      setIsProcessing(true);
-      console.log('Processing webhook queue...');
+      console.log('Auto-processing webhook queue...');
       const result = await callWebhookFunction('process');
-      console.log('Queue processing result:', result.message);
+      console.log('Auto queue processing result:', result.message);
     } catch (error) {
-      console.error('Error processing webhook queue:', error);
-    } finally {
-      setIsProcessing(false);
+      console.error('Error in auto webhook queue processing:', error);
     }
   };
 
@@ -219,7 +214,7 @@ const WebhookManager: React.FC = () => {
       });
 
       toast.success("Webhook registrado", {
-        description: "Seu webhook foi registrado com sucesso",
+        description: "Seu webhook foi registrado com sucesso e será disparado automaticamente",
         icon: <CheckCircle2 className="h-5 w-5 text-success" />
       });
 
@@ -305,14 +300,9 @@ const WebhookManager: React.FC = () => {
       
       if (result.success) {
         toast.success("Eventos de teste criados", {
-          description: result.message,
+          description: result.message + " - Serão processados automaticamente",
           icon: <CheckCircle2 className="h-5 w-5 text-success" />
         });
-        
-        // Process the queue immediately
-        setTimeout(() => {
-          processWebhookQueue();
-        }, 1000);
       } else {
         toast.error("Falha ao criar eventos de teste", {
           description: result.message || "Erro ao gerar eventos de teste",
@@ -335,7 +325,7 @@ const WebhookManager: React.FC = () => {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-3xl font-bold">Webhooks</h1>
-        <p className="text-muted-foreground">Configure webhooks para receber notificações quando os dados mudarem</p>
+        <p className="text-muted-foreground">Configure webhooks para receber notificações automáticas quando os dados mudarem</p>
       </div>
 
       {/* Verificação de Sistema */}
@@ -349,6 +339,7 @@ const WebhookManager: React.FC = () => {
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
             Certifique-se de que todos os triggers de webhook estejam funcionando corretamente no banco de dados.
+            Os webhooks são disparados automaticamente a cada 10 segundos.
           </p>
           <Button 
             onClick={verifyTriggers}
@@ -357,7 +348,7 @@ const WebhookManager: React.FC = () => {
             className="w-full"
           >
             {isLoading ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
             ) : (
               <Settings className="h-4 w-4 mr-2" />
             )}
@@ -470,7 +461,7 @@ const WebhookManager: React.FC = () => {
             onClick={handleRegisterWebhook} 
             disabled={isLoading}
           >
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isLoading && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
             Registrar Webhook
           </Button>
         </CardFooter>
@@ -487,7 +478,7 @@ const WebhookManager: React.FC = () => {
               disabled={isLoading}
             >
               {isLoading ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <TestTube className="h-4 w-4 mr-2" />
               )}
@@ -496,24 +487,11 @@ const WebhookManager: React.FC = () => {
             <Button 
               size="sm" 
               variant="outline"
-              onClick={processWebhookQueue}
-              disabled={isProcessing}
-            >
-              {isProcessing ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Play className="h-4 w-4 mr-2" />
-              )}
-              Processar Fila
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
               onClick={fetchWebhooks}
               disabled={isLoading}
             >
               {isLoading ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <RefreshCw className="h-4 w-4 mr-2" />
               )}
@@ -524,13 +502,18 @@ const WebhookManager: React.FC = () => {
         <CardContent>
           {isLoading ? (
             <div className="text-center text-muted-foreground py-8 flex items-center justify-center">
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
               Carregando webhooks...
             </div>
           ) : webhooks.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">Nenhum webhook registrado ainda</p>
           ) : (
             <div className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-green-800">
+                  ✅ Processamento automático ativo - Os webhooks são disparados automaticamente a cada 10 segundos
+                </p>
+              </div>
               {webhooks.map((webhook) => (
                 <div key={webhook.id} className="flex items-center justify-between p-4 bg-secondary/20 rounded-lg">
                   <div className="space-y-1">
@@ -543,7 +526,7 @@ const WebhookManager: React.FC = () => {
                         Tabelas: {webhook.tables.join(', ')}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Status: {webhook.is_active ? 'Ativo' : 'Inativo'}
+                        Status: {webhook.is_active ? 'Ativo (Auto)' : 'Inativo'}
                       </p>
                     </div>
                   </div>
@@ -555,7 +538,7 @@ const WebhookManager: React.FC = () => {
                       disabled={isTesting === webhook.url}
                     >
                       {isTesting === webhook.url ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <RefreshCw className="h-4 w-4 animate-spin" />
                       ) : (
                         'Testar'
                       )}
