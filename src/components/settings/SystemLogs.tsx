@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,6 +31,7 @@ const SystemLogs: React.FC = () => {
   const loadLogs = async () => {
     try {
       setIsLoading(true);
+      console.log('Loading system logs...');
       
       let query = supabase
         .from('system_logs')
@@ -47,16 +47,52 @@ const SystemLogs: React.FC = () => {
         query = query.eq('category', filterCategory);
       }
 
+      console.log('Executing query for system logs...');
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
+      console.log('Logs loaded successfully:', data?.length);
       setLogs(data || []);
-    } catch (error) {
+      
+      if (data && data.length === 0) {
+        toast.info("Nenhum log encontrado com os filtros aplicados");
+      }
+    } catch (error: any) {
       console.error('Error loading system logs:', error);
-      toast.error("Erro ao carregar logs do sistema");
+      toast.error(`Erro ao carregar logs do sistema: ${error.message || 'Erro desconhecido'}`);
+      
+      // Se há erro de permissão, tentar inserir um log de teste
+      if (error.code === '42501' || error.message?.includes('permission')) {
+        console.log('Trying to insert test log...');
+        await insertTestLog();
+      }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const insertTestLog = async () => {
+    try {
+      const { error } = await supabase.rpc('insert_system_log', {
+        p_log_type: 'info',
+        p_category: 'system',
+        p_message: 'Log de teste inserido automaticamente',
+        p_details: { timestamp: new Date().toISOString() }
+      });
+
+      if (error) {
+        console.error('Error inserting test log:', error);
+      } else {
+        console.log('Test log inserted successfully');
+        // Recarregar logs após inserir
+        setTimeout(loadLogs, 1000);
+      }
+    } catch (error) {
+      console.error('Error in insertTestLog:', error);
     }
   };
 
@@ -154,7 +190,14 @@ const SystemLogs: React.FC = () => {
               </div>
             ) : logs.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                Nenhum log encontrado
+                <p>Nenhum log encontrado</p>
+                <Button 
+                  onClick={insertTestLog} 
+                  variant="outline" 
+                  className="mt-4"
+                >
+                  Inserir Log de Teste
+                </Button>
               </div>
             ) : (
               <div className="space-y-3">
