@@ -114,11 +114,16 @@ export const ProjectList: React.FC = () => {
     }
   };
 
-  const handleAddProject = async (project: any) => {
-    if (editingProject) {
-      // Update existing project
-      try {
-        await updateProject(project);
+  const handleAddProject = async (project: Project) => {
+    try {
+      if (editingProject) {
+        // Update existing project
+        const updatedProject = await updateProject(project);
+        
+        // Update the project in the local state
+        setProjects(prevProjects => 
+          prevProjects.map(p => p.id === updatedProject.id ? updatedProject : p)
+        );
         
         toast({
           title: "Sucesso",
@@ -126,37 +131,28 @@ export const ProjectList: React.FC = () => {
         });
         
         setEditingProject(null);
-        loadProjects(); // Refresh projects list
-      } catch (error: any) {
-        console.error('Error updating project:', error);
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: error.message || "Não foi possível atualizar o projeto."
-        });
-      }
-    } else {
-      // Add new project
-      try {
-        await createProject(project);
+      } else {
+        // Add new project
+        const savedProject = await createProject(project);
+        
+        // Add the new project to the local state
+        setProjects(prevProjects => [savedProject, ...prevProjects]);
         
         toast({
           title: "Sucesso",
-          description: "Projeto adicionado com sucesso!"
-        });
-        
-        loadProjects(); // Refresh projects list
-      } catch (error: any) {
-        console.error('Error adding project:', error);
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: error.message || "Não foi possível adicionar o projeto."
+          description: "Projeto criado com sucesso!"
         });
       }
+      
+      setShowForm(false);
+    } catch (error: any) {
+      console.error('Error saving project:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: error.message || "Não foi possível salvar o projeto."
+      });
     }
-    
-    setShowForm(false);
   };
   
   const handleEditProject = (project: Project) => {
