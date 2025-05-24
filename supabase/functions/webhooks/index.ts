@@ -22,13 +22,29 @@ serve(async (req) => {
   );
 
   try {
-    const { action } = await req.json();
+    // Parse the request body once
+    const requestBody = await req.json();
+    const { action } = requestBody;
     console.log(`=== WEBHOOK ACTION: ${action} ===`);
     
     // Handle different webhook actions
     if (action === "register") {
-      const { url, events, tables } = await req.json();
+      const { url, events, tables } = requestBody;
       console.log('Registering webhook:', { url, events, tables });
+      
+      // Validate input
+      if (!url || !events || !tables || events.length === 0 || tables.length === 0) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: "URL, events, and tables are required" 
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 400 
+          }
+        );
+      }
       
       // Insert webhook into database
       const { data, error } = await supabaseClient
@@ -44,7 +60,16 @@ serve(async (req) => {
 
       if (error) {
         console.error('Error registering webhook:', error);
-        throw error;
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: error.message 
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500 
+          }
+        );
       }
 
       console.log('Webhook registered successfully:', data);
@@ -72,7 +97,16 @@ serve(async (req) => {
 
       if (error) {
         console.error('Error fetching webhooks:', error);
-        throw error;
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: error.message 
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500 
+          }
+        );
       }
 
       console.log('Webhooks fetched:', data?.length || 0);
@@ -90,8 +124,21 @@ serve(async (req) => {
     }
     
     if (action === "test") {
-      const { url } = await req.json();
+      const { url } = requestBody;
       console.log('Testing webhook:', url);
+      
+      if (!url) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: "URL is required for testing" 
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 400 
+          }
+        );
+      }
       
       const testPayload = {
         event_type: 'TEST',
@@ -143,8 +190,21 @@ serve(async (req) => {
     }
     
     if (action === "delete") {
-      const { id } = await req.json();
+      const { id } = requestBody;
       console.log('Deleting webhook:', id);
+      
+      if (!id) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: "Webhook ID is required" 
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 400 
+          }
+        );
+      }
       
       const { error } = await supabaseClient
         .from('webhooks')
@@ -153,7 +213,16 @@ serve(async (req) => {
 
       if (error) {
         console.error('Error deleting webhook:', error);
-        throw error;
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: error.message 
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500 
+          }
+        );
       }
 
       console.log('Webhook deleted successfully');
@@ -187,7 +256,16 @@ serve(async (req) => {
 
       if (error) {
         console.error('Error fetching webhook logs:', error);
-        throw error;
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: error.message 
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500 
+          }
+        );
       }
 
       console.log(`Processing ${logs?.length || 0} webhook logs`);

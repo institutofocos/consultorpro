@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { AlertCircle, CheckCircle2, X, RefreshCw, Play } from "lucide-react";
+import { AlertCircle, CheckCircle2, X, RefreshCw, Play, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Webhook {
@@ -28,6 +28,7 @@ const WebhookManager: React.FC = () => {
   const [webhookUrl, setWebhookUrl] = useState<string>('');
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [selectedEvents, setSelectedEvents] = useState<Record<string, boolean>>({
     INSERT: true,
     UPDATE: true,
@@ -65,10 +66,15 @@ const WebhookManager: React.FC = () => {
 
       if (error) {
         console.error('Webhook function error:', error);
-        throw error;
+        throw new Error(error.message || 'Webhook function failed');
       }
 
       console.log('Webhook function result:', result);
+      
+      if (!result || result.success === false) {
+        throw new Error(result?.message || 'Webhook operation failed');
+      }
+      
       return result;
     } catch (error) {
       console.error('Error calling webhook function:', error);
@@ -83,16 +89,12 @@ const WebhookManager: React.FC = () => {
       
       const result = await callWebhookFunction('list');
       
-      if (result.success) {
-        setWebhooks(result.webhooks);
-        console.log('Webhooks loaded:', result.webhooks.length);
-      } else {
-        throw new Error(result.message || 'Failed to fetch webhooks');
-      }
+      setWebhooks(result.webhooks || []);
+      console.log('Webhooks loaded:', result.webhooks?.length || 0);
     } catch (error) {
       console.error("Error loading webhooks:", error);
-      toast.error("Error loading webhooks", {
-        description: "Failed to load registered webhooks",
+      toast.error("Erro ao carregar webhooks", {
+        description: error instanceof Error ? error.message : "Falha ao carregar webhooks registrados",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
     } finally {
@@ -101,18 +103,24 @@ const WebhookManager: React.FC = () => {
   };
 
   const processWebhookQueue = async () => {
+    if (isProcessing) return;
+    
     try {
+      setIsProcessing(true);
       console.log('Processing webhook queue...');
-      await callWebhookFunction('process');
+      const result = await callWebhookFunction('process');
+      console.log('Queue processing result:', result.message);
     } catch (error) {
       console.error('Error processing webhook queue:', error);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleRegisterWebhook = async () => {
     if (!webhookUrl.trim()) {
-      toast.error("Invalid URL", {
-        description: "Please enter a valid webhook URL",
+      toast.error("URL inválida", {
+        description: "Por favor, insira uma URL válida para o webhook",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
       return;
@@ -122,8 +130,8 @@ const WebhookManager: React.FC = () => {
     try {
       new URL(webhookUrl);
     } catch (e) {
-      toast.error("Invalid URL", {
-        description: "Please enter a valid URL including http:// or https://",
+      toast.error("URL inválida", {
+        description: "Por favor, insira uma URL válida incluindo http:// ou https://",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
       return;
@@ -133,16 +141,16 @@ const WebhookManager: React.FC = () => {
     const tables = Object.keys(selectedTables).filter(key => selectedTables[key]);
 
     if (events.length === 0) {
-      toast.error("No events selected", {
-        description: "Please select at least one event type",
+      toast.error("Nenhum evento selecionado", {
+        description: "Por favor, selecione pelo menos um tipo de evento",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
       return;
     }
 
     if (tables.length === 0) {
-      toast.error("No tables selected", {
-        description: "Please select at least one table",
+      toast.error("Nenhuma tabela selecionada", {
+        description: "Por favor, selecione pelo menos uma tabela",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
       return;
@@ -159,23 +167,19 @@ const WebhookManager: React.FC = () => {
         tables
       });
 
-      if (result.success) {
-        toast.success("Webhook registered", {
-          description: "Your webhook has been registered successfully",
-          icon: <CheckCircle2 className="h-5 w-5 text-success" />
-        });
+      toast.success("Webhook registrado", {
+        description: "Seu webhook foi registrado com sucesso",
+        icon: <CheckCircle2 className="h-5 w-5 text-success" />
+      });
 
-        // Clear form and reload webhooks
-        setWebhookUrl('');
-        await fetchWebhooks();
-      } else {
-        throw new Error(result.message || 'Registration failed');
-      }
+      // Clear form and reload webhooks
+      setWebhookUrl('');
+      await fetchWebhooks();
       
     } catch (error) {
       console.error("Error registering webhook:", error);
-      toast.error("Registration failed", {
-        description: "Failed to register webhook",
+      toast.error("Falha no registro", {
+        description: error instanceof Error ? error.message : "Falha ao registrar webhook",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
     } finally {
@@ -189,19 +193,15 @@ const WebhookManager: React.FC = () => {
       
       const result = await callWebhookFunction('delete', { id: webhookId });
       
-      if (result.success) {
-        toast.success("Webhook removed", {
-          description: "The webhook has been removed successfully"
-        });
-        
-        await fetchWebhooks();
-      } else {
-        throw new Error(result.message || 'Delete failed');
-      }
+      toast.success("Webhook removido", {
+        description: "O webhook foi removido com sucesso"
+      });
+      
+      await fetchWebhooks();
     } catch (error) {
       console.error("Error deleting webhook:", error);
-      toast.error("Delete failed", {
-        description: "Failed to delete webhook",
+      toast.error("Falha ao excluir", {
+        description: error instanceof Error ? error.message : "Falha ao excluir webhook",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
     }
@@ -211,28 +211,28 @@ const WebhookManager: React.FC = () => {
     try {
       console.log('Testing webhook:', url);
       
-      toast.info("Testing webhook", {
-        description: "Sending test payload to " + url
+      toast.info("Testando webhook", {
+        description: "Enviando payload de teste para " + url
       });
       
       const result = await callWebhookFunction('test', { url });
       
       if (result.success) {
-        toast.success("Test successful", {
-          description: "Webhook test completed successfully",
+        toast.success("Teste bem-sucedido", {
+          description: "Teste do webhook concluído com sucesso",
           icon: <CheckCircle2 className="h-5 w-5 text-success" />
         });
       } else {
-        toast.error("Test failed", {
-          description: result.message || "Failed to test webhook",
+        toast.error("Teste falhou", {
+          description: result.message || "Falha ao testar webhook",
           icon: <AlertCircle className="h-5 w-5 text-destructive" />
         });
       }
       
     } catch (error) {
       console.error("Error testing webhook:", error);
-      toast.error("Test failed", {
-        description: "Failed to test webhook",
+      toast.error("Teste falhou", {
+        description: error instanceof Error ? error.message : "Falha ao testar webhook",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
     }
@@ -242,20 +242,20 @@ const WebhookManager: React.FC = () => {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-3xl font-bold">Webhooks</h1>
-        <p className="text-muted-foreground">Configure webhooks to receive notifications when data changes</p>
+        <p className="text-muted-foreground">Configure webhooks para receber notificações quando os dados mudarem</p>
       </div>
 
       <Card className="shadow-card">
         <CardHeader>
-          <CardTitle>Register New Webhook</CardTitle>
+          <CardTitle>Registrar Novo Webhook</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="webhook-url">Webhook URL</Label>
+            <Label htmlFor="webhook-url">URL do Webhook</Label>
             <Input 
               id="webhook-url"
               type="url" 
-              placeholder="https://your-endpoint.com/webhook" 
+              placeholder="https://seu-endpoint.com/webhook" 
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
               className="w-full"
@@ -263,7 +263,7 @@ const WebhookManager: React.FC = () => {
           </div>
           
           <div className="space-y-2">
-            <h3 className="text-sm font-medium">Events</h3>
+            <h3 className="text-sm font-medium">Eventos</h3>
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center space-x-2">
                 <Checkbox 
@@ -314,113 +314,33 @@ const WebhookManager: React.FC = () => {
           </div>
           
           <div className="space-y-2">
-            <h3 className="text-sm font-medium">Tables</h3>
+            <h3 className="text-sm font-medium">Tabelas</h3>
             <div className="flex flex-wrap gap-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="table-consultants" 
-                  checked={selectedTables.consultants}
-                  onCheckedChange={(checked) => 
-                    setSelectedTables({...selectedTables, consultants: !!checked})
-                  }
-                />
-                <label 
-                  htmlFor="table-consultants" 
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Consultants
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="table-projects" 
-                  checked={selectedTables.projects}
-                  onCheckedChange={(checked) => 
-                    setSelectedTables({...selectedTables, projects: !!checked})
-                  }
-                />
-                <label 
-                  htmlFor="table-projects" 
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Projects
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="table-services" 
-                  checked={selectedTables.services}
-                  onCheckedChange={(checked) => 
-                    setSelectedTables({...selectedTables, services: !!checked})
-                  }
-                />
-                <label 
-                  htmlFor="table-services" 
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Services
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="table-clients" 
-                  checked={selectedTables.clients}
-                  onCheckedChange={(checked) => 
-                    setSelectedTables({...selectedTables, clients: !!checked})
-                  }
-                />
-                <label 
-                  htmlFor="table-clients" 
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Clients
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="table-notes" 
-                  checked={selectedTables.notes}
-                  onCheckedChange={(checked) => 
-                    setSelectedTables({...selectedTables, notes: !!checked})
-                  }
-                />
-                <label 
-                  htmlFor="table-notes" 
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Notes
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="table-stages" 
-                  checked={selectedTables.project_stages}
-                  onCheckedChange={(checked) => 
-                    setSelectedTables({...selectedTables, project_stages: !!checked})
-                  }
-                />
-                <label 
-                  htmlFor="table-stages" 
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Project Stages
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="table-financial" 
-                  checked={selectedTables.financial_transactions}
-                  onCheckedChange={(checked) => 
-                    setSelectedTables({...selectedTables, financial_transactions: !!checked})
-                  }
-                />
-                <label 
-                  htmlFor="table-financial" 
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Financial Transactions
-                </label>
-              </div>
+              {Object.entries({
+                consultants: 'Consultores',
+                projects: 'Projetos', 
+                services: 'Serviços',
+                clients: 'Clientes',
+                notes: 'Notas',
+                project_stages: 'Etapas do Projeto',
+                financial_transactions: 'Transações Financeiras'
+              }).map(([key, label]) => (
+                <div key={key} className="flex items-center space-x-2">
+                  <Checkbox 
+                    id={`table-${key}`}
+                    checked={selectedTables[key]}
+                    onCheckedChange={(checked) => 
+                      setSelectedTables({...selectedTables, [key]: !!checked})
+                    }
+                  />
+                  <label 
+                    htmlFor={`table-${key}`}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    {label}
+                  </label>
+                </div>
+              ))}
             </div>
           </div>
         </CardContent>
@@ -429,38 +349,52 @@ const WebhookManager: React.FC = () => {
             onClick={handleRegisterWebhook} 
             disabled={isLoading}
           >
-            Register Webhook
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Registrar Webhook
           </Button>
         </CardFooter>
       </Card>
 
       <Card className="shadow-card">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle>Registered Webhooks</CardTitle>
+          <CardTitle>Webhooks Registrados</CardTitle>
           <div className="flex gap-2">
             <Button 
               size="sm" 
               variant="outline"
               onClick={processWebhookQueue}
+              disabled={isProcessing}
             >
-              <Play className="h-4 w-4 mr-2" />
-              Process Queue
+              {isProcessing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4 mr-2" />
+              )}
+              Processar Fila
             </Button>
             <Button 
               size="sm" 
               variant="outline"
               onClick={fetchWebhooks}
+              disabled={isLoading}
             >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Atualizar
             </Button>
           </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-center text-muted-foreground py-8">Loading webhooks...</p>
+            <div className="text-center text-muted-foreground py-8 flex items-center justify-center">
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Carregando webhooks...
+            </div>
           ) : webhooks.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No webhooks registered yet</p>
+            <p className="text-center text-muted-foreground py-8">Nenhum webhook registrado ainda</p>
           ) : (
             <div className="space-y-4">
               {webhooks.map((webhook) => (
@@ -469,13 +403,13 @@ const WebhookManager: React.FC = () => {
                     <p className="font-medium break-all">{webhook.url}</p>
                     <div className="flex flex-wrap gap-2">
                       <p className="text-xs text-muted-foreground">
-                        Events: {webhook.events.join(', ')}
+                        Eventos: {webhook.events.join(', ')}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Tables: {webhook.tables.join(', ')}
+                        Tabelas: {webhook.tables.join(', ')}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Status: {webhook.is_active ? 'Active' : 'Inactive'}
+                        Status: {webhook.is_active ? 'Ativo' : 'Inativo'}
                       </p>
                     </div>
                   </div>
@@ -485,7 +419,7 @@ const WebhookManager: React.FC = () => {
                       variant="outline"
                       onClick={() => testWebhook(webhook.url)}
                     >
-                      Test
+                      Testar
                     </Button>
                     <Button 
                       size="icon" 
