@@ -450,6 +450,81 @@ serve(async (req) => {
       );
     }
 
+    if (action === "verify_triggers") {
+      console.log('Verifying and creating webhook triggers');
+      
+      const tablesToMonitor = [
+        'projects',
+        'project_stages', 
+        'consultants',
+        'clients',
+        'services',
+        'notes',
+        'financial_transactions'
+      ];
+
+      let results = [];
+
+      for (const tableName of tablesToMonitor) {
+        try {
+          // Check if trigger exists
+          const { data: existingTriggers } = await supabaseClient
+            .rpc('check_trigger_exists', { 
+              trigger_name: `webhook_trigger_${tableName}`,
+              table_name: tableName 
+            })
+            .maybeSingle();
+
+          if (!existingTriggers) {
+            // Create trigger
+            const { error: triggerError } = await supabaseClient
+              .rpc('create_webhook_trigger', { table_name: tableName });
+
+            if (triggerError) {
+              console.error(`Error creating trigger for ${tableName}:`, triggerError);
+              results.push({
+                table: tableName,
+                status: 'error',
+                message: triggerError.message
+              });
+            } else {
+              console.log(`Trigger created for ${tableName}`);
+              results.push({
+                table: tableName,
+                status: 'created',
+                message: 'Trigger created successfully'
+              });
+            }
+          } else {
+            results.push({
+              table: tableName,
+              status: 'exists',
+              message: 'Trigger already exists'
+            });
+          }
+        } catch (error) {
+          console.error(`Error checking/creating trigger for ${tableName}:`, error);
+          results.push({
+            table: tableName,
+            status: 'error',
+            message: error.message
+          });
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Trigger verification completed',
+          results: results
+        }),
+        { 
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200 
+        }
+      );
+    }
+
     return new Response(
       JSON.stringify({ 
         success: false, 

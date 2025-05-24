@@ -352,6 +352,7 @@ export const createProject = async (project: Project): Promise<Project> => {
   try {
     console.log('=== INÍCIO DA CRIAÇÃO DO PROJETO ===');
     console.log('Criando novo projeto:', project.name);
+    console.log('WEBHOOK: Este INSERT será capturado pelo trigger automaticamente');
     
     // VERIFICAÇÃO ADICIONAL: Verificar se já existe um projeto com o mesmo nome e datas
     const { data: existingProjects, error: checkError } = await supabase
@@ -402,16 +403,16 @@ export const createProject = async (project: Project): Promise<Project> => {
       throw projectError;
     }
 
-    console.log('Projeto criado no banco com ID:', projectData.id);
-    console.log('Webhook será disparado automaticamente para INSERT em projects');
+    console.log('✅ Projeto criado no banco com ID:', projectData.id);
+    console.log('🔗 WEBHOOK: Trigger webhook_trigger_projects foi disparado automaticamente para INSERT');
 
     // 2. Criar etapas se existirem
     let createdStages: Stage[] = [];
     if (project.stages && project.stages.length > 0) {
       console.log('Criando', project.stages.length, 'etapas para o projeto');
       createdStages = await createProjectStages(projectData.id, project.stages);
-      console.log('Etapas criadas com sucesso:', createdStages.length);
-      console.log('Webhooks serão disparados automaticamente para INSERT em project_stages');
+      console.log('✅ Etapas criadas com sucesso:', createdStages.length);
+      console.log('🔗 WEBHOOK: Triggers webhook_trigger_project_stages foram disparados automaticamente para cada INSERT');
     }
 
     const createdProject: Project = {
@@ -427,9 +428,9 @@ export const createProject = async (project: Project): Promise<Project> => {
     try {
       const result = await createProjectTasks(createdProject);
       if (result.mainTask) {
-        console.log("Tarefa criada com sucesso para o projeto");
+        console.log("✅ Tarefa criada com sucesso para o projeto");
       } else {
-        console.log("Tarefa não foi criada (possivelmente já existia)");
+        console.log("ℹ️ Tarefa não foi criada (possivelmente já existia)");
       }
     } catch (taskError) {
       console.error('Error creating project tasks:', taskError);
@@ -439,7 +440,7 @@ export const createProject = async (project: Project): Promise<Project> => {
     console.log('Iniciando criação de sala de chat...');
     try {
       await ensureProjectChatRoom(projectData.id, project.name);
-      console.log("Sala de chat processada com sucesso");
+      console.log("✅ Sala de chat processada com sucesso");
     } catch (chatError) {
       console.error('Error creating chat room:', chatError);
     }
@@ -448,20 +449,21 @@ export const createProject = async (project: Project): Promise<Project> => {
     console.log('Iniciando criação de transações financeiras...');
     try {
       await createProjectFinancialTransactions(createdProject);
-      console.log("Transações financeiras processadas com sucesso");
+      console.log("✅ Transações financeiras processadas com sucesso");
+      console.log("🔗 WEBHOOK: Triggers webhook_trigger_financial_transactions foram disparados automaticamente para cada INSERT");
     } catch (financialError) {
       console.error('Error creating financial transactions:', financialError);
     }
     
-    console.log("=== PROJETO CRIADO COM SUCESSO ===");
+    console.log("=== ✅ PROJETO CRIADO COM SUCESSO ===");
     console.log("Nome:", createdProject.name);
     console.log("ID:", createdProject.id);
     console.log("Etapas:", createdProject.stages?.length || 0);
-    console.log("Webhooks foram disparados automaticamente via triggers do banco");
+    console.log("🔗 WEBHOOK STATUS: Todos os webhooks foram disparados automaticamente via triggers do banco");
     
     return createdProject;
   } catch (error) {
-    console.error('Error creating project:', error);
+    console.error('❌ Error creating project:', error);
     throw error;
   }
 };
@@ -469,8 +471,9 @@ export const createProject = async (project: Project): Promise<Project> => {
 // Função para atualizar um projeto
 export const updateProject = async (project: Project): Promise<Project> => {
   try {
+    console.log('=== ATUALIZANDO PROJETO ===');
     console.log('Atualizando projeto:', project.name);
-    console.log('Webhook será disparado automaticamente para UPDATE em projects');
+    console.log('🔗 WEBHOOK: Este UPDATE será capturado pelo trigger automaticamente');
     
     const { error: projectError } = await supabase
       .from('projects')
@@ -495,15 +498,21 @@ export const updateProject = async (project: Project): Promise<Project> => {
       })
       .eq('id', project.id);
 
-    if (projectError) throw projectError;
+    if (projectError) {
+      console.error('❌ Erro ao atualizar projeto:', projectError);
+      throw projectError;
+    }
+
+    console.log('✅ Projeto atualizado com sucesso');
+    console.log('🔗 WEBHOOK: Trigger webhook_trigger_projects foi disparado automaticamente para UPDATE');
 
     // Atualizar etapas
     let updatedStages: Stage[] = [];
     if (project.stages && project.stages.length > 0) {
       console.log('Atualizando etapas do projeto');
       updatedStages = await updateProjectStages(project.id, project.stages);
-      console.log('Etapas atualizadas:', updatedStages);
-      console.log('Webhooks foram disparados automaticamente para DELETE/INSERT em project_stages');
+      console.log('✅ Etapas atualizadas:', updatedStages.length);
+      console.log('🔗 WEBHOOK: Triggers webhook_trigger_project_stages foram disparados automaticamente para DELETE/INSERT');
     }
 
     const updatedProject: Project = {
@@ -514,13 +523,15 @@ export const updateProject = async (project: Project): Promise<Project> => {
     // Atualizar tarefas do projeto
     try {
       await updateProjectTasks(updatedProject);
+      console.log('✅ Tarefas do projeto atualizadas');
     } catch (taskError) {
       console.error('Error updating project tasks:', taskError);
     }
     
+    console.log('=== ✅ PROJETO ATUALIZADO COM SUCESSO ===');
     return updatedProject;
   } catch (error) {
-    console.error('Error updating project:', error);
+    console.error('❌ Error updating project:', error);
     throw error;
   }
 };
@@ -528,15 +539,26 @@ export const updateProject = async (project: Project): Promise<Project> => {
 // Função para deletar um projeto
 export const deleteProject = async (id: string): Promise<boolean> => {
   try {
+    console.log('=== DELETANDO PROJETO ===');
+    console.log('Deletando projeto ID:', id);
+    console.log('🔗 WEBHOOK: Este DELETE será capturado pelo trigger automaticamente');
+    
     const { error } = await supabase
       .from('projects')
       .delete()
       .eq('id', id);
     
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Erro ao deletar projeto:', error);
+      throw error;
+    }
+    
+    console.log('✅ Projeto deletado com sucesso');
+    console.log('🔗 WEBHOOK: Trigger webhook_trigger_projects foi disparado automaticamente para DELETE');
+    
     return true;
   } catch (error) {
-    console.error('Error deleting project:', error);
+    console.error('❌ Error deleting project:', error);
     throw error;
   }
 };

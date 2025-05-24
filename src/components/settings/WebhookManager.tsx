@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -12,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { AlertCircle, CheckCircle2, X, RefreshCw, Play, Loader2, TestTube } from "lucide-react";
+import { AlertCircle, CheckCircle2, X, RefreshCw, Play, Loader2, TestTube, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Webhook {
@@ -115,6 +114,57 @@ const WebhookManager: React.FC = () => {
       console.error('Error processing webhook queue:', error);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const verifyTriggers = async () => {
+    try {
+      setIsLoading(true);
+      console.log('Verificando triggers de webhook...');
+      
+      toast.info("Verificando triggers", {
+        description: "Verificando se todos os triggers de webhook estão ativos"
+      });
+      
+      const result = await callWebhookFunction('verify_triggers');
+      
+      if (result.success) {
+        console.log('Trigger verification results:', result.results);
+        
+        const createdTriggers = result.results.filter(r => r.status === 'created');
+        const errorTriggers = result.results.filter(r => r.status === 'error');
+        
+        if (createdTriggers.length > 0) {
+          toast.success("Triggers criados", {
+            description: `${createdTriggers.length} trigger(s) foram criados com sucesso`,
+            icon: <CheckCircle2 className="h-5 w-5 text-success" />
+          });
+        } else if (errorTriggers.length > 0) {
+          toast.error("Erro em alguns triggers", {
+            description: `${errorTriggers.length} trigger(s) tiveram erro`,
+            icon: <AlertCircle className="h-5 w-5 text-destructive" />
+          });
+        } else {
+          toast.success("Triggers verificados", {
+            description: "Todos os triggers estão funcionando corretamente",
+            icon: <CheckCircle2 className="h-5 w-5 text-success" />
+          });
+        }
+      } else {
+        toast.error("Falha na verificação", {
+          description: result.message || "Erro ao verificar triggers",
+          icon: <AlertCircle className="h-5 w-5 text-destructive" />
+        });
+      }
+      
+    } catch (error) {
+      console.error("Error verifying triggers:", error);
+      toast.error("Erro na verificação", {
+        description: error instanceof Error ? error.message : "Falha ao verificar triggers",
+        icon: <AlertCircle className="h-5 w-5 text-destructive" />
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -287,6 +337,34 @@ const WebhookManager: React.FC = () => {
         <h1 className="text-3xl font-bold">Webhooks</h1>
         <p className="text-muted-foreground">Configure webhooks para receber notificações quando os dados mudarem</p>
       </div>
+
+      {/* Verificação de Sistema */}
+      <Card className="shadow-card border-amber-200 bg-amber-50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            Verificação do Sistema
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            Certifique-se de que todos os triggers de webhook estejam funcionando corretamente no banco de dados.
+          </p>
+          <Button 
+            onClick={verifyTriggers}
+            disabled={isLoading}
+            variant="outline"
+            className="w-full"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Settings className="h-4 w-4 mr-2" />
+            )}
+            Verificar e Corrigir Triggers
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card className="shadow-card">
         <CardHeader>
