@@ -23,19 +23,37 @@ serve(async (req) => {
 
   try {
     const { action } = await req.json();
+    console.log(`=== WEBHOOK ACTION: ${action} ===`);
     
     // Handle different webhook actions
     if (action === "register") {
       const { url, events, tables } = await req.json();
+      console.log('Registering webhook:', { url, events, tables });
       
-      // Here we would register the webhook in the database
-      // For now, we'll just return a success response
+      // Insert webhook into database
+      const { data, error } = await supabaseClient
+        .from('webhooks')
+        .insert({
+          url,
+          events,
+          tables,
+          is_active: true
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error registering webhook:', error);
+        throw error;
+      }
+
+      console.log('Webhook registered successfully:', data);
       
       return new Response(
         JSON.stringify({ 
           success: true, 
           message: "Webhook registered successfully",
-          webhook: { id: crypto.randomUUID(), url, events, tables }
+          webhook: data
         }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -45,13 +63,24 @@ serve(async (req) => {
     }
     
     if (action === "list") {
-      // Here we would get the webhooks from the database
-      // For now, we'll just return an empty array
+      console.log('Fetching webhooks list');
+      
+      const { data, error } = await supabaseClient
+        .from('webhooks')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching webhooks:', error);
+        throw error;
+      }
+
+      console.log('Webhooks fetched:', data?.length || 0);
       
       return new Response(
         JSON.stringify({ 
           success: true, 
-          webhooks: []
+          webhooks: data || []
         }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -62,14 +91,77 @@ serve(async (req) => {
     
     if (action === "test") {
       const { url } = await req.json();
+      console.log('Testing webhook:', url);
       
-      // Here we would send a test message to the webhook URL
-      // For now, we'll just return a success response
+      const testPayload = {
+        event_type: 'TEST',
+        table_name: 'test',
+        timestamp: new Date().toISOString(),
+        data: {
+          message: 'This is a test webhook payload',
+          test: true
+        }
+      };
+
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(testPayload)
+        });
+
+        const success = response.ok;
+        console.log('Webhook test result:', { success, status: response.status });
+        
+        return new Response(
+          JSON.stringify({ 
+            success, 
+            message: success ? "Test message sent successfully" : "Test failed",
+            status: response.status,
+            statusText: response.statusText
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200 
+          }
+        );
+      } catch (error) {
+        console.error('Error testing webhook:', error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: "Test failed: " + error.message 
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200 
+          }
+        );
+      }
+    }
+    
+    if (action === "delete") {
+      const { id } = await req.json();
+      console.log('Deleting webhook:', id);
+      
+      const { error } = await supabaseClient
+        .from('webhooks')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting webhook:', error);
+        throw error;
+      }
+
+      console.log('Webhook deleted successfully');
       
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: "Test message sent successfully" 
+          message: "Webhook deleted successfully" 
         }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -77,17 +169,82 @@ serve(async (req) => {
         }
       );
     }
-    
-    if (action === "delete") {
-      const { id } = await req.json();
+
+    if (action === "process") {
+      console.log('Processing webhook queue');
       
-      // Here we would delete the webhook from the database
-      // For now, we'll just return a success response
+      // Fetch pending webhook logs
+      const { data: logs, error } = await supabaseClient
+        .from('webhook_logs')
+        .select(`
+          *,
+          webhooks!inner(*)
+        `)
+        .eq('success', false)
+        .lt('attempt_count', 3)
+        .order('created_at', { ascending: true })
+        .limit(10);
+
+      if (error) {
+        console.error('Error fetching webhook logs:', error);
+        throw error;
+      }
+
+      console.log(`Processing ${logs?.length || 0} webhook logs`);
+
+      for (const log of logs || []) {
+        try {
+          console.log(`Processing webhook log ${log.id} for ${log.webhooks.url}`);
+          
+          const response = await fetch(log.webhooks.url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(log.webhooks.secret_key && {
+                'Authorization': `Bearer ${log.webhooks.secret_key}`
+              })
+            },
+            body: JSON.stringify({
+              event_type: log.event_type,
+              table_name: log.table_name,
+              timestamp: log.created_at,
+              data: log.payload
+            })
+          });
+
+          const success = response.ok;
+          const responseBody = await response.text();
+
+          // Update log
+          await supabaseClient
+            .from('webhook_logs')
+            .update({
+              success,
+              response_status: response.status,
+              response_body: responseBody.substring(0, 1000), // Limit size
+              attempt_count: log.attempt_count + 1
+            })
+            .eq('id', log.id);
+
+          console.log(`Webhook ${log.id} processed: ${success ? 'SUCCESS' : 'FAILED'}`);
+        } catch (error) {
+          console.error(`Error processing webhook ${log.id}:`, error);
+          
+          // Update attempt count
+          await supabaseClient
+            .from('webhook_logs')
+            .update({
+              attempt_count: log.attempt_count + 1,
+              response_body: error.message
+            })
+            .eq('id', log.id);
+        }
+      }
       
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: "Webhook deleted successfully" 
+          message: `Processed ${logs?.length || 0} webhook logs`
         }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },

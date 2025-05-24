@@ -1235,6 +1235,86 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_logs: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json
+          response_body: string | null
+          response_status: number | null
+          success: boolean
+          table_name: string
+          webhook_id: string | null
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          event_type: string
+          id?: string
+          payload: Json
+          response_body?: string | null
+          response_status?: number | null
+          success?: boolean
+          table_name: string
+          webhook_id?: string | null
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          response_body?: string | null
+          response_status?: number | null
+          success?: boolean
+          table_name?: string
+          webhook_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_logs_webhook_id_fkey"
+            columns: ["webhook_id"]
+            isOneToOne: false
+            referencedRelation: "webhooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhooks: {
+        Row: {
+          created_at: string
+          events: string[]
+          id: string
+          is_active: boolean
+          secret_key: string | null
+          tables: string[]
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          events?: string[]
+          id?: string
+          is_active?: boolean
+          secret_key?: string | null
+          tables?: string[]
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          events?: string[]
+          id?: string
+          is_active?: boolean
+          secret_key?: string | null
+          tables?: string[]
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
