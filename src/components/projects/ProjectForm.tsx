@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createProject, updateProject } from "@/integrations/supabase/projects";
 import { Project, Stage } from "./types";
+import SearchableSelect from "@/components/ui/searchable-select";
 
 interface ProjectFormProps {
   project?: Project;
@@ -108,7 +109,8 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
           paymentReceived: false,
           consultantsSettled: false,
           attachment: '',
-          stageOrder: index + 1
+          stageOrder: index + 1,
+          consultantId: '' // Add consultantId field
         }));
         
         setFormData(prev => ({ ...prev, stages: newStages }));
@@ -134,7 +136,8 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       paymentReceived: false,
       consultantsSettled: false,
       attachment: '',
-      stageOrder: (formData.stages?.length || 0) + 1
+      stageOrder: (formData.stages?.length || 0) + 1,
+      consultantId: '' // Add consultantId field
     };
     
     setFormData(prev => ({
@@ -173,6 +176,12 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isLoading) {
+      console.log('Submit already in progress, ignoring duplicate submission');
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
@@ -180,6 +189,10 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         toast.error('Preencha todos os campos obrigatórios');
         return;
       }
+
+      console.log('=== INICIANDO SUBMISSÃO DO FORMULÁRIO ===');
+      console.log('Tipo de operação:', project ? 'UPDATE' : 'CREATE');
+      console.log('Dados do projeto:', formData.name);
 
       // Validate and clean stage dates
       const cleanedStages = (formData.stages || []).map(stage => ({
@@ -212,14 +225,18 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
 
       let savedProject: Project;
       if (project?.id) {
+        console.log('Atualizando projeto existente');
         savedProject = await updateProject(projectData);
         toast.success('Projeto atualizado com sucesso!');
       } else {
+        console.log('Criando novo projeto');
         savedProject = await createProject(projectData);
         toast.success('Projeto criado com sucesso!');
       }
 
+      console.log('Projeto salvo com sucesso, chamando onProjectSaved');
       onProjectSaved(savedProject);
+      console.log('=== SUBMISSÃO CONCLUÍDA ===');
     } catch (error) {
       console.error('Error saving project:', error);
       toast.error('Erro ao salvar projeto');
@@ -262,34 +279,26 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="client">Cliente</Label>
-              <Select value={formData.clientId} onValueChange={(value) => setFormData(prev => ({ ...prev, clientId: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map(client => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={clients}
+                value={formData.clientId || ''}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, clientId: value as string }))}
+                placeholder="Selecione um cliente"
+                searchPlaceholder="Pesquisar clientes..."
+                emptyText="Nenhum cliente encontrado"
+              />
             </div>
 
             <div>
               <Label htmlFor="service">Serviço</Label>
-              <Select value={formData.serviceId} onValueChange={handleServiceChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um serviço" />
-                </SelectTrigger>
-                <SelectContent>
-                  {services.map(service => (
-                    <SelectItem key={service.id} value={service.id}>
-                      {service.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={services}
+                value={formData.serviceId || ''}
+                onValueChange={handleServiceChange}
+                placeholder="Selecione um serviço"
+                searchPlaceholder="Pesquisar serviços..."
+                emptyText="Nenhum serviço encontrado"
+              />
             </div>
           </div>
 
@@ -297,35 +306,26 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="mainConsultant">Consultor Principal</Label>
-              <Select value={formData.mainConsultantId} onValueChange={(value) => setFormData(prev => ({ ...prev, mainConsultantId: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o consultor principal" />
-                </SelectTrigger>
-                <SelectContent>
-                  {consultants.map(consultant => (
-                    <SelectItem key={consultant.id} value={consultant.id}>
-                      {consultant.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={consultants}
+                value={formData.mainConsultantId || ''}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, mainConsultantId: value as string }))}
+                placeholder="Selecione o consultor principal"
+                searchPlaceholder="Pesquisar consultores..."
+                emptyText="Nenhum consultor encontrado"
+              />
             </div>
 
             <div>
               <Label htmlFor="supportConsultant">Consultor de Apoio</Label>
-              <Select value={formData.supportConsultantId} onValueChange={(value) => setFormData(prev => ({ ...prev, supportConsultantId: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o consultor de apoio" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
-                  {consultants.map(consultant => (
-                    <SelectItem key={consultant.id} value={consultant.id}>
-                      {consultant.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={[{ id: '', name: 'Nenhum' }, ...consultants]}
+                value={formData.supportConsultantId || ''}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, supportConsultantId: value as string }))}
+                placeholder="Selecione o consultor de apoio"
+                searchPlaceholder="Pesquisar consultores..."
+                emptyText="Nenhum consultor encontrado"
+              />
             </div>
           </div>
 
@@ -427,7 +427,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <Label>Dias</Label>
                       <Input
@@ -445,6 +445,18 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
                         value={stage.hours}
                         onChange={(e) => updateStage(index, 'hours', Number(e.target.value))}
                         min="1"
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Consultor Responsável</Label>
+                      <SearchableSelect
+                        options={[{ id: '', name: 'Nenhum' }, ...consultants]}
+                        value={stage.consultantId || ''}
+                        onValueChange={(value) => updateStage(index, 'consultantId', value as string)}
+                        placeholder="Selecione um consultor"
+                        searchPlaceholder="Pesquisar consultores..."
+                        emptyText="Nenhum consultor encontrado"
                       />
                     </div>
                   </div>

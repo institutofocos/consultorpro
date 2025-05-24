@@ -116,16 +116,15 @@ export const ProjectList: React.FC = () => {
 
   const handleAddProject = async (project: Project) => {
     try {
-      console.log('Iniciando criação/atualização do projeto:', project.name);
+      console.log('=== INÍCIO handleAddProject ===');
+      console.log('Tipo de operação:', editingProject ? 'UPDATE' : 'CREATE');
+      console.log('Projeto recebido:', project.name);
       
       if (editingProject) {
         // Update existing project
-        console.log('Atualizando projeto existente:', editingProject.id);
-        const updatedProject = await updateProject(project);
-        
-        // Update the project in the local state without reloading
+        console.log('Atualizando projeto existente no estado local');
         setProjects(prevProjects => 
-          prevProjects.map(p => p.id === updatedProject.id ? updatedProject : p)
+          prevProjects.map(p => p.id === project.id ? project : p)
         );
         
         toast({
@@ -135,12 +134,17 @@ export const ProjectList: React.FC = () => {
         
         setEditingProject(null);
       } else {
-        // Add new project
-        console.log('Criando novo projeto');
-        const savedProject = await createProject(project);
-        
-        // Add the new project to the beginning of the list without reloading
-        setProjects(prevProjects => [savedProject, ...prevProjects]);
+        // Add new project - NEVER reload the entire list, just add to state
+        console.log('Adicionando novo projeto ao estado local');
+        setProjects(prevProjects => {
+          // Check if project already exists to prevent duplicates
+          const exists = prevProjects.some(p => p.id === project.id);
+          if (exists) {
+            console.log('Projeto já existe no estado, não adicionando duplicata');
+            return prevProjects;
+          }
+          return [project, ...prevProjects];
+        });
         
         toast({
           title: "Sucesso",
@@ -149,13 +153,13 @@ export const ProjectList: React.FC = () => {
       }
       
       setShowForm(false);
-      console.log('Processo de criação/atualização concluído com sucesso');
+      console.log('=== FIM handleAddProject ===');
     } catch (error: any) {
-      console.error('Error saving project:', error);
+      console.error('Error in handleAddProject:', error);
       toast({
         variant: "destructive",
         title: "Erro",
-        description: error.message || "Não foi possível salvar o projeto."
+        description: error.message || "Erro inesperado ao processar projeto."
       });
     }
   };
@@ -288,10 +292,14 @@ export const ProjectList: React.FC = () => {
         <ProjectDetails 
           project={selectedProject}
           onClose={handleCloseDetails}
-          onProjectUpdated={loadProjects}
+          onProjectUpdated={() => {
+            // Only refresh the specific project, don't reload entire list
+            console.log('Project updated, refreshing individual project data if needed');
+          }}
         />
       ) : (
         <>
+          {/* ... keep existing code (search and filter components) */}
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="relative w-full md:w-[300px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />

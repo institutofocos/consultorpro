@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 import { Project, Stage } from "@/components/projects/types";
 import { createProjectTasks, updateProjectTasks } from "./project-tasks";
@@ -353,6 +354,24 @@ export const createProject = async (project: Project): Promise<Project> => {
     console.log('=== INÍCIO DA CRIAÇÃO DO PROJETO ===');
     console.log('Criando novo projeto:', project.name);
     
+    // VERIFICAÇÃO ADICIONAL: Verificar se já existe um projeto com o mesmo nome e datas
+    const { data: existingProjects, error: checkError } = await supabase
+      .from('projects')
+      .select('id, name')
+      .eq('name', project.name)
+      .eq('start_date', project.startDate)
+      .eq('end_date', project.endDate)
+      .limit(1);
+
+    if (checkError) {
+      console.error('Erro ao verificar projetos existentes:', checkError);
+    }
+
+    if (existingProjects && existingProjects.length > 0) {
+      console.log('PROJETO DUPLICADO DETECTADO - Projeto já existe:', existingProjects[0]);
+      throw new Error(`Projeto "${project.name}" já existe com essas datas. Evitando duplicação.`);
+    }
+
     // 1. Criar o projeto no banco
     const { data: projectData, error: projectError } = await supabase
       .from('projects')
