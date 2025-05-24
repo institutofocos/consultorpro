@@ -145,29 +145,51 @@ serve(async (req) => {
         table_name: 'test',
         timestamp: new Date().toISOString(),
         data: {
-          message: 'This is a test webhook payload',
-          test: true
+          message: 'Este é um payload de teste do webhook',
+          test: true,
+          project: {
+            id: 'test-project-id',
+            name: 'Projeto de Teste',
+            status: 'active'
+          },
+          stage: {
+            id: 'test-stage-id',
+            name: 'Etapa de Teste',
+            completed: false
+          }
         }
       };
 
       try {
+        console.log('Sending test payload to:', url);
+        console.log('Test payload:', testPayload);
+        
         const response = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'User-Agent': 'Supabase-Webhook-Test/1.0'
           },
           body: JSON.stringify(testPayload)
         });
 
         const success = response.ok;
-        console.log('Webhook test result:', { success, status: response.status });
+        const responseText = await response.text();
+        
+        console.log('Webhook test result:', { 
+          success, 
+          status: response.status, 
+          statusText: response.statusText,
+          responseBody: responseText
+        });
         
         return new Response(
           JSON.stringify({ 
             success, 
-            message: success ? "Test message sent successfully" : "Test failed",
+            message: success ? "Teste enviado com sucesso" : `Teste falhou: ${response.status} ${response.statusText}`,
             status: response.status,
-            statusText: response.statusText
+            statusText: response.statusText,
+            responseBody: responseText
           }),
           { 
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -179,7 +201,8 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            message: "Test failed: " + error.message 
+            message: "Teste falhou: " + (error.message || 'Erro desconhecido'),
+            error: error.message
           }),
           { 
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -242,7 +265,7 @@ serve(async (req) => {
     if (action === "process") {
       console.log('Processing webhook queue');
       
-      // Fetch pending webhook logs
+      // Fetch pending webhook logs with webhook details
       const { data: logs, error } = await supabaseClient
         .from('webhook_logs')
         .select(`
@@ -270,24 +293,34 @@ serve(async (req) => {
 
       console.log(`Processing ${logs?.length || 0} webhook logs`);
 
+      let processedCount = 0;
+      let successCount = 0;
+
       for (const log of logs || []) {
         try {
           console.log(`Processing webhook log ${log.id} for ${log.webhooks.url}`);
+          
+          // Prepare enhanced payload with context
+          const enhancedPayload = {
+            event_type: log.event_type,
+            table_name: log.table_name,
+            timestamp: log.created_at,
+            webhook_id: log.webhook_id,
+            attempt: log.attempt_count + 1,
+            data: log.payload
+          };
           
           const response = await fetch(log.webhooks.url, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'User-Agent': 'Supabase-Webhook/1.0',
               ...(log.webhooks.secret_key && {
-                'Authorization': `Bearer ${log.webhooks.secret_key}`
+                'Authorization': `Bearer ${log.webhooks.secret_key}`,
+                'X-Webhook-Secret': log.webhooks.secret_key
               })
             },
-            body: JSON.stringify({
-              event_type: log.event_type,
-              table_name: log.table_name,
-              timestamp: log.created_at,
-              data: log.payload
-            })
+            body: JSON.stringify(enhancedPayload)
           });
 
           const success = response.ok;
@@ -304,7 +337,10 @@ serve(async (req) => {
             })
             .eq('id', log.id);
 
-          console.log(`Webhook ${log.id} processed: ${success ? 'SUCCESS' : 'FAILED'}`);
+          processedCount++;
+          if (success) successCount++;
+
+          console.log(`Webhook ${log.id} processed: ${success ? 'SUCCESS' : 'FAILED'} (${response.status})`);
         } catch (error) {
           console.error(`Error processing webhook ${log.id}:`, error);
           
@@ -313,16 +349,99 @@ serve(async (req) => {
             .from('webhook_logs')
             .update({
               attempt_count: log.attempt_count + 1,
-              response_body: error.message
+              response_body: `Error: ${error.message}`
             })
             .eq('id', log.id);
+          
+          processedCount++;
         }
       }
       
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: `Processed ${logs?.length || 0} webhook logs`
+          message: `Processados ${processedCount} webhooks (${successCount} sucessos)`
+        }),
+        { 
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200 
+        }
+      );
+    }
+
+    if (action === "trigger_test") {
+      console.log('Triggering test webhook events');
+      
+      // Create a test project event
+      const testProjectData = {
+        id: crypto.randomUUID(),
+        name: 'Projeto de Teste Webhook',
+        description: 'Este é um projeto criado para testar webhooks',
+        status: 'planned',
+        total_value: 5000,
+        created_at: new Date().toISOString()
+      };
+
+      const testStageData = {
+        id: crypto.randomUUID(),
+        project_id: testProjectData.id,
+        name: 'Etapa de Teste',
+        description: 'Etapa criada para teste de webhook',
+        value: 1000,
+        completed: false,
+        created_at: new Date().toISOString()
+      };
+
+      // Get active webhooks
+      const { data: webhooks } = await supabaseClient
+        .from('webhooks')
+        .select('*')
+        .eq('is_active', true);
+
+      if (!webhooks || webhooks.length === 0) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: "Nenhum webhook ativo encontrado" 
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200 
+          }
+        );
+      }
+
+      // Create webhook logs for testing
+      for (const webhook of webhooks) {
+        // Test project INSERT
+        if (webhook.tables.includes('projects') && webhook.events.includes('INSERT')) {
+          await supabaseClient
+            .from('webhook_logs')
+            .insert({
+              webhook_id: webhook.id,
+              event_type: 'INSERT',
+              table_name: 'projects',
+              payload: testProjectData
+            });
+        }
+
+        // Test stage INSERT
+        if (webhook.tables.includes('project_stages') && webhook.events.includes('INSERT')) {
+          await supabaseClient
+            .from('webhook_logs')
+            .insert({
+              webhook_id: webhook.id,
+              event_type: 'INSERT',
+              table_name: 'project_stages',
+              payload: testStageData
+            });
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: `Eventos de teste criados para ${webhooks.length} webhook(s)` 
         }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },

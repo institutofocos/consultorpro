@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 import { Project, Stage } from "@/components/projects/types";
 import { createProjectTasks, updateProjectTasks } from "./project-tasks";
@@ -373,6 +372,7 @@ export const createProject = async (project: Project): Promise<Project> => {
     }
 
     // 1. Criar o projeto no banco
+    console.log('Inserindo projeto no banco de dados...');
     const { data: projectData, error: projectError } = await supabase
       .from('projects')
       .insert({
@@ -403,6 +403,7 @@ export const createProject = async (project: Project): Promise<Project> => {
     }
 
     console.log('Projeto criado no banco com ID:', projectData.id);
+    console.log('Webhook será disparado automaticamente para INSERT em projects');
 
     // 2. Criar etapas se existirem
     let createdStages: Stage[] = [];
@@ -410,6 +411,7 @@ export const createProject = async (project: Project): Promise<Project> => {
       console.log('Criando', project.stages.length, 'etapas para o projeto');
       createdStages = await createProjectStages(projectData.id, project.stages);
       console.log('Etapas criadas com sucesso:', createdStages.length);
+      console.log('Webhooks serão disparados automaticamente para INSERT em project_stages');
     }
 
     const createdProject: Project = {
@@ -455,6 +457,7 @@ export const createProject = async (project: Project): Promise<Project> => {
     console.log("Nome:", createdProject.name);
     console.log("ID:", createdProject.id);
     console.log("Etapas:", createdProject.stages?.length || 0);
+    console.log("Webhooks foram disparados automaticamente via triggers do banco");
     
     return createdProject;
   } catch (error) {
@@ -467,6 +470,7 @@ export const createProject = async (project: Project): Promise<Project> => {
 export const updateProject = async (project: Project): Promise<Project> => {
   try {
     console.log('Atualizando projeto:', project.name);
+    console.log('Webhook será disparado automaticamente para UPDATE em projects');
     
     const { error: projectError } = await supabase
       .from('projects')
@@ -496,8 +500,10 @@ export const updateProject = async (project: Project): Promise<Project> => {
     // Atualizar etapas
     let updatedStages: Stage[] = [];
     if (project.stages && project.stages.length > 0) {
+      console.log('Atualizando etapas do projeto');
       updatedStages = await updateProjectStages(project.id, project.stages);
       console.log('Etapas atualizadas:', updatedStages);
+      console.log('Webhooks foram disparados automaticamente para DELETE/INSERT em project_stages');
     }
 
     const updatedProject: Project = {

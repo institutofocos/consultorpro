@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { AlertCircle, CheckCircle2, X, RefreshCw, Play, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, X, RefreshCw, Play, Loader2, TestTube } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Webhook {
@@ -29,6 +29,7 @@ const WebhookManager: React.FC = () => {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [isTesting, setIsTesting] = useState<string>('');
   const [selectedEvents, setSelectedEvents] = useState<Record<string, boolean>>({
     INSERT: true,
     UPDATE: true,
@@ -209,6 +210,7 @@ const WebhookManager: React.FC = () => {
 
   const testWebhook = async (url: string) => {
     try {
+      setIsTesting(url);
       console.log('Testing webhook:', url);
       
       toast.info("Testando webhook", {
@@ -219,7 +221,7 @@ const WebhookManager: React.FC = () => {
       
       if (result.success) {
         toast.success("Teste bem-sucedido", {
-          description: "Teste do webhook concluído com sucesso",
+          description: `Webhook respondeu com status ${result.status}`,
           icon: <CheckCircle2 className="h-5 w-5 text-success" />
         });
       } else {
@@ -235,6 +237,47 @@ const WebhookManager: React.FC = () => {
         description: error instanceof Error ? error.message : "Falha ao testar webhook",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
+    } finally {
+      setIsTesting('');
+    }
+  };
+
+  const triggerTestEvents = async () => {
+    try {
+      setIsLoading(true);
+      console.log('Triggering test events for projects and stages');
+      
+      toast.info("Criando eventos de teste", {
+        description: "Gerando eventos de teste para projetos e etapas"
+      });
+      
+      const result = await callWebhookFunction('trigger_test');
+      
+      if (result.success) {
+        toast.success("Eventos de teste criados", {
+          description: result.message,
+          icon: <CheckCircle2 className="h-5 w-5 text-success" />
+        });
+        
+        // Process the queue immediately
+        setTimeout(() => {
+          processWebhookQueue();
+        }, 1000);
+      } else {
+        toast.error("Falha ao criar eventos de teste", {
+          description: result.message || "Erro ao gerar eventos de teste",
+          icon: <AlertCircle className="h-5 w-5 text-destructive" />
+        });
+      }
+      
+    } catch (error) {
+      console.error("Error triggering test events:", error);
+      toast.error("Erro nos eventos de teste", {
+        description: error instanceof Error ? error.message : "Falha ao criar eventos de teste",
+        icon: <AlertCircle className="h-5 w-5 text-destructive" />
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -362,6 +405,19 @@ const WebhookManager: React.FC = () => {
             <Button 
               size="sm" 
               variant="outline"
+              onClick={triggerTestEvents}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <TestTube className="h-4 w-4 mr-2" />
+              )}
+              Gerar Teste
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
               onClick={processWebhookQueue}
               disabled={isProcessing}
             >
@@ -418,8 +474,13 @@ const WebhookManager: React.FC = () => {
                       size="sm" 
                       variant="outline"
                       onClick={() => testWebhook(webhook.url)}
+                      disabled={isTesting === webhook.url}
                     >
-                      Testar
+                      {isTesting === webhook.url ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        'Testar'
+                      )}
                     </Button>
                     <Button 
                       size="icon" 
