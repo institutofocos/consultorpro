@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Note } from '@/integrations/supabase/notes';
-import { ChevronDown, ChevronUp, Calendar, User, DollarSign, Info, Link as LinkIcon } from 'lucide-react';
+import { ChevronDown, ChevronUp, Calendar, User, Info, Link as LinkIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -93,19 +93,6 @@ const CompactNoteCard: React.FC<CompactNoteCardProps> = ({
           </div>
 
           <div className="flex items-center gap-1">
-            {/* Value */}
-            {note.estimated_value && note.estimated_value > 0 && (
-              <div className="flex items-center gap-1">
-                <DollarSign className="h-2 w-2" />
-                <span>{new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0
-                }).format(note.estimated_value)}</span>
-              </div>
-            )}
-
             {/* Description indicator */}
             {note.content && (
               <>

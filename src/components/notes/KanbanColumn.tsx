@@ -46,11 +46,6 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
     setIsEditing(false);
   };
 
-  // Calcular total dos projetos na coluna
-  const totalValue = notes.reduce((sum, note) => {
-    return sum + (note.estimated_value || 0);
-  }, 0);
-
   return (
     <div className="flex flex-col min-w-[300px] w-1/4 max-h-[calc(100vh-200px)]">
       <div className={`p-3 rounded-t-md font-medium ${bgColor} flex items-center justify-between`}>
@@ -80,15 +75,6 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
         </div>
         
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold">
-            {new Intl.NumberFormat('pt-BR', {
-              style: 'currency',
-              currency: 'BRL',
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0
-            }).format(totalValue)}
-          </span>
-          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
