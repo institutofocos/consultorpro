@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -8,7 +7,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Clock, FileText } from "lucide-react";
+import { Check, Clock, FileText, User } from "lucide-react";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Project, Stage } from './types';
@@ -36,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ProjectDetailsProps {
   project: Project;
@@ -58,6 +58,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
   const [stages, setStages] = useState<Stage[]>([]);
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
   const [currentStageDescription, setCurrentStageDescription] = useState("");
+  const [consultantNames, setConsultantNames] = useState<Record<string, string>>({});
   const { toast } = useToast();
   
   // Initialize stages from project
@@ -67,10 +68,43 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
     
     if (project.stages && Array.isArray(project.stages)) {
       setStages(project.stages);
+      
+      // Fetch consultant names for stages that have consultant_id
+      const consultantIds = project.stages
+        .filter(stage => stage.consultantId)
+        .map(stage => stage.consultantId)
+        .filter((id, index, arr) => arr.indexOf(id) === index); // unique ids
+      
+      if (consultantIds.length > 0) {
+        fetchConsultantNames(consultantIds);
+      }
     } else {
       setStages([]);
     }
   }, [project]);
+
+  // Function to fetch consultant names
+  const fetchConsultantNames = async (consultantIds: string[]) => {
+    try {
+      const { data: consultants, error } = await supabase
+        .from('consultants')
+        .select('id, name')
+        .in('id', consultantIds);
+
+      if (error) {
+        console.error('Error fetching consultant names:', error);
+        return;
+      }
+
+      const namesMap: Record<string, string> = {};
+      consultants?.forEach(consultant => {
+        namesMap[consultant.id] = consultant.name;
+      });
+      setConsultantNames(namesMap);
+    } catch (error) {
+      console.error('Error fetching consultant names:', error);
+    }
+  };
   
   // Buscar salas de chat relacionadas a este projeto
   const { data: projectChatRooms = [] } = useQuery({
@@ -371,6 +405,16 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
                       <div>Data de Início: {stage.startDate ? formatDate(stage.startDate) : 'Não definida'}</div>
                       <div>Data de Término: {stage.endDate ? formatDate(stage.endDate) : 'Não definida'}</div>
                       <div>Valor: {new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(stage.value || 0)}</div>
+                      
+                      {/* Exibir consultor vinculado à etapa */}
+                      {stage.consultantId && (
+                        <div className="flex items-center gap-1">
+                          <User className="h-3 w-3 text-blue-500" />
+                          <span className="text-blue-600 font-medium">
+                            Consultor: {consultantNames[stage.consultantId] || 'Carregando...'}
+                          </span>
+                        </div>
+                      )}
                       
                       <div className="flex flex-wrap gap-1 col-span-2 mt-2">
                         {stage.completed && (
