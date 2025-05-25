@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from '@tanstack/react-query';
@@ -136,7 +135,7 @@ const ChatPage = () => {
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
-        <h1 className="text-3xl font-bold">Chat Interno</h1>
+        <h1 className="text-3xl font-bold">Chat</h1>
         <p className="text-muted-foreground">Comunique-se com outros consultores em tempo real</p>
       </div>
 

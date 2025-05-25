@@ -107,26 +107,35 @@ export type Database = {
         Row: {
           content: string
           id: string
+          message_source: string | null
           room_id: string
           sender_id: string
           sender_name: string
           timestamp: string | null
+          whatsapp_message_id: string | null
+          whatsapp_metadata: Json | null
         }
         Insert: {
           content: string
           id?: string
+          message_source?: string | null
           room_id: string
           sender_id: string
           sender_name: string
           timestamp?: string | null
+          whatsapp_message_id?: string | null
+          whatsapp_metadata?: Json | null
         }
         Update: {
           content?: string
           id?: string
+          message_source?: string | null
           room_id?: string
           sender_id?: string
           sender_name?: string
           timestamp?: string | null
+          whatsapp_message_id?: string | null
+          whatsapp_metadata?: Json | null
         }
         Relationships: [
           {
@@ -1380,6 +1389,153 @@ export type Database = {
           url?: string
         }
         Relationships: []
+      }
+      whatsapp_chat_mappings: {
+        Row: {
+          auto_sync: boolean | null
+          chat_room_id: string
+          connection_id: string
+          created_at: string | null
+          id: string
+          whatsapp_contact_id: string
+        }
+        Insert: {
+          auto_sync?: boolean | null
+          chat_room_id: string
+          connection_id: string
+          created_at?: string | null
+          id?: string
+          whatsapp_contact_id: string
+        }
+        Update: {
+          auto_sync?: boolean | null
+          chat_room_id?: string
+          connection_id?: string
+          created_at?: string | null
+          id?: string
+          whatsapp_contact_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_chat_mappings_chat_room_id_fkey"
+            columns: ["chat_room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_chat_mappings_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_chat_mappings_whatsapp_contact_id_fkey"
+            columns: ["whatsapp_contact_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_connections: {
+        Row: {
+          connection_data: Json | null
+          created_at: string | null
+          evolution_api_key: string
+          evolution_api_url: string
+          export_from_date: string | null
+          id: string
+          instance_name: string
+          last_sync_at: string | null
+          phone_number: string | null
+          qr_code: string | null
+          status: string
+          updated_at: string | null
+          user_id: string
+          webhook_url: string | null
+        }
+        Insert: {
+          connection_data?: Json | null
+          created_at?: string | null
+          evolution_api_key: string
+          evolution_api_url: string
+          export_from_date?: string | null
+          id?: string
+          instance_name: string
+          last_sync_at?: string | null
+          phone_number?: string | null
+          qr_code?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id: string
+          webhook_url?: string | null
+        }
+        Update: {
+          connection_data?: Json | null
+          created_at?: string | null
+          evolution_api_key?: string
+          evolution_api_url?: string
+          export_from_date?: string | null
+          id?: string
+          instance_name?: string
+          last_sync_at?: string | null
+          phone_number?: string | null
+          qr_code?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
+      whatsapp_contacts: {
+        Row: {
+          connection_id: string
+          created_at: string | null
+          group_participants: Json | null
+          id: string
+          is_group: boolean | null
+          name: string
+          phone_number: string | null
+          profile_picture_url: string | null
+          updated_at: string | null
+          whatsapp_id: string
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string | null
+          group_participants?: Json | null
+          id?: string
+          is_group?: boolean | null
+          name: string
+          phone_number?: string | null
+          profile_picture_url?: string | null
+          updated_at?: string | null
+          whatsapp_id: string
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string | null
+          group_participants?: Json | null
+          id?: string
+          is_group?: boolean | null
+          name?: string
+          phone_number?: string | null
+          profile_picture_url?: string | null
+          updated_at?: string | null
+          whatsapp_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_contacts_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_connections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

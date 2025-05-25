@@ -9,8 +9,9 @@ import UserManagement from './UserManagement';
 import TimezoneSettings from './TimezoneSettings';
 import SystemLogs from './SystemLogs';
 import WebhookSettings from './WebhookSettings';
+import WhatsAppConnections from './WhatsAppConnections';
 import { useAuth } from '@/contexts/AuthContext';
-import { Settings, Users, Clock, FileText, Zap } from 'lucide-react';
+import { Settings, Users, Clock, FileText, Zap, MessageSquare } from 'lucide-react';
 
 const SettingsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("general");
@@ -33,6 +34,10 @@ const SettingsPage: React.FC = () => {
           <TabsTrigger value="timezone">
             <Clock className="h-4 w-4 mr-2" />
             Horário
+          </TabsTrigger>
+          <TabsTrigger value="connections">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Conexões
           </TabsTrigger>
           <TabsTrigger value="logs">
             <FileText className="h-4 w-4 mr-2" />
@@ -71,6 +76,10 @@ const SettingsPage: React.FC = () => {
 
         <TabsContent value="timezone">
           <TimezoneSettings />
+        </TabsContent>
+
+        <TabsContent value="connections">
+          <WhatsAppConnections />
         </TabsContent>
 
         <TabsContent value="logs">
