@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -208,7 +207,7 @@ export const ServiceList: React.FC = () => {
       {showForm ? (
         <ServiceForm 
           service={editingService} 
-          onServiceSaved={handleAddService} 
+          onSave={handleAddService} 
           onCancel={() => {
             setShowForm(false);
             setEditingService(null);

@@ -1,12 +1,10 @@
-
 export interface ServiceStage {
-  id: string | number;
+  id: number;
   name: string;
   description?: string;
   days?: number;
   hours: number;
   value: number;
-  order?: number;
   attachment?: string;
   attachmentName?: string;
 }
@@ -28,8 +26,6 @@ export interface Service {
   netValue: number;
   stages: ServiceStage[];
   tags: ServiceTag[];
-  createdAt?: string;
-  updatedAt?: string;
 }
 
 export interface BasicService {
