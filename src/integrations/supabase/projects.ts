@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 import { Project, Stage } from "@/components/projects/types";
 import { createProjectTasks, updateProjectTasks } from "./project-tasks";
@@ -34,7 +35,7 @@ export const fetchProjectStages = async (projectId: string): Promise<Stage[]> =>
       consultantsSettled: stage.consultants_settled,
       attachment: stage.attachment,
       stageOrder: stage.stage_order,
-      status: stage.status || 'iniciar_projeto',
+      status: (stage.status as Stage['status']) || 'iniciar_projeto',
       createdAt: stage.created_at,
       updatedAt: stage.updated_at
     }));
@@ -94,7 +95,7 @@ export const createProjectStages = async (projectId: string, stages: Omit<Stage,
       consultantsSettled: stage.consultants_settled,
       attachment: stage.attachment,
       stageOrder: stage.stage_order,
-      status: stage.status || 'iniciar_projeto',
+      status: (stage.status as Stage['status']) || 'iniciar_projeto',
       createdAt: stage.created_at,
       updatedAt: stage.updated_at
     }));
@@ -161,7 +162,7 @@ export const updateProjectStages = async (projectId: string, stages: Stage[]): P
       consultantsSettled: stage.consultants_settled,
       attachment: stage.attachment,
       stageOrder: stage.stage_order,
-      status: stage.status || 'iniciar_projeto',
+      status: (stage.status as Stage['status']) || 'iniciar_projeto',
       createdAt: stage.created_at,
       updatedAt: stage.updated_at
     }));
