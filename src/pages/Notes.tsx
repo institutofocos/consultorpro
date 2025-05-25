@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { LayoutGrid, List, Kanban, Plus, Filter, Calendar as CalendarIcon, BarChart3 } from 'lucide-react';
@@ -30,7 +31,7 @@ import NoteForm from '@/components/notes/NoteForm';
 import NoteFormSelect from '@/components/notes/NoteFormSelect';
 
 const NotesPage: React.FC = () => {
-  const [viewMode, setViewMode] = useState<string>('lista');
+  const [viewMode, setViewMode] = useState<string>('kanban');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [consultantFilter, setConsultantFilter] = useState<string>('');
@@ -43,7 +44,6 @@ const NotesPage: React.FC = () => {
   const [services, setServices] = useState<Array<{id: string, name: string}>>([]);
   const [clients, setClients] = useState<Array<{id: string, name: string}>>([]);
 
-  // Fetch consultants, services, and clients for filters
   useEffect(() => {
     const fetchFilterOptions = async () => {
       const [consultantsRes, servicesRes, clientsRes] = await Promise.all([
@@ -60,7 +60,6 @@ const NotesPage: React.FC = () => {
     fetchFilterOptions();
   }, []);
 
-  // Buscar tarefas
   const { 
     data: notes = [], 
     isLoading, 
@@ -71,7 +70,6 @@ const NotesPage: React.FC = () => {
     queryFn: fetchNotes,
   });
 
-  // Filtrar tarefas
   const filteredNotes = notes.filter(note => {
     const matchesSearch = searchTerm === '' || 
       note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -89,7 +87,6 @@ const NotesPage: React.FC = () => {
     const matchesService = serviceFilter === '' || note.service_id === serviceFilter;
     const matchesClient = clientFilter === '' || note.client_id === clientFilter;
     
-    // Date filtering
     let matchesDate = true;
     if (dateFilter) {
       const today = new Date();
@@ -132,7 +129,6 @@ const NotesPage: React.FC = () => {
     return matchesSearch && matchesStatus && matchesConsultant && matchesService && matchesClient && matchesDate;
   });
 
-  // Handlers
   const handleCreateNote = async (noteData: any) => {
     try {
       await createNote(noteData);
@@ -209,7 +205,6 @@ const NotesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Filtros */}
       <Card>
         <CardContent className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">

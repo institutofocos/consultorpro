@@ -93,7 +93,7 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
         toast.success('Coluna adicionada com sucesso!');
       } catch (error) {
         console.error('Erro ao criar coluna:', error);
-        toast.error('Erro ao criar coluna. Verifique as permissões.');
+        toast.error('Erro ao criar coluna.');
       }
     }
   };
@@ -130,11 +130,6 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     try {
       const column = columns.find(col => col.column_id === columnId);
       if (!column) return;
-
-      if (column.is_default) {
-        toast.error('Não é possível excluir colunas padrão do sistema');
-        return;
-      }
 
       if (notesByColumn[columnId] && notesByColumn[columnId].length > 0) {
         toast.error('Não é possível excluir uma coluna que contém tarefas');
@@ -179,8 +174,7 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
       const targetColumn = sortedColumns[targetIndex];
       
       await swapColumnPositions(currentColumn.id, targetColumn.id);
-      
-      queryClient.invalidateQueries({ queryKey: ['kanban-columns'] });
+      await refetchColumns();
       
       const directionText = direction === 'left' ? 'esquerda' : 'direita';
       toast.success(`Coluna movida para a ${directionText}!`);
@@ -207,9 +201,7 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
       try {
         const columnIds = newColumns.map(col => col.id);
         await reorderColumns(columnIds);
-        
-        queryClient.invalidateQueries({ queryKey: ['kanban-columns'] });
-        
+        await refetchColumns();
         toast.success('Ordem das colunas atualizada!');
       } catch (error) {
         console.error('Erro ao reordenar colunas:', error);
@@ -276,7 +268,7 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
         [destColumn]: notesByColumn[destColumn].filter(note => note.id !== draggableId),
       });
     }
-  }, [notesByColumn, onStatusChanged, notes, columns, queryClient]);
+  }, [notesByColumn, onStatusChanged, notes, columns, refetchColumns]);
 
   if (columnsLoading) {
     return <div className="text-center py-8">Carregando colunas...</div>;

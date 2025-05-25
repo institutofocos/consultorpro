@@ -31,7 +31,7 @@ export const ensureDefaultColumns = async (): Promise<void> => {
         },
         {
           column_id: 'em_producao',
-          title: 'Em Produção',
+          title: 'Em produção',
           bg_color: 'bg-yellow-50',
           order_index: 1,
           is_default: true,
@@ -103,7 +103,6 @@ export const ensureDefaultColumns = async (): Promise<void> => {
 
 export const fetchKanbanColumns = async (): Promise<KanbanColumn[]> => {
   try {
-    // Primeiro, garante que as colunas padrão existem
     await ensureDefaultColumns();
     
     const { data, error } = await supabase
