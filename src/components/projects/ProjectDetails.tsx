@@ -17,6 +17,7 @@ import { Link } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
 import { fetchChatRoomsByProject } from '@/integrations/supabase/chat';
 import { useQuery } from '@tanstack/react-query';
+import { fetchKanbanColumns } from '@/integrations/supabase/kanban-columns';
 import {
   Dialog,
   DialogContent,
@@ -43,16 +44,29 @@ interface ProjectDetailsProps {
   onProjectUpdated: () => void;
 }
 
-interface StageStatus {
-  completed: boolean;
-  clientApproved: boolean;
-  managerApproved: boolean;
-  invoiceIssued: boolean;
-  paymentReceived: boolean;
-  consultantsSettled: boolean;
-}
+const STATUS_LABELS = {
+  'iniciar_projeto': 'Iniciar Projeto',
+  'em_producao': 'Em produção',
+  'aguardando_assinatura': 'Aguardando Assinatura',
+  'aguardando_aprovacao': 'Aguardando Aprovação',
+  'aguardando_nota_fiscal': 'Aguardando Nota Fiscal',
+  'aguardando_pagamento': 'Aguardando Pagamento',
+  'aguardando_repasse': 'Aguardando Repasse',
+  'finalizados': 'Finalizados',
+  'cancelados': 'Cancelados',
+};
 
-type StageStatusKey = keyof StageStatus;
+const STATUS_COLORS = {
+  'iniciar_projeto': 'bg-blue-100 text-blue-800',
+  'em_producao': 'bg-yellow-100 text-yellow-800',
+  'aguardando_assinatura': 'bg-orange-100 text-orange-800',
+  'aguardando_aprovacao': 'bg-purple-100 text-purple-800',
+  'aguardando_nota_fiscal': 'bg-indigo-100 text-indigo-800',
+  'aguardando_pagamento': 'bg-pink-100 text-pink-800',
+  'aguardando_repasse': 'bg-cyan-100 text-cyan-800',
+  'finalizados': 'bg-green-100 text-green-800',
+  'cancelados': 'bg-red-100 text-red-800',
+};
 
 export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose, onProjectUpdated }) => {
   const [stages, setStages] = useState<Stage[]>([]);
@@ -61,6 +75,12 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
   const [consultantNames, setConsultantNames] = useState<Record<string, string>>({});
   const { toast } = useToast();
   
+  // Buscar colunas do Kanban para usar como opções de status
+  const { data: kanbanColumns = [] } = useQuery({
+    queryKey: ['kanban-columns'],
+    queryFn: fetchKanbanColumns,
+  });
+
   // Initialize stages from project
   useEffect(() => {
     console.log('ProjectDetails - Loading project:', project);
@@ -119,19 +139,19 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
     return Math.round((approvedStages / stages.length) * 100);
   };
 
-  const handleStageStatusUpdate = async (stageId: string, statusField: StageStatusKey, value: boolean) => {
+  const handleStageStatusUpdate = async (stageId: string, newStatus: Stage['status']) => {
     const updatedStages = stages.map(stage => {
       if (stage.id === stageId) {
-        const updatedStage = { ...stage, [statusField]: value };
+        const updatedStage = { ...stage, status: newStatus };
         
-        // Auto-mark stage as completed when manager approves
-        if (statusField === 'managerApproved' && value) {
+        // Auto-marcar como concluído se status for "finalizados"
+        if (newStatus === 'finalizados') {
           updatedStage.completed = true;
-        }
-        
-        // If manager disapproves, unmark completion
-        if (statusField === 'managerApproved' && !value) {
-          updatedStage.completed = false;
+          updatedStage.managerApproved = true;
+          updatedStage.clientApproved = true;
+          updatedStage.invoiceIssued = true;
+          updatedStage.paymentReceived = true;
+          updatedStage.consultantsSettled = true;
         }
         
         return updatedStage;
@@ -142,18 +162,16 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
     setStages(updatedStages);
     
     try {
-      // Update stage in database
-      const updates: Partial<Stage> = {};
-      updates[statusField] = value;
+      const updates: Partial<Stage> = { status: newStatus };
       
-      // Auto-mark stage as completed when manager approves
-      if (statusField === 'managerApproved' && value) {
+      // Auto-marcar campos relacionados se status for "finalizados"
+      if (newStatus === 'finalizados') {
         updates.completed = true;
-      }
-      
-      // If manager disapproves, unmark completion
-      if (statusField === 'managerApproved' && !value) {
-        updates.completed = false;
+        updates.managerApproved = true;
+        updates.clientApproved = true;
+        updates.invoiceIssued = true;
+        updates.paymentReceived = true;
+        updates.consultantsSettled = true;
       }
       
       await updateStageStatus(stageId, updates);
@@ -163,7 +181,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
         description: "Status da etapa atualizado com sucesso!"
       });
       
-      onProjectUpdated(); // Refresh project list
+      onProjectUpdated();
     } catch (error: any) {
       console.error('Error updating stage status:', error);
       toast({
@@ -172,7 +190,6 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
         description: error.message || "Não foi possível atualizar o status da etapa."
       });
       
-      // Revert local state on error
       setStages(project.stages || []);
     }
   };
@@ -202,6 +219,9 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
   };
 
   const projectProgress = calculateProjectProgress();
+
+  // Ordenar colunas do Kanban pela ordem correta
+  const sortedKanbanColumns = [...kanbanColumns].sort((a, b) => a.order_index - b.order_index);
 
   return (
     <div className="max-h-[90vh] overflow-y-auto">
@@ -345,7 +365,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
                 {stages.map((stage) => (
                   <div key={stage.id} className="border rounded-md p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center">
+                      <div className="flex items-center gap-2">
                         <div className="font-medium">{stage.name}</div>
                         {stage.description && (
                           <TooltipProvider>
@@ -366,36 +386,36 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
                             </Tooltip>
                           </TooltipProvider>
                         )}
+                        
+                        {/* Badge do status atual */}
+                        <Badge 
+                          variant="outline"
+                          className={`ml-2 ${STATUS_COLORS[stage.status || 'iniciar_projeto']}`}
+                        >
+                          {STATUS_LABELS[stage.status || 'iniciar_projeto']}
+                        </Badge>
                       </div>
                       
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm">Gerenciar Status</Button>
+                          <Button variant="outline" size="sm">Atualizar Status da Etapa</Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-56">
-                          <DropdownMenuLabel>Atualizar Status da Etapa</DropdownMenuLabel>
+                        <DropdownMenuContent className="w-64">
+                          <DropdownMenuLabel>Selecionar Status</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           <DropdownMenuGroup>
-                            <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'clientApproved', !stage.clientApproved)}>
-                              <Check className={`mr-2 h-4 w-4 ${stage.clientApproved ? 'text-green-600' : 'text-gray-400'}`} />
-                              <span>Aprovado pelo cliente</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'managerApproved', !stage.managerApproved)}>
-                              <Check className={`mr-2 h-4 w-4 ${stage.managerApproved ? 'text-green-600' : 'text-gray-400'}`} />
-                              <span>Aprovado pelo gestor</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'invoiceIssued', !stage.invoiceIssued)}>
-                              <Check className={`mr-2 h-4 w-4 ${stage.invoiceIssued ? 'text-green-600' : 'text-gray-400'}`} />
-                              <span>Nota fiscal emitida</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'paymentReceived', !stage.paymentReceived)}>
-                              <Check className={`mr-2 h-4 w-4 ${stage.paymentReceived ? 'text-green-600' : 'text-gray-400'}`} />
-                              <span>Pagamento recebido</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'consultantsSettled', !stage.consultantsSettled)}>
-                              <Check className={`mr-2 h-4 w-4 ${stage.consultantsSettled ? 'text-green-600' : 'text-gray-400'}`} />
-                              <span>Consultores pagos</span>
-                            </DropdownMenuItem>
+                            {sortedKanbanColumns.map((column) => (
+                              <DropdownMenuItem 
+                                key={column.column_id}
+                                onClick={() => handleStageStatusUpdate(stage.id, column.column_id as Stage['status'])}
+                                className="flex items-center gap-2"
+                              >
+                                <Check className={`h-4 w-4 ${
+                                  stage.status === column.column_id ? 'text-green-600' : 'text-gray-400'
+                                }`} />
+                                <span>{column.title}</span>
+                              </DropdownMenuItem>
+                            ))}
                           </DropdownMenuGroup>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -406,7 +426,6 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
                       <div>Data de Término: {stage.endDate ? formatDate(stage.endDate) : 'Não definida'}</div>
                       <div>Valor: {new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(stage.value || 0)}</div>
                       
-                      {/* Exibir consultor vinculado à etapa */}
                       {stage.consultantId && (
                         <div className="flex items-center gap-1">
                           <User className="h-3 w-3 text-blue-500" />
@@ -415,39 +434,6 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
                           </span>
                         </div>
                       )}
-                      
-                      <div className="flex flex-wrap gap-1 col-span-2 mt-2">
-                        {stage.completed && (
-                          <Badge variant="outline" className="bg-slate-100 text-slate-800 border-slate-300">
-                            Etapa concluída
-                          </Badge>
-                        )}
-                        {stage.clientApproved && (
-                          <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
-                            Aprovado pelo cliente
-                          </Badge>
-                        )}
-                        {stage.managerApproved && (
-                          <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
-                            Aprovado pelo gestor
-                          </Badge>
-                        )}
-                        {stage.invoiceIssued && (
-                          <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-300">
-                            Nota fiscal emitida
-                          </Badge>
-                        )}
-                        {stage.paymentReceived && (
-                          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
-                            Pagamento recebido
-                          </Badge>
-                        )}
-                        {stage.consultantsSettled && (
-                          <Badge variant="outline" className="bg-indigo-100 text-indigo-800 border-indigo-300">
-                            Consultores pagos
-                          </Badge>
-                        )}
-                      </div>
                     </div>
                   </div>
                 ))}

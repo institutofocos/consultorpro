@@ -168,23 +168,14 @@ export const updateProjectStages = async (projectId: string, stages: Stage[]): P
 
 // Função para atualizar status de uma etapa específica
 export const updateStageStatus = async (stageId: string, updates: Partial<Stage>): Promise<void> => {
-  try {
-    const updateData: any = {};
-    
-    if (updates.completed !== undefined) updateData.completed = updates.completed;
-    if (updates.clientApproved !== undefined) updateData.client_approved = updates.clientApproved;
-    if (updates.managerApproved !== undefined) updateData.manager_approved = updates.managerApproved;
-    if (updates.invoiceIssued !== undefined) updateData.invoice_issued = updates.invoiceIssued;
-    if (updates.paymentReceived !== undefined) updateData.payment_received = updates.paymentReceived;
-    if (updates.consultantsSettled !== undefined) updateData.consultants_settled = updates.consultantsSettled;
+  console.log('Updating stage status:', stageId, updates);
+  
+  const { error } = await supabase
+    .from('project_stages')
+    .update(updates)
+    .eq('id', stageId);
 
-    const { error } = await supabase
-      .from('project_stages')
-      .update(updateData)
-      .eq('id', stageId);
-
-    if (error) throw error;
-  } catch (error) {
+  if (error) {
     console.error('Error updating stage status:', error);
     throw error;
   }

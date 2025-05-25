@@ -1,4 +1,3 @@
-
 export interface Stage {
   id: string;
   projectId: string;
@@ -18,6 +17,7 @@ export interface Stage {
   consultantsSettled: boolean;
   attachment?: string;
   stageOrder: number;
+  status: 'iniciar_projeto' | 'em_producao' | 'aguardando_assinatura' | 'aguardando_aprovacao' | 'aguardando_nota_fiscal' | 'aguardando_pagamento' | 'aguardando_repasse' | 'finalizados' | 'cancelados';
   createdAt?: string;
   updatedAt?: string;
 }
