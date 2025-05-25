@@ -69,22 +69,26 @@ export const deleteKanbanColumn = async (id: string): Promise<void> => {
   }
 };
 
+// Função corrigida para atualizar ordem das colunas
 export const updateColumnOrder = async (columns: { id: string; order_index: number }[]): Promise<void> => {
-  const updates = columns.map(col => 
-    supabase
-      .from('kanban_columns')
-      .update({ order_index: col.order_index })
-      .eq('id', col.id)
-  );
-
-  const results = await Promise.all(updates);
+  console.log('Atualizando ordem das colunas no banco:', columns);
   
-  for (const result of results) {
-    if (result.error) {
-      console.error('Error updating column order:', result.error);
-      throw result.error;
+  // Executar todas as atualizações em uma transação
+  for (const column of columns) {
+    console.log(`Atualizando coluna ${column.id} para order_index ${column.order_index}`);
+    
+    const { error } = await supabase
+      .from('kanban_columns')
+      .update({ order_index: column.order_index })
+      .eq('id', column.id);
+    
+    if (error) {
+      console.error(`Erro ao atualizar ordem da coluna ${column.id}:`, error);
+      throw error;
     }
   }
+  
+  console.log('Ordem das colunas atualizada com sucesso no banco');
 };
 
 // Função para gerar cores aleatórias para novas colunas
