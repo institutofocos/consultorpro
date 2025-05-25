@@ -107,12 +107,12 @@ const TimezoneSettings: React.FC = () => {
 
       if (formatError) throw formatError;
 
-      // Log da alteração
+      // Log da alteração - fix the type issue by converting to JSON string
       await supabase.rpc('insert_system_log', {
         p_log_type: 'info',
         p_category: 'settings',
         p_message: 'Configurações de horário atualizadas',
-        p_details: { timezone: timezoneConfig, datetime_format: dateTimeFormat }
+        p_details: JSON.stringify({ timezone: timezoneConfig, datetime_format: dateTimeFormat })
       });
 
       toast.success("Configurações de horário salvas com sucesso");

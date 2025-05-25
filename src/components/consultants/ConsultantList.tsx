@@ -16,7 +16,7 @@ import {
   Trash
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ConsultantForm } from './ConsultantForm';
+import ConsultantForm from './ConsultantForm';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
 import { Tables } from '@/integrations/supabase/types';

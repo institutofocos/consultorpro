@@ -144,7 +144,7 @@ const ClientList = () => {
     return (
       <ClientForm 
         client={editingClient}
-        onSave={handleSaveClient}
+        onClientSaved={handleSaveClient}
         onCancel={() => {
           setIsAddingClient(false);
           setEditingClient(null);
