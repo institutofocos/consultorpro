@@ -42,10 +42,10 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   const handleSaveTitle = () => {
-    if (editTitle.trim() && editTitle.trim() !== title) {
+    if (editTitle.trim()) {
       onUpdateColumn(id, editTitle.trim());
+      setIsEditing(false);
     }
-    setIsEditing(false);
   };
 
   const handleCancelEdit = () => {
@@ -58,84 +58,61 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
     setShowColorPicker(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSaveTitle();
-    } else if (e.key === 'Escape') {
-      handleCancelEdit();
-    }
-  };
-
   return (
-    <div className="flex flex-col min-w-[300px] w-1/4 max-h-[calc(100vh-200px)] relative">
-      {/* Header da coluna */}
-      <div className={`p-3 rounded-t-md font-medium ${bgColor} flex items-center justify-between border-b border-gray-200`}>
+    <div className="flex flex-col min-w-[300px] w-1/4 max-h-[calc(100vh-200px)]">
+      <div className={`p-3 rounded-t-md font-medium ${bgColor} flex items-center justify-between`}>
         <div className="flex items-center flex-1">
           {isEditing ? (
             <div className="flex items-center gap-2 flex-1">
               <Input
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="h-7 text-sm bg-white/90 border-gray-300"
+                className="h-6 text-sm bg-white/80"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveTitle();
+                  if (e.key === 'Escape') handleCancelEdit();
+                }}
                 autoFocus
-                onBlur={handleSaveTitle}
               />
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                onClick={handleSaveTitle} 
-                className="h-7 w-7 p-0 hover:bg-white/20"
-              >
+              <Button size="sm" variant="ghost" onClick={handleSaveTitle} className="h-6 w-6 p-0">
                 <Check className="h-3 w-3" />
               </Button>
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                onClick={handleCancelEdit} 
-                className="h-7 w-7 p-0 hover:bg-white/20"
-              >
+              <Button size="sm" variant="ghost" onClick={handleCancelEdit} className="h-6 w-6 p-0">
                 <X className="h-3 w-3" />
               </Button>
             </div>
           ) : (
-            <span className="flex-1 text-sm font-medium">
-              {title} ({notes.length})
-            </span>
+            <span className="flex-1">{title} ({notes.length})</span>
           )}
         </div>
         
-        <div className="flex items-center">
+        <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-7 w-7 p-0 hover:bg-white/20"
-              >
-                <MoreVertical className="h-4 w-4" />
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                <MoreVertical className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                <Edit2 className="h-4 w-4 mr-2" />
+                <Edit2 className="h-3 w-3 mr-2" />
                 Editar nome
               </DropdownMenuItem>
               
               <DropdownMenuItem onClick={() => setShowColorPicker(true)}>
-                <Palette className="h-4 w-4 mr-2" />
-                Escolher cor
+                <Palette className="h-3 w-3 mr-2" />
+                Escolher cor da coluna
               </DropdownMenuItem>
               
               <DropdownMenuSeparator />
               
               <DropdownMenuItem onClick={() => onMoveColumn(id, 'left')}>
-                <ChevronLeft className="h-4 w-4 mr-2" />
+                <ChevronLeft className="h-3 w-3 mr-2" />
                 Mover para esquerda
               </DropdownMenuItem>
               
               <DropdownMenuItem onClick={() => onMoveColumn(id, 'right')}>
-                <ChevronRight className="h-4 w-4 mr-2" />
+                <ChevronRight className="h-3 w-3 mr-2" />
                 Mover para direita
               </DropdownMenuItem>
               
@@ -143,9 +120,9 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               
               <DropdownMenuItem 
                 onClick={() => onDeleteColumn(id)}
-                className="text-red-600 hover:bg-red-50"
+                className="text-red-600"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
+                <Trash2 className="h-3 w-3 mr-2" />
                 Excluir coluna
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -153,46 +130,28 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
         </div>
       </div>
       
-      {/* Color picker */}
       {showColorPicker && (
-        <div className="absolute top-14 right-0 z-50">
-          <div className="relative">
-            <ColumnColorPicker
-              currentColor={bgColor}
-              onColorChange={handleColorChange}
-            />
-            <div 
-              className="fixed inset-0 z-40" 
-              onClick={() => setShowColorPicker(false)}
-            />
-          </div>
+        <div className="absolute z-50 mt-8">
+          <ColumnColorPicker
+            currentColor={bgColor}
+            onColorChange={handleColorChange}
+          />
         </div>
       )}
       
-      {/* Área droppable para as notas */}
       <Droppable droppableId={id}>
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className={`flex-1 p-3 rounded-b-md ${bgColor} transition-all duration-200 overflow-y-auto ${
-              snapshot.isDraggingOver 
-                ? 'bg-opacity-70 ring-2 ring-blue-300 ring-opacity-50' 
-                : 'bg-opacity-50'
+            className={`flex-1 p-2 rounded-b-md ${bgColor} transition-colors overflow-y-auto ${
+              snapshot.isDraggingOver ? 'bg-opacity-80' : ''
             }`}
-            style={{ 
-              maxHeight: 'calc(100vh - 280px)',
-              minHeight: '200px'
-            }}
+            style={{ maxHeight: 'calc(100vh - 250px)' }}
           >
             <div className="space-y-3">
               {children}
               {provided.placeholder}
-              {notes.length === 0 && (
-                <div className="text-center py-8 text-gray-500 text-sm">
-                  Arraste tarefas aqui
-                </div>
-              )}
             </div>
           </div>
         )}

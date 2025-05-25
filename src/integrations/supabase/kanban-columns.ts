@@ -41,7 +41,7 @@ export const createKanbanColumn = async (column: Omit<KanbanColumn, 'id' | 'crea
   return data;
 };
 
-export const updateKanbanColumn = async (id: string, updates: Partial<Omit<KanbanColumn, 'id' | 'created_at' | 'updated_at'>>): Promise<KanbanColumn> => {
+export const updateKanbanColumn = async (id: string, updates: Partial<KanbanColumn>): Promise<KanbanColumn> => {
   const { data, error } = await supabase
     .from('kanban_columns')
     .update(updates)
@@ -69,53 +69,29 @@ export const deleteKanbanColumn = async (id: string): Promise<void> => {
   }
 };
 
-export const updateColumnOrder = async (updates: { id: string; order_index: number }[]): Promise<void> => {
-  console.log('Atualizando ordem das colunas:', updates);
+// Função corrigida para atualizar ordem das colunas
+export const updateColumnOrder = async (columns: { id: string; order_index: number }[]): Promise<void> => {
+  console.log('Atualizando ordem das colunas no banco:', columns);
   
-  for (const update of updates) {
+  // Executar todas as atualizações em uma transação
+  for (const column of columns) {
+    console.log(`Atualizando coluna ${column.id} para order_index ${column.order_index}`);
+    
     const { error } = await supabase
       .from('kanban_columns')
-      .update({ order_index: update.order_index })
-      .eq('id', update.id);
+      .update({ order_index: column.order_index })
+      .eq('id', column.id);
     
     if (error) {
-      console.error(`Erro ao atualizar coluna ${update.id}:`, error);
+      console.error(`Erro ao atualizar ordem da coluna ${column.id}:`, error);
       throw error;
     }
   }
   
-  console.log('Ordem das colunas atualizada com sucesso');
+  console.log('Ordem das colunas atualizada com sucesso no banco');
 };
 
-export const swapColumnPositions = async (column1Id: string, column2Id: string): Promise<void> => {
-  // Buscar as duas colunas
-  const { data: columns, error: fetchError } = await supabase
-    .from('kanban_columns')
-    .select('id, order_index')
-    .in('id', [column1Id, column2Id]);
-
-  if (fetchError || !columns || columns.length !== 2) {
-    throw new Error('Erro ao buscar colunas para troca');
-  }
-
-  const [col1, col2] = columns;
-  
-  // Trocar as posições
-  await updateColumnOrder([
-    { id: col1.id, order_index: col2.order_index },
-    { id: col2.id, order_index: col1.order_index }
-  ]);
-};
-
-export const reorderColumns = async (columnIds: string[]): Promise<void> => {
-  const updates = columnIds.map((id, index) => ({
-    id,
-    order_index: index
-  }));
-  
-  await updateColumnOrder(updates);
-};
-
+// Função para gerar cores aleatórias para novas colunas
 export const getRandomColumnColor = (): string => {
   const colors = [
     'bg-purple-50',
