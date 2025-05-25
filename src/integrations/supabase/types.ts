@@ -996,6 +996,7 @@ export type Database = {
           project_id: string
           stage_order: number
           start_date: string | null
+          status: string | null
           updated_at: string | null
           value: number
         }
@@ -1018,6 +1019,7 @@ export type Database = {
           project_id: string
           stage_order?: number
           start_date?: string | null
+          status?: string | null
           updated_at?: string | null
           value?: number
         }
@@ -1040,6 +1042,7 @@ export type Database = {
           project_id?: string
           stage_order?: number
           start_date?: string | null
+          status?: string | null
           updated_at?: string | null
           value?: number
         }

@@ -34,7 +34,7 @@ export const fetchProjectStages = async (projectId: string): Promise<Stage[]> =>
       consultantsSettled: stage.consultants_settled,
       attachment: stage.attachment,
       stageOrder: stage.stage_order,
-      status: stage.status || 'iniciar_projeto', // Add status field with default
+      status: stage.status || 'iniciar_projeto',
       createdAt: stage.created_at,
       updatedAt: stage.updated_at
     }));
@@ -65,7 +65,7 @@ export const createProjectStages = async (projectId: string, stages: Omit<Stage,
       consultants_settled: stage.consultantsSettled,
       attachment: stage.attachment || null,
       stage_order: stage.stageOrder || index + 1,
-      status: stage.status || 'iniciar_projeto' // Add status field
+      status: stage.status || 'iniciar_projeto'
     }));
 
     const { data, error } = await supabase
@@ -94,7 +94,7 @@ export const createProjectStages = async (projectId: string, stages: Omit<Stage,
       consultantsSettled: stage.consultants_settled,
       attachment: stage.attachment,
       stageOrder: stage.stage_order,
-      status: stage.status || 'iniciar_projeto', // Add status field with default
+      status: stage.status || 'iniciar_projeto',
       createdAt: stage.created_at,
       updatedAt: stage.updated_at
     }));
@@ -132,7 +132,7 @@ export const updateProjectStages = async (projectId: string, stages: Stage[]): P
       consultants_settled: stage.consultantsSettled,
       attachment: stage.attachment || null,
       stage_order: index + 1,
-      status: stage.status || 'iniciar_projeto' // Add status field
+      status: stage.status || 'iniciar_projeto'
     }));
 
     const { data, error } = await supabase
@@ -161,7 +161,7 @@ export const updateProjectStages = async (projectId: string, stages: Stage[]): P
       consultantsSettled: stage.consultants_settled,
       attachment: stage.attachment,
       stageOrder: stage.stage_order,
-      status: stage.status || 'iniciar_projeto', // Add status field with default
+      status: stage.status || 'iniciar_projeto',
       createdAt: stage.created_at,
       updatedAt: stage.updated_at
     }));
