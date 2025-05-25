@@ -533,6 +533,39 @@ export type Database = {
         }
         Relationships: []
       }
+      kanban_columns: {
+        Row: {
+          bg_color: string
+          column_id: string
+          created_at: string
+          id: string
+          is_default: boolean
+          order_index: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          bg_color?: string
+          column_id: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          order_index?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          bg_color?: string
+          column_id?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          order_index?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       key_results: {
         Row: {
           current: number | null

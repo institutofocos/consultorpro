@@ -2,6 +2,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { Note, updateNoteStatus } from '@/integrations/supabase/notes';
+import { 
+  KanbanColumn as KanbanColumnType,
+  fetchKanbanColumns,
+  createKanbanColumn,
+  updateKanbanColumn,
+  deleteKanbanColumn,
+  updateColumnOrder,
+  getRandomColumnColor
+} from '@/integrations/supabase/kanban-columns';
 import CompactNoteCard from './CompactNoteCard';
 import KanbanColumn from './KanbanColumn';
 import { toast } from 'sonner';
@@ -15,6 +24,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface NotesKanbanProps {
   notes: Note[];
@@ -23,57 +33,33 @@ interface NotesKanbanProps {
   onStatusChanged: (noteId: string, newStatus: Note['status']) => void;
 }
 
-interface KanbanColumnType {
-  id: string;
-  title: string;
-  bgColor: string;
-  order: number;
-}
-
-const DEFAULT_COLUMNS: KanbanColumnType[] = [
-  {
-    id: 'a_fazer',
-    title: 'A Fazer',
-    bgColor: 'bg-blue-50',
-    order: 0,
-  },
-  {
-    id: 'em_producao',
-    title: 'Em Produção',
-    bgColor: 'bg-yellow-50',
-    order: 1,
-  },
-  {
-    id: 'finalizado',
-    title: 'Finalizado',
-    bgColor: 'bg-green-50',
-    order: 2,
-  },
-  {
-    id: 'cancelado',
-    title: 'Cancelado',
-    bgColor: 'bg-red-50',
-    order: 3,
-  },
-];
-
 const NotesKanban: React.FC<NotesKanbanProps> = ({
   notes,
   onUpdateNote,
   onDeleteNote,
   onStatusChanged,
 }) => {
-  const [columns, setColumns] = useState<KanbanColumnType[]>(DEFAULT_COLUMNS);
+  const queryClient = useQueryClient();
   const [notesByColumn, setNotesByColumn] = useState<Record<string, Note[]>>({});
   const [showAddColumn, setShowAddColumn] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState('');
+
+  // Buscar colunas do banco de dados
+  const { 
+    data: columns = [], 
+    isLoading: columnsLoading,
+    refetch: refetchColumns 
+  } = useQuery({
+    queryKey: ['kanban-columns'],
+    queryFn: fetchKanbanColumns,
+  });
 
   // Organiza as notas em colunas de acordo com o status
   useEffect(() => {
     const newNotesByColumn: Record<string, Note[]> = {};
     
     columns.forEach(column => {
-      newNotesByColumn[column.id] = [];
+      newNotesByColumn[column.column_id] = [];
     });
 
     notes.forEach(note => {
@@ -86,44 +72,83 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
   }, [notes, columns]);
 
   // Adicionar nova coluna
-  const handleAddColumn = () => {
+  const handleAddColumn = async () => {
     if (newColumnTitle.trim()) {
-      const newColumn: KanbanColumnType = {
-        id: `custom_${Date.now()}`,
-        title: newColumnTitle.trim(),
-        bgColor: 'bg-gray-50',
-        order: columns.length,
-      };
-      setColumns([...columns, newColumn]);
-      setNewColumnTitle('');
-      setShowAddColumn(false);
-      toast.success('Coluna adicionada com sucesso!');
+      try {
+        const newColumn: Omit<KanbanColumnType, 'id' | 'created_at' | 'updated_at'> = {
+          column_id: `custom_${Date.now()}`,
+          title: newColumnTitle.trim(),
+          bg_color: getRandomColumnColor(),
+          order_index: columns.length,
+          is_default: false,
+        };
+        
+        await createKanbanColumn(newColumn);
+        await refetchColumns();
+        setNewColumnTitle('');
+        setShowAddColumn(false);
+        toast.success('Coluna adicionada com sucesso!');
+      } catch (error) {
+        console.error('Erro ao criar coluna:', error);
+        toast.error('Erro ao criar coluna.');
+      }
     }
   };
 
   // Atualizar coluna
-  const handleUpdateColumn = (id: string, title: string) => {
-    setColumns(columns.map(col => 
-      col.id === id ? { ...col, title } : col
-    ));
-    toast.success('Coluna atualizada com sucesso!');
+  const handleUpdateColumn = async (columnId: string, title: string) => {
+    try {
+      const column = columns.find(col => col.column_id === columnId);
+      if (!column) return;
+
+      await updateKanbanColumn(column.id, { title });
+      await refetchColumns();
+      toast.success('Coluna atualizada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao atualizar coluna:', error);
+      toast.error('Erro ao atualizar coluna.');
+    }
+  };
+
+  // Atualizar cor da coluna
+  const handleUpdateColumnColor = async (columnId: string, color: string) => {
+    try {
+      const column = columns.find(col => col.column_id === columnId);
+      if (!column) return;
+
+      await updateKanbanColumn(column.id, { bg_color: color });
+      await refetchColumns();
+      toast.success('Cor da coluna atualizada!');
+    } catch (error) {
+      console.error('Erro ao atualizar cor da coluna:', error);
+      toast.error('Erro ao atualizar cor da coluna.');
+    }
   };
 
   // Excluir coluna
-  const handleDeleteColumn = (id: string) => {
-    // Não permitir excluir colunas padrão
-    if (['a_fazer', 'em_producao', 'finalizado', 'cancelado'].includes(id)) {
-      toast.error('Não é possível excluir colunas padrão do sistema');
-      return;
-    }
+  const handleDeleteColumn = async (columnId: string) => {
+    try {
+      const column = columns.find(col => col.column_id === columnId);
+      if (!column) return;
 
-    if (notesByColumn[id] && notesByColumn[id].length > 0) {
-      toast.error('Não é possível excluir uma coluna que contém tarefas');
-      return;
-    }
+      // Não permitir excluir colunas padrão
+      if (column.is_default) {
+        toast.error('Não é possível excluir colunas padrão do sistema');
+        return;
+      }
 
-    setColumns(columns.filter(col => col.id !== id));
-    toast.success('Coluna excluída com sucesso!');
+      if (notesByColumn[columnId] && notesByColumn[columnId].length > 0) {
+        toast.error('Não é possível excluir uma coluna que contém tarefas');
+        return;
+      }
+
+      await deleteKanbanColumn(column.id);
+      await refetchColumns();
+      toast.success('Coluna excluída com sucesso!');
+    } catch (error) {
+      console.error('Erro ao excluir coluna:', error);
+      toast.error('Erro ao excluir coluna.');
+    }
   };
 
   // Manipula o evento de arrastar e soltar
@@ -139,13 +164,19 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
       const [removed] = newColumns.splice(source.index, 1);
       newColumns.splice(destination.index, 0, removed);
       
-      // Atualizar ordem
-      const updatedColumns = newColumns.map((col, index) => ({
-        ...col,
-        order: index
-      }));
-      
-      setColumns(updatedColumns);
+      // Atualizar ordem no banco
+      try {
+        const updates = newColumns.map((col, index) => ({
+          id: col.id,
+          order_index: index
+        }));
+        
+        await updateColumnOrder(updates);
+        await refetchColumns();
+      } catch (error) {
+        console.error('Erro ao atualizar ordem das colunas:', error);
+        toast.error('Erro ao atualizar ordem das colunas.');
+      }
       return;
     }
 
@@ -219,9 +250,13 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
         [destColumn]: notesByColumn[destColumn].filter(note => note.id !== draggableId),
       });
     }
-  }, [notesByColumn, onStatusChanged, notes, columns]);
+  }, [notesByColumn, onStatusChanged, notes, columns, refetchColumns]);
 
-  const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
+  if (columnsLoading) {
+    return <div className="text-center py-8">Carregando colunas...</div>;
+  }
+
+  const sortedColumns = [...columns].sort((a, b) => a.order_index - b.order_index);
 
   return (
     <div className="h-full">
@@ -279,14 +314,15 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
                       {...provided.dragHandleProps}
                     >
                       <KanbanColumn
-                        id={column.id}
+                        id={column.column_id}
                         title={column.title}
-                        bgColor={column.bgColor}
-                        notes={notesByColumn[column.id] || []}
+                        bgColor={column.bg_color}
+                        notes={notesByColumn[column.column_id] || []}
                         onUpdateColumn={handleUpdateColumn}
                         onDeleteColumn={handleDeleteColumn}
+                        onUpdateColumnColor={handleUpdateColumnColor}
                       >
-                        {(notesByColumn[column.id] || []).map((note, noteIndex) => (
+                        {(notesByColumn[column.column_id] || []).map((note, noteIndex) => (
                           <Draggable key={note.id} draggableId={note.id} index={noteIndex}>
                             {(provided, snapshot) => (
                               <div

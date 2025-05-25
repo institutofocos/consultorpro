@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Note } from '@/integrations/supabase/notes';
+import ColumnColorPicker from './ColumnColorPicker';
 
 interface KanbanColumnProps {
   id: string;
@@ -19,6 +20,7 @@ interface KanbanColumnProps {
   notes: Note[];
   onUpdateColumn: (id: string, title: string) => void;
   onDeleteColumn: (id: string) => void;
+  onUpdateColumnColor: (id: string, color: string) => void;
   children: React.ReactNode;
 }
 
@@ -29,6 +31,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   notes,
   onUpdateColumn,
   onDeleteColumn,
+  onUpdateColumnColor,
   children,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -44,6 +47,10 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   const handleCancelEdit = () => {
     setEditTitle(title);
     setIsEditing(false);
+  };
+
+  const handleColorChange = (color: string) => {
+    onUpdateColumnColor(id, color);
   };
 
   return (
@@ -75,6 +82,11 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
         </div>
         
         <div className="flex items-center gap-2">
+          <ColumnColorPicker
+            currentColor={bgColor}
+            onColorChange={handleColorChange}
+          />
+          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
