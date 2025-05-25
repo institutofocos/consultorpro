@@ -18,7 +18,11 @@ export const fetchTasksForLinking = async (excludeTaskId: string): Promise<TaskI
 
     if (error) throw error;
 
-    return data || [];
+    return (data || []).map(item => ({
+      id: item.id,
+      title: item.title,
+      status: item.status as TaskInfo['status']
+    }));
   } catch (error) {
     console.error('Error fetching tasks for linking:', error);
     return [];
