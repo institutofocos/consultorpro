@@ -1033,11 +1033,16 @@ export type Database = {
           created_at: string | null
           description: string | null
           end_date: string
+          hourly_rate: number | null
           id: string
           main_consultant_commission: number | null
           main_consultant_id: string | null
           main_consultant_value: number | null
+          manager_email: string | null
+          manager_name: string | null
+          manager_phone: string | null
           name: string
+          project_id: string | null
           service_id: string | null
           start_date: string
           status: string
@@ -1047,6 +1052,7 @@ export type Database = {
           tags: string[] | null
           tax_percent: number
           third_party_expenses: number | null
+          total_hours: number | null
           total_value: number
           updated_at: string | null
         }
@@ -1055,11 +1061,16 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           end_date: string
+          hourly_rate?: number | null
           id?: string
           main_consultant_commission?: number | null
           main_consultant_id?: string | null
           main_consultant_value?: number | null
+          manager_email?: string | null
+          manager_name?: string | null
+          manager_phone?: string | null
           name: string
+          project_id?: string | null
           service_id?: string | null
           start_date: string
           status?: string
@@ -1069,6 +1080,7 @@ export type Database = {
           tags?: string[] | null
           tax_percent?: number
           third_party_expenses?: number | null
+          total_hours?: number | null
           total_value?: number
           updated_at?: string | null
         }
@@ -1077,11 +1089,16 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           end_date?: string
+          hourly_rate?: number | null
           id?: string
           main_consultant_commission?: number | null
           main_consultant_id?: string | null
           main_consultant_value?: number | null
+          manager_email?: string | null
+          manager_name?: string | null
+          manager_phone?: string | null
           name?: string
+          project_id?: string | null
           service_id?: string | null
           start_date?: string
           status?: string
@@ -1091,6 +1108,7 @@ export type Database = {
           tags?: string[] | null
           tax_percent?: number
           third_party_expenses?: number | null
+          total_hours?: number | null
           total_value?: number
           updated_at?: string | null
         }
@@ -1634,6 +1652,14 @@ export type Database = {
           consultant_payments_made: number
           consultant_payments_pending: number
         }[]
+      }
+      calculate_stage_dates: {
+        Args: { project_start_date: string; stages: Json }
+        Returns: Json
+      }
+      generate_project_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       get_current_user_role: {
         Args: Record<PropertyKey, never>

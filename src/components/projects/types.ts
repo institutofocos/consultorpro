@@ -24,6 +24,7 @@ export interface Stage {
 
 export interface Project {
   id: string;
+  projectId?: string; // ID único de 9 caracteres
   name: string;
   description?: string;
   serviceId?: string;
@@ -39,6 +40,13 @@ export interface Project {
   thirdPartyExpenses?: number;
   consultantValue?: number;
   supportConsultantValue?: number;
+  // Novos campos para gestor
+  managerName?: string;
+  managerEmail?: string;
+  managerPhone?: string;
+  // Novos campos de horas e valor
+  totalHours?: number;
+  hourlyRate?: number;
   status: 'planned' | 'active' | 'completed' | 'cancelled';
   tags?: string[];
   stages?: Stage[];

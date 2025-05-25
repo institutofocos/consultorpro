@@ -307,6 +307,7 @@ export const fetchProjects = async (): Promise<Project[]> => {
         
         return {
           id: project.id,
+          projectId: project.project_id,
           name: project.name,
           description: project.description || '',
           serviceId: project.service_id,
@@ -330,6 +331,12 @@ export const fetchProjects = async (): Promise<Project[]> => {
           thirdPartyExpenses: Number(project.third_party_expenses) || 0,
           consultantValue: Number(project.main_consultant_value) || 0,
           supportConsultantValue: Number(project.support_consultant_value) || 0,
+          // Novos campos
+          managerName: project.manager_name,
+          managerEmail: project.manager_email,
+          managerPhone: project.manager_phone,
+          totalHours: Number(project.total_hours) || 0,
+          hourlyRate: Number(project.hourly_rate) || 0,
           status: project.status as 'planned' | 'active' | 'completed' | 'cancelled',
           stages: stages,
           completedStages: stages.filter(s => s.completed).length,
@@ -347,31 +354,68 @@ export const fetchProjects = async (): Promise<Project[]> => {
   }
 };
 
+// Função para obter dados do usuário logado
+const getCurrentUserData = async () => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('full_name')
+      .eq('id', user.id)
+      .single();
+
+    return {
+      name: profile?.full_name || user.email?.split('@')[0] || 'Usuário',
+      email: user.email || '',
+      phone: user.phone || ''
+    };
+  } catch (error) {
+    console.error('Erro ao buscar dados do usuário:', error);
+    return null;
+  }
+};
+
+// Função para calcular datas das etapas automaticamente
+const calculateStageDates = (startDate: string, stages: Stage[]): Stage[] => {
+  if (!stages || stages.length === 0) return stages;
+  
+  let currentDate = new Date(startDate);
+  
+  return stages.map((stage, index) => {
+    const stageStartDate = new Date(currentDate);
+    const stageEndDate = new Date(currentDate);
+    stageEndDate.setDate(stageEndDate.getDate() + (stage.days || 1) - 1);
+    
+    // Próxima etapa inicia no dia seguinte ao fim da atual
+    currentDate = new Date(stageEndDate);
+    currentDate.setDate(currentDate.getDate() + 1);
+    
+    return {
+      ...stage,
+      startDate: stageStartDate.toISOString().split('T')[0],
+      endDate: stageEndDate.toISOString().split('T')[0],
+      stageOrder: index + 1
+    };
+  });
+};
+
 // Função para criar um novo projeto
 export const createProject = async (project: Project): Promise<Project> => {
   try {
     console.log('=== INÍCIO DA CRIAÇÃO DO PROJETO ===');
     console.log('Criando novo projeto:', project.name);
-    console.log('WEBHOOK: Este INSERT será capturado pelo trigger automaticamente');
     
-    // VERIFICAÇÃO ADICIONAL: Verificar se já existe um projeto com o mesmo nome e datas
-    const { data: existingProjects, error: checkError } = await supabase
-      .from('projects')
-      .select('id, name')
-      .eq('name', project.name)
-      .eq('start_date', project.startDate)
-      .eq('end_date', project.endDate)
-      .limit(1);
-
-    if (checkError) {
-      console.error('Erro ao verificar projetos existentes:', checkError);
-    }
-
-    if (existingProjects && existingProjects.length > 0) {
-      console.log('PROJETO DUPLICADO DETECTADO - Projeto já existe:', existingProjects[0]);
-      throw new Error(`Projeto "${project.name}" já existe com essas datas. Evitando duplicação.`);
-    }
-
+    // Obter dados do usuário atual para o gestor
+    const userData = await getCurrentUserData();
+    
+    // Calcular total de horas das etapas
+    const totalHours = (project.stages || []).reduce((sum, stage) => sum + (stage.hours || 0), 0);
+    
+    // Calcular datas das etapas automaticamente
+    const stagesWithDates = calculateStageDates(project.startDate, project.stages || []);
+    
     // 1. Criar o projeto no banco
     console.log('Inserindo projeto no banco de dados...');
     const { data: projectData, error: projectError } = await supabase
@@ -392,6 +436,12 @@ export const createProject = async (project: Project): Promise<Project> => {
         third_party_expenses: project.thirdPartyExpenses || 0,
         main_consultant_value: project.consultantValue || 0,
         support_consultant_value: project.supportConsultantValue || 0,
+        // Novos campos
+        manager_name: userData?.name || project.managerName,
+        manager_email: userData?.email || project.managerEmail,
+        manager_phone: userData?.phone || project.managerPhone,
+        total_hours: totalHours,
+        hourly_rate: project.hourlyRate || 0,
         status: project.status,
         tags: project.tags || []
       })
@@ -404,39 +454,42 @@ export const createProject = async (project: Project): Promise<Project> => {
     }
 
     console.log('✅ Projeto criado no banco com ID:', projectData.id);
-    console.log('🔗 WEBHOOK: Trigger webhook_trigger_projects foi disparado automaticamente para INSERT');
+    console.log('✅ ID único do projeto:', projectData.project_id);
 
     // 2. Criar etapas se existirem
     let createdStages: Stage[] = [];
-    if (project.stages && project.stages.length > 0) {
-      console.log('Criando', project.stages.length, 'etapas para o projeto');
-      createdStages = await createProjectStages(projectData.id, project.stages);
+    if (stagesWithDates && stagesWithDates.length > 0) {
+      console.log('Criando', stagesWithDates.length, 'etapas para o projeto');
+      createdStages = await createProjectStages(projectData.id, stagesWithDates);
       console.log('✅ Etapas criadas com sucesso:', createdStages.length);
-      console.log('🔗 WEBHOOK: Triggers webhook_trigger_project_stages foram disparados automaticamente para cada INSERT');
     }
 
     const createdProject: Project = {
       ...project,
       id: projectData.id,
+      projectId: projectData.project_id,
+      managerName: projectData.manager_name,
+      managerEmail: projectData.manager_email,
+      managerPhone: projectData.manager_phone,
+      totalHours: projectData.total_hours,
+      hourlyRate: projectData.hourly_rate,
       stages: createdStages,
       createdAt: projectData.created_at,
       updatedAt: projectData.updated_at
     };
 
-    // 3. Criar tarefas para o projeto (apenas uma vez, com verificação interna)
+    // 3. Criar tarefas para o projeto
     console.log('Iniciando criação de tarefas...');
     try {
       const result = await createProjectTasks(createdProject);
       if (result.mainTask) {
         console.log("✅ Tarefa criada com sucesso para o projeto");
-      } else {
-        console.log("ℹ️ Tarefa não foi criada (possivelmente já existia)");
       }
     } catch (taskError) {
       console.error('Error creating project tasks:', taskError);
     }
 
-    // 4. Criar sala de chat (apenas uma vez, com verificação interna)
+    // 4. Criar sala de chat
     console.log('Iniciando criação de sala de chat...');
     try {
       await ensureProjectChatRoom(projectData.id, project.name);
@@ -445,12 +498,11 @@ export const createProject = async (project: Project): Promise<Project> => {
       console.error('Error creating chat room:', chatError);
     }
 
-    // 5. Criar transações financeiras (apenas uma vez, com verificação interna)
+    // 5. Criar transações financeiras
     console.log('Iniciando criação de transações financeiras...');
     try {
       await createProjectFinancialTransactions(createdProject);
       console.log("✅ Transações financeiras processadas com sucesso");
-      console.log("🔗 WEBHOOK: Triggers webhook_trigger_financial_transactions foram disparados automaticamente para cada INSERT");
     } catch (financialError) {
       console.error('Error creating financial transactions:', financialError);
     }
@@ -458,8 +510,8 @@ export const createProject = async (project: Project): Promise<Project> => {
     console.log("=== ✅ PROJETO CRIADO COM SUCESSO ===");
     console.log("Nome:", createdProject.name);
     console.log("ID:", createdProject.id);
+    console.log("ID Único:", createdProject.projectId);
     console.log("Etapas:", createdProject.stages?.length || 0);
-    console.log("🔗 WEBHOOK STATUS: Todos os webhooks foram disparados automaticamente via triggers do banco");
     
     return createdProject;
   } catch (error) {
@@ -473,7 +525,9 @@ export const updateProject = async (project: Project): Promise<Project> => {
   try {
     console.log('=== ATUALIZANDO PROJETO ===');
     console.log('Atualizando projeto:', project.name);
-    console.log('🔗 WEBHOOK: Este UPDATE será capturado pelo trigger automaticamente');
+    
+    // Calcular total de horas das etapas
+    const totalHours = (project.stages || []).reduce((sum, stage) => sum + (stage.hours || 0), 0);
     
     const { error: projectError } = await supabase
       .from('projects')
@@ -493,6 +547,12 @@ export const updateProject = async (project: Project): Promise<Project> => {
         third_party_expenses: project.thirdPartyExpenses || 0,
         main_consultant_value: project.consultantValue || 0,
         support_consultant_value: project.supportConsultantValue || 0,
+        // Novos campos
+        manager_name: project.managerName,
+        manager_email: project.managerEmail,
+        manager_phone: project.managerPhone,
+        total_hours: totalHours,
+        hourly_rate: project.hourlyRate || 0,
         status: project.status,
         tags: project.tags || []
       })
@@ -504,7 +564,6 @@ export const updateProject = async (project: Project): Promise<Project> => {
     }
 
     console.log('✅ Projeto atualizado com sucesso');
-    console.log('🔗 WEBHOOK: Trigger webhook_trigger_projects foi disparado automaticamente para UPDATE');
 
     // Atualizar etapas
     let updatedStages: Stage[] = [];
@@ -512,11 +571,11 @@ export const updateProject = async (project: Project): Promise<Project> => {
       console.log('Atualizando etapas do projeto');
       updatedStages = await updateProjectStages(project.id, project.stages);
       console.log('✅ Etapas atualizadas:', updatedStages.length);
-      console.log('🔗 WEBHOOK: Triggers webhook_trigger_project_stages foram disparados automaticamente para DELETE/INSERT');
     }
 
     const updatedProject: Project = {
       ...project,
+      totalHours: totalHours,
       stages: updatedStages
     };
 
@@ -584,6 +643,7 @@ export const fetchProjectById = async (projectId: string): Promise<Project | nul
 
     return {
       id: data.id,
+      projectId: data.project_id,
       name: data.name,
       description: data.description,
       serviceId: data.service_id,
@@ -605,6 +665,12 @@ export const fetchProjectById = async (projectId: string): Promise<Project | nul
       thirdPartyExpenses: data.third_party_expenses || 0,
       consultantValue: data.main_consultant_value || 0,
       supportConsultantValue: data.support_consultant_value || 0,
+      // Novos campos
+      managerName: data.manager_name,
+      managerEmail: data.manager_email,
+      managerPhone: data.manager_phone,
+      totalHours: data.total_hours,
+      hourlyRate: data.hourly_rate,
       status: data.status as 'planned' | 'active' | 'completed' | 'cancelled',
       stages: stages,
       tags: data.tags || [],

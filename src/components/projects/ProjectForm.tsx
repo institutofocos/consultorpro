@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, PlusIcon, TrashIcon } from "lucide-react";
+import { CalendarIcon, PlusIcon, TrashIcon, InfoIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { createProject, updateProject } from "@/integrations/supabase/projects";
 import { Project, Stage } from "./types";
 import SearchableSelect from "@/components/ui/searchable-select";
+import { Badge } from "@/components/ui/badge";
 
 interface ProjectFormProps {
   project?: Project;
@@ -41,6 +42,12 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     thirdPartyExpenses: 0,
     consultantValue: 0,
     supportConsultantValue: 0,
+    // Novos campos
+    managerName: '',
+    managerEmail: '',
+    managerPhone: '',
+    totalHours: 0,
+    hourlyRate: 0,
     status: 'planned',
     tags: [],
     stages: []
@@ -49,10 +56,12 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
   const [clients, setClients] = useState([]);
   const [services, setServices] = useState([]);
   const [consultants, setConsultants] = useState([]);
+  const [availableTags, setAvailableTags] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     fetchSelectOptions();
+    loadCurrentUserData();
     if (project) {
       setFormData({
         ...project,
@@ -65,17 +74,41 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     }
   }, [project]);
 
+  const loadCurrentUserData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single();
+
+      setFormData(prev => ({
+        ...prev,
+        managerName: profile?.full_name || user.email?.split('@')[0] || '',
+        managerEmail: user.email || '',
+        managerPhone: user.phone || ''
+      }));
+    } catch (error) {
+      console.error('Erro ao carregar dados do usuário:', error);
+    }
+  };
+
   const fetchSelectOptions = async () => {
     try {
-      const [clientsRes, servicesRes, consultantsRes] = await Promise.all([
+      const [clientsRes, servicesRes, consultantsRes, tagsRes] = await Promise.all([
         supabase.from('clients').select('id, name').order('name'),
-        supabase.from('services').select('id, name, stages').order('name'),
-        supabase.from('consultants').select('id, name').order('name')
+        supabase.from('services').select('id, name, description, stages, total_hours, hourly_rate').order('name'),
+        supabase.from('consultants').select('id, name').order('name'),
+        supabase.from('tags').select('id, name').order('name')
       ]);
 
       if (clientsRes.data) setClients(clientsRes.data);
       if (servicesRes.data) setServices(servicesRes.data);
       if (consultantsRes.data) setConsultants(consultantsRes.data);
+      if (tagsRes.data) setAvailableTags(tagsRes.data);
     } catch (error) {
       console.error('Error fetching select options:', error);
       toast.error('Erro ao carregar opções do formulário');
@@ -86,34 +119,45 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     setFormData(prev => ({ ...prev, serviceId }));
     
     const selectedService = services.find(s => s.id === serviceId);
-    if (selectedService && selectedService.stages) {
-      const serviceStages = Array.isArray(selectedService.stages) 
-        ? selectedService.stages 
-        : JSON.parse(selectedService.stages || '[]');
-      
-      if (Array.isArray(serviceStages)) {
-        const newStages: Stage[] = serviceStages.map((stage: any, index: number) => ({
-          id: `temp-${Date.now()}-${index}`,
-          projectId: project?.id || '',
-          name: stage.name || `Etapa ${index + 1}`,
-          description: stage.description || '',
-          days: Number(stage.days) || 1,
-          hours: Number(stage.hours) || 8,
-          value: Number(stage.value) || 0,
-          startDate: '',
-          endDate: '',
-          completed: false,
-          clientApproved: false,
-          managerApproved: false,
-          invoiceIssued: false,
-          paymentReceived: false,
-          consultantsSettled: false,
-          attachment: '',
-          stageOrder: index + 1,
-          consultantId: '' // Add consultantId field
-        }));
+    if (selectedService) {
+      // Preencher descrição do projeto com a descrição do serviço
+      setFormData(prev => ({
+        ...prev,
+        description: selectedService.description || prev.description,
+        totalHours: Number(selectedService.total_hours) || prev.totalHours,
+        hourlyRate: Number(selectedService.hourly_rate) || prev.hourlyRate
+      }));
+
+      // Carregar etapas do serviço se existirem
+      if (selectedService.stages) {
+        const serviceStages = Array.isArray(selectedService.stages) 
+          ? selectedService.stages 
+          : JSON.parse(selectedService.stages || '[]');
         
-        setFormData(prev => ({ ...prev, stages: newStages }));
+        if (Array.isArray(serviceStages)) {
+          const newStages: Stage[] = serviceStages.map((stage: any, index: number) => ({
+            id: `temp-${Date.now()}-${index}`,
+            projectId: project?.id || '',
+            name: stage.name || `Etapa ${index + 1}`,
+            description: stage.description || '',
+            days: Number(stage.days) || 1,
+            hours: Number(stage.hours) || 8,
+            value: Number(stage.value) || 0,
+            startDate: '',
+            endDate: '',
+            completed: false,
+            clientApproved: false,
+            managerApproved: false,
+            invoiceIssued: false,
+            paymentReceived: false,
+            consultantsSettled: false,
+            attachment: '',
+            stageOrder: index + 1,
+            consultantId: ''
+          }));
+          
+          setFormData(prev => ({ ...prev, stages: newStages }));
+        }
       }
     }
   };
@@ -137,7 +181,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       consultantsSettled: false,
       attachment: '',
       stageOrder: (formData.stages?.length || 0) + 1,
-      consultantId: '' // Add consultantId field
+      consultantId: ''
     };
     
     setFormData(prev => ({
@@ -154,7 +198,6 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
 
   const removeStage = (index: number) => {
     const updatedStages = (formData.stages || []).filter((_, i) => i !== index);
-    // Reorder stages
     const reorderedStages = updatedStages.map((stage, i) => ({
       ...stage,
       stageOrder: i + 1
@@ -162,26 +205,50 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     setFormData(prev => ({ ...prev, stages: reorderedStages }));
   };
 
+  const calculateStageDates = () => {
+    if (!formData.startDate || !formData.stages || formData.stages.length === 0) return;
+    
+    let currentDate = new Date(formData.startDate);
+    const updatedStages = formData.stages.map((stage, index) => {
+      const stageStartDate = new Date(currentDate);
+      const stageEndDate = new Date(currentDate);
+      stageEndDate.setDate(stageEndDate.getDate() + (stage.days || 1) - 1);
+      
+      // Próxima etapa inicia no dia seguinte ao fim da atual
+      currentDate = new Date(stageEndDate);
+      currentDate.setDate(currentDate.getDate() + 1);
+      
+      return {
+        ...stage,
+        startDate: stageStartDate.toISOString().split('T')[0],
+        endDate: stageEndDate.toISOString().split('T')[0]
+      };
+    });
+    
+    setFormData(prev => ({ ...prev, stages: updatedStages }));
+  };
+
   const calculateTotals = () => {
     const stagesTotal = (formData.stages || []).reduce((sum, stage) => sum + Number(stage.value || 0), 0);
     const thirdPartyExpenses = Number(formData.thirdPartyExpenses || 0);
     const totalValue = stagesTotal + thirdPartyExpenses;
+    const totalHours = (formData.stages || []).reduce((sum, stage) => sum + Number(stage.hours || 0), 0);
     
-    setFormData(prev => ({ ...prev, totalValue }));
+    setFormData(prev => ({ ...prev, totalValue, totalHours }));
   };
 
   useEffect(() => {
     calculateTotals();
   }, [formData.stages, formData.thirdPartyExpenses]);
 
+  useEffect(() => {
+    calculateStageDates();
+  }, [formData.startDate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (isLoading) {
-      console.log('Submit already in progress, ignoring duplicate submission');
-      return;
-    }
-    
+    if (isLoading) return;
     setIsLoading(true);
 
     try {
@@ -192,14 +259,6 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
 
       console.log('=== INICIANDO SUBMISSÃO DO FORMULÁRIO ===');
       console.log('Tipo de operação:', project ? 'UPDATE' : 'CREATE');
-      console.log('Dados do projeto:', formData.name);
-
-      // Validate and clean stage dates
-      const cleanedStages = (formData.stages || []).map(stage => ({
-        ...stage,
-        startDate: stage.startDate?.trim() || '',
-        endDate: stage.endDate?.trim() || ''
-      }));
 
       const projectData: Project = {
         id: project?.id || '',
@@ -218,9 +277,15 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         thirdPartyExpenses: Number(formData.thirdPartyExpenses || 0),
         consultantValue: Number(formData.consultantValue || 0),
         supportConsultantValue: Number(formData.supportConsultantValue || 0),
+        // Novos campos
+        managerName: formData.managerName,
+        managerEmail: formData.managerEmail,
+        managerPhone: formData.managerPhone,
+        totalHours: Number(formData.totalHours || 0),
+        hourlyRate: Number(formData.hourlyRate || 0),
         status: formData.status as 'planned' | 'active' | 'completed' | 'cancelled',
         tags: formData.tags || [],
-        stages: cleanedStages
+        stages: formData.stages || []
       };
 
       let savedProject: Project;
@@ -249,7 +314,14 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     <form onSubmit={handleSubmit} className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>{project ? 'Editar Projeto' : 'Novo Projeto'}</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            {project ? 'Editar Projeto' : 'Novo Projeto'}
+            {project?.projectId && (
+              <Badge variant="outline" className="ml-2">
+                ID: {project.projectId}
+              </Badge>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Nome do Projeto */}
@@ -272,7 +344,11 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               placeholder="Descreva o projeto"
+              rows={3}
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              A descrição será preenchida automaticamente ao selecionar um serviço
+            </p>
           </div>
 
           {/* Cliente e Serviço */}
@@ -298,6 +374,35 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
                 placeholder="Selecione um serviço"
                 searchPlaceholder="Pesquisar serviços..."
                 emptyText="Nenhum serviço encontrado"
+              />
+            </div>
+          </div>
+
+          {/* Horas e Valor */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="totalHours">Total de Horas</Label>
+              <Input
+                id="totalHours"
+                type="number"
+                value={formData.totalHours}
+                onChange={(e) => setFormData(prev => ({ ...prev, totalHours: Number(e.target.value) }))}
+                placeholder="0"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Será calculado automaticamente com base nas etapas
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="hourlyRate">Valor da Hora (R$)</Label>
+              <Input
+                id="hourlyRate"
+                type="number"
+                step="0.01"
+                value={formData.hourlyRate}
+                onChange={(e) => setFormData(prev => ({ ...prev, hourlyRate: Number(e.target.value) }))}
+                placeholder="0.00"
               />
             </div>
           </div>
@@ -352,21 +457,109 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
             </div>
           </div>
 
-          {/* Status */}
-          <div>
-            <Label htmlFor="status">Status</Label>
-            <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as any }))}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="planned">Planejado</SelectItem>
-                <SelectItem value="active">Ativo</SelectItem>
-                <SelectItem value="completed">Concluído</SelectItem>
-                <SelectItem value="cancelled">Cancelado</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Status e Tags */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="status">Status</Label>
+              <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as any }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="planned">Planejado</SelectItem>
+                  <SelectItem value="active">Ativo</SelectItem>
+                  <SelectItem value="completed">Concluído</SelectItem>
+                  <SelectItem value="cancelled">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="tags">Tags</Label>
+              <SearchableSelect
+                options={availableTags}
+                value=""
+                onValueChange={(value) => {
+                  const tag = availableTags.find(t => t.id === value);
+                  if (tag && !formData.tags?.includes(tag.name)) {
+                    setFormData(prev => ({
+                      ...prev,
+                      tags: [...(prev.tags || []), tag.name]
+                    }));
+                  }
+                }}
+                placeholder="Adicionar tag"
+                searchPlaceholder="Pesquisar tags..."
+                emptyText="Nenhuma tag encontrada"
+              />
+              {formData.tags && formData.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {formData.tags.map((tag, index) => (
+                    <Badge key={index} variant="secondary" className="text-xs">
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({
+                          ...prev,
+                          tags: prev.tags?.filter((_, i) => i !== index)
+                        }))}
+                        className="ml-1 text-muted-foreground hover:text-destructive"
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Informações do Gestor */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <InfoIcon className="h-5 w-5" />
+            Informações do Gestor
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="managerName">Nome do Gestor</Label>
+              <Input
+                id="managerName"
+                value={formData.managerName}
+                onChange={(e) => setFormData(prev => ({ ...prev, managerName: e.target.value }))}
+                placeholder="Nome do gestor"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="managerEmail">E-mail do Gestor</Label>
+              <Input
+                id="managerEmail"
+                type="email"
+                value={formData.managerEmail}
+                onChange={(e) => setFormData(prev => ({ ...prev, managerEmail: e.target.value }))}
+                placeholder="email@exemplo.com"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="managerPhone">Telefone do Gestor</Label>
+              <Input
+                id="managerPhone"
+                value={formData.managerPhone}
+                onChange={(e) => setFormData(prev => ({ ...prev, managerPhone: e.target.value }))}
+                placeholder="(11) 99999-9999"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Os dados são preenchidos automaticamente com as informações do usuário logado
+          </p>
         </CardContent>
       </Card>
 
@@ -424,10 +617,11 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
                       value={stage.description}
                       onChange={(e) => updateStage(index, 'description', e.target.value)}
                       placeholder="Descrição da etapa"
+                      rows={2}
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
                       <Label>Dias</Label>
                       <Input
@@ -449,16 +643,34 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
                     </div>
 
                     <div>
-                      <Label>Consultor Responsável</Label>
-                      <SearchableSelect
-                        options={[{ id: '', name: 'Nenhum' }, ...consultants]}
-                        value={stage.consultantId || ''}
-                        onValueChange={(value) => updateStage(index, 'consultantId', value as string)}
-                        placeholder="Selecione um consultor"
-                        searchPlaceholder="Pesquisar consultores..."
-                        emptyText="Nenhum consultor encontrado"
+                      <Label>Data de Início</Label>
+                      <Input
+                        type="date"
+                        value={stage.startDate}
+                        onChange={(e) => updateStage(index, 'startDate', e.target.value)}
                       />
                     </div>
+
+                    <div>
+                      <Label>Data de Término</Label>
+                      <Input
+                        type="date"
+                        value={stage.endDate}
+                        onChange={(e) => updateStage(index, 'endDate', e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Consultor Responsável</Label>
+                    <SearchableSelect
+                      options={[{ id: '', name: 'Nenhum' }, ...consultants]}
+                      value={stage.consultantId || ''}
+                      onValueChange={(value) => updateStage(index, 'consultantId', value as string)}
+                      placeholder="Selecione um consultor"
+                      searchPlaceholder="Pesquisar consultores..."
+                      emptyText="Nenhum consultor encontrado"
+                    />
                   </div>
                 </div>
               ))}
@@ -466,6 +678,11 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
           ) : (
             <p className="text-muted-foreground text-center py-8">
               Nenhuma etapa adicionada. Clique em "Adicionar Etapa" para começar.
+            </p>
+          )}
+          {formData.startDate && (
+            <p className="text-xs text-muted-foreground mt-4">
+              As datas das etapas são calculadas automaticamente com base na data de início do projeto
             </p>
           )}
         </CardContent>
@@ -529,7 +746,11 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
             </div>
           </div>
 
-          <div className="border-t pt-4">
+          <div className="border-t pt-4 space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Total de Horas:</span>
+              <span className="text-sm">{formData.totalHours || 0}h</span>
+            </div>
             <div className="flex justify-between items-center font-medium">
               <span>Valor Total do Projeto:</span>
               <span className="text-lg">
