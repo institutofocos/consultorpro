@@ -3,18 +3,33 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { FileCheck, Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter } from 'lucide-react';
 import { fetchDemandsWithoutConsultants, assignConsultantsToDemand } from '@/integrations/supabase/projects';
-import { fetchConsultants } from '@/integrations/supabase/consultants';
+import { 
+  fetchConsultants, 
+  calculateConsultantAvailableHours, 
+  calculateConsultantWorkedHours,
+  calculateConsultantActiveProjects
+} from '@/integrations/supabase/consultants';
 import { fetchServices } from '@/integrations/supabase/services';
 import { Badge } from "@/components/ui/badge";
 import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { ptBR } from 'date-fns/locale';
+import SearchableSelect from "@/components/ui/searchable-select";
+
+interface ConsultantInfo {
+  id: string;
+  name: string;
+  hoursPerMonth: number;
+  workedHours: number;
+  availableHours: number;
+  activeProjects: number;
+  commissionPercentage: number;
+}
 
 const DemandsList = () => {
   const [demands, setDemands] = useState<any[]>([]);
@@ -27,6 +42,8 @@ const DemandsList = () => {
   const [mainConsultantCommission, setMainConsultantCommission] = useState<number>(0);
   const [supportConsultantId, setSupportConsultantId] = useState<string>("");
   const [supportConsultantCommission, setSupportConsultantCommission] = useState<number>(0);
+  const [mainConsultantInfo, setMainConsultantInfo] = useState<ConsultantInfo | null>(null);
+  const [supportConsultantInfo, setSupportConsultantInfo] = useState<ConsultantInfo | null>(null);
   const { toast } = useToast();
   
   // Filter states
@@ -64,6 +81,72 @@ const DemandsList = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Function to load consultant detailed information
+  const loadConsultantInfo = async (consultantId: string): Promise<ConsultantInfo | null> => {
+    if (!consultantId) return null;
+    
+    try {
+      const consultantData = consultants.find(c => c.id === consultantId);
+      if (!consultantData) return null;
+
+      // Fetch consultant details from the database to get commission
+      const { data: consultantDetails } = await supabase
+        .from('consultants')
+        .select('commission_percentage, hours_per_month')
+        .eq('id', consultantId)
+        .single();
+
+      const [workedHours, availableHours, activeProjects] = await Promise.all([
+        calculateConsultantWorkedHours(consultantId),
+        calculateConsultantAvailableHours(consultantId, consultantDetails?.hours_per_month || 160),
+        calculateConsultantActiveProjects(consultantId)
+      ]);
+
+      return {
+        id: consultantId,
+        name: consultantData.name,
+        hoursPerMonth: consultantDetails?.hours_per_month || 160,
+        workedHours,
+        availableHours,
+        activeProjects,
+        commissionPercentage: consultantDetails?.commission_percentage || 0
+      };
+    } catch (error) {
+      console.error('Error loading consultant info:', error);
+      return null;
+    }
+  };
+
+  // Handle main consultant selection
+  const handleMainConsultantChange = async (consultantId: string) => {
+    setMainConsultantId(consultantId);
+    if (consultantId) {
+      const info = await loadConsultantInfo(consultantId);
+      setMainConsultantInfo(info);
+      if (info) {
+        setMainConsultantCommission(info.commissionPercentage);
+      }
+    } else {
+      setMainConsultantInfo(null);
+      setMainConsultantCommission(0);
+    }
+  };
+
+  // Handle support consultant selection
+  const handleSupportConsultantChange = async (consultantId: string) => {
+    setSupportConsultantId(consultantId);
+    if (consultantId) {
+      const info = await loadConsultantInfo(consultantId);
+      setSupportConsultantInfo(info);
+      if (info) {
+        setSupportConsultantCommission(info.commissionPercentage);
+      }
+    } else {
+      setSupportConsultantInfo(null);
+      setSupportConsultantCommission(0);
+    }
+  };
+
   // Function to format currency values
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -79,6 +162,8 @@ const DemandsList = () => {
     setSupportConsultantId("");
     setMainConsultantCommission(0);
     setSupportConsultantCommission(0);
+    setMainConsultantInfo(null);
+    setSupportConsultantInfo(null);
     setDialogOpen(true);
   };
   
@@ -111,6 +196,39 @@ const DemandsList = () => {
         description: "Não foi possível atribuir os consultores.",
       });
     }
+  };
+
+  // Component to display consultant information
+  const ConsultantInfoCard = ({ info, title }: { info: ConsultantInfo | null, title: string }) => {
+    if (!info) return null;
+
+    return (
+      <div className="mt-3 p-3 bg-gray-50 rounded-lg border">
+        <h4 className="text-sm font-medium text-gray-700 mb-2">{title}</h4>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <span className="text-gray-500">Horas/Mês:</span>
+            <span className="ml-1 font-medium">{info.hoursPerMonth}h</span>
+          </div>
+          <div>
+            <span className="text-gray-500">Horas Trabalhadas:</span>
+            <span className="ml-1 font-medium">{info.workedHours}h</span>
+          </div>
+          <div>
+            <span className="text-gray-500">Horas Livres:</span>
+            <span className="ml-1 font-medium text-green-600">{info.availableHours}h</span>
+          </div>
+          <div>
+            <span className="text-gray-500">Projetos Ativos:</span>
+            <span className="ml-1 font-medium">{info.activeProjects}</span>
+          </div>
+          <div className="col-span-2">
+            <span className="text-gray-500">Comissão:</span>
+            <span className="ml-1 font-medium text-blue-600">{info.commissionPercentage}%</span>
+          </div>
+        </div>
+      </div>
+    );
   };
   
   // Reset all filters
@@ -329,29 +447,28 @@ const DemandsList = () => {
       
       {/* Consultant Assignment Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent size="lg">
           <DialogHeader>
             <DialogTitle>Atribuir Consultores ao Projeto</DialogTitle>
           </DialogHeader>
           
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-6 py-4">
             <div className="grid gap-2">
               <label htmlFor="main-consultant" className="text-sm font-medium">
                 Consultor Principal
               </label>
-              <Select value={mainConsultantId} onValueChange={setMainConsultantId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um consultor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Nenhum consultor</SelectItem>
-                  {consultants.map(consultant => (
-                    <SelectItem key={consultant.id} value={consultant.id}>
-                      {consultant.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={consultants}
+                value={mainConsultantId}
+                onValueChange={handleMainConsultantChange}
+                placeholder="Selecione um consultor"
+                searchPlaceholder="Pesquisar consultores..."
+                emptyText="Nenhum consultor encontrado"
+              />
+              <ConsultantInfoCard 
+                info={mainConsultantInfo} 
+                title="Informações do Consultor Principal"
+              />
             </div>
             
             {mainConsultantId && (
@@ -374,21 +491,18 @@ const DemandsList = () => {
               <label htmlFor="support-consultant" className="text-sm font-medium">
                 Consultor de Apoio
               </label>
-              <Select value={supportConsultantId} onValueChange={setSupportConsultantId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um consultor (opcional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Nenhum consultor</SelectItem>
-                  {consultants
-                    .filter(c => c.id !== mainConsultantId)
-                    .map(consultant => (
-                      <SelectItem key={consultant.id} value={consultant.id}>
-                        {consultant.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={[{ id: '', name: 'Nenhum consultor' }, ...consultants]}
+                value={supportConsultantId}
+                onValueChange={handleSupportConsultantChange}
+                placeholder="Selecione um consultor (opcional)"
+                searchPlaceholder="Pesquisar consultores..."
+                emptyText="Nenhum consultor encontrado"
+              />
+              <ConsultantInfoCard 
+                info={supportConsultantInfo} 
+                title="Informações do Consultor de Apoio"
+              />
             </div>
             
             {supportConsultantId && (
