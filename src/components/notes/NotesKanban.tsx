@@ -99,7 +99,10 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
   const handleUpdateColumn = async (columnId: string, title: string) => {
     try {
       const column = columns.find(col => col.column_id === columnId);
-      if (!column) return;
+      if (!column) {
+        console.error('Coluna não encontrada:', columnId);
+        return;
+      }
 
       await updateKanbanColumn(column.id, { title });
       await refetchColumns();
@@ -113,8 +116,13 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
   // Atualizar cor da coluna
   const handleUpdateColumnColor = async (columnId: string, color: string) => {
     try {
+      console.log('Atualizando cor da coluna:', columnId, 'para:', color);
       const column = columns.find(col => col.column_id === columnId);
-      if (!column) return;
+      if (!column) {
+        console.error('Coluna não encontrada para atualizar cor:', columnId);
+        toast.error('Coluna não encontrada.');
+        return;
+      }
 
       await updateKanbanColumn(column.id, { bg_color: color });
       await refetchColumns();
@@ -129,7 +137,10 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
   const handleDeleteColumn = async (columnId: string) => {
     try {
       const column = columns.find(col => col.column_id === columnId);
-      if (!column) return;
+      if (!column) {
+        console.error('Coluna não encontrada para deletar:', columnId);
+        return;
+      }
 
       // Não permitir excluir colunas padrão
       if (column.is_default) {
