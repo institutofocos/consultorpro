@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { Note, updateNoteStatus } from '@/integrations/supabase/notes';
@@ -7,7 +8,8 @@ import {
   createKanbanColumn,
   updateKanbanColumn,
   deleteKanbanColumn,
-  updateColumnOrder,
+  reorderColumns,
+  swapColumnPositions,
   getRandomColumnColor
 } from '@/integrations/supabase/kanban-columns';
 import CompactNoteCard from './CompactNoteCard';
@@ -44,7 +46,6 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
   const [showAddColumn, setShowAddColumn] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState('');
 
-  // Buscar colunas do banco de dados
   const { 
     data: columns = [], 
     isLoading: columnsLoading,
@@ -54,7 +55,7 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     queryFn: fetchKanbanColumns,
   });
 
-  // Organiza as notas em colunas de acordo com o status - corrigindo dependências
+  // Organizar notas por coluna
   useEffect(() => {
     if (columns.length === 0) return;
     
@@ -71,17 +72,17 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     });
 
     setNotesByColumn(newNotesByColumn);
-  }, [notes, columns.length]); // Mudança aqui: usando columns.length em vez de columns
+  }, [notes, columns]);
 
-  // Adicionar nova coluna
   const handleAddColumn = async () => {
     if (newColumnTitle.trim()) {
       try {
+        const maxOrder = Math.max(...columns.map(col => col.order_index), -1);
         const newColumn: Omit<KanbanColumnType, 'id' | 'created_at' | 'updated_at'> = {
           column_id: `custom_${Date.now()}`,
           title: newColumnTitle.trim(),
           bg_color: getRandomColumnColor(),
-          order_index: columns.length,
+          order_index: maxOrder + 1,
           is_default: false,
         };
         
@@ -97,14 +98,10 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     }
   };
 
-  // Atualizar coluna
   const handleUpdateColumn = async (columnId: string, title: string) => {
     try {
       const column = columns.find(col => col.column_id === columnId);
-      if (!column) {
-        console.error('Coluna não encontrada:', columnId);
-        return;
-      }
+      if (!column) return;
 
       await updateKanbanColumn(column.id, { title });
       await refetchColumns();
@@ -115,16 +112,10 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     }
   };
 
-  // Atualizar cor da coluna
   const handleUpdateColumnColor = async (columnId: string, color: string) => {
     try {
-      console.log('Atualizando cor da coluna:', columnId, 'para:', color);
       const column = columns.find(col => col.column_id === columnId);
-      if (!column) {
-        console.error('Coluna não encontrada para atualizar cor:', columnId);
-        toast.error('Coluna não encontrada.');
-        return;
-      }
+      if (!column) return;
 
       await updateKanbanColumn(column.id, { bg_color: color });
       await refetchColumns();
@@ -135,16 +126,11 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     }
   };
 
-  // Excluir coluna
   const handleDeleteColumn = async (columnId: string) => {
     try {
       const column = columns.find(col => col.column_id === columnId);
-      if (!column) {
-        console.error('Coluna não encontrada para deletar:', columnId);
-        return;
-      }
+      if (!column) return;
 
-      // Não permitir excluir colunas padrão
       if (column.is_default) {
         toast.error('Não é possível excluir colunas padrão do sistema');
         return;
@@ -164,53 +150,86 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     }
   };
 
-  // Manipula o evento de arrastar e soltar
+  const handleMoveColumn = async (columnId: string, direction: 'left' | 'right') => {
+    try {
+      const sortedColumns = [...columns].sort((a, b) => a.order_index - b.order_index);
+      const currentIndex = sortedColumns.findIndex(col => col.column_id === columnId);
+      
+      if (currentIndex === -1) {
+        toast.error('Coluna não encontrada.');
+        return;
+      }
+      
+      let targetIndex: number;
+      if (direction === 'left') {
+        if (currentIndex === 0) {
+          toast.info('A coluna já está na primeira posição.');
+          return;
+        }
+        targetIndex = currentIndex - 1;
+      } else {
+        if (currentIndex === sortedColumns.length - 1) {
+          toast.info('A coluna já está na última posição.');
+          return;
+        }
+        targetIndex = currentIndex + 1;
+      }
+      
+      const currentColumn = sortedColumns[currentIndex];
+      const targetColumn = sortedColumns[targetIndex];
+      
+      await swapColumnPositions(currentColumn.id, targetColumn.id);
+      
+      // Invalidar cache para forçar refetch
+      queryClient.invalidateQueries({ queryKey: ['kanban-columns'] });
+      
+      const directionText = direction === 'left' ? 'esquerda' : 'direita';
+      toast.success(`Coluna movida para a ${directionText}!`);
+      
+    } catch (error) {
+      console.error('Erro ao mover coluna:', error);
+      toast.error('Erro ao mover coluna.');
+    }
+  };
+
   const handleDragEnd = useCallback(async (result: DropResult) => {
     const { source, destination, draggableId, type } = result;
     
-    // Se não houver destino
     if (!destination) return;
 
-    // Se for arrastar colunas
+    // Drag and drop de colunas
     if (type === 'COLUMN') {
-      // Prevenir mudanças desnecessárias
       if (source.index === destination.index) return;
-      
-      console.log('Reordenando colunas:', { from: source.index, to: destination.index });
       
       const sortedColumns = [...columns].sort((a, b) => a.order_index - b.order_index);
       const newColumns = Array.from(sortedColumns);
       const [movedColumn] = newColumns.splice(source.index, 1);
       newColumns.splice(destination.index, 0, movedColumn);
       
-      // Atualizar ordem no banco
       try {
-        const updates = newColumns.map((col, index) => ({
-          id: col.id,
-          order_index: index
-        }));
+        const columnIds = newColumns.map(col => col.id);
+        await reorderColumns(columnIds);
         
-        console.log('Atualizando ordem das colunas:', updates);
-        await updateColumnOrder(updates);
-        await refetchColumns();
+        // Invalidar cache para forçar refetch
+        queryClient.invalidateQueries({ queryKey: ['kanban-columns'] });
+        
         toast.success('Ordem das colunas atualizada!');
       } catch (error) {
-        console.error('Erro ao atualizar ordem das colunas:', error);
-        toast.error('Erro ao atualizar ordem das colunas.');
+        console.error('Erro ao reordenar colunas:', error);
+        toast.error('Erro ao reordenar colunas.');
       }
       return;
     }
 
-    // Se não houver mudança de posição
-    if (
-      source.droppableId === destination.droppableId &&
-      source.index === destination.index
-    ) return;
+    // Drag and drop de notes/cards
+    if (source.droppableId === destination.droppableId && source.index === destination.index) {
+      return;
+    }
 
     const sourceColumn = source.droppableId as Note['status'];
     const destColumn = destination.droppableId as Note['status'];
     
-    // Check for linked tasks before dropping into "finalizado"
+    // Verificar tarefas vinculadas antes de finalizar
     if (destColumn === "finalizado") {
       const draggedNote = notes.find(note => note.id === draggableId);
       if (draggedNote && draggedNote.linked_task_id) {
@@ -222,7 +241,7 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
       }
     }
     
-    // Se a coluna de origem e destino for a mesma, apenas reordenação
+    // Reordenação na mesma coluna
     if (sourceColumn === destColumn) {
       const newColumnNotes = Array.from(notesByColumn[sourceColumn]);
       const [removed] = newColumnNotes.splice(source.index, 1);
@@ -240,12 +259,10 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     const destNotes = Array.from(notesByColumn[destColumn]);
     const [removed] = sourceNotes.splice(source.index, 1);
     
-    // Criar uma nova nota com o status atualizado
     const updatedNote = { ...removed, status: destColumn };
-    
-    // Atualizar o estado local imediatamente para UX mais responsiva
     destNotes.splice(destination.index, 0, updatedNote);
     
+    // Atualizar estado local imediatamente
     setNotesByColumn({
       ...notesByColumn,
       [sourceColumn]: sourceNotes,
@@ -253,75 +270,21 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     });
     
     try {
-      // Atualizar no banco de dados
       await updateNoteStatus(draggableId, destColumn);
-      
-      // Notificar componente pai da alteração
       onStatusChanged(draggableId, destColumn);
-      
       toast.success("Status atualizado com sucesso!");
     } catch (error) {
       console.error("Erro ao atualizar status:", error);
       toast.error("Erro ao atualizar status da nota.");
       
-      // Reverter alterações em caso de erro
+      // Reverter em caso de erro
       setNotesByColumn({
         ...notesByColumn,
         [sourceColumn]: [...notesByColumn[sourceColumn], removed],
         [destColumn]: notesByColumn[destColumn].filter(note => note.id !== draggableId),
       });
     }
-  }, [notesByColumn, onStatusChanged, notes, columns, refetchColumns]);
-
-  // Função simplificada para mover colunas
-  const handleMoveColumn = async (columnId: string, direction: 'left' | 'right') => {
-    try {
-      const sortedColumns = [...columns].sort((a, b) => a.order_index - b.order_index);
-      const currentIndex = sortedColumns.findIndex(col => col.column_id === columnId);
-      
-      if (currentIndex === -1) {
-        toast.error('Coluna não encontrada.');
-        return;
-      }
-      
-      let newIndex: number;
-      if (direction === 'left') {
-        if (currentIndex === 0) {
-          toast.info('A coluna já está na primeira posição.');
-          return;
-        }
-        newIndex = currentIndex - 1;
-      } else {
-        if (currentIndex === sortedColumns.length - 1) {
-          toast.info('A coluna já está na última posição.');
-          return;
-        }
-        newIndex = currentIndex + 1;
-      }
-      
-      // Trocar posições diretamente
-      const columnToMove = sortedColumns[currentIndex];
-      const columnAtTarget = sortedColumns[newIndex];
-      
-      // Atualizar apenas as duas colunas envolvidas
-      const updates = [
-        { id: columnToMove.id, order_index: columnAtTarget.order_index },
-        { id: columnAtTarget.id, order_index: columnToMove.order_index }
-      ];
-      
-      await updateColumnOrder(updates);
-      
-      // Invalidar cache para forçar refetch
-      queryClient.invalidateQueries({ queryKey: ['kanban-columns'] });
-      
-      const directionText = direction === 'left' ? 'esquerda' : 'direita';
-      toast.success(`Coluna movida para a ${directionText}!`);
-      
-    } catch (error) {
-      console.error('Erro ao mover coluna:', error);
-      toast.error('Erro ao mover coluna.');
-    }
-  };
+  }, [notesByColumn, onStatusChanged, notes, columns, queryClient]);
 
   if (columnsLoading) {
     return <div className="text-center py-8">Carregando colunas...</div>;
