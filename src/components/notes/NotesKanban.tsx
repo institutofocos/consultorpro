@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { Note, updateNoteStatus } from '@/integrations/supabase/notes';
@@ -25,6 +24,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 interface NotesKanbanProps {
   notes: Note[];
@@ -171,9 +171,15 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
 
     // Se for arrastar colunas
     if (type === 'COLUMN') {
-      const newColumns = Array.from(columns);
-      const [removed] = newColumns.splice(source.index, 1);
-      newColumns.splice(destination.index, 0, removed);
+      // Prevenir mudanças desnecessárias
+      if (source.index === destination.index) return;
+      
+      console.log('Reordenando colunas:', { from: source.index, to: destination.index });
+      
+      const sortedColumns = [...columns].sort((a, b) => a.order_index - b.order_index);
+      const newColumns = Array.from(sortedColumns);
+      const [movedColumn] = newColumns.splice(source.index, 1);
+      newColumns.splice(destination.index, 0, movedColumn);
       
       // Atualizar ordem no banco
       try {
@@ -182,8 +188,10 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
           order_index: index
         }));
         
+        console.log('Atualizando ordem das colunas:', updates);
         await updateColumnOrder(updates);
         await refetchColumns();
+        toast.success('Ordem das colunas atualizada!');
       } catch (error) {
         console.error('Erro ao atualizar ordem das colunas:', error);
         toast.error('Erro ao atualizar ordem das colunas.');
@@ -270,8 +278,8 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
   const sortedColumns = [...columns].sort((a, b) => a.order_index - b.order_index);
 
   return (
-    <div className="h-full">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="h-full flex flex-col">
+      <div className="mb-4 flex items-center justify-between flex-shrink-0">
         <h3 className="text-lg font-medium">Kanban de Tarefas</h3>
         
         <Dialog open={showAddColumn} onOpenChange={setShowAddColumn}>
@@ -308,62 +316,86 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
         </Dialog>
       </div>
 
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <Droppable droppableId="board" type="COLUMN" direction="horizontal">
-          {(provided) => (
-            <div
-              ref={provided.innerRef}
-              {...provided.droppableProps}
-              className="flex gap-4 h-full overflow-x-auto pb-4"
-            >
-              {sortedColumns.map((column, index) => (
-                <Draggable key={column.id} draggableId={column.id} index={index}>
-                  {(provided) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.draggableProps}
-                      {...provided.dragHandleProps}
+      <div className="flex-1 min-h-0">
+        <ScrollArea className="h-full">
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="board" type="COLUMN" direction="horizontal">
+              {(provided, snapshot) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  className="flex gap-4 h-full pb-4"
+                  style={{ 
+                    minWidth: `${Math.max(sortedColumns.length * 320, 100)}px`,
+                    transition: snapshot.isDraggingOver ? 'none' : 'all 0.2s ease'
+                  }}
+                >
+                  {sortedColumns.map((column, index) => (
+                    <Draggable 
+                      key={column.id} 
+                      draggableId={column.id} 
+                      index={index}
+                      isDragDisabled={false}
                     >
-                      <KanbanColumn
-                        id={column.column_id}
-                        title={column.title}
-                        bgColor={column.bg_color}
-                        notes={notesByColumn[column.column_id] || []}
-                        onUpdateColumn={handleUpdateColumn}
-                        onDeleteColumn={handleDeleteColumn}
-                        onUpdateColumnColor={handleUpdateColumnColor}
-                      >
-                        {(notesByColumn[column.column_id] || []).map((note, noteIndex) => (
-                          <Draggable key={note.id} draggableId={note.id} index={noteIndex}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={`transition-shadow ${
-                                  snapshot.isDragging ? 'shadow-lg' : ''
-                                }`}
-                              >
-                                <CompactNoteCard
-                                  note={note}
-                                  onUpdate={onUpdateNote}
-                                  onDelete={onDeleteNote}
-                                  isDraggable={true}
-                                />
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                      </KanbanColumn>
-                    </div>
-                  )}
-                </Draggable>
-              ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                          className={`transition-transform duration-200 ${
+                            snapshot.isDragging 
+                              ? 'transform rotate-3 shadow-2xl z-50' 
+                              : 'transform rotate-0 shadow-md'
+                          }`}
+                          style={{
+                            ...provided.draggableProps.style,
+                            minWidth: '300px',
+                            maxWidth: '300px',
+                          }}
+                        >
+                          <KanbanColumn
+                            id={column.column_id}
+                            title={column.title}
+                            bgColor={column.bg_color}
+                            notes={notesByColumn[column.column_id] || []}
+                            onUpdateColumn={handleUpdateColumn}
+                            onDeleteColumn={handleDeleteColumn}
+                            onUpdateColumnColor={handleUpdateColumnColor}
+                          >
+                            {(notesByColumn[column.column_id] || []).map((note, noteIndex) => (
+                              <Draggable key={note.id} draggableId={note.id} index={noteIndex}>
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    className={`transition-shadow ${
+                                      snapshot.isDragging ? 'shadow-lg' : ''
+                                    }`}
+                                  >
+                                    <CompactNoteCard
+                                      note={note}
+                                      onUpdate={onUpdateNote}
+                                      onDelete={onDeleteNote}
+                                      isDraggable={true}
+                                    />
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))}
+                          </KanbanColumn>
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      </div>
     </div>
   );
 };
