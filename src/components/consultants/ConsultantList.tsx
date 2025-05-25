@@ -141,79 +141,9 @@ export const ConsultantList: React.FC = () => {
     consultant.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
-  const handleAddConsultant = async (formData: any) => {
+  const handleAddConsultant = async (consultant: any) => {
     try {
-      const consultantData = {
-        name: formData.name,
-        email: formData.email,
-        hours_per_month: formData.hoursPerMonth,
-        phone: formData.phone,
-        commission_percentage: formData.commissionPercentage,
-        salary: formData.salary,
-        pix_key: formData.pixKey,
-        street: formData.street,
-        city: formData.city,
-        state: formData.state,
-        zip_code: formData.zipCode,
-        education: formData.education
-      };
-
-      let consultantId: string;
-      
-      if (editingConsultant) {
-        // Update existing consultant
-        const { error } = await supabase
-          .from('consultants')
-          .update(consultantData)
-          .eq('id', editingConsultant.id);
-          
-        if (error) throw error;
-        consultantId = editingConsultant.id;
-        
-        // Delete existing service relationships to replace them
-        const { error: deleteError } = await supabase
-          .from('consultant_services')
-          .delete()
-          .eq('consultant_id', consultantId);
-          
-        if (deleteError) throw deleteError;
-      } else {
-        // Insert new consultant
-        const { data, error } = await supabase
-          .from('consultants')
-          .insert(consultantData)
-          .select('id')
-          .single();
-          
-        if (error) throw error;
-        if (!data) throw new Error('Não foi possível criar o consultor');
-        
-        consultantId = data.id;
-      }
-      
-      // Add selected services
-      if (formData.services && formData.services.length > 0) {
-        const serviceRelations = formData.services.map((serviceId: string) => ({
-          consultant_id: consultantId,
-          service_id: serviceId
-        }));
-        
-        const { error: serviceError } = await supabase
-          .from('consultant_services')
-          .insert(serviceRelations);
-          
-        if (serviceError) throw serviceError;
-      }
-      
-      // Handle document uploads if needed (this would require storage setup)
-      // Not implementing file uploads in this version
-      
-      toast({
-        title: "Sucesso",
-        description: `Consultor ${editingConsultant ? 'atualizado' : 'adicionado'} com sucesso!`
-      });
-      
-      // Refresh consultant list
+      // Refresh consultant list after saving
       const { data: updatedData, error: refreshError } = await supabase
         .from('consultants')
         .select('*');
@@ -242,12 +172,7 @@ export const ConsultantList: React.FC = () => {
       setShowForm(false);
       
     } catch (error: any) {
-      console.error('Error saving consultant:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: error.message || "Não foi possível salvar o consultor."
-      });
+      console.error('Error refreshing consultant list:', error);
     }
   };
   
@@ -291,7 +216,7 @@ export const ConsultantList: React.FC = () => {
       {showForm ? (
         <ConsultantForm 
           consultant={editingConsultant} 
-          onSave={handleAddConsultant} 
+          onConsultantSaved={handleAddConsultant} 
           onCancel={() => {
             setShowForm(false);
             setEditingConsultant(null);
