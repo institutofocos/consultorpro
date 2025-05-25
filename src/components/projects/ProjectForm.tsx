@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,7 +48,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
     managerEmail: '',
     managerPhone: '',
     hourlyRate: 0,
-    status: 'planned' as 'planned' | 'active' | 'completed' | 'cancelled',
+    status: 'planned' as Project['status'],
     tags: [] as string[]
   });
   const [stages, setStages] = useState<Stage[]>([]);
@@ -171,12 +172,13 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
     }
   };
 
-  const handleServiceChange = (serviceId: string) => {
-    setFormData(prev => ({ ...prev, serviceId }));
+  const handleServiceChange = (serviceId: string | string[]) => {
+    const id = Array.isArray(serviceId) ? serviceId[0] : serviceId;
+    setFormData(prev => ({ ...prev, serviceId: id }));
     
     // Se não estamos editando um projeto existente, carregar etapas do serviço
-    if (!project?.id && serviceId) {
-      loadServiceStages(serviceId);
+    if (!project?.id && id) {
+      loadServiceStages(id);
     }
   };
 
@@ -373,7 +375,10 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
                     name: client.name
                   }))}
                   value={formData.clientId}
-                  onValueChange={(value) => setFormData({ ...formData, clientId: value })}
+                  onValueChange={(value) => {
+                    const id = Array.isArray(value) ? value[0] : value;
+                    setFormData({ ...formData, clientId: id });
+                  }}
                   placeholder="Selecionar cliente..."
                 />
               </div>
@@ -523,10 +528,11 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
                   }))}
                   value={formData.mainConsultantId}
                   onValueChange={(value) => {
-                    const consultant = consultants.find(c => c.id === value);
+                    const id = Array.isArray(value) ? value[0] : value;
+                    const consultant = consultants.find(c => c.id === id);
                     setFormData({ 
                       ...formData, 
-                      mainConsultantId: value,
+                      mainConsultantId: id,
                       mainConsultantCommission: consultant?.commission_percentage || 0
                     });
                   }}
@@ -556,10 +562,11 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
                   }))}
                   value={formData.supportConsultantId}
                   onValueChange={(value) => {
-                    const consultant = consultants.find(c => c.id === value);
+                    const id = Array.isArray(value) ? value[0] : value;
+                    const consultant = consultants.find(c => c.id === id);
                     setFormData({ 
                       ...formData, 
-                      supportConsultantId: value,
+                      supportConsultantId: id,
                       supportConsultantCommission: consultant?.commission_percentage || 0
                     });
                   }}
