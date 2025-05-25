@@ -271,6 +271,45 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     }
   }, [notesByColumn, onStatusChanged, notes, columns, refetchColumns]);
 
+  // Nova função para mover colunas
+  const handleMoveColumn = async (columnId: string, direction: 'left' | 'right') => {
+    try {
+      const sortedColumns = [...columns].sort((a, b) => a.order_index - b.order_index);
+      const currentIndex = sortedColumns.findIndex(col => col.column_id === columnId);
+      
+      if (currentIndex === -1) return;
+      
+      let newIndex: number;
+      if (direction === 'left') {
+        newIndex = Math.max(0, currentIndex - 1);
+      } else {
+        newIndex = Math.min(sortedColumns.length - 1, currentIndex + 1);
+      }
+      
+      // Se não há mudança de posição, retorna
+      if (currentIndex === newIndex) return;
+      
+      // Reordena as colunas
+      const newColumns = [...sortedColumns];
+      const [movedColumn] = newColumns.splice(currentIndex, 1);
+      newColumns.splice(newIndex, 0, movedColumn);
+      
+      // Atualizar ordem no banco
+      const updates = newColumns.map((col, index) => ({
+        id: col.id,
+        order_index: index
+      }));
+      
+      console.log('Movendo coluna:', { columnId, direction, from: currentIndex, to: newIndex });
+      await updateColumnOrder(updates);
+      await refetchColumns();
+      toast.success('Coluna movida com sucesso!');
+    } catch (error) {
+      console.error('Erro ao mover coluna:', error);
+      toast.error('Erro ao mover coluna.');
+    }
+  };
+
   if (columnsLoading) {
     return <div className="text-center py-8">Carregando colunas...</div>;
   }
@@ -361,6 +400,7 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
                             onUpdateColumn={handleUpdateColumn}
                             onDeleteColumn={handleDeleteColumn}
                             onUpdateColumnColor={handleUpdateColumnColor}
+                            onMoveColumn={handleMoveColumn}
                           >
                             {(notesByColumn[column.column_id] || []).map((note, noteIndex) => (
                               <Draggable key={note.id} draggableId={note.id} index={noteIndex}>

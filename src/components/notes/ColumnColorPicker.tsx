@@ -1,8 +1,5 @@
 
 import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Palette } from 'lucide-react';
 
 interface ColumnColorPickerProps {
   currentColor: string;
@@ -34,35 +31,28 @@ const ColumnColorPicker: React.FC<ColumnColorPickerProps> = ({
   onColorChange,
 }) => {
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-          <Palette className="h-3 w-3" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-64 p-3" align="end">
-        <div className="space-y-3">
-          <h4 className="text-sm font-medium">Escolher cor da coluna</h4>
-          <div className="grid grid-cols-4 gap-2">
-            {COLUMN_COLORS.map((color) => (
-              <button
-                key={color.value}
-                onClick={() => onColorChange(color.value)}
-                className={`
-                  w-12 h-8 rounded-md border-2 transition-all hover:scale-105
-                  ${color.preview}
-                  ${currentColor === color.value 
-                    ? 'border-gray-800 shadow-md' 
-                    : 'border-gray-200 hover:border-gray-400'
-                  }
-                `}
-                title={color.label}
-              />
-            ))}
-          </div>
+    <div className="bg-white border rounded-lg shadow-lg p-3 w-64">
+      <div className="space-y-3">
+        <h4 className="text-sm font-medium">Escolher cor da coluna</h4>
+        <div className="grid grid-cols-4 gap-2">
+          {COLUMN_COLORS.map((color) => (
+            <button
+              key={color.value}
+              onClick={() => onColorChange(color.value)}
+              className={`
+                w-12 h-8 rounded-md border-2 transition-all hover:scale-105
+                ${color.preview}
+                ${currentColor === color.value 
+                  ? 'border-gray-800 shadow-md' 
+                  : 'border-gray-200 hover:border-gray-400'
+                }
+              `}
+              title={color.label}
+            />
+          ))}
         </div>
-      </PopoverContent>
-    </Popover>
+      </div>
+    </div>
   );
 };
 
