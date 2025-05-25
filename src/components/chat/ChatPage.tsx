@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from '@tanstack/react-query';
@@ -233,7 +234,10 @@ const ChatPage = () => {
                 <ChatMessages messages={messages} />
               </CardContent>
               <div className="p-4 border-t">
-                <ChatInput onSendMessage={handleSendMessage} />
+                <ChatInput 
+                  onSendMessage={handleSendMessage} 
+                  roomId={selectedRoomId}
+                />
               </div>
             </>
           ) : (

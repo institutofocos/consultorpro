@@ -1125,6 +1125,84 @@ export type Database = {
           },
         ]
       }
+      scheduled_messages: {
+        Row: {
+          connection_id: string | null
+          created_at: string | null
+          id: string
+          is_recurring: boolean | null
+          last_sent_at: string | null
+          message: string
+          next_send_at: string | null
+          recurrence_day: number | null
+          recurrence_time: string | null
+          recurrence_type: string | null
+          room_id: string
+          send_date: string | null
+          send_time: string | null
+          sender_id: string
+          sender_name: string
+          status: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          connection_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_recurring?: boolean | null
+          last_sent_at?: string | null
+          message: string
+          next_send_at?: string | null
+          recurrence_day?: number | null
+          recurrence_time?: string | null
+          recurrence_type?: string | null
+          room_id: string
+          send_date?: string | null
+          send_time?: string | null
+          sender_id: string
+          sender_name: string
+          status?: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          connection_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_recurring?: boolean | null
+          last_sent_at?: string | null
+          message?: string
+          next_send_at?: string | null
+          recurrence_day?: number | null
+          recurrence_time?: string | null
+          recurrence_type?: string | null
+          room_id?: string
+          send_date?: string | null
+          send_time?: string | null
+          sender_id?: string
+          sender_name?: string
+          status?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_messages_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_tags: {
         Row: {
           created_at: string
