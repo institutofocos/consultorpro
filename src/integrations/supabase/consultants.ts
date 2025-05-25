@@ -64,18 +64,29 @@ export const deleteConsultant = async (id: string) => {
   }
 };
 
-export const calculateConsultantAvailableHours = async (consultantId: string, hoursPerMonth: number = 160): Promise<number> => {
+export const calculateConsultantWorkedHours = async (consultantId: string): Promise<number> => {
   try {
-    // Fetch stages where this consultant is assigned
-    const { data: stages, error } = await supabase
-      .from('project_stages')
-      .select('hours')
-      .eq('consultant_id', consultantId);
+    const { data, error } = await supabase.rpc('calculate_consultant_worked_hours', {
+      consultant_id: consultantId
+    });
 
     if (error) throw error;
+    return data || 0;
+  } catch (error) {
+    console.error('Error calculating consultant worked hours:', error);
+    return 0;
+  }
+};
 
-    const totalAllocatedHours = stages?.reduce((sum, stage) => sum + (stage.hours || 0), 0) || 0;
-    return Math.max(0, hoursPerMonth - totalAllocatedHours);
+export const calculateConsultantAvailableHours = async (consultantId: string, hoursPerMonth: number = 160): Promise<number> => {
+  try {
+    const { data, error } = await supabase.rpc('calculate_consultant_available_hours', {
+      consultant_id: consultantId,
+      hours_per_month: hoursPerMonth
+    });
+
+    if (error) throw error;
+    return data || hoursPerMonth;
   } catch (error) {
     console.error('Error calculating consultant available hours:', error);
     return hoursPerMonth;

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -20,7 +21,11 @@ import ConsultantForm from './ConsultantForm';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
 import { Tables } from '@/integrations/supabase/types';
-import { fetchConsultants, calculateConsultantAvailableHours } from "@/integrations/supabase/consultants";
+import { 
+  fetchConsultants, 
+  calculateConsultantAvailableHours, 
+  calculateConsultantWorkedHours 
+} from "@/integrations/supabase/consultants";
 
 export type Consultant = {
   id: string;
@@ -28,6 +33,7 @@ export type Consultant = {
   email: string;
   hoursPerMonth: number;
   availableHours?: number;
+  workedHours?: number;
   phone?: string;
   commissionPercentage?: number;
   salary?: number;
@@ -58,8 +64,9 @@ const mapConsultantFromDB = (consultant: Tables<"consultants"> & { services?: st
     zipCode: consultant.zip_code || '',
     education: consultant.education || '',
     services: consultant.services || [],
-    activeProjects: 0, // Default value since we don't have projects implemented yet
-    availableHours: 0, // Will be calculated later
+    activeProjects: 0,
+    availableHours: 0,
+    workedHours: 0,
   };
 };
 
@@ -69,6 +76,7 @@ export const ConsultantList: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingConsultant, setEditingConsultant] = useState<Consultant | null>(null);
   const [availableHours, setAvailableHours] = useState<{[key: string]: number}>({});
+  const [workedHours, setWorkedHours] = useState<{[key: string]: number}>({});
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   
@@ -106,21 +114,28 @@ export const ConsultantList: React.FC = () => {
           })
         );
         
-        // Map consultants and calculate available hours
+        // Map consultants
         const mappedConsultants = consultantsWithServices.map(mapConsultantFromDB);
         setConsultants(mappedConsultants);
 
-        // Calculate available hours for each consultant
-        const hoursMap: {[key: string]: number} = {};
+        // Calculate worked hours and available hours for each consultant
+        const workedHoursMap: {[key: string]: number} = {};
+        const availableHoursMap: {[key: string]: number} = {};
+        
         for (const consultant of mappedConsultants) {
-          const hours = await calculateConsultantAvailableHours(
+          const worked = await calculateConsultantWorkedHours(consultant.id);
+          const available = await calculateConsultantAvailableHours(
             consultant.id, 
             consultant.hoursPerMonth
           );
-          hoursMap[consultant.id] = hours;
+          
+          workedHoursMap[consultant.id] = worked;
+          availableHoursMap[consultant.id] = available;
         }
         
-        setAvailableHours(hoursMap);
+        setWorkedHours(workedHoursMap);
+        setAvailableHours(availableHoursMap);
+        
       } catch (error) {
         console.error('Error fetching consultants:', error);
         toast({
@@ -164,7 +179,26 @@ export const ConsultantList: React.FC = () => {
           })
         );
         
-        setConsultants(consultantsWithServices.map(mapConsultantFromDB));
+        const mappedConsultants = consultantsWithServices.map(mapConsultantFromDB);
+        setConsultants(mappedConsultants);
+
+        // Recalculate hours for all consultants
+        const workedHoursMap: {[key: string]: number} = {};
+        const availableHoursMap: {[key: string]: number} = {};
+        
+        for (const consultant of mappedConsultants) {
+          const worked = await calculateConsultantWorkedHours(consultant.id);
+          const available = await calculateConsultantAvailableHours(
+            consultant.id, 
+            consultant.hoursPerMonth
+          );
+          
+          workedHoursMap[consultant.id] = worked;
+          availableHoursMap[consultant.id] = available;
+        }
+        
+        setWorkedHours(workedHoursMap);
+        setAvailableHours(availableHoursMap);
       }
       
       // Reset form state
@@ -251,15 +285,16 @@ export const ConsultantList: React.FC = () => {
                     <TableHead>Nome</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Horas/Mês</TableHead>
-                    <TableHead>Projetos</TableHead>
+                    <TableHead>Horas Trabalhadas</TableHead>
                     <TableHead>Horas Livres</TableHead>
+                    <TableHead>Projetos</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         Carregando consultores...
                       </TableCell>
                     </TableRow>
@@ -269,12 +304,9 @@ export const ConsultantList: React.FC = () => {
                         <TableCell className="font-medium">{consultant.name}</TableCell>
                         <TableCell>{consultant.email}</TableCell>
                         <TableCell>{consultant.hoursPerMonth}h</TableCell>
+                        <TableCell>{workedHours[consultant.id] || 0}h</TableCell>
+                        <TableCell>{availableHours[consultant.id] || consultant.hoursPerMonth}h</TableCell>
                         <TableCell>{consultant.activeProjects || 0}</TableCell>
-                        <TableCell>
-                          {availableHours[consultant.id] !== undefined ? 
-                            `${availableHours[consultant.id]}h` : 
-                            `${consultant.hoursPerMonth}h`}
-                        </TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="icon" onClick={() => handleEditConsultant(consultant)}>
                             <Edit className="h-4 w-4" />
@@ -287,7 +319,7 @@ export const ConsultantList: React.FC = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         Nenhum consultor encontrado
                       </TableCell>
                     </TableRow>

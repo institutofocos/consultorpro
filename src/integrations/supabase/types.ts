@@ -1642,7 +1642,15 @@ export type Database = {
         Args: { consultant_id: string }
         Returns: number
       }
+      calculate_consultant_available_hours: {
+        Args: { consultant_id: string; hours_per_month?: number }
+        Returns: number
+      }
       calculate_consultant_monthly_hours: {
+        Args: { consultant_id: string; target_month?: string }
+        Returns: number
+      }
+      calculate_consultant_worked_hours: {
         Args: { consultant_id: string; target_month?: string }
         Returns: number
       }
