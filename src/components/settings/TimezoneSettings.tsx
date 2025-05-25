@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -70,9 +69,9 @@ const TimezoneSettings: React.FC = () => {
 
       settings?.forEach(setting => {
         if (setting.setting_key === 'timezone') {
-          setTimezoneConfig(setting.setting_value as unknown as TimezoneConfig);
+          setTimezoneConfig(setting.setting_value as any);
         } else if (setting.setting_key === 'datetime_format') {
-          setDateTimeFormat(setting.setting_value as unknown as DateTimeFormat);
+          setDateTimeFormat(setting.setting_value as any);
         }
       });
     } catch (error) {
@@ -87,32 +86,44 @@ const TimezoneSettings: React.FC = () => {
     try {
       setIsLoading(true);
 
-      // Atualizar configuração de timezone usando JSON.stringify
+      // Converter para JSON antes de salvar
+      const timezoneData = {
+        timezone: timezoneConfig.timezone,
+        name: timezoneConfig.name
+      };
+
+      const formatData = {
+        date_format: dateTimeFormat.date_format,
+        time_format: dateTimeFormat.time_format,
+        full_format: dateTimeFormat.full_format
+      };
+
+      // Atualizar configuração de timezone
       const { error: timezoneError } = await supabase
         .from('system_settings')
         .upsert({
           setting_key: 'timezone',
-          setting_value: JSON.stringify(timezoneConfig)
+          setting_value: timezoneData
         });
 
       if (timezoneError) throw timezoneError;
 
-      // Atualizar configuração de formato de data/hora usando JSON.stringify
+      // Atualizar configuração de formato de data/hora
       const { error: formatError } = await supabase
         .from('system_settings')
         .upsert({
           setting_key: 'datetime_format',
-          setting_value: JSON.stringify(dateTimeFormat)
+          setting_value: formatData
         });
 
       if (formatError) throw formatError;
 
-      // Log da alteração - fix the type issue by converting to JSON string
+      // Log da alteração
       await supabase.rpc('insert_system_log', {
         p_log_type: 'info',
         p_category: 'settings',
         p_message: 'Configurações de horário atualizadas',
-        p_details: JSON.stringify({ timezone: timezoneConfig, datetime_format: dateTimeFormat })
+        p_details: { timezone: timezoneData, datetime_format: formatData }
       });
 
       toast.success("Configurações de horário salvas com sucesso");

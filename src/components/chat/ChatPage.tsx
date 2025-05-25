@@ -1,15 +1,17 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 import { fetchConsultants } from '@/integrations/supabase/consultants';
-import { fetchChatRooms, fetchChatMessages, sendChatMessage, subscribeToChatMessages, ChatMessage, ChatRoom } from '@/integrations/supabase/chat';
+import { fetchChatRooms, fetchChatMessages, sendChatMessage, ChatMessage, ChatRoom } from '@/integrations/supabase/chat';
 import { useToast } from "@/hooks/use-toast";
 import ChatRoomsList from './ChatRoomsList';
 import ChatMessages from './ChatMessages';
 import ChatInput from './ChatInput';
 import { Users, MessageSquare, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { supabase } from '@/integrations/supabase/client';
 
 type LocationState = {
   initialRoomId?: string;
@@ -57,7 +59,7 @@ const ChatPage = () => {
     }
   }, [initialRoomId, rooms]);
 
-  // Buscar mensagens quando uma sala é selecionada
+  // Buscar mensagens e configurar real-time quando uma sala é selecionada
   useEffect(() => {
     let subscription: any;
     
@@ -67,10 +69,22 @@ const ChatPage = () => {
           const chatMessages = await fetchChatMessages(selectedRoomId);
           setMessages(chatMessages);
           
-          // Configurar escuta para novas mensagens
-          subscription = subscribeToChatMessages(selectedRoomId, (newMessage) => {
-            setMessages(prev => [...prev, newMessage]);
-          });
+          // Configurar escuta em tempo real para novas mensagens
+          subscription = supabase
+            .channel(`room-${selectedRoomId}-messages`)
+            .on('postgres_changes', {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'chat_messages',
+              filter: `room_id=eq.${selectedRoomId}`
+            }, (payload) => {
+              console.log('Nova mensagem recebida:', payload.new);
+              const newMessage = payload.new as ChatMessage;
+              setMessages(prev => [...prev, newMessage]);
+            })
+            .subscribe();
+
+          console.log('Subscription configurada para sala:', selectedRoomId);
         } catch (error) {
           console.error('Erro ao carregar mensagens:', error);
           toast({
@@ -89,6 +103,7 @@ const ChatPage = () => {
     return () => {
       // Limpar subscription ao desmontar ou trocar de sala
       if (subscription) {
+        console.log('Removendo subscription da sala:', selectedRoomId);
         subscription.unsubscribe();
       }
     };
@@ -102,9 +117,19 @@ const ChatPage = () => {
 
   const handleSendMessage = async (messageContent: string) => {
     if (selectedRoomId) {
-      // Usando o UUID temporário válido em vez de uma string comum
-      await sendChatMessage(selectedRoomId, TEMP_USER_ID, TEMP_USER_NAME, messageContent);
-      // Não precisamos atualizar manualmente os messages porque o subscription fará isso
+      try {
+        console.log('Enviando mensagem:', messageContent);
+        await sendChatMessage(selectedRoomId, TEMP_USER_ID, TEMP_USER_NAME, messageContent);
+        console.log('Mensagem enviada com sucesso');
+        // A mensagem aparecerá automaticamente através do subscription
+      } catch (error) {
+        console.error('Erro ao enviar mensagem:', error);
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não foi possível enviar a mensagem."
+        });
+      }
     }
   };
 

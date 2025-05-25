@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,7 +58,7 @@ const UserManagement: React.FC = () => {
       setIsLoading(true);
       console.log('Loading users...');
 
-      // Carregar perfis de usuário
+      // Carregar perfis de usuário - agora deve funcionar com as novas políticas
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
         .select('*')
@@ -67,7 +66,7 @@ const UserManagement: React.FC = () => {
 
       if (profilesError) {
         console.error('Error loading user profiles:', profilesError);
-        throw profilesError;
+        // Continuar mesmo com erro para tentar carregar de outras fontes
       }
 
       // Carregar consultores
@@ -94,7 +93,7 @@ const UserManagement: React.FC = () => {
       const allUsers: User[] = [];
 
       // Adicionar perfis de usuário
-      if (profiles) {
+      if (profiles && profiles.length > 0) {
         allUsers.push(...profiles.map(profile => ({
           id: profile.id,
           full_name: profile.full_name,
@@ -105,7 +104,7 @@ const UserManagement: React.FC = () => {
       }
 
       // Adicionar consultores que não estão nos perfis
-      if (consultants) {
+      if (consultants && consultants.length > 0) {
         consultants.forEach(consultant => {
           const existingProfile = profiles?.find(p => p.full_name === consultant.name);
           if (!existingProfile) {
@@ -121,7 +120,7 @@ const UserManagement: React.FC = () => {
       }
 
       // Adicionar clientes que não estão nos perfis
-      if (clients) {
+      if (clients && clients.length > 0) {
         clients.forEach(client => {
           const existingProfile = profiles?.find(p => p.full_name === client.contact_name);
           if (!existingProfile) {
@@ -323,12 +322,12 @@ const UserManagement: React.FC = () => {
                     <TableCell className="font-medium">{user.full_name}</TableCell>
                     <TableCell>{user.email || '-'}</TableCell>
                     <TableCell>
-                      <Badge variant={getRoleBadgeVariant(user.role) as any}>
-                        {getRoleLabel(user.role)}
+                      <Badge variant="outline">
+                        {userRoles.find(r => r.value === user.role)?.label || user.role}
                       </Badge>
                     </TableCell>
-                    <TableCell>{formatDate(user.created_at)}</TableCell>
-                    <TableCell>{user.last_login ? formatDate(user.last_login) : '-'}</TableCell>
+                    <TableCell>{new Date(user.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                    <TableCell>{user.last_login ? new Date(user.last_login).toLocaleDateString('pt-BR') : '-'}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         <Button variant="outline" size="sm">

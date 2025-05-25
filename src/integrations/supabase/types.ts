@@ -1268,24 +1268,36 @@ export type Database = {
           full_name: string
           id: string
           last_login: string | null
+          password_hash: string | null
+          profile_photo_url: string | null
           role: string
           updated_at: string
+          user_type: string | null
+          username: string | null
         }
         Insert: {
           created_at?: string
           full_name: string
           id: string
           last_login?: string | null
+          password_hash?: string | null
+          profile_photo_url?: string | null
           role: string
           updated_at?: string
+          user_type?: string | null
+          username?: string | null
         }
         Update: {
           created_at?: string
           full_name?: string
           id?: string
           last_login?: string | null
+          password_hash?: string | null
+          profile_photo_url?: string | null
           role?: string
           updated_at?: string
+          user_type?: string | null
+          username?: string | null
         }
         Relationships: []
       }
@@ -1388,6 +1400,10 @@ export type Database = {
           consultant_payments_made: number
           consultant_payments_pending: number
         }[]
+      }
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       insert_system_log: {
         Args: {
