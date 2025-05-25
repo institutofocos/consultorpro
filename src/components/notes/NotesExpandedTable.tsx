@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -32,17 +31,27 @@ interface NotesExpandedTableProps {
 }
 
 const STATUS_COLORS = {
-  'a_fazer': 'bg-blue-100 text-blue-800',
+  'iniciar_projeto': 'bg-blue-100 text-blue-800',
   'em_producao': 'bg-yellow-100 text-yellow-800',
-  'finalizado': 'bg-green-100 text-green-800',
-  'cancelado': 'bg-red-100 text-red-800',
+  'aguardando_assinatura': 'bg-orange-100 text-orange-800',
+  'aguardando_aprovacao': 'bg-purple-100 text-purple-800',
+  'aguardando_nota_fiscal': 'bg-indigo-100 text-indigo-800',
+  'aguardando_pagamento': 'bg-pink-100 text-pink-800',
+  'aguardando_repasse': 'bg-cyan-100 text-cyan-800',
+  'finalizados': 'bg-green-100 text-green-800',
+  'cancelados': 'bg-red-100 text-red-800',
 };
 
 const STATUS_LABELS = {
-  'a_fazer': 'A fazer',
+  'iniciar_projeto': 'Iniciar Projeto',
   'em_producao': 'Em produção',
-  'finalizado': 'Finalizado',
-  'cancelado': 'Cancelado',
+  'aguardando_assinatura': 'Aguardando Assinatura',
+  'aguardando_aprovacao': 'Aguardando Aprovação',
+  'aguardando_nota_fiscal': 'Aguardando Nota Fiscal',
+  'aguardando_pagamento': 'Aguardando Pagamento',
+  'aguardando_repasse': 'Aguardando Repasse',
+  'finalizados': 'Finalizados',
+  'cancelados': 'Cancelados',
 };
 
 const NotesExpandedTable: React.FC<NotesExpandedTableProps> = ({
