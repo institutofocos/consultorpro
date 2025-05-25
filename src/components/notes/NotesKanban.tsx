@@ -54,8 +54,10 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     queryFn: fetchKanbanColumns,
   });
 
-  // Organiza as notas em colunas de acordo com o status
+  // Organiza as notas em colunas de acordo com o status - corrigindo dependências
   useEffect(() => {
+    if (columns.length === 0) return;
+    
     const newNotesByColumn: Record<string, Note[]> = {};
     
     columns.forEach(column => {
@@ -69,7 +71,7 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     });
 
     setNotesByColumn(newNotesByColumn);
-  }, [notes, columns]);
+  }, [notes, columns.length]); // Mudança aqui: usando columns.length em vez de columns
 
   // Adicionar nova coluna
   const handleAddColumn = async () => {
@@ -271,21 +273,13 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     }
   }, [notesByColumn, onStatusChanged, notes, columns, refetchColumns]);
 
-  // Nova função para mover colunas
+  // Função simplificada para mover colunas
   const handleMoveColumn = async (columnId: string, direction: 'left' | 'right') => {
     try {
-      console.log('=== INÍCIO DO MOVIMENTO ===');
-      console.log('Coluna ID:', columnId, 'Direção:', direction);
-      
-      // Buscar colunas ordenadas
       const sortedColumns = [...columns].sort((a, b) => a.order_index - b.order_index);
-      console.log('Colunas ordenadas:', sortedColumns.map(col => ({ id: col.column_id, title: col.title, order: col.order_index })));
-      
       const currentIndex = sortedColumns.findIndex(col => col.column_id === columnId);
-      console.log('Índice atual da coluna:', currentIndex);
       
       if (currentIndex === -1) {
-        console.error('Coluna não encontrada:', columnId);
         toast.error('Coluna não encontrada.');
         return;
       }
@@ -305,33 +299,24 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
         newIndex = currentIndex + 1;
       }
       
-      console.log('Novo índice:', newIndex);
+      // Trocar posições diretamente
+      const columnToMove = sortedColumns[currentIndex];
+      const columnAtTarget = sortedColumns[newIndex];
       
-      // Criar nova ordem
-      const reorderedColumns = [...sortedColumns];
-      const [movedColumn] = reorderedColumns.splice(currentIndex, 1);
-      reorderedColumns.splice(newIndex, 0, movedColumn);
+      // Atualizar apenas as duas colunas envolvidas
+      const updates = [
+        { id: columnToMove.id, order_index: columnAtTarget.order_index },
+        { id: columnAtTarget.id, order_index: columnToMove.order_index }
+      ];
       
-      console.log('Nova ordem das colunas:', reorderedColumns.map(col => ({ id: col.column_id, title: col.title })));
-      
-      // Preparar updates com novos order_index
-      const updates = reorderedColumns.map((col, index) => ({
-        id: col.id,
-        order_index: index
-      }));
-      
-      console.log('Updates a serem aplicados:', updates);
-      
-      // Atualizar no banco
       await updateColumnOrder(updates);
       
-      // Forçar refetch
-      await queryClient.invalidateQueries({ queryKey: ['kanban-columns'] });
+      // Invalidar cache para forçar refetch
+      queryClient.invalidateQueries({ queryKey: ['kanban-columns'] });
       
       const directionText = direction === 'left' ? 'esquerda' : 'direita';
-      toast.success(`Coluna "${movedColumn.title}" movida para a ${directionText}!`);
+      toast.success(`Coluna movida para a ${directionText}!`);
       
-      console.log('=== MOVIMENTO CONCLUÍDO ===');
     } catch (error) {
       console.error('Erro ao mover coluna:', error);
       toast.error('Erro ao mover coluna.');
