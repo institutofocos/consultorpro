@@ -1,266 +1,284 @@
 
-import React from 'react';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { BasicClient } from '../services/types';
+import { Client } from "@/integrations/supabase/clients";
 
-const formSchema = z.object({
-  name: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }),
-  contact_name: z.string().min(3, { message: 'Nome do contato deve ter pelo menos 3 caracteres' }),
-  email: z.string().email({ message: 'Email inválido' }).optional().or(z.literal('')),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  zip_code: z.string().optional(),
-  notes: z.string().optional(),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+interface ClientFormData extends Client {
+  username?: string;
+  password?: string;
+}
 
 interface ClientFormProps {
-  client?: BasicClient | null;
-  onSave: () => void;
+  client?: Client;
+  onClientSaved: (client: Client) => void;
   onCancel: () => void;
 }
 
-const ClientForm: React.FC<ClientFormProps> = ({ client, onSave, onCancel }) => {
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: client ? {
-      name: client.name,
-      contact_name: client.contact_name,
-      email: client.email || '',
-      phone: client.phone || '',
-      address: client.address || '',
-      city: client.city || '',
-      state: client.state || '',
-      zip_code: client.zip_code || '',
-      notes: client.notes || '',
-    } : {
-      name: '',
-      contact_name: '',
-      email: '',
-      phone: '',
-      address: '',
-      city: '',
-      state: '',
-      zip_code: '',
-      notes: '',
-    }
+export default function ClientForm({ client, onClientSaved, onCancel }: ClientFormProps) {
+  const [formData, setFormData] = useState<ClientFormData>({
+    id: '',
+    name: '',
+    contact_name: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    zip_code: '',
+    notes: '',
+    username: '',
+    password: ''
   });
+  const [isLoading, setIsLoading] = useState(false);
 
-  const onSubmit = async (data: FormValues) => {
+  useEffect(() => {
+    if (client) {
+      setFormData({ ...client, username: '', password: '' });
+    }
+  }, [client]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
     try {
-      if (client) {
-        // Update existing client
-        const { error } = await supabase
+      if (!formData.name || !formData.contact_name) {
+        toast.error('Nome da empresa e nome do contato são obrigatórios');
+        return;
+      }
+
+      const clientData = {
+        name: formData.name,
+        contact_name: formData.contact_name,
+        email: formData.email || null,
+        phone: formData.phone || null,
+        address: formData.address || null,
+        city: formData.city || null,
+        state: formData.state || null,
+        zip_code: formData.zip_code || null,
+        notes: formData.notes || null,
+      };
+
+      let savedClient;
+      if (client?.id) {
+        const { data, error } = await supabase
           .from('clients')
-          .update(data)
-          .eq('id', client.id);
-          
+          .update(clientData)
+          .eq('id', client.id)
+          .select()
+          .single();
+
         if (error) throw error;
-        
+        savedClient = data;
         toast.success('Cliente atualizado com sucesso!');
       } else {
-        // Create new client - ensure required fields are present
-        const newClientData = {
-          name: data.name,
-          contact_name: data.contact_name,
-          email: data.email || null,
-          phone: data.phone || null,
-          address: data.address || null,
-          city: data.city || null,
-          state: data.state || null,
-          zip_code: data.zip_code || null,
-          notes: data.notes || null
-        };
-        
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('clients')
-          .insert([newClientData]);
-          
+          .insert(clientData)
+          .select()
+          .single();
+
         if (error) throw error;
-        
-        toast.success('Cliente adicionado com sucesso!');
+        savedClient = data;
+        toast.success('Cliente criado com sucesso!');
       }
-      
-      onSave();
-    } catch (error: any) {
-      toast.error(`Erro ao ${client ? 'atualizar' : 'adicionar'} cliente: ` + error.message);
+
+      // Se tem username/password, criar perfil de usuário
+      if (formData.username && formData.password && formData.email) {
+        try {
+          const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: formData.email,
+            password: formData.password,
+            options: {
+              data: {
+                full_name: formData.contact_name,
+                role: 'client',
+                client_id: savedClient.id
+              }
+            }
+          });
+
+          if (authError) {
+            console.error('Error creating user:', authError);
+            toast.warning('Cliente criado, mas houve erro ao criar usuário de acesso');
+          } else {
+            toast.success('Cliente e usuário de acesso criados com sucesso!');
+          }
+        } catch (authError) {
+          console.error('Auth error:', authError);
+          toast.warning('Cliente criado, mas houve erro ao criar usuário de acesso');
+        }
+      }
+
+      onClientSaved(savedClient);
+    } catch (error) {
+      console.error('Error saving client:', error);
+      toast.error('Erro ao salvar cliente');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <Card className="shadow-card">
-      <CardHeader>
-        <CardTitle>{client ? 'Editar Cliente' : 'Adicionar Cliente'}</CardTitle>
-      </CardHeader>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome da Empresa</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Nome da empresa" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="contact_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome do Contato</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Nome da pessoa de contato" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="Email de contato" {...field} value={field.value || ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Telefone</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Telefone de contato" {...field} value={field.value || ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>{client ? 'Editar Cliente' : 'Novo Cliente'}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Informações da Empresa */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="name">Nome da Empresa *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Nome da empresa"
+                required
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Endereço</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Endereço" {...field} value={field.value || ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+            <div>
+              <Label htmlFor="contact_name">Nome do Contato *</Label>
+              <Input
+                id="contact_name"
+                value={formData.contact_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, contact_name: e.target.value }))}
+                placeholder="Nome da pessoa de contato"
+                required
               />
-              
-              <FormField
-                control={form.control}
-                name="city"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cidade</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Cidade" {...field} value={field.value || ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="state"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Estado</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Estado" {...field} value={field.value || ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="zip_code"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>CEP</FormLabel>
-                    <FormControl>
-                      <Input placeholder="CEP" {...field} value={field.value || ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+            </div>
+          </div>
+
+          {/* Informações de Contato */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="email@exemplo.com"
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Observações</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Observações sobre o cliente" 
-                      className="min-h-[100px]" 
-                      {...field} 
-                      value={field.value || ''} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+            <div>
+              <Label htmlFor="phone">Telefone</Label>
+              <Input
+                id="phone"
+                value={formData.phone}
+                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="(11) 99999-9999"
+              />
+            </div>
+          </div>
+
+          {/* Endereço */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Endereço</h3>
+            <div>
+              <Label htmlFor="address">Endereço</Label>
+              <Input
+                id="address"
+                value={formData.address}
+                onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                placeholder="Rua, número, complemento"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="city">Cidade</Label>
+                <Input
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                  placeholder="Cidade"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="state">Estado</Label>
+                <Input
+                  id="state"
+                  value={formData.state}
+                  onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
+                  placeholder="Estado"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="zip_code">CEP</Label>
+                <Input
+                  id="zip_code"
+                  value={formData.zip_code}
+                  onChange={(e) => setFormData(prev => ({ ...prev, zip_code: e.target.value }))}
+                  placeholder="00000-000"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Observações */}
+          <div>
+            <Label htmlFor="notes">Observações</Label>
+            <Textarea
+              id="notes"
+              value={formData.notes}
+              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              placeholder="Observações sobre o cliente"
             />
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button type="button" variant="outline" onClick={onCancel}>
-              Cancelar
-            </Button>
-            <Button type="submit">
-              {client ? 'Atualizar' : 'Adicionar'} Cliente
-            </Button>
-          </CardFooter>
-        </form>
-      </Form>
-    </Card>
-  );
-};
+          </div>
 
-export default ClientForm;
+          {/* Acesso ao Sistema */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Acesso ao Sistema</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="username">Nome de Usuário</Label>
+                <Input
+                  id="username"
+                  value={formData.username}
+                  onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
+                  placeholder="Nome de usuário para acesso"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="password">Senha</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="Senha de acesso"
+                />
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Para criar acesso ao sistema, preencha também o campo email acima.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Botões */}
+      <div className="flex justify-end space-x-4">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? 'Salvando...' : client ? 'Atualizar' : 'Criar'} Cliente
+        </Button>
+      </div>
+    </form>
+  );
+}

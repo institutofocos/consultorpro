@@ -1,488 +1,341 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { UserCircle, UserCheck, UserX, UserCog, Shield, RefreshCcw, UserPlus, Eye, EyeOff, RefreshCw, CheckCircle2 } from 'lucide-react';
-import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from '@/integrations/supabase/client';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { UserProfile, ModulePermission } from '@/types/auth';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
-import { updateUserPermissions, resetUserPassword } from '@/services/auth';
-import { toast as sonnerToast } from "sonner";
-import { Switch } from "@/components/ui/switch";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { Users, Plus, Edit2, Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
-// Lista de módulos do sistema para permissões
-const systemModules = [
-  { id: 'dashboard', name: 'Dashboard', description: 'Painel principal do sistema' },
-  { id: 'consultants', name: 'Consultores', description: 'Gerenciamento de consultores' },
-  { id: 'clients', name: 'Clientes', description: 'Gerenciamento de clientes' },
-  { id: 'projects', name: 'Projetos', description: 'Gerenciamento de projetos' },
-  { id: 'services', name: 'Serviços', description: 'Gerenciamento de serviços' },
-  { id: 'tags', name: 'Tags', description: 'Gerenciamento de tags' },
-  { id: 'demands', name: 'Demandas', description: 'Gerenciamento de demandas' },
-  { id: 'kpis', name: 'KPIs', description: 'Indicadores de desempenho' },
-  { id: 'okrs', name: 'OKRs', description: 'Objetivos e resultados-chave' },
-  { id: 'financial', name: 'Financeiro', description: 'Gestão financeira' },
-  { id: 'activities', name: 'Atividades', description: 'Registro de atividades' },
-  { id: 'notes', name: 'Anotações', description: 'Gerenciamento de anotações' },
-  { id: 'chat', name: 'Chat', description: 'Chat interno' },
-  { id: 'reports', name: 'Relatórios', description: 'Relatórios gerenciais' },
-  { id: 'settings', name: 'Configurações', description: 'Configurações do sistema' }
-];
-
-// Tipos de perfis disponíveis
-const userRoles = [
-  { id: 'admin', name: 'Administrador' },
-  { id: 'consultant', name: 'Consultor' },
-  { id: 'client', name: 'Cliente' },
-  { id: 'manager', name: 'Gestor' },
-  { id: 'commercial', name: 'Comercial' },
-  { id: 'financial', name: 'Financeiro' },
-  { id: 'marketing', name: 'Marketing' },
-  { id: 'intern', name: 'Estagiário' }
-];
-
-interface UserWithProfile {
+interface User {
   id: string;
-  email: string;
-  profile: UserProfile | null;
-  is_disabled?: boolean;
+  full_name: string;
+  role: string;
+  email?: string;
+  created_at: string;
+  last_login?: string;
 }
 
-interface UserWithPermissions extends UserWithProfile {
-  permissions: ModulePermission[];
-}
-
-interface CreateUserFormData {
+interface NewUser {
+  full_name: string;
   email: string;
   password: string;
-  fullName: string;
   role: string;
 }
 
-const UserManagement = () => {
-  const { toast } = useToast();
-  const [selectedUser, setSelectedUser] = useState<UserWithProfile | null>(null);
-  const [isPermissionDialogOpen, setIsPermissionDialogOpen] = useState(false);
-  const [isCreateUserDialogOpen, setIsCreateUserDialogOpen] = useState(false);
-  const [permissionsLoading, setPermissionsLoading] = useState(false);
-  const [userPermissions, setUserPermissions] = useState<ModulePermission[]>([]);
-  const [userType, setUserType] = useState<string>('all');
-  const [isResendingInvite, setIsResendingInvite] = useState<string | null>(null);
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
-  const [newUser, setNewUser] = useState<CreateUserFormData>({
+const UserManagement: React.FC = () => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [newUser, setNewUser] = useState<NewUser>({
+    full_name: '',
     email: '',
     password: '',
-    fullName: '',
     role: 'client'
   });
-  const [isCreatingUser, setIsCreatingUser] = useState(false);
-  
-  // Buscar usuários e seus perfis
-  const { data: users = [], isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery({
-    queryKey: ['users'],
-    queryFn: async () => {
-      try {
-        // Fetch users from auth schema
-        const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-        
-        if (authError) throw authError;
-        
-        // Fetch profiles for all users
-        const { data: profiles, error: profilesError } = await supabase
-          .from('user_profiles')
-          .select('*');
-          
-        if (profilesError) throw profilesError;
-        
-        // Combine users with their profiles and convert dates
-        return authUsers.users.map(user => {
-          const userProfile = profiles?.find(p => p.id === user.id);
-          return {
-            id: user.id,
-            email: user.email,
-            is_disabled: user.banned || false,
-            profile: userProfile ? {
-              ...userProfile,
-              created_at: userProfile.created_at ? new Date(userProfile.created_at) : new Date(),
-              updated_at: userProfile.updated_at ? new Date(userProfile.updated_at) : new Date(),
-              last_login: userProfile.last_login ? new Date(userProfile.last_login) : undefined
-            } : null
-          } as UserWithProfile;
-        });
-      } catch (error) {
-        console.error("Error fetching users:", error);
-        throw error;
-      }
-    }
-  });
-  
-  // Filtrar usuários com base no tipo selecionado
-  const filteredUsers = userType === 'all' 
-    ? users 
-    : users.filter(user => user.profile?.role === userType);
 
-  const handleOpenPermissions = async (user: UserWithProfile) => {
-    setSelectedUser(user);
-    setPermissionsLoading(true);
-    
+  const userRoles = [
+    { value: 'admin', label: 'Administrador' },
+    { value: 'manager', label: 'Gestor' },
+    { value: 'financial', label: 'Financeiro' },
+    { value: 'marketing', label: 'Marketing' },
+    { value: 'intern', label: 'Estagiário' },
+    { value: 'consultant', label: 'Consultor' },
+    { value: 'client', label: 'Cliente' }
+  ];
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
     try {
-      const { data: permissions, error } = await supabase
-        .from('module_permissions')
+      setIsLoading(true);
+      console.log('Loading users...');
+
+      // Carregar perfis de usuário
+      const { data: profiles, error: profilesError } = await supabase
+        .from('user_profiles')
         .select('*')
-        .eq('user_id', user.id);
-        
-      if (error) throw error;
-      
-      setUserPermissions(permissions || []);
-      setIsPermissionDialogOpen(true);
-    } catch (error) {
-      console.error('Erro ao carregar permissões:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível carregar as permissões do usuário."
-      });
-    } finally {
-      setPermissionsLoading(false);
-    }
-  };
+        .order('created_at', { ascending: false });
 
-  const handleUpdatePermission = async (moduleName: string, permissionType: 'view' | 'edit', value: boolean) => {
-    if (!selectedUser) return;
-    
-    try {
-      // Find existing permission or create new
-      let currentPermission = userPermissions.find(p => p.module_name === moduleName);
-      let updatedPermissions;
-      
-      if (currentPermission) {
-        // Update existing permission
-        const updatedPermission = {
-          ...currentPermission,
-          [permissionType === 'view' ? 'can_view' : 'can_edit']: value
-        };
-        
-        // If uncheck 'view', also uncheck 'edit'
-        if (permissionType === 'view' && !value) {
-          updatedPermission.can_edit = false;
-        }
-        
-        updatedPermissions = userPermissions.map(p => 
-          p.module_name === moduleName ? updatedPermission : p
-        );
-      } else {
-        // Create new permission
-        const newPermission = {
-          id: '',
-          user_id: selectedUser.id,
-          module_name: moduleName,
-          can_view: permissionType === 'view' ? value : false,
-          can_edit: permissionType === 'edit' ? value : false
-        };
-        
-        updatedPermissions = [...userPermissions, newPermission];
+      if (profilesError) {
+        console.error('Error loading user profiles:', profilesError);
+        throw profilesError;
       }
-      
-      // Update local state
-      setUserPermissions(updatedPermissions);
-      
-      // Update in database
-      const permToUpdate = updatedPermissions.find(p => p.module_name === moduleName)!;
-      await updateUserPermissions(
-        selectedUser.id, 
-        moduleName, 
-        { can_view: permToUpdate.can_view, can_edit: permToUpdate.can_edit }
-      );
 
-      sonnerToast.success("Permissão atualizada com sucesso");
-    } catch (error) {
-      console.error('Erro ao atualizar permissão:', error);
-      sonnerToast.error("Erro ao atualizar permissão");
-    }
-  };
+      // Carregar consultores
+      const { data: consultants, error: consultantsError } = await supabase
+        .from('consultants')
+        .select('id, name, email, created_at')
+        .order('created_at', { ascending: false });
 
-  const handleResendInvite = async (email: string) => {
-    setIsResendingInvite(email);
-    try {
-      await resetUserPassword(email);
-      toast({
-        title: "Convite enviado",
-        description: `Um novo email de acesso foi enviado para ${email}`
-      });
-    } catch (error) {
-      console.error('Erro ao reenviar convite:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível reenviar o convite."
-      });
-    } finally {
-      setIsResendingInvite(null);
-    }
-  };
-
-  const toggleUserStatus = async (user: UserWithProfile) => {
-    setIsUpdatingStatus(user.id);
-    
-    try {
-      const newStatus = !user.is_disabled;
-      
-      // Instead of using banned_until which doesn't exist in AdminUserAttributes,
-      // we'll use user_metadata to store the disabled state
-      if (newStatus) {
-        // Mark user as disabled in metadata
-        const { error } = await supabase.auth.admin.updateUserById(
-          user.id,
-          { 
-            user_metadata: { 
-              is_disabled: true,
-              disabled_at: new Date().toISOString()
-            } 
-          }
-        );
-        if (error) throw error;
-      } else {
-        // Mark user as enabled in metadata
-        const { error } = await supabase.auth.admin.updateUserById(
-          user.id,
-          { 
-            user_metadata: { 
-              is_disabled: false,
-              disabled_at: null
-            } 
-          }
-        );
-        if (error) throw error;
+      if (consultantsError) {
+        console.error('Error loading consultants:', consultantsError);
       }
-      
-      // Update local state
-      const updatedUsers = users.map(u => 
-        u.id === user.id ? { ...u, is_disabled: newStatus } : u
-      );
-      
-      // Refresh user list
-      refetchUsers();
-      
-      sonnerToast.success(`Usuário ${newStatus ? 'desativado' : 'ativado'} com sucesso`);
+
+      // Carregar clientes
+      const { data: clients, error: clientsError } = await supabase
+        .from('clients')
+        .select('id, name, contact_name, email, created_at')
+        .order('created_at', { ascending: false });
+
+      if (clientsError) {
+        console.error('Error loading clients:', clientsError);
+      }
+
+      // Combinar todos os usuários
+      const allUsers: User[] = [];
+
+      // Adicionar perfis de usuário
+      if (profiles) {
+        allUsers.push(...profiles.map(profile => ({
+          id: profile.id,
+          full_name: profile.full_name,
+          role: profile.role,
+          created_at: profile.created_at,
+          last_login: profile.last_login || undefined
+        })));
+      }
+
+      // Adicionar consultores que não estão nos perfis
+      if (consultants) {
+        consultants.forEach(consultant => {
+          const existingProfile = profiles?.find(p => p.full_name === consultant.name);
+          if (!existingProfile) {
+            allUsers.push({
+              id: consultant.id,
+              full_name: consultant.name,
+              role: 'consultant',
+              email: consultant.email,
+              created_at: consultant.created_at || new Date().toISOString()
+            });
+          }
+        });
+      }
+
+      // Adicionar clientes que não estão nos perfis
+      if (clients) {
+        clients.forEach(client => {
+          const existingProfile = profiles?.find(p => p.full_name === client.contact_name);
+          if (!existingProfile) {
+            allUsers.push({
+              id: client.id,
+              full_name: client.contact_name || client.name,
+              role: 'client',
+              email: client.email || undefined,
+              created_at: client.created_at || new Date().toISOString()
+            });
+          }
+        });
+      }
+
+      console.log('Users loaded:', allUsers.length);
+      setUsers(allUsers);
     } catch (error) {
-      console.error('Erro ao atualizar status do usuário:', error);
-      sonnerToast.error("Erro ao atualizar status do usuário");
+      console.error('Error loading users:', error);
+      toast.error('Erro ao carregar usuários');
     } finally {
-      setIsUpdatingStatus(null);
+      setIsLoading(false);
     }
   };
 
-  const createNewUser = async () => {
-    if (!newUser.email || !newUser.password || !newUser.fullName || !newUser.role) {
-      sonnerToast.error("Preencha todos os campos obrigatórios");
-      return;
-    }
-    
-    setIsCreatingUser(true);
-    
+  const handleCreateUser = async () => {
     try {
-      // Create user in auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      if (!newUser.full_name || !newUser.email || !newUser.password) {
+        toast.error('Preencha todos os campos obrigatórios');
+        return;
+      }
+
+      setIsLoading(true);
+
+      // Criar usuário no Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: newUser.email,
         password: newUser.password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: newUser.fullName,
-          role: newUser.role
+        options: {
+          data: {
+            full_name: newUser.full_name,
+            role: newUser.role
+          }
         }
       });
-      
-      if (authError) throw authError;
-      
-      if (authData.user) {
-        // Ensure profile is created
-        const { error: profileError } = await supabase
-          .from('user_profiles')
-          .upsert({
-            id: authData.user.id,
-            full_name: newUser.fullName,
-            role: newUser.role,
-          });
-          
-        if (profileError) throw profileError;
+
+      if (authError) {
+        console.error('Error creating user:', authError);
+        throw authError;
       }
-      
-      // Reset form and close dialog
-      setNewUser({
-        email: '',
-        password: '',
-        fullName: '',
-        role: 'client'
-      });
-      
-      setIsCreateUserDialogOpen(false);
-      refetchUsers();
-      
-      sonnerToast.success("Usuário criado com sucesso");
-    } catch (error: any) {
-      console.error('Erro ao criar usuário:', error);
-      sonnerToast.error(`Erro ao criar usuário: ${error.message}`);
+
+      toast.success('Usuário criado com sucesso!');
+      setIsDialogOpen(false);
+      setNewUser({ full_name: '', email: '', password: '', role: 'client' });
+      loadUsers();
+    } catch (error) {
+      console.error('Error creating user:', error);
+      toast.error('Erro ao criar usuário');
     } finally {
-      setIsCreatingUser(false);
+      setIsLoading(false);
     }
   };
 
-  const getRoleBadge = (role?: string) => {
-    if (!role) return <Badge variant="outline">Indefinido</Badge>;
-    
+  const getRoleBadgeVariant = (role: string) => {
     switch (role) {
       case 'admin':
-        return <Badge className="bg-red-500">Administrador</Badge>;
-      case 'consultant':
-        return <Badge className="bg-blue-500">Consultor</Badge>;
-      case 'client':
-        return <Badge className="bg-green-500">Cliente</Badge>;
+        return 'destructive';
       case 'manager':
-        return <Badge className="bg-purple-500">Gestor</Badge>;
-      case 'commercial':
-        return <Badge className="bg-orange-500">Comercial</Badge>;
-      case 'financial':
-        return <Badge className="bg-emerald-500">Financeiro</Badge>;
-      case 'marketing':
-        return <Badge className="bg-pink-500">Marketing</Badge>;
-      case 'intern':
-        return <Badge className="bg-yellow-500">Estagiário</Badge>;
+        return 'default';
+      case 'consultant':
+        return 'secondary';
+      case 'client':
+        return 'outline';
       default:
-        return <Badge variant="outline">{role}</Badge>;
+        return 'outline';
     }
   };
-  
+
+  const getRoleLabel = (role: string) => {
+    const roleConfig = userRoles.find(r => r.value === role);
+    return roleConfig?.label || role;
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR');
+  };
+
   return (
-    <Card className="shadow-card">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-xl">
-          <div className="flex items-center">
-            <UserCircle className="h-5 w-5 mr-2" />
-            <span>Gerenciamento de Usuários</span>
-          </div>
-        </CardTitle>
-        <div className="flex items-center space-x-2">
-          <Button 
-            variant="outline" 
-            onClick={() => setIsCreateUserDialogOpen(true)}
-            className="mr-2"
-          >
-            <UserPlus className="h-4 w-4 mr-2" />
-            Novo Usuário
-          </Button>
-          <Select value={userType} onValueChange={setUserType}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filtrar por tipo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os usuários</SelectItem>
-              <SelectItem value="admin">Administradores</SelectItem>
-              <SelectItem value="consultant">Consultores</SelectItem>
-              <SelectItem value="client">Clientes</SelectItem>
-              <SelectItem value="manager">Gestores</SelectItem>
-              <SelectItem value="commercial">Comercial</SelectItem>
-              <SelectItem value="financial">Financeiro</SelectItem>
-              <SelectItem value="marketing">Marketing</SelectItem>
-              <SelectItem value="intern">Estagiários</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="icon" onClick={() => refetchUsers()}>
-            <RefreshCcw className="h-4 w-4" />
-          </Button>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Gerenciamento de Usuários</h1>
+          <p className="text-muted-foreground">Gerencie usuários, consultores e clientes do sistema</p>
         </div>
-      </CardHeader>
-      <CardContent>
-        {isLoadingUsers ? (
-          <div className="flex justify-center items-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-          </div>
-        ) : filteredUsers.length > 0 ? (
-          <div className="rounded-md border">
+
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Usuário
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Criar Novo Usuário</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="new_full_name">Nome Completo *</Label>
+                <Input
+                  id="new_full_name"
+                  value={newUser.full_name}
+                  onChange={(e) => setNewUser(prev => ({ ...prev, full_name: e.target.value }))}
+                  placeholder="Nome completo do usuário"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="new_email">Email *</Label>
+                <Input
+                  id="new_email"
+                  type="email"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="email@exemplo.com"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="new_password">Senha *</Label>
+                <Input
+                  id="new_password"
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="Senha de acesso"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="new_role">Tipo de Usuário *</Label>
+                <Select value={newUser.role} onValueChange={(value) => setNewUser(prev => ({ ...prev, role: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo de usuário" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {userRoles.map(role => (
+                      <SelectItem key={role.value} value={role.value}>
+                        {role.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleCreateUser} disabled={isLoading}>
+                  {isLoading ? 'Criando...' : 'Criar Usuário'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Usuários do Sistema
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8">
+              <p>Carregando usuários...</p>
+            </div>
+          ) : users.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>Nenhum usuário encontrado</p>
+            </div>
+          ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Tipo</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Cadastrado em</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                  <TableHead>Criado em</TableHead>
+                  <TableHead>Último Acesso</TableHead>
+                  <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.id} className={user.is_disabled ? "opacity-60" : ""}>
-                    <TableCell className="font-medium">
-                      {user.profile?.full_name || "Sem nome"}
-                    </TableCell>
-                    <TableCell>{user.email}</TableCell>
+                {users.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell className="font-medium">{user.full_name}</TableCell>
+                    <TableCell>{user.email || '-'}</TableCell>
                     <TableCell>
-                      {getRoleBadge(user.profile?.role)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={user.is_disabled ? "destructive" : "outline"} className={!user.is_disabled ? "bg-green-500 hover:bg-green-600" : ""}>
-                        {user.is_disabled ? "Inativo" : "Ativo"}
+                      <Badge variant={getRoleBadgeVariant(user.role) as any}>
+                        {getRoleLabel(user.role)}
                       </Badge>
                     </TableCell>
+                    <TableCell>{formatDate(user.created_at)}</TableCell>
+                    <TableCell>{user.last_login ? formatDate(user.last_login) : '-'}</TableCell>
                     <TableCell>
-                      {user.profile?.created_at ? 
-                        format(new Date(user.profile.created_at), 'dd/MM/yyyy') : 
-                        "N/A"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenPermissions(user)}
-                        >
-                          <Shield className="h-4 w-4 mr-1" />
-                          Permissões
+                      <div className="flex space-x-2">
+                        <Button variant="outline" size="sm">
+                          <Edit2 className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleResendInvite(user.email)}
-                          disabled={isResendingInvite === user.email}
-                        >
-                          {isResendingInvite === user.email ? (
-                            <RefreshCcw className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <>
-                              <RefreshCcw className="h-4 w-4 mr-1" />
-                              Redefinir
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          variant={user.is_disabled ? "default" : "destructive"}
-                          size="sm"
-                          onClick={() => toggleUserStatus(user)}
-                          disabled={isUpdatingStatus === user.id}
-                        >
-                          {isUpdatingStatus === user.id ? (
-                            <RefreshCw className="h-4 w-4 animate-spin" />
-                          ) : user.is_disabled ? (
-                            <>
-                              <Eye className="h-4 w-4 mr-1" />
-                              Ativar
-                            </>
-                          ) : (
-                            <>
-                              <EyeOff className="h-4 w-4 mr-1" />
-                              Desativar
-                            </>
-                          )}
+                        <Button variant="outline" size="sm">
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -490,170 +343,10 @@ const UserManagement = () => {
                 ))}
               </TableBody>
             </Table>
-          </div>
-        ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            Nenhum usuário encontrado.
-          </div>
-        )}
-
-        {/* Dialog para gerenciar permissões de módulos */}
-        <Dialog open={isPermissionDialogOpen} onOpenChange={setIsPermissionDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Permissões de Usuário</DialogTitle>
-              <DialogDescription>
-                {selectedUser?.profile?.full_name || selectedUser?.email || "Usuário"} - {selectedUser?.profile?.role}
-              </DialogDescription>
-            </DialogHeader>
-            
-            {permissionsLoading ? (
-              <div className="flex justify-center items-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-              </div>
-            ) : (
-              <div className="overflow-y-auto max-h-[60vh]">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Módulo</TableHead>
-                      <TableHead className="w-24 text-center">Visualizar</TableHead>
-                      <TableHead className="w-24 text-center">Editar</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {systemModules.map((module) => {
-                      const permission = userPermissions.find(p => p.module_name === module.id);
-                      const canView = permission?.can_view || false;
-                      const canEdit = permission?.can_edit || false;
-                      
-                      return (
-                        <TableRow key={module.id}>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">{module.name}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {module.description}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Checkbox 
-                              checked={canView}
-                              onCheckedChange={(checked) => 
-                                handleUpdatePermission(module.id, 'view', checked === true)
-                              }
-                            />
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Checkbox 
-                              checked={canEdit}
-                              disabled={!canView}
-                              onCheckedChange={(checked) => 
-                                handleUpdatePermission(module.id, 'edit', checked === true)
-                              }
-                            />
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-            
-            <DialogFooter>
-              <Button onClick={() => setIsPermissionDialogOpen(false)}>
-                Fechar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        
-        {/* Dialog para criar novo usuário */}
-        <Dialog open={isCreateUserDialogOpen} onOpenChange={setIsCreateUserDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Criar Novo Usuário</DialogTitle>
-              <DialogDescription>
-                Preencha os dados para adicionar um novo usuário ao sistema
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4 py-2">
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Nome completo</Label>
-                  <Input 
-                    id="fullName" 
-                    value={newUser.fullName}
-                    onChange={(e) => setNewUser({...newUser, fullName: e.target.value})}
-                    placeholder="Nome do usuário"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input 
-                    id="email" 
-                    type="email"
-                    value={newUser.email}
-                    onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                    placeholder="email@exemplo.com"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="password">Senha</Label>
-                  <Input 
-                    id="password" 
-                    type="password"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                    placeholder="Senha de acesso"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="role">Perfil</Label>
-                  <Select value={newUser.role} onValueChange={(value) => setNewUser({...newUser, role: value})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um perfil" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {userRoles.map((role) => (
-                        <SelectItem key={role.id} value={role.id}>
-                          {role.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-            
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateUserDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={createNewUser} disabled={isCreatingUser}>
-                {isCreatingUser ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                    Criando...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    Criar Usuário
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </CardContent>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

@@ -1,493 +1,350 @@
+
 import React, { useState, useEffect } from 'react';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  FormDescription
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { PlusCircle, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from "@/components/ui/use-toast";
-import { BasicService } from '@/components/services/types';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
-const formSchema = z.object({
-  name: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }),
-  email: z.string().email({ message: 'Email inválido' }),
-  hoursPerMonth: z.coerce.number().min(1, { message: 'Horas devem ser maior que 0' }),
-  phone: z.string().optional(),
-  commissionPercentage: z.coerce.number().min(0).max(100).optional(),
-  salary: z.coerce.number().min(0).optional(),
-  pixKey: z.string().optional(),
-  street: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  zipCode: z.string().optional(),
-  education: z.string().optional(),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+interface Consultant {
+  id?: string;
+  name: string;
+  email: string;
+  phone?: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  education?: string;
+  salary?: number;
+  commission_percentage?: number;
+  hours_per_month?: number;
+  pix_key?: string;
+  username?: string;
+  password?: string;
+  profile_photo?: string;
+}
 
 interface ConsultantFormProps {
-  consultant?: any;
-  onSave: (data: FormValues & { services: string[], documents: File[] }) => void;
+  consultant?: Consultant;
+  onConsultantSaved: (consultant: Consultant) => void;
   onCancel: () => void;
 }
 
-export const ConsultantForm: React.FC<ConsultantFormProps> = ({ consultant, onSave, onCancel }) => {
-  const [selectedServices, setSelectedServices] = useState<string[]>(consultant?.services || []);
-  const [selectedServiceInput, setSelectedServiceInput] = useState<string>('');
-  const [documents, setDocuments] = useState<File[]>([]);
-  const [availableServices, setAvailableServices] = useState<BasicService[]>([]);
-  const { toast } = useToast();
-
-  // Fetch services from database
-  useEffect(() => {
-    const fetchServices = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('services')
-          .select('id, name');
-        
-        if (error) {
-          throw error;
-        }
-        
-        if (data) {
-          setAvailableServices(data as BasicService[]);
-        }
-      } catch (error) {
-        console.error('Error fetching services:', error);
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Não foi possível carregar os serviços."
-        });
-      }
-    };
-
-    fetchServices();
-  }, [toast]);
-
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: consultant ? {
-      name: consultant.name,
-      email: consultant.email,
-      hoursPerMonth: consultant.hoursPerMonth,
-      phone: consultant.phone || '',
-      commissionPercentage: consultant.commissionPercentage || 0,
-      salary: consultant.salary || 0,
-      pixKey: consultant.pixKey || '',
-      street: consultant.street || '',
-      city: consultant.city || '',
-      state: consultant.state || '',
-      zipCode: consultant.zipCode || '',
-      education: consultant.education || '',
-    } : {
-      name: '',
-      email: '',
-      hoursPerMonth: 160,
-      phone: '',
-      commissionPercentage: 0,
-      salary: 0,
-      pixKey: '',
-      street: '',
-      city: '',
-      state: '',
-      zipCode: '',
-      education: '',
-    }
+export default function ConsultantForm({ consultant, onConsultantSaved, onCancel }: ConsultantFormProps) {
+  const [formData, setFormData] = useState<Consultant>({
+    name: '',
+    email: '',
+    phone: '',
+    street: '',
+    city: '',
+    state: '',
+    zip_code: '',
+    education: '',
+    salary: 0,
+    commission_percentage: 0,
+    hours_per_month: 160,
+    pix_key: '',
+    username: '',
+    password: '',
+    profile_photo: ''
   });
-  
-  const onSubmit = (data: FormValues) => {
-    onSave({
-      ...data,
-      services: selectedServices,
-      documents
-    });
-  };
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleServiceAdd = (serviceId: string) => {
-    if (!selectedServices.includes(serviceId) && serviceId) {
-      setSelectedServices([...selectedServices, serviceId]);
+  useEffect(() => {
+    if (consultant) {
+      setFormData(consultant);
     }
-    setSelectedServiceInput('');
-  };
+  }, [consultant]);
 
-  const handleServiceRemove = (serviceId: string) => {
-    setSelectedServices(selectedServices.filter(id => id !== serviceId));
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setDocuments([...documents, ...Array.from(e.target.files)]);
+    try {
+      if (!formData.name || !formData.email) {
+        toast.error('Nome e email são obrigatórios');
+        return;
+      }
+
+      const consultantData = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone || null,
+        street: formData.street || null,
+        city: formData.city || null,
+        state: formData.state || null,
+        zip_code: formData.zip_code || null,
+        education: formData.education || null,
+        salary: Number(formData.salary) || 0,
+        commission_percentage: Number(formData.commission_percentage) || 0,
+        hours_per_month: Number(formData.hours_per_month) || 160,
+        pix_key: formData.pix_key || null,
+      };
+
+      let savedConsultant;
+      if (consultant?.id) {
+        const { data, error } = await supabase
+          .from('consultants')
+          .update(consultantData)
+          .eq('id', consultant.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        savedConsultant = data;
+        toast.success('Consultor atualizado com sucesso!');
+      } else {
+        const { data, error } = await supabase
+          .from('consultants')
+          .insert(consultantData)
+          .select()
+          .single();
+
+        if (error) throw error;
+        savedConsultant = data;
+        toast.success('Consultor criado com sucesso!');
+      }
+
+      // Se tem username/password, criar perfil de usuário
+      if (formData.username && formData.password) {
+        try {
+          const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: formData.email,
+            password: formData.password,
+            options: {
+              data: {
+                full_name: formData.name,
+                role: 'consultant',
+                consultant_id: savedConsultant.id,
+                profile_photo: formData.profile_photo || null
+              }
+            }
+          });
+
+          if (authError) {
+            console.error('Error creating user:', authError);
+            toast.warning('Consultor criado, mas houve erro ao criar usuário de acesso');
+          } else {
+            toast.success('Consultor e usuário de acesso criados com sucesso!');
+          }
+        } catch (authError) {
+          console.error('Auth error:', authError);
+          toast.warning('Consultor criado, mas houve erro ao criar usuário de acesso');
+        }
+      }
+
+      onConsultantSaved({ ...savedConsultant, ...formData });
+    } catch (error) {
+      console.error('Error saving consultant:', error);
+      toast.error('Erro ao salvar consultor');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleFileRemove = (index: number) => {
-    setDocuments(documents.filter((_, i) => i !== index));
-  };
-  
   return (
-    <Card className="shadow-card animate-slide-in">
-      <CardHeader>
-        <CardTitle>{consultant ? 'Editar Consultor' : 'Adicionar Consultor'}</CardTitle>
-      </CardHeader>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardContent className="space-y-6">
-            {/* Seção de Dados Pessoais */}
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>{consultant ? 'Editar Consultor' : 'Novo Consultor'}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Informações Básicas */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <h3 className="text-lg font-medium mb-4">Dados Pessoais</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Nome completo" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input placeholder="email@exemplo.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <FormField
-                  control={form.control}
-                  name="hoursPerMonth"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Carga Horária Mensal (horas)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="160" 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Telefone</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="(00) 00000-0000" 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-
-            {/* Seção Financeira */}
-            <div>
-              <h3 className="text-lg font-medium mb-4">Dados Financeiros</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="commissionPercentage"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Percentual de Repasse (%)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max="100" 
-                          placeholder="10.00" 
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Percentual padrão de repasse para este consultor
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="salary"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Salário Base (R$)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00" 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Caso aplicável
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div className="mt-4">
-                <FormField
-                  control={form.control}
-                  name="pixKey"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Chave PIX</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="CPF, CNPJ, Celular, Email ou Chave Aleatória" 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Chave PIX para pagamentos
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-
-            {/* Seção de Endereço */}
-            <div>
-              <h3 className="text-lg font-medium mb-4">Endereço</h3>
-              <div className="grid grid-cols-1 gap-4">
-                <FormField
-                  control={form.control}
-                  name="street"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Rua/Av.</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Endereço completo" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                <FormField
-                  control={form.control}
-                  name="city"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cidade</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Cidade" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="state"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Estado</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Estado" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="zipCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>CEP</FormLabel>
-                      <FormControl>
-                        <Input placeholder="00000-000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-
-            {/* Seção de Formação */}
-            <div>
-              <h3 className="text-lg font-medium mb-4">Formação</h3>
-              <FormField
-                control={form.control}
-                name="education"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Formação Acadêmica</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Descreva a formação acadêmica, cursos, etc." 
-                        className="min-h-[100px]"
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+              <Label htmlFor="name">Nome *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Nome completo"
+                required
               />
             </div>
 
-            {/* Seção de Documentos */}
             <div>
-              <h3 className="text-lg font-medium mb-4">Documentos</h3>
-              <div className="space-y-4">
-                <div>
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={() => document.getElementById('file-upload')?.click()}
-                    className="w-full border-dashed h-32"
-                  >
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Anexar Contratos, Diplomas, Certificados
-                  </Button>
-                  <input
-                    id="file-upload"
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                </div>
-                
-                {documents.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Documentos anexados:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {documents.map((file, index) => (
-                        <Badge key={index} variant="secondary" className="gap-2 px-3 py-1.5">
-                          {file.name}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-4 w-4 p-0"
-                            onClick={() => handleFileRemove(index)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="email@exemplo.com"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="phone">Telefone</Label>
+              <Input
+                id="phone"
+                value={formData.phone}
+                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="(11) 99999-9999"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="profile_photo">URL da Foto de Perfil</Label>
+              <Input
+                id="profile_photo"
+                value={formData.profile_photo}
+                onChange={(e) => setFormData(prev => ({ ...prev, profile_photo: e.target.value }))}
+                placeholder="https://exemplo.com/foto.jpg"
+              />
+            </div>
+          </div>
+
+          {/* Endereço */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Endereço</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <Label htmlFor="street">Rua</Label>
+                <Input
+                  id="street"
+                  value={formData.street}
+                  onChange={(e) => setFormData(prev => ({ ...prev, street: e.target.value }))}
+                  placeholder="Rua, número, complemento"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="city">Cidade</Label>
+                <Input
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                  placeholder="Cidade"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="state">Estado</Label>
+                <Input
+                  id="state"
+                  value={formData.state}
+                  onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
+                  placeholder="Estado"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="zip_code">CEP</Label>
+                <Input
+                  id="zip_code"
+                  value={formData.zip_code}
+                  onChange={(e) => setFormData(prev => ({ ...prev, zip_code: e.target.value }))}
+                  placeholder="00000-000"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Informações Profissionais */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Informações Profissionais</h3>
+            <div>
+              <Label htmlFor="education">Formação</Label>
+              <Textarea
+                id="education"
+                value={formData.education}
+                onChange={(e) => setFormData(prev => ({ ...prev, education: e.target.value }))}
+                placeholder="Formação acadêmica e certificações"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="salary">Salário (R$)</Label>
+                <Input
+                  id="salary"
+                  type="number"
+                  step="0.01"
+                  value={formData.salary}
+                  onChange={(e) => setFormData(prev => ({ ...prev, salary: Number(e.target.value) }))}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="commission_percentage">Comissão (%)</Label>
+                <Input
+                  id="commission_percentage"
+                  type="number"
+                  step="0.01"
+                  value={formData.commission_percentage}
+                  onChange={(e) => setFormData(prev => ({ ...prev, commission_percentage: Number(e.target.value) }))}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="hours_per_month">Horas/Mês</Label>
+                <Input
+                  id="hours_per_month"
+                  type="number"
+                  value={formData.hours_per_month}
+                  onChange={(e) => setFormData(prev => ({ ...prev, hours_per_month: Number(e.target.value) }))}
+                  placeholder="160"
+                />
               </div>
             </div>
 
-            {/* Seção de Serviços */}
             <div>
-              <h3 className="text-lg font-medium mb-4">Serviços Prestados</h3>
-              <div className="space-y-4">
-                <div>
-                  <Select
-                    value={selectedServiceInput}
-                    onValueChange={handleServiceAdd}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um serviço" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableServices.map((service) => (
-                        <SelectItem key={service.id} value={service.id.toString()}>
-                          {service.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <Label htmlFor="pix_key">Chave PIX</Label>
+              <Input
+                id="pix_key"
+                value={formData.pix_key}
+                onChange={(e) => setFormData(prev => ({ ...prev, pix_key: e.target.value }))}
+                placeholder="CPF, email ou chave aleatória"
+              />
+            </div>
+          </div>
 
-                {selectedServices.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {selectedServices.map((serviceId) => {
-                      const service = availableServices.find(s => s.id === serviceId);
-                      return (
-                        <Badge key={serviceId} variant="secondary" className="gap-2 px-3 py-1.5">
-                          {service?.name || `Serviço ${serviceId}`}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-4 w-4 p-0"
-                            onClick={() => handleServiceRemove(serviceId)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </Badge>
-                      );
-                    })}
-                  </div>
-                )}
+          {/* Acesso ao Sistema */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Acesso ao Sistema</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="username">Nome de Usuário</Label>
+                <Input
+                  id="username"
+                  value={formData.username}
+                  onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
+                  placeholder="Nome de usuário para acesso"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="password">Senha</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="Senha de acesso"
+                />
               </div>
             </div>
-          </CardContent>
-          
-          <CardFooter className="flex justify-between">
-            <Button type="button" variant="outline" onClick={onCancel}>
-              Cancelar
-            </Button>
-            <Button type="submit">Salvar</Button>
-          </CardFooter>
-        </form>
-      </Form>
-    </Card>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Botões */}
+      <div className="flex justify-end space-x-4">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? 'Salvando...' : consultant ? 'Atualizar' : 'Criar'} Consultor
+        </Button>
+      </div>
+    </form>
   );
-};
+}

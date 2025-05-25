@@ -87,22 +87,22 @@ const TimezoneSettings: React.FC = () => {
     try {
       setIsLoading(true);
 
-      // Atualizar configuração de timezone
+      // Atualizar configuração de timezone usando JSON.stringify
       const { error: timezoneError } = await supabase
         .from('system_settings')
         .upsert({
           setting_key: 'timezone',
-          setting_value: timezoneConfig as any
+          setting_value: JSON.stringify(timezoneConfig)
         });
 
       if (timezoneError) throw timezoneError;
 
-      // Atualizar configuração de formato de data/hora
+      // Atualizar configuração de formato de data/hora usando JSON.stringify
       const { error: formatError } = await supabase
         .from('system_settings')
         .upsert({
           setting_key: 'datetime_format',
-          setting_value: dateTimeFormat as any
+          setting_value: JSON.stringify(dateTimeFormat)
         });
 
       if (formatError) throw formatError;
@@ -112,7 +112,7 @@ const TimezoneSettings: React.FC = () => {
         p_log_type: 'info',
         p_category: 'settings',
         p_message: 'Configurações de horário atualizadas',
-        p_details: { timezone: timezoneConfig, datetime_format: dateTimeFormat } as any
+        p_details: { timezone: timezoneConfig, datetime_format: dateTimeFormat }
       });
 
       toast.success("Configurações de horário salvas com sucesso");
