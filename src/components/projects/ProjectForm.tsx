@@ -153,7 +153,8 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
             consultantsSettled: false,
             attachment: '',
             stageOrder: index + 1,
-            consultantId: ''
+            consultantId: '',
+            status: 'iniciar_projeto' // Add default status
           }));
           
           setFormData(prev => ({ ...prev, stages: newStages }));
@@ -181,7 +182,8 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       consultantsSettled: false,
       attachment: '',
       stageOrder: (formData.stages?.length || 0) + 1,
-      consultantId: ''
+      consultantId: '',
+      status: 'iniciar_projeto' // Add default status
     };
     
     setFormData(prev => ({
