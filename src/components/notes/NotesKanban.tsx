@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { Note, updateNoteStatus } from '@/integrations/supabase/notes';
@@ -224,11 +223,11 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     const sourceColumn = source.droppableId as Note['status'];
     const destColumn = destination.droppableId as Note['status'];
     
-    if (destColumn === "finalizado") {
+    if (destColumn === "finalizados") {
       const draggedNote = notes.find(note => note.id === draggableId);
       if (draggedNote && draggedNote.linked_task_id) {
         const linkedTask = draggedNote.linked_task;
-        if (linkedTask && linkedTask.status !== 'finalizado') {
+        if (linkedTask && linkedTask.status !== 'finalizados') {
           toast.error(`Não é possível finalizar "${draggedNote.title}" antes que "${linkedTask.title}" seja concluída`);
           return;
         }

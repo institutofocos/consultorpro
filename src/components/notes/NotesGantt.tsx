@@ -14,10 +14,15 @@ interface NotesGanttProps {
 }
 
 const STATUS_COLORS = {
-  'a_fazer': 'bg-blue-500',
+  'iniciar_projeto': 'bg-blue-500',
   'em_producao': 'bg-yellow-500',
-  'finalizado': 'bg-green-500',
-  'cancelado': 'bg-red-500',
+  'aguardando_assinatura': 'bg-orange-500',
+  'aguardando_aprovacao': 'bg-purple-500',
+  'aguardando_nota_fiscal': 'bg-indigo-500',
+  'aguardando_pagamento': 'bg-pink-500',
+  'aguardando_repasse': 'bg-cyan-500',
+  'finalizados': 'bg-green-500',
+  'cancelados': 'bg-red-500',
 };
 
 interface GanttItem {
@@ -26,7 +31,7 @@ interface GanttItem {
   type: 'main' | 'subtask';
   startDate: string;
   endDate: string;
-  status: 'a_fazer' | 'em_producao' | 'finalizado' | 'cancelado';
+  status: Note['status'];
   consultant: string;
   parentId: string | null;
 }
@@ -100,7 +105,7 @@ const NotesGantt: React.FC<NotesGanttProps> = ({ notes }) => {
           type: 'subtask',
           startDate: note.start_date!,
           endDate: checklist.due_date!,
-          status: checklist.completed ? 'finalizado' : 'a_fazer',
+          status: checklist.completed ? 'finalizados' : 'iniciar_projeto',
           consultant: checklist.responsible_consultant_name || 'Não atribuído',
           parentId: note.id
         });

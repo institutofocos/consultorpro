@@ -35,17 +35,27 @@ interface NoteCardProps {
 }
 
 const STATUS_COLORS = {
-  'a_fazer': 'bg-blue-100 text-blue-800',
+  'iniciar_projeto': 'bg-blue-100 text-blue-800',
   'em_producao': 'bg-yellow-100 text-yellow-800',
-  'finalizado': 'bg-green-100 text-green-800',
-  'cancelado': 'bg-red-100 text-red-800',
+  'aguardando_assinatura': 'bg-orange-100 text-orange-800',
+  'aguardando_aprovacao': 'bg-purple-100 text-purple-800',
+  'aguardando_nota_fiscal': 'bg-indigo-100 text-indigo-800',
+  'aguardando_pagamento': 'bg-pink-100 text-pink-800',
+  'aguardando_repasse': 'bg-cyan-100 text-cyan-800',
+  'finalizados': 'bg-green-100 text-green-800',
+  'cancelados': 'bg-red-100 text-red-800',
 };
 
 const STATUS_LABELS = {
-  'a_fazer': 'A fazer',
+  'iniciar_projeto': 'Iniciar Projeto',
   'em_producao': 'Em produção',
-  'finalizado': 'Finalizado',
-  'cancelado': 'Cancelado',
+  'aguardando_assinatura': 'Aguardando Assinatura',
+  'aguardando_aprovacao': 'Aguardando Aprovação',
+  'aguardando_nota_fiscal': 'Aguardando Nota Fiscal',
+  'aguardando_pagamento': 'Aguardando Pagamento',
+  'aguardando_repasse': 'Aguardando Repasse',
+  'finalizados': 'Finalizados',
+  'cancelados': 'Cancelados',
 };
 
 const NoteCard: React.FC<NoteCardProps> = ({ 
@@ -62,9 +72,9 @@ const NoteCard: React.FC<NoteCardProps> = ({
     setIsUpdatingStatus(true);
     try {
       // Check if there are any linked tasks preventing completion
-      if (newStatus === 'finalizado' && note.linked_task_id) {
+      if (newStatus === 'finalizados' && note.linked_task_id) {
         const linkedTask = note.linked_task;
-        if (linkedTask && linkedTask.status !== 'finalizado') {
+        if (linkedTask && linkedTask.status !== 'finalizados') {
           toast.error(`Não é possível finalizar esta tarefa antes que "${linkedTask.title}" seja concluída`);
           setIsUpdatingStatus(false);
           return;
@@ -89,14 +99,14 @@ const NoteCard: React.FC<NoteCardProps> = ({
       // Check if there are any linked tasks preventing completion
       if (note.linked_task_id) {
         const linkedTask = note.linked_task;
-        if (linkedTask && linkedTask.status !== 'finalizado') {
+        if (linkedTask && linkedTask.status !== 'finalizados') {
           toast.error(`Não é possível finalizar esta tarefa antes que "${linkedTask.title}" seja concluída`);
           setIsUpdatingStatus(false);
           return;
         }
       }
 
-      const updatedNote = await updateNoteStatus(note.id, 'finalizado');
+      const updatedNote = await updateNoteStatus(note.id, 'finalizados');
       if (updatedNote) {
         await onUpdate(updatedNote);
         toast.success('Tarefa marcada como finalizada');
@@ -121,7 +131,7 @@ const NoteCard: React.FC<NoteCardProps> = ({
       
       if (success) {
         // Auto-update status to "em_producao" when any checklist is marked as done
-        if (completed && note.status === 'a_fazer') {
+        if (completed && note.status === 'iniciar_projeto') {
           await handleStatusChange('em_producao');
         }
         
@@ -134,7 +144,7 @@ const NoteCard: React.FC<NoteCardProps> = ({
           const allCompleted = updatedChecklists.every(c => c.completed);
           
           if (allCompleted && completed) {
-            await handleStatusChange('finalizado');
+            await handleStatusChange('finalizados');
           }
         }
         
@@ -205,10 +215,15 @@ const NoteCard: React.FC<NoteCardProps> = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="a_fazer">A fazer</SelectItem>
+              <SelectItem value="iniciar_projeto">Iniciar Projeto</SelectItem>
               <SelectItem value="em_producao">Em produção</SelectItem>
-              <SelectItem value="finalizado">Finalizado</SelectItem>
-              <SelectItem value="cancelado">Cancelado</SelectItem>
+              <SelectItem value="aguardando_assinatura">Aguardando Assinatura</SelectItem>
+              <SelectItem value="aguardando_aprovacao">Aguardando Aprovação</SelectItem>
+              <SelectItem value="aguardando_nota_fiscal">Aguardando Nota Fiscal</SelectItem>
+              <SelectItem value="aguardando_pagamento">Aguardando Pagamento</SelectItem>
+              <SelectItem value="aguardando_repasse">Aguardando Repasse</SelectItem>
+              <SelectItem value="finalizados">Finalizados</SelectItem>
+              <SelectItem value="cancelados">Cancelados</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -372,7 +387,7 @@ const NoteCard: React.FC<NoteCardProps> = ({
             </Button>
           </NoteForm>
           
-          {note.status !== 'finalizado' && (
+          {note.status !== 'finalizados' && (
             <Button 
               variant="outline" 
               size="sm"
