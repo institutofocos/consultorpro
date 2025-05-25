@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 import { Project, Stage } from "@/components/projects/types";
 import { createProjectTasks, updateProjectTasks } from "./project-tasks";
@@ -173,7 +172,7 @@ export const updateProjectStages = async (projectId: string, stages: Stage[]): P
 };
 
 // Função para atualizar status de uma etapa específica
-export const updateStageStatus = async (stageId: string, updates: Partial<Stage>): Promise<void> => {
+export const updateStageStatus = async (stageId: string, updates: Partial<Stage>, projectName?: string, stageName?: string): Promise<void> => {
   console.log('Updating stage status:', stageId, updates);
   
   const { error } = await supabase
@@ -184,6 +183,11 @@ export const updateStageStatus = async (stageId: string, updates: Partial<Stage>
   if (error) {
     console.error('Error updating stage status:', error);
     throw error;
+  }
+
+  // Sincronizar com a tarefa se informações necessárias estão disponíveis
+  if (projectName && stageName && updates.status) {
+    await syncStageWithTask(projectName, stageName, updates.status);
   }
 };
 
@@ -680,7 +684,78 @@ export const fetchProjectById = async (projectId: string): Promise<Project | nul
   }
 };
 
-// Outras funções auxiliares mantidas iguais
+// Função para sincronizar status da etapa com a tarefa correspondente
+const syncStageWithTask = async (projectName: string, stageName: string, newStatus: Stage['status']) => {
+  try {
+    console.log('Sincronizando etapa com tarefa:', { projectName, stageName, newStatus });
+    
+    // Buscar a tarefa principal do projeto
+    const { data: mainTask, error: taskError } = await supabase
+      .from('notes')
+      .select('id')
+      .ilike('title', `Projeto: ${projectName}%`)
+      .single();
+
+    if (taskError || !mainTask) {
+      console.log('Tarefa principal não encontrada para sincronização');
+      return;
+    }
+
+    // Buscar o checklist item correspondente à etapa
+    const { data: checklistItem, error: checklistError } = await supabase
+      .from('note_checklists')
+      .select('id')
+      .eq('note_id', mainTask.id)
+      .eq('title', stageName)
+      .single();
+
+    if (checklistError || !checklistItem) {
+      console.log('Item de checklist não encontrado para sincronização');
+      return;
+    }
+
+    // Atualizar o status do checklist item baseado no status da etapa
+    const completed = newStatus === 'finalizados';
+    const { error: updateError } = await supabase
+      .from('note_checklists')
+      .update({ 
+        completed: completed,
+        completed_at: completed ? new Date().toISOString() : null
+      })
+      .eq('id', checklistItem.id);
+
+    if (updateError) {
+      console.error('Erro ao atualizar checklist:', updateError);
+    } else {
+      console.log('Checklist sincronizado com sucesso');
+    }
+
+    // Se todas as etapas estão finalizadas, atualizar o status da tarefa principal
+    if (completed) {
+      const { data: allChecklists, error: allChecklistsError } = await supabase
+        .from('note_checklists')
+        .select('completed')
+        .eq('note_id', mainTask.id);
+
+      if (!allChecklistsError && allChecklists) {
+        const allCompleted = allChecklists.every(item => item.completed);
+        
+        if (allCompleted) {
+          await supabase
+            .from('notes')
+            .update({ status: 'finalizados' })
+            .eq('id', mainTask.id);
+          
+          console.log('Tarefa principal marcada como finalizada');
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Erro na sincronização etapa-tarefa:', error);
+  }
+};
+
+// Função para buscar tags
 export const fetchTags = async () => {
   try {
     const { data, error } = await supabase
@@ -696,6 +771,7 @@ export const fetchTags = async () => {
   }
 };
 
+// Função para buscar demandas sem consultores
 export const fetchDemandsWithoutConsultants = async () => {
   try {
     const { data, error } = await supabase
@@ -731,6 +807,7 @@ export const fetchDemandsWithoutConsultants = async () => {
   }
 };
 
+// Função para atribuir consultores a uma demanda
 export const assignConsultantsToDemand = async (
   projectId: string, 
   mainConsultantId: string | null, 
@@ -770,6 +847,7 @@ export const assignConsultantsToDemand = async (
   }
 };
 
+// Função para atribuir consultor a uma etapa
 export const assignConsultantToStage = async (
   stageId: string,
   consultantId: string | null

@@ -544,3 +544,120 @@ async function fetchServiceName(serviceId: string): Promise<string | null> {
   
   return data?.name || null;
 }
+
+// Função para sincronizar checklist com etapas do projeto
+export const syncChecklistWithProjectStage = async (noteId: string, checklistId: string, completed: boolean) => {
+  try {
+    console.log('Sincronizando checklist com etapa do projeto:', { noteId, checklistId, completed });
+    
+    // Buscar a nota principal e o checklist
+    const { data: note, error: noteError } = await supabase
+      .from('notes')
+      .select('title')
+      .eq('id', noteId)
+      .single();
+
+    if (noteError || !note) {
+      console.log('Nota não encontrada para sincronização');
+      return;
+    }
+
+    const { data: checklist, error: checklistError } = await supabase
+      .from('note_checklists')
+      .select('title')
+      .eq('id', checklistId)
+      .single();
+
+    if (checklistError || !checklist) {
+      console.log('Checklist não encontrado para sincronização');
+      return;
+    }
+
+    // Verificar se é uma tarefa de projeto
+    if (!note.title.startsWith('Projeto: ')) {
+      return; // Não é uma tarefa de projeto, não sincronizar
+    }
+
+    // Extrair nome do projeto
+    const projectName = note.title.replace('Projeto: ', '');
+    
+    // Buscar o projeto
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('name', projectName)
+      .single();
+
+    if (projectError || !project) {
+      console.log('Projeto não encontrado para sincronização');
+      return;
+    }
+
+    // Buscar a etapa correspondente
+    const { data: stage, error: stageError } = await supabase
+      .from('project_stages')
+      .select('id, status')
+      .eq('project_id', project.id)
+      .eq('name', checklist.title)
+      .single();
+
+    if (stageError || !stage) {
+      console.log('Etapa não encontrada para sincronização');
+      return;
+    }
+
+    // Determinar o novo status baseado no completed
+    const newStatus = completed ? 'finalizados' : 'em_producao';
+    
+    // Atualizar apenas se o status for diferente
+    if (stage.status !== newStatus) {
+      const updates: any = { status: newStatus };
+      
+      // Se marcando como finalizado, atualizar outros campos
+      if (completed) {
+        updates.completed = true;
+        updates.manager_approved = true;
+        updates.client_approved = true;
+        updates.invoice_issued = true;
+        updates.payment_received = true;
+        updates.consultants_settled = true;
+      }
+
+      const { error: updateError } = await supabase
+        .from('project_stages')
+        .update(updates)
+        .eq('id', stage.id);
+
+      if (updateError) {
+        console.error('Erro ao atualizar etapa do projeto:', updateError);
+      } else {
+        console.log('Etapa do projeto sincronizada com sucesso');
+      }
+    }
+  } catch (error) {
+    console.error('Erro na sincronização checklist-etapa:', error);
+  }
+};
+
+// Função para atualizar status de checklist com sincronização
+export const updateChecklistStatus = async (checklistId: string, completed: boolean, noteId: string) => {
+  try {
+    const { error } = await supabase
+      .from('note_checklists')
+      .update({ 
+        completed: completed,
+        completed_at: completed ? new Date().toISOString() : null
+      })
+      .eq('id', checklistId);
+
+    if (error) throw error;
+
+    // Sincronizar com etapa do projeto
+    await syncChecklistWithProjectStage(noteId, checklistId, completed);
+    
+    return true;
+  } catch (error) {
+    console.error('Error updating checklist status:', error);
+    throw error;
+  }
+};

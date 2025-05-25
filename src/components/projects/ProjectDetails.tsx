@@ -140,6 +140,9 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
   };
 
   const handleStageStatusUpdate = async (stageId: string, newStatus: Stage['status']) => {
+    const stageToUpdate = stages.find(stage => stage.id === stageId);
+    if (!stageToUpdate) return;
+
     const updatedStages = stages.map(stage => {
       if (stage.id === stageId) {
         const updatedStage = { ...stage, status: newStatus };
@@ -174,7 +177,8 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
         updates.consultantsSettled = true;
       }
       
-      await updateStageStatus(stageId, updates);
+      // Passar informações do projeto e etapa para sincronização
+      await updateStageStatus(stageId, updates, project.name, stageToUpdate.name);
       
       toast({
         title: "Sucesso",
