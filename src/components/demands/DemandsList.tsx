@@ -140,7 +140,7 @@ const DemandsList = () => {
   });
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-3xl font-bold">Demandas</h1>
         <p className="text-muted-foreground">Gerencie todas as demandas de clientes</p>
@@ -201,7 +201,7 @@ const DemandsList = () => {
       </div>
       
       <Card className="shadow-card">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
           <CardTitle className="text-xl">
             <div className="flex items-center">
               <FileCheck className="h-5 w-5 mr-2" />
@@ -209,106 +209,112 @@ const DemandsList = () => {
             </div>
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4">
           {loading ? (
-            <div className="flex items-center justify-center h-40">
+            <div className="flex items-center justify-center h-32">
               <p className="text-muted-foreground">Carregando demandas...</p>
             </div>
           ) : filteredDemands.length === 0 ? (
-            <div className="flex items-center justify-center h-40">
+            <div className="flex items-center justify-center h-32">
               <p className="text-muted-foreground">Não há demandas disponíveis no momento.</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {filteredDemands.map((demand) => (
-                <Card key={demand.id} className="hover:bg-gray-50 transition-colors">
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col gap-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-medium text-lg">{demand.name}</h3>
-                          <p className="text-sm text-muted-foreground line-clamp-2">{demand.description || "Sem descrição"}</p>
+                <Card key={demand.id} className="hover:bg-gray-50 transition-colors border border-gray-200">
+                  <CardContent className="p-4">
+                    <div className="flex flex-col lg:flex-row gap-4">
+                      {/* Left section - Main info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-base truncate">{demand.name}</h3>
+                            <p className="text-sm text-muted-foreground line-clamp-1">{demand.description || "Sem descrição"}</p>
+                          </div>
+                          <div className="flex items-center gap-2 ml-2">
+                            <Badge variant={demand.status === 'planned' ? 'outline' : demand.status === 'active' ? 'default' : demand.status === 'completed' ? 'secondary' : 'destructive'} className="text-xs">
+                              {demand.status === 'planned' ? 'Planejado' : 
+                               demand.status === 'active' ? 'Em Andamento' : 
+                               demand.status === 'completed' ? 'Concluído' : 'Cancelado'}
+                            </Badge>
+                          </div>
                         </div>
-                        <div className="flex flex-col gap-2 items-end">
-                          <Badge variant={demand.status === 'planned' ? 'outline' : demand.status === 'active' ? 'default' : demand.status === 'completed' ? 'secondary' : 'destructive'}>
-                            {demand.status === 'planned' ? 'Planejado' : 
-                             demand.status === 'active' ? 'Em Andamento' : 
-                             demand.status === 'completed' ? 'Concluído' : 'Cancelado'}
-                          </Badge>
-                          <Button 
-                            size="sm" 
-                            onClick={() => handleOpenAssignmentDialog(demand)}
-                            className="mt-2"
-                          >
-                            <UserCheck className="h-4 w-4 mr-1" />
-                            Atribuir Consultores
-                          </Button>
+                        
+                        {/* Compact grid layout for details */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 text-xs">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="font-medium">Início</p>
+                              <p className="text-muted-foreground truncate">{format(new Date(demand.start_date), 'dd/MM/yy')}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="font-medium">Fim</p>
+                              <p className="text-muted-foreground truncate">{format(new Date(demand.end_date), 'dd/MM/yy')}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <DollarSign className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="font-medium">Valor</p>
+                              <p className="text-muted-foreground truncate">{formatCurrency(demand.total_value)}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Users className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="font-medium">Cliente</p>
+                              <p className="text-muted-foreground truncate">{demand.clientName || "Sem cliente"}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="font-medium">Horas</p>
+                              <p className="text-muted-foreground">{demand.totalHours || 0}h</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock3 className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="font-medium">Dias</p>
+                              <p className="text-muted-foreground">{demand.totalDays || 0} dias</p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Service and tags row */}
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                          <div className="flex items-center gap-2 text-xs">
+                            <FileCheck className="h-3 w-3 text-muted-foreground" />
+                            <span className="font-medium">Serviço:</span>
+                            <span className="text-muted-foreground">{demand.serviceName || "Não especificado"}</span>
+                          </div>
+                          
+                          {demand.tags && demand.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {demand.tags.map((tag: string, index: number) => (
+                                <Badge key={index} variant="secondary" className="text-xs px-2 py-0.5">{tag}</Badge>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">Início</p>
-                            <p className="text-muted-foreground">{format(new Date(demand.start_date), 'dd/MM/yyyy')}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">Fim</p>
-                            <p className="text-muted-foreground">{format(new Date(demand.end_date), 'dd/MM/yyyy')}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">Valor</p>
-                            <p className="text-muted-foreground">{formatCurrency(demand.total_value)}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">Cliente</p>
-                            <p className="text-muted-foreground">{demand.clientName || "Sem cliente"}</p>
-                          </div>
-                        </div>
+                      {/* Right section - Action button */}
+                      <div className="flex items-center justify-end lg:justify-center">
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleOpenAssignmentDialog(demand)}
+                          className="whitespace-nowrap"
+                        >
+                          <UserCheck className="h-4 w-4 mr-1" />
+                          Atribuir Consultores
+                        </Button>
                       </div>
-                      
-                      {/* New service information section */}
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm border-t pt-3">
-                        <div className="flex items-center gap-2">
-                          <FileCheck className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">Serviço</p>
-                            <p className="text-muted-foreground">{demand.serviceName || "Não especificado"}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">Total de Horas</p>
-                            <p className="text-muted-foreground">{demand.totalHours || 0} horas</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Clock3 className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">Total de Dias</p>
-                            <p className="text-muted-foreground">{demand.totalDays || 0} dias</p>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {demand.tags && demand.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {demand.tags.map((tag: string, index: number) => (
-                            <Badge key={index} variant="secondary" className="text-xs">{tag}</Badge>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -316,7 +322,7 @@ const DemandsList = () => {
             </div>
           )}
         </CardContent>
-        <CardFooter className="text-xs text-muted-foreground">
+        <CardFooter className="text-xs text-muted-foreground border-t bg-gray-50/50 p-3">
           Estas demandas estão aguardando associação a um consultor. Uma vez atribuídas, serão movidas para Projetos.
         </CardFooter>
       </Card>
