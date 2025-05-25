@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { FileCheck, Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter } from 'lucide-react';
@@ -10,6 +9,7 @@ import {
   calculateConsultantActiveProjects
 } from '@/integrations/supabase/consultants';
 import { fetchServices } from '@/integrations/supabase/services';
+import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ptBR } from 'date-fns/locale';
 import SearchableSelect from "@/components/ui/searchable-select";
 
