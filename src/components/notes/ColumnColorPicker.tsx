@@ -1,57 +1,66 @@
 
 import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface ColumnColorPickerProps {
   currentColor: string;
   onColorChange: (color: string) => void;
+  onClose: () => void;
 }
 
-const COLUMN_COLORS = [
-  { value: 'bg-blue-50', label: 'Azul', preview: 'bg-blue-100' },
-  { value: 'bg-yellow-50', label: 'Amarelo', preview: 'bg-yellow-100' },
-  { value: 'bg-green-50', label: 'Verde', preview: 'bg-green-100' },
-  { value: 'bg-red-50', label: 'Vermelho', preview: 'bg-red-100' },
-  { value: 'bg-purple-50', label: 'Roxo', preview: 'bg-purple-100' },
-  { value: 'bg-pink-50', label: 'Rosa', preview: 'bg-pink-100' },
-  { value: 'bg-indigo-50', label: 'Índigo', preview: 'bg-indigo-100' },
-  { value: 'bg-cyan-50', label: 'Ciano', preview: 'bg-cyan-100' },
-  { value: 'bg-teal-50', label: 'Teal', preview: 'bg-teal-100' },
-  { value: 'bg-orange-50', label: 'Laranja', preview: 'bg-orange-100' },
-  { value: 'bg-lime-50', label: 'Lima', preview: 'bg-lime-100' },
-  { value: 'bg-emerald-50', label: 'Esmeralda', preview: 'bg-emerald-100' },
-  { value: 'bg-violet-50', label: 'Violeta', preview: 'bg-violet-100' },
-  { value: 'bg-fuchsia-50', label: 'Fúcsia', preview: 'bg-fuchsia-100' },
-  { value: 'bg-rose-50', label: 'Rosa Claro', preview: 'bg-rose-100' },
-  { value: 'bg-sky-50', label: 'Céu', preview: 'bg-sky-100' },
-  { value: 'bg-gray-50', label: 'Cinza', preview: 'bg-gray-100' },
+const colors = [
+  'bg-purple-50',
+  'bg-pink-50',
+  'bg-indigo-50',
+  'bg-cyan-50',
+  'bg-teal-50',
+  'bg-orange-50',
+  'bg-lime-50',
+  'bg-emerald-50',
+  'bg-violet-50',
+  'bg-fuchsia-50',
+  'bg-rose-50',
+  'bg-sky-50',
+  'bg-gray-50',
+  'bg-yellow-50',
+  'bg-green-50',
+  'bg-blue-50',
 ];
 
 const ColumnColorPicker: React.FC<ColumnColorPickerProps> = ({
   currentColor,
   onColorChange,
+  onClose,
 }) => {
   return (
-    <div className="bg-white border rounded-lg shadow-lg p-3 w-64">
-      <div className="space-y-3">
-        <h4 className="text-sm font-medium">Escolher cor da coluna</h4>
-        <div className="grid grid-cols-4 gap-2">
-          {COLUMN_COLORS.map((color) => (
-            <button
-              key={color.value}
-              onClick={() => onColorChange(color.value)}
-              className={`
-                w-12 h-8 rounded-md border-2 transition-all hover:scale-105
-                ${color.preview}
-                ${currentColor === color.value 
-                  ? 'border-gray-800 shadow-md' 
-                  : 'border-gray-200 hover:border-gray-400'
-                }
-              `}
-              title={color.label}
-            />
-          ))}
-        </div>
-      </div>
+    <div className="absolute top-12 right-0 z-50">
+      <Card className="w-48 shadow-lg">
+        <CardContent className="p-3">
+          <div className="grid grid-cols-4 gap-2 mb-3">
+            {colors.map((color) => (
+              <button
+                key={color}
+                className={`w-8 h-8 rounded border-2 transition-all hover:scale-110 ${color} ${
+                  currentColor === color 
+                    ? 'border-gray-800 ring-2 ring-blue-500' 
+                    : 'border-gray-300 hover:border-gray-500'
+                }`}
+                onClick={() => onColorChange(color)}
+                title={color}
+              />
+            ))}
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onClose}
+            className="w-full"
+          >
+            Fechar
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 };

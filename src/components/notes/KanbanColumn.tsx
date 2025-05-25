@@ -104,43 +104,41 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               </Button>
             </div>
           ) : (
-            <span className="flex-1 text-sm font-medium">
-              {title} ({notes.length})
-            </span>
+            <span className="text-sm font-medium text-gray-800 flex-1">{title}</span>
           )}
         </div>
         
-        <div className="flex items-center">
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-gray-600 bg-white/50 px-2 py-1 rounded">
+            {notes.length}
+          </span>
+          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-7 w-7 p-0 hover:bg-white/20"
-              >
-                <MoreVertical className="h-4 w-4" />
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-white/20">
+                <MoreVertical className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                <Edit2 className="h-4 w-4 mr-2" />
-                Editar nome
+                <Edit2 className="h-3 w-3 mr-2" />
+                Editar título
               </DropdownMenuItem>
               
               <DropdownMenuItem onClick={() => setShowColorPicker(true)}>
-                <Palette className="h-4 w-4 mr-2" />
-                Escolher cor
+                <Palette className="h-3 w-3 mr-2" />
+                Alterar cor
               </DropdownMenuItem>
               
               <DropdownMenuSeparator />
               
               <DropdownMenuItem onClick={() => onMoveColumn(id, 'left')}>
-                <ChevronLeft className="h-4 w-4 mr-2" />
+                <ChevronLeft className="h-3 w-3 mr-2" />
                 Mover para esquerda
               </DropdownMenuItem>
               
               <DropdownMenuItem onClick={() => onMoveColumn(id, 'right')}>
-                <ChevronRight className="h-4 w-4 mr-2" />
+                <ChevronRight className="h-3 w-3 mr-2" />
                 Mover para direita
               </DropdownMenuItem>
               
@@ -148,58 +146,39 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               
               <DropdownMenuItem 
                 onClick={() => onDeleteColumn(id)}
-                className="text-red-600 hover:bg-red-50"
+                className="text-red-600 hover:text-red-700"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
+                <Trash2 className="h-3 w-3 mr-2" />
                 Excluir coluna
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
-      
-      {showColorPicker && (
-        <div className="absolute top-14 right-0 z-50">
-          <div className="relative">
-            <ColumnColorPicker
-              currentColor={bgColor}
-              onColorChange={handleColorChange}
-            />
-            <div 
-              className="fixed inset-0 z-40" 
-              onClick={() => setShowColorPicker(false)}
-            />
-          </div>
-        </div>
-      )}
-      
-      <Droppable droppableId={id}>
+
+      <Droppable droppableId={id} type="TASK">
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className={`flex-1 p-3 rounded-b-md ${bgColor} transition-all duration-200 overflow-y-auto ${
-              snapshot.isDraggingOver 
-                ? 'bg-opacity-70 ring-2 ring-blue-300 ring-opacity-50' 
-                : 'bg-opacity-50'
+            className={`flex-1 p-2 space-y-2 bg-gray-50/50 rounded-b-md overflow-y-auto transition-colors ${
+              snapshot.isDraggingOver ? 'bg-blue-50' : ''
             }`}
-            style={{ 
-              maxHeight: 'calc(100vh - 280px)',
-              minHeight: '200px'
-            }}
+            style={{ minHeight: '200px' }}
           >
-            <div className="space-y-3">
-              {children}
-              {provided.placeholder}
-              {notes.length === 0 && (
-                <div className="text-center py-8 text-gray-500 text-sm">
-                  Arraste tarefas aqui
-                </div>
-              )}
-            </div>
+            {children}
+            {provided.placeholder}
           </div>
         )}
       </Droppable>
+
+      {showColorPicker && (
+        <ColumnColorPicker
+          currentColor={bgColor}
+          onColorChange={handleColorChange}
+          onClose={() => setShowColorPicker(false)}
+        />
+      )}
     </div>
   );
 };

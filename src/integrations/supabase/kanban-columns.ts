@@ -12,18 +12,115 @@ export interface KanbanColumn {
   updated_at: string;
 }
 
-export const fetchKanbanColumns = async (): Promise<KanbanColumn[]> => {
-  const { data, error } = await supabase
-    .from('kanban_columns')
-    .select('*')
-    .order('order_index');
+// Função para criar as colunas padrão se não existirem
+export const ensureDefaultColumns = async (): Promise<void> => {
+  try {
+    const { data: existingColumns } = await supabase
+      .from('kanban_columns')
+      .select('*')
+      .eq('is_default', true);
 
-  if (error) {
-    console.error('Error fetching kanban columns:', error);
-    throw error;
+    if (!existingColumns || existingColumns.length === 0) {
+      const defaultColumns = [
+        {
+          column_id: 'iniciar_projeto',
+          title: 'Iniciar Projeto',
+          bg_color: 'bg-blue-50',
+          order_index: 0,
+          is_default: true,
+        },
+        {
+          column_id: 'em_producao',
+          title: 'Em Produção',
+          bg_color: 'bg-yellow-50',
+          order_index: 1,
+          is_default: true,
+        },
+        {
+          column_id: 'aguardando_assinatura',
+          title: 'Aguardando Assinatura',
+          bg_color: 'bg-orange-50',
+          order_index: 2,
+          is_default: true,
+        },
+        {
+          column_id: 'aguardando_aprovacao',
+          title: 'Aguardando Aprovação',
+          bg_color: 'bg-purple-50',
+          order_index: 3,
+          is_default: true,
+        },
+        {
+          column_id: 'aguardando_nota_fiscal',
+          title: 'Aguardando Nota Fiscal',
+          bg_color: 'bg-indigo-50',
+          order_index: 4,
+          is_default: true,
+        },
+        {
+          column_id: 'aguardando_pagamento',
+          title: 'Aguardando Pagamento',
+          bg_color: 'bg-pink-50',
+          order_index: 5,
+          is_default: true,
+        },
+        {
+          column_id: 'aguardando_repasse',
+          title: 'Aguardando Repasse',
+          bg_color: 'bg-cyan-50',
+          order_index: 6,
+          is_default: true,
+        },
+        {
+          column_id: 'finalizados',
+          title: 'Finalizados',
+          bg_color: 'bg-green-50',
+          order_index: 7,
+          is_default: true,
+        },
+        {
+          column_id: 'cancelados',
+          title: 'Cancelados',
+          bg_color: 'bg-red-50',
+          order_index: 8,
+          is_default: true,
+        },
+      ];
+
+      console.log('Criando colunas padrão do Kanban...');
+      for (const column of defaultColumns) {
+        try {
+          await supabase.from('kanban_columns').insert(column);
+        } catch (error) {
+          console.error('Erro ao criar coluna padrão:', column.title, error);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Erro ao verificar/criar colunas padrão:', error);
   }
+};
 
-  return data || [];
+export const fetchKanbanColumns = async (): Promise<KanbanColumn[]> => {
+  try {
+    // Primeiro, garante que as colunas padrão existem
+    await ensureDefaultColumns();
+    
+    const { data, error } = await supabase
+      .from('kanban_columns')
+      .select('*')
+      .order('order_index');
+
+    if (error) {
+      console.error('Error fetching kanban columns:', error);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in fetchKanbanColumns:', error);
+    return [];
+  }
 };
 
 export const createKanbanColumn = async (column: Omit<KanbanColumn, 'id' | 'created_at' | 'updated_at'>): Promise<KanbanColumn> => {

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { Note, updateNoteStatus } from '@/integrations/supabase/notes';
@@ -75,6 +76,7 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
   const handleAddColumn = async () => {
     if (newColumnTitle.trim()) {
       try {
+        console.log('Criando nova coluna:', newColumnTitle);
         const maxOrder = Math.max(...columns.map(col => col.order_index), -1);
         const newColumn: Omit<KanbanColumnType, 'id' | 'created_at' | 'updated_at'> = {
           column_id: `custom_${Date.now()}`,
@@ -91,7 +93,7 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
         toast.success('Coluna adicionada com sucesso!');
       } catch (error) {
         console.error('Erro ao criar coluna:', error);
-        toast.error('Erro ao criar coluna.');
+        toast.error('Erro ao criar coluna. Verifique as permissões.');
       }
     }
   };
@@ -260,6 +262,7 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     });
     
     try {
+      console.log(`Atualizando status da tarefa ${draggableId} para ${destColumn}`);
       await updateNoteStatus(draggableId, destColumn);
       onStatusChanged(draggableId, destColumn);
       toast.success("Status atualizado com sucesso!");
@@ -277,6 +280,18 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
 
   if (columnsLoading) {
     return <div className="text-center py-8">Carregando colunas...</div>;
+  }
+
+  if (columns.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500 mb-4">Nenhuma coluna encontrada. Crie uma coluna para começar.</p>
+        <Button onClick={() => setShowAddColumn(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Adicionar Primeira Coluna
+        </Button>
+      </div>
+    );
   }
 
   const sortedColumns = [...columns].sort((a, b) => a.order_index - b.order_index);
