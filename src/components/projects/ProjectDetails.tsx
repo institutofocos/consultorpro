@@ -1,436 +1,333 @@
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  CardHeader, 
-  CardTitle, 
-  CardContent 
-} from "@/components/ui/card";
+import { useParams, useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Clock, FileText } from "lucide-react";
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { Project, Stage } from './types';
-import { updateStageStatus } from '@/integrations/supabase/projects';
+import { ArrowLeft, Edit, Calendar, User, DollarSign, Clock, Tag, Copy, Check } from "lucide-react";
+import { fetchProjectById } from "@/integrations/supabase/projects";
+import { Project } from "./types";
 import { useToast } from "@/components/ui/use-toast";
-import { Link } from 'react-router-dom';
-import { MessageSquare } from 'lucide-react';
-import { fetchChatRoomsByProject } from '@/integrations/supabase/chat';
-import { useQuery } from '@tanstack/react-query';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogClose,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-interface ProjectDetailsProps {
-  project: Project;
-  onClose: () => void;
-  onProjectUpdated: () => void;
-}
-
-interface StageStatus {
-  completed: boolean;
-  clientApproved: boolean;
-  managerApproved: boolean;
-  invoiceIssued: boolean;
-  paymentReceived: boolean;
-  consultantsSettled: boolean;
-}
-
-type StageStatusKey = keyof StageStatus;
-
-export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose, onProjectUpdated }) => {
-  const [stages, setStages] = useState<Stage[]>([]);
-  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
-  const [currentStageDescription, setCurrentStageDescription] = useState("");
+export const ProjectDetails: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { toast } = useToast();
-  
-  // Initialize stages from project
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [copiedMainPix, setCopiedMainPix] = useState(false);
+  const [copiedSupportPix, setCopiedSupportPix] = useState(false);
+
   useEffect(() => {
-    console.log('ProjectDetails - Loading project:', project);
-    console.log('ProjectDetails - project.stages:', project.stages);
-    
-    if (project.stages && Array.isArray(project.stages)) {
-      setStages(project.stages);
-    } else {
-      setStages([]);
+    if (id) {
+      loadProject(id);
     }
-  }, [project]);
-  
-  // Buscar salas de chat relacionadas a este projeto
-  const { data: projectChatRooms = [] } = useQuery({
-    queryKey: ['project_chat_rooms', project.id],
-    queryFn: () => fetchChatRoomsByProject(project.id)
-  });
+  }, [id]);
 
-  // Calculate project progress based on manager-approved stages
-  const calculateProjectProgress = () => {
-    if (stages.length === 0) return 0;
-    const approvedStages = stages.filter(stage => stage.managerApproved).length;
-    return Math.round((approvedStages / stages.length) * 100);
-  };
-
-  const handleStageStatusUpdate = async (stageId: string, statusField: StageStatusKey, value: boolean) => {
-    const updatedStages = stages.map(stage => {
-      if (stage.id === stageId) {
-        const updatedStage = { ...stage, [statusField]: value };
-        
-        // Auto-mark stage as completed when manager approves
-        if (statusField === 'managerApproved' && value) {
-          updatedStage.completed = true;
-        }
-        
-        // If manager disapproves, unmark completion
-        if (statusField === 'managerApproved' && !value) {
-          updatedStage.completed = false;
-        }
-        
-        return updatedStage;
-      }
-      return stage;
-    });
-    
-    setStages(updatedStages);
-    
+  const loadProject = async (projectId: string) => {
     try {
-      // Update stage in database
-      const updates: Partial<Stage> = {};
-      updates[statusField] = value;
-      
-      // Auto-mark stage as completed when manager approves
-      if (statusField === 'managerApproved' && value) {
-        updates.completed = true;
+      setLoading(true);
+      const projectData = await fetchProjectById(projectId);
+      if (projectData) {
+        setProject(projectData);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Projeto não encontrado"
+        });
+        navigate('/projects');
       }
-      
-      // If manager disapproves, unmark completion
-      if (statusField === 'managerApproved' && !value) {
-        updates.completed = false;
-      }
-      
-      await updateStageStatus(stageId, updates);
-      
-      toast({
-        title: "Sucesso",
-        description: "Status da etapa atualizado com sucesso!"
-      });
-      
-      onProjectUpdated(); // Refresh project list
-    } catch (error: any) {
-      console.error('Error updating stage status:', error);
+    } catch (error) {
+      console.error('Error loading project:', error);
       toast({
         variant: "destructive",
         title: "Erro",
-        description: error.message || "Não foi possível atualizar o status da etapa."
+        description: "Erro ao carregar projeto"
       });
-      
-      // Revert local state on error
-      setStages(project.stages || []);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const showStageDescription = (description: string) => {
-    setCurrentStageDescription(description || "Sem descrição disponível");
-    setShowDescriptionModal(true);
-  };
-
-  const formatDate = (dateString: string) => {
+  const copyToClipboard = async (text: string, type: 'main' | 'support') => {
     try {
-      const date = new Date(dateString);
-      return format(date, 'dd/MM/yyyy', { locale: ptBR });
+      await navigator.clipboard.writeText(text);
+      if (type === 'main') {
+        setCopiedMainPix(true);
+        setTimeout(() => setCopiedMainPix(false), 2000);
+      } else {
+        setCopiedSupportPix(true);
+        setTimeout(() => setCopiedSupportPix(false), 2000);
+      }
+      toast({
+        title: "Copiado!",
+        description: "Chave PIX copiada para a área de transferência"
+      });
     } catch (error) {
-      console.error("Error formatting date:", error);
-      return 'Data inválida';
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível copiar a chave PIX"
+      });
     }
   };
 
-  // Calculate net value (company revenue)
-  const calculateNetValue = () => {
-    const totalValue = project.totalValue || 0;
-    const consultantValue = project.consultantValue || 0;
-    const supportConsultantValue = project.supportConsultantValue || 0;
-    const thirdPartyExpenses = project.thirdPartyExpenses || 0;
-    return totalValue - consultantValue - supportConsultantValue - thirdPartyExpenses;
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-muted rounded w-1/4"></div>
+          <div className="h-64 bg-muted rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-muted-foreground">Projeto não encontrado</h2>
+        </div>
+      </div>
+    );
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'planned': return 'bg-blue-100 text-blue-800';
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'completed': return 'bg-gray-100 text-gray-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
 
-  const projectProgress = calculateProjectProgress();
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'planned': return 'Planejado';
+      case 'active': return 'Ativo';
+      case 'completed': return 'Concluído';
+      case 'cancelled': return 'Cancelado';
+      default: return status;
+    }
+  };
 
   return (
-    <div className="max-h-[90vh] overflow-y-auto">
-      <div className="space-y-6 p-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">{project.name}</h2>
-          <div className="space-x-2">
-            {projectChatRooms.length > 0 && (
-              <Link to="/chat" state={{ initialRoomId: projectChatRooms[0].id }}>
-                <Button variant="outline" className="gap-2">
-                  <MessageSquare size={16} />
-                  Sala de Chat
-                </Button>
-              </Link>
-            )}
-            <Button variant="outline" onClick={onClose}>Voltar</Button>
+    <div className="container mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/projects')}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">{project.name}</h1>
+            <p className="text-muted-foreground">ID: {project.projectId}</p>
           </div>
         </div>
+        <div className="flex gap-2">
+          <Badge className={getStatusColor(project.status)}>
+            {getStatusText(project.status)}
+          </Badge>
+          <Button onClick={() => navigate(`/projects/edit/${project.id}`)}>
+            <Edit className="mr-2 h-4 w-4" />
+            Editar
+          </Button>
+        </div>
+      </div>
 
-        <Card className="shadow-card">
+      {/* Informações Básicas */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
           <CardHeader>
-            <CardTitle>Detalhes do Projeto</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Cronograma
+            </CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <div className="text-sm font-medium">Consultor Principal</div>
-                <div className="text-muted-foreground">{project.mainConsultantName}</div>
-                <div className="text-xs text-slate-500">Valor: {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL'
-                }).format(project.consultantValue || 0)}</div>
-                {project.mainConsultantPixKey && (
-                  <div className="text-xs text-slate-500">PIX: {project.mainConsultantPixKey}</div>
-                )}
-              </div>
-              
-              {project.supportConsultantName && (
-                <div>
-                  <div className="text-sm font-medium">Consultor de Apoio</div>
-                  <div className="text-muted-foreground">{project.supportConsultantName}</div>
-                  <div className="text-xs text-slate-500">Valor: {new Intl.NumberFormat('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL'
-                  }).format(project.supportConsultantValue || 0)}</div>
-                  {project.supportConsultantPixKey && (
-                    <div className="text-xs text-slate-500">PIX: {project.supportConsultantPixKey}</div>
-                  )}
-                </div>
-              )}
-              
-              <div>
-                <div className="text-sm font-medium">Data de Início</div>
-                <div className="text-muted-foreground">{formatDate(project.startDate)}</div>
-              </div>
-              
-              <div>
-                <div className="text-sm font-medium">Data de Término</div>
-                <div className="text-muted-foreground">{formatDate(project.endDate)}</div>
-              </div>
-              
-              <div>
-                <div className="text-sm font-medium">Valor Total</div>
-                <div className="text-muted-foreground">
-                  {new Intl.NumberFormat('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL'
-                  }).format(project.totalValue)}
-                </div>
-              </div>
-              
-              <div>
-                <div className="text-sm font-medium">Valor Líquido (Empresa)</div>
-                <div className="text-muted-foreground">
-                  {new Intl.NumberFormat('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL'
-                  }).format(calculateNetValue())}
-                </div>
-              </div>
-              
-              <div>
-                <div className="text-sm font-medium">Status</div>
-                <div>
-                  {project.status === 'active' && (
-                    <Badge className="bg-green-500">
-                      <Clock className="mr-1 h-3 w-3" />
-                      Em Andamento
-                    </Badge>
-                  )}
-                  {project.status === 'completed' && (
-                    <Badge className="bg-blue-500">
-                      <Check className="mr-1 h-3 w-3" />
-                      Concluído
-                    </Badge>
-                  )}
-                  {project.status === 'planned' && (
-                    <Badge variant="outline">
-                      Planejado
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              
-              <div>
-                <div className="text-sm font-medium">Progresso do Projeto</div>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                      style={{ width: `${projectProgress}%` }}
-                    ></div>
-                  </div>
-                  <span className="text-sm font-medium">{projectProgress}%</span>
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {stages.filter(s => s.managerApproved).length} de {stages.length} etapas aprovadas pelo gestor
-                </div>
-              </div>
-            </div>
-            
+          <CardContent className="space-y-4">
             <div>
-              <div className="text-sm font-medium">Descrição</div>
-              <div className="text-muted-foreground">{project.description}</div>
+              <label className="text-sm font-medium text-muted-foreground">Data de Início</label>
+              <p className="text-lg">{format(new Date(project.startDate), 'dd/MM/yyyy', { locale: ptBR })}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Data de Término</label>
+              <p className="text-lg">{format(new Date(project.endDate), 'dd/MM/yyyy', { locale: ptBR })}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Total de Horas</label>
+              <p className="text-lg">{project.totalHours || 0}h</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-card">
+        <Card>
           <CardHeader>
-            <CardTitle>Etapas do Projeto</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Valores
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            {stages.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>Nenhuma etapa encontrada para este projeto.</p>
-                <p className="text-sm mt-2">As etapas são definidas durante a criação/edição do projeto.</p>
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                {stages.map((stage) => (
-                  <div key={stage.id} className="border rounded-md p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center">
-                        <div className="font-medium">{stage.name}</div>
-                        {stage.description && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  className="ml-2 p-0 h-6 w-6"
-                                  onClick={() => showStageDescription(stage.description || "")}
-                                >
-                                  <FileText className="h-4 w-4 text-blue-500" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Ver descrição da etapa</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                      </div>
-                      
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm">Gerenciar Status</Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-56">
-                          <DropdownMenuLabel>Atualizar Status da Etapa</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuGroup>
-                            <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'clientApproved', !stage.clientApproved)}>
-                              <Check className={`mr-2 h-4 w-4 ${stage.clientApproved ? 'text-green-600' : 'text-gray-400'}`} />
-                              <span>Aprovado pelo cliente</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'managerApproved', !stage.managerApproved)}>
-                              <Check className={`mr-2 h-4 w-4 ${stage.managerApproved ? 'text-green-600' : 'text-gray-400'}`} />
-                              <span>Aprovado pelo gestor</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'invoiceIssued', !stage.invoiceIssued)}>
-                              <Check className={`mr-2 h-4 w-4 ${stage.invoiceIssued ? 'text-green-600' : 'text-gray-400'}`} />
-                              <span>Nota fiscal emitida</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'paymentReceived', !stage.paymentReceived)}>
-                              <Check className={`mr-2 h-4 w-4 ${stage.paymentReceived ? 'text-green-600' : 'text-gray-400'}`} />
-                              <span>Pagamento recebido</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleStageStatusUpdate(stage.id, 'consultantsSettled', !stage.consultantsSettled)}>
-                              <Check className={`mr-2 h-4 w-4 ${stage.consultantsSettled ? 'text-green-600' : 'text-gray-400'}`} />
-                              <span>Consultores pagos</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                    
-                    <div className="text-sm text-muted-foreground grid grid-cols-2 gap-1">
-                      <div>Data de Início: {stage.startDate ? formatDate(stage.startDate) : 'Não definida'}</div>
-                      <div>Data de Término: {stage.endDate ? formatDate(stage.endDate) : 'Não definida'}</div>
-                      <div>Valor: {new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(stage.value || 0)}</div>
-                      
-                      <div className="flex flex-wrap gap-1 col-span-2 mt-2">
-                        {stage.completed && (
-                          <Badge variant="outline" className="bg-slate-100 text-slate-800 border-slate-300">
-                            Etapa concluída
-                          </Badge>
-                        )}
-                        {stage.clientApproved && (
-                          <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
-                            Aprovado pelo cliente
-                          </Badge>
-                        )}
-                        {stage.managerApproved && (
-                          <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
-                            Aprovado pelo gestor
-                          </Badge>
-                        )}
-                        {stage.invoiceIssued && (
-                          <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-300">
-                            Nota fiscal emitida
-                          </Badge>
-                        )}
-                        {stage.paymentReceived && (
-                          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
-                            Pagamento recebido
-                          </Badge>
-                        )}
-                        {stage.consultantsSettled && (
-                          <Badge variant="outline" className="bg-indigo-100 text-indigo-800 border-indigo-300">
-                            Consultores pagos
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+          <CardContent className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Valor Total</label>
+              <p className="text-lg font-semibold">R$ {project.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Taxa (%)</label>
+              <p className="text-lg">{project.taxPercent}%</p>
+            </div>
+            {project.hourlyRate && project.hourlyRate > 0 && (
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Valor por Hora</label>
+                <p className="text-lg">R$ {project.hourlyRate.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
               </div>
             )}
           </CardContent>
         </Card>
-
-        {/* Modal for displaying stage description */}
-        <Dialog open={showDescriptionModal} onOpenChange={setShowDescriptionModal}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Descrição da Etapa</DialogTitle>
-            </DialogHeader>
-            <DialogDescription>
-              <div className="mt-2 whitespace-pre-line">
-                {currentStageDescription}
-              </div>
-            </DialogDescription>
-            <div className="mt-4 flex justify-end">
-              <DialogClose asChild>
-                <Button variant="secondary">Fechar</Button>
-              </DialogClose>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
+
+      {/* Consultores */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            Consultores
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Consultor Principal */}
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Consultor Principal</label>
+            <p className="text-lg font-medium">{project.mainConsultantName || 'Não definido'}</p>
+            <p className="text-sm text-muted-foreground">Comissão: {project.mainConsultantCommission}%</p>
+            {project.consultantValue && project.consultantValue > 0 && (
+              <p className="text-sm text-muted-foreground">
+                Valor: R$ {project.consultantValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            )}
+            {project.mainConsultantPixKey && (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-sm text-muted-foreground">PIX:</span>
+                <code className="bg-muted px-2 py-1 rounded text-sm">{project.mainConsultantPixKey}</code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(project.mainConsultantPixKey!, 'main')}
+                  className="h-6 w-6 p-0"
+                >
+                  {copiedMainPix ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Consultor de Apoio */}
+          {project.supportConsultantId && (
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Consultor de Apoio</label>
+              <p className="text-lg font-medium">{project.supportConsultantName}</p>
+              <p className="text-sm text-muted-foreground">Comissão: {project.supportConsultantCommission}%</p>
+              {project.supportConsultantValue && project.supportConsultantValue > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Valor: R$ {project.supportConsultantValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              )}
+              {project.supportConsultantPixKey && (
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-sm text-muted-foreground">PIX:</span>
+                  <code className="bg-muted px-2 py-1 rounded text-sm">{project.supportConsultantPixKey}</code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard(project.supportConsultantPixKey!, 'support')}
+                    className="h-6 w-6 p-0"
+                  >
+                    {copiedSupportPix ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Descrição e Tags */}
+      {(project.description || (project.tags && project.tags.length > 0)) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Informações Adicionais</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {project.description && (
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Descrição</label>
+                <p className="text-sm mt-1">{project.description}</p>
+              </div>
+            )}
+            {project.tags && project.tags.length > 0 && (
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Tags</label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {project.tags.map((tag, index) => (
+                    <Badge key={index} variant="secondary">
+                      <Tag className="mr-1 h-3 w-3" />
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Etapas */}
+      {project.stages && project.stages.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Etapas do Projeto
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {project.stages.map((stage, index) => (
+                <div key={stage.id} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium">Etapa {index + 1}: {stage.name}</h4>
+                    <Badge variant={stage.completed ? "default" : "secondary"}>
+                      {stage.completed ? "Concluída" : "Pendente"}
+                    </Badge>
+                  </div>
+                  {stage.description && (
+                    <p className="text-sm text-muted-foreground mb-2">{stage.description}</p>
+                  )}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Dias:</span> {stage.days}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Horas:</span> {stage.hours}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Valor:</span> R$ {stage.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Data fim:</span> {stage.endDate ? format(new Date(stage.endDate), 'dd/MM/yyyy', { locale: ptBR }) : 'Não definida'}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

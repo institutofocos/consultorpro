@@ -1638,6 +1638,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_consultant_active_projects: {
+        Args: { consultant_id: string }
+        Returns: number
+      }
+      calculate_consultant_monthly_hours: {
+        Args: { consultant_id: string; target_month?: string }
+        Returns: number
+      }
       calculate_financial_summary: {
         Args: {
           start_date?: string

@@ -1,32 +1,33 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, PlusIcon, TrashIcon, InfoIcon } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { createProject, updateProject } from "@/integrations/supabase/projects";
+import { ArrowLeft, Plus, Trash2, Calendar } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 import { Project, Stage } from "./types";
-import SearchableSelect from "@/components/ui/searchable-select";
-import { Badge } from "@/components/ui/badge";
+import { supabase } from '@/integrations/supabase/client';
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import ProjectStageForm from './ProjectStageForm';
 
 interface ProjectFormProps {
-  project?: Project;
+  project?: Project | null;
   onProjectSaved: (project: Project) => void;
   onCancel: () => void;
 }
 
-export default function ProjectForm({ project, onProjectSaved, onCancel }: ProjectFormProps) {
-  const [formData, setFormData] = useState<Partial<Project>>({
+export const ProjectForm: React.FC<ProjectFormProps> = ({ 
+  project, 
+  onProjectSaved, 
+  onCancel 
+}) => {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [clients, setClients] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>([]);
+  const [consultants, setConsultants] = useState<any[]>([]);
+  const [formData, setFormData] = useState({
     name: '',
     description: '',
     serviceId: '',
@@ -42,137 +43,152 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     thirdPartyExpenses: 0,
     consultantValue: 0,
     supportConsultantValue: 0,
-    // Novos campos
     managerName: '',
     managerEmail: '',
     managerPhone: '',
-    totalHours: 0,
     hourlyRate: 0,
-    status: 'planned',
-    tags: [],
-    stages: []
+    status: 'planned' as const,
+    tags: [] as string[]
   });
-
-  const [clients, setClients] = useState([]);
-  const [services, setServices] = useState([]);
-  const [consultants, setConsultants] = useState([]);
-  const [availableTags, setAvailableTags] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [stages, setStages] = useState<Stage[]>([]);
 
   useEffect(() => {
-    fetchSelectOptions();
-    loadCurrentUserData();
+    loadFormData();
+  }, []);
+
+  useEffect(() => {
     if (project) {
       setFormData({
-        ...project,
+        name: project.name,
+        description: project.description || '',
         serviceId: project.serviceId || '',
         clientId: project.clientId || '',
         mainConsultantId: project.mainConsultantId || '',
+        mainConsultantCommission: project.mainConsultantCommission,
         supportConsultantId: project.supportConsultantId || '',
-        stages: project.stages || []
+        supportConsultantCommission: project.supportConsultantCommission,
+        startDate: project.startDate,
+        endDate: project.endDate,
+        totalValue: project.totalValue,
+        taxPercent: project.taxPercent,
+        thirdPartyExpenses: project.thirdPartyExpenses || 0,
+        consultantValue: project.consultantValue || 0,
+        supportConsultantValue: project.supportConsultantValue || 0,
+        managerName: project.managerName || '',
+        managerEmail: project.managerEmail || '',
+        managerPhone: project.managerPhone || '',
+        hourlyRate: project.hourlyRate || 0,
+        status: project.status,
+        tags: project.tags || []
       });
+      setStages(project.stages || []);
     }
   }, [project]);
 
-  const loadCurrentUserData = async () => {
+  const loadFormData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      // Carregar clientes
+      const { data: clientsData } = await supabase
+        .from('clients')
+        .select('id, name')
+        .order('name');
+      setClients(clientsData || []);
 
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single();
+      // Carregar serviços
+      const { data: servicesData } = await supabase
+        .from('services')
+        .select('*')
+        .order('name');
+      setServices(servicesData || []);
 
-      setFormData(prev => ({
-        ...prev,
-        managerName: profile?.full_name || user.email?.split('@')[0] || '',
-        managerEmail: user.email || '',
-        managerPhone: user.phone || ''
-      }));
+      // Carregar consultores
+      const { data: consultantsData } = await supabase
+        .from('consultants')
+        .select('id, name, commission_percentage')
+        .order('name');
+      setConsultants(consultantsData || []);
     } catch (error) {
-      console.error('Erro ao carregar dados do usuário:', error);
+      console.error('Error loading form data:', error);
     }
   };
 
-  const fetchSelectOptions = async () => {
+  // Função para carregar etapas do serviço selecionado
+  const loadServiceStages = async (serviceId: string) => {
     try {
-      const [clientsRes, servicesRes, consultantsRes, tagsRes] = await Promise.all([
-        supabase.from('clients').select('id, name').order('name'),
-        supabase.from('services').select('id, name, description, stages, total_hours, hourly_rate').order('name'),
-        supabase.from('consultants').select('id, name').order('name'),
-        supabase.from('tags').select('id, name').order('name')
-      ]);
+      const { data: serviceData } = await supabase
+        .from('services')
+        .select('*')
+        .eq('id', serviceId)
+        .single();
 
-      if (clientsRes.data) setClients(clientsRes.data);
-      if (servicesRes.data) setServices(servicesRes.data);
-      if (consultantsRes.data) setConsultants(consultantsRes.data);
-      if (tagsRes.data) setAvailableTags(tagsRes.data);
+      if (serviceData && serviceData.stages) {
+        const serviceStages = serviceData.stages.map((stage: any, index: number) => ({
+          id: `temp-${Date.now()}-${index}`,
+          projectId: '',
+          name: stage.name || '',
+          description: stage.description || '', // Incluir descrição
+          days: stage.days || 1,
+          hours: stage.hours || 8,
+          value: stage.value || 0,
+          startDate: '',
+          endDate: '',
+          consultantId: '',
+          completed: false,
+          clientApproved: false,
+          managerApproved: false,
+          invoiceIssued: false,
+          paymentReceived: false,
+          consultantsSettled: false,
+          attachment: '',
+          stageOrder: stage.order || index + 1
+        }));
+
+        setStages(serviceStages);
+        
+        // Atualizar valores baseados no serviço
+        setFormData(prev => ({
+          ...prev,
+          totalValue: serviceData.total_value || 0,
+          taxPercent: serviceData.tax_rate || 16,
+          hourlyRate: serviceData.hourly_rate || 0
+        }));
+
+        toast({
+          title: "Etapas carregadas",
+          description: `${serviceStages.length} etapas foram carregadas do serviço selecionado.`
+        });
+      }
     } catch (error) {
-      console.error('Error fetching select options:', error);
-      toast.error('Erro ao carregar opções do formulário');
+      console.error('Error loading service stages:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível carregar as etapas do serviço."
+      });
     }
   };
 
   const handleServiceChange = (serviceId: string) => {
     setFormData(prev => ({ ...prev, serviceId }));
     
-    const selectedService = services.find(s => s.id === serviceId);
-    if (selectedService) {
-      // Preencher descrição do projeto com a descrição do serviço
-      setFormData(prev => ({
-        ...prev,
-        description: selectedService.description || prev.description,
-        totalHours: Number(selectedService.total_hours) || prev.totalHours,
-        hourlyRate: Number(selectedService.hourly_rate) || prev.hourlyRate
-      }));
-
-      // Carregar etapas do serviço se existirem
-      if (selectedService.stages) {
-        const serviceStages = Array.isArray(selectedService.stages) 
-          ? selectedService.stages 
-          : JSON.parse(selectedService.stages || '[]');
-        
-        if (Array.isArray(serviceStages)) {
-          const newStages: Stage[] = serviceStages.map((stage: any, index: number) => ({
-            id: `temp-${Date.now()}-${index}`,
-            projectId: project?.id || '',
-            name: stage.name || `Etapa ${index + 1}`,
-            description: stage.description || '',
-            days: Number(stage.days) || 1,
-            hours: Number(stage.hours) || 8,
-            value: Number(stage.value) || 0,
-            startDate: '',
-            endDate: '',
-            completed: false,
-            clientApproved: false,
-            managerApproved: false,
-            invoiceIssued: false,
-            paymentReceived: false,
-            consultantsSettled: false,
-            attachment: '',
-            stageOrder: index + 1,
-            consultantId: ''
-          }));
-          
-          setFormData(prev => ({ ...prev, stages: newStages }));
-        }
-      }
+    // Se não estamos editando um projeto existente, carregar etapas do serviço
+    if (!project?.id && serviceId) {
+      loadServiceStages(serviceId);
     }
   };
 
   const addStage = () => {
     const newStage: Stage = {
       id: `temp-${Date.now()}`,
-      projectId: project?.id || '',
-      name: `Etapa ${(formData.stages?.length || 0) + 1}`,
+      projectId: '',
+      name: '',
       description: '',
       days: 1,
       hours: 8,
       value: 0,
       startDate: '',
       endDate: '',
+      consultantId: '',
       completed: false,
       clientApproved: false,
       managerApproved: false,
@@ -180,41 +196,35 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       paymentReceived: false,
       consultantsSettled: false,
       attachment: '',
-      stageOrder: (formData.stages?.length || 0) + 1,
-      consultantId: ''
+      stageOrder: stages.length + 1
     };
-    
-    setFormData(prev => ({
-      ...prev,
-      stages: [...(prev.stages || []), newStage]
-    }));
+    setStages([...stages, newStage]);
   };
 
   const updateStage = (index: number, field: keyof Stage, value: any) => {
-    const updatedStages = [...(formData.stages || [])];
+    const updatedStages = [...stages];
     updatedStages[index] = { ...updatedStages[index], [field]: value };
-    setFormData(prev => ({ ...prev, stages: updatedStages }));
+    setStages(updatedStages);
   };
 
   const removeStage = (index: number) => {
-    const updatedStages = (formData.stages || []).filter((_, i) => i !== index);
+    const updatedStages = stages.filter((_, i) => i !== index);
     const reorderedStages = updatedStages.map((stage, i) => ({
       ...stage,
       stageOrder: i + 1
     }));
-    setFormData(prev => ({ ...prev, stages: reorderedStages }));
+    setStages(reorderedStages);
   };
 
-  const calculateStageDates = () => {
-    if (!formData.startDate || !formData.stages || formData.stages.length === 0) return;
-    
+  const calculateDates = () => {
+    if (!formData.startDate || stages.length === 0) return;
+
     let currentDate = new Date(formData.startDate);
-    const updatedStages = formData.stages.map((stage, index) => {
+    const updatedStages = stages.map(stage => {
       const stageStartDate = new Date(currentDate);
       const stageEndDate = new Date(currentDate);
       stageEndDate.setDate(stageEndDate.getDate() + (stage.days || 1) - 1);
       
-      // Próxima etapa inicia no dia seguinte ao fim da atual
       currentDate = new Date(stageEndDate);
       currentDate.setDate(currentDate.getDate() + 1);
       
@@ -224,555 +234,373 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         endDate: stageEndDate.toISOString().split('T')[0]
       };
     });
+
+    setStages(updatedStages);
     
-    setFormData(prev => ({ ...prev, stages: updatedStages }));
+    const lastStage = updatedStages[updatedStages.length - 1];
+    if (lastStage) {
+      setFormData(prev => ({ ...prev, endDate: lastStage.endDate || '' }));
+    }
   };
-
-  const calculateTotals = () => {
-    const stagesTotal = (formData.stages || []).reduce((sum, stage) => sum + Number(stage.value || 0), 0);
-    const thirdPartyExpenses = Number(formData.thirdPartyExpenses || 0);
-    const totalValue = stagesTotal + thirdPartyExpenses;
-    const totalHours = (formData.stages || []).reduce((sum, stage) => sum + Number(stage.hours || 0), 0);
-    
-    setFormData(prev => ({ ...prev, totalValue, totalHours }));
-  };
-
-  useEffect(() => {
-    calculateTotals();
-  }, [formData.stages, formData.thirdPartyExpenses]);
-
-  useEffect(() => {
-    calculateStageDates();
-  }, [formData.startDate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (isLoading) return;
-    setIsLoading(true);
+    setLoading(true);
 
     try {
-      if (!formData.name || !formData.startDate || !formData.endDate) {
-        toast.error('Preencha todos os campos obrigatórios');
-        return;
-      }
-
-      console.log('=== INICIANDO SUBMISSÃO DO FORMULÁRIO ===');
-      console.log('Tipo de operação:', project ? 'UPDATE' : 'CREATE');
-
       const projectData: Project = {
         id: project?.id || '',
         name: formData.name,
-        description: formData.description || '',
+        description: formData.description,
         serviceId: formData.serviceId || undefined,
         clientId: formData.clientId || undefined,
         mainConsultantId: formData.mainConsultantId || undefined,
-        mainConsultantCommission: Number(formData.mainConsultantCommission || 0),
+        mainConsultantCommission: formData.mainConsultantCommission,
         supportConsultantId: formData.supportConsultantId || undefined,
-        supportConsultantCommission: Number(formData.supportConsultantCommission || 0),
+        supportConsultantCommission: formData.supportConsultantCommission,
         startDate: formData.startDate,
         endDate: formData.endDate,
-        totalValue: Number(formData.totalValue || 0),
-        taxPercent: Number(formData.taxPercent || 16),
-        thirdPartyExpenses: Number(formData.thirdPartyExpenses || 0),
-        consultantValue: Number(formData.consultantValue || 0),
-        supportConsultantValue: Number(formData.supportConsultantValue || 0),
-        // Novos campos
+        totalValue: formData.totalValue,
+        taxPercent: formData.taxPercent,
+        thirdPartyExpenses: formData.thirdPartyExpenses,
+        consultantValue: formData.consultantValue,
+        supportConsultantValue: formData.supportConsultantValue,
         managerName: formData.managerName,
         managerEmail: formData.managerEmail,
         managerPhone: formData.managerPhone,
-        totalHours: Number(formData.totalHours || 0),
-        hourlyRate: Number(formData.hourlyRate || 0),
-        status: formData.status as 'planned' | 'active' | 'completed' | 'cancelled',
-        tags: formData.tags || [],
-        stages: formData.stages || []
+        hourlyRate: formData.hourlyRate,
+        status: formData.status,
+        tags: formData.tags,
+        stages: stages
       };
 
+      // Usar a função do arquivo projects.ts
+      const { createProject, updateProject } = await import('@/integrations/supabase/projects');
+      
       let savedProject: Project;
       if (project?.id) {
-        console.log('Atualizando projeto existente');
         savedProject = await updateProject(projectData);
-        toast.success('Projeto atualizado com sucesso!');
       } else {
-        console.log('Criando novo projeto');
         savedProject = await createProject(projectData);
-        toast.success('Projeto criado com sucesso!');
       }
 
-      console.log('Projeto salvo com sucesso, chamando onProjectSaved');
+      toast({
+        title: "Sucesso",
+        description: `Projeto ${project?.id ? 'atualizado' : 'criado'} com sucesso!`
+      });
+
       onProjectSaved(savedProject);
-      console.log('=== SUBMISSÃO CONCLUÍDA ===');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving project:', error);
-      toast.error('Erro ao salvar projeto');
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: error.message || `Erro ao ${project?.id ? 'atualizar' : 'criar'} projeto`
+      });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {project ? 'Editar Projeto' : 'Novo Projeto'}
-            {project?.projectId && (
-              <Badge variant="outline" className="ml-2">
-                ID: {project.projectId}
-              </Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Nome do Projeto */}
-          <div>
-            <Label htmlFor="name">Nome do Projeto *</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Digite o nome do projeto"
-              required
-            />
-          </div>
-
-          {/* Descrição */}
-          <div>
-            <Label htmlFor="description">Descrição</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Descreva o projeto"
-              rows={3}
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              A descrição será preenchida automaticamente ao selecionar um serviço
-            </p>
-          </div>
-
-          {/* Cliente e Serviço */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="client">Cliente</Label>
-              <SearchableSelect
-                options={clients}
-                value={formData.clientId || ''}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, clientId: value as string }))}
-                placeholder="Selecione um cliente"
-                searchPlaceholder="Pesquisar clientes..."
-                emptyText="Nenhum cliente encontrado"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="service">Serviço</Label>
-              <SearchableSelect
-                options={services}
-                value={formData.serviceId || ''}
-                onValueChange={handleServiceChange}
-                placeholder="Selecione um serviço"
-                searchPlaceholder="Pesquisar serviços..."
-                emptyText="Nenhum serviço encontrado"
-              />
-            </div>
-          </div>
-
-          {/* Horas e Valor */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="totalHours">Total de Horas</Label>
-              <Input
-                id="totalHours"
-                type="number"
-                value={formData.totalHours}
-                onChange={(e) => setFormData(prev => ({ ...prev, totalHours: Number(e.target.value) }))}
-                placeholder="0"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Será calculado automaticamente com base nas etapas
-              </p>
-            </div>
-
-            <div>
-              <Label htmlFor="hourlyRate">Valor da Hora (R$)</Label>
-              <Input
-                id="hourlyRate"
-                type="number"
-                step="0.01"
-                value={formData.hourlyRate}
-                onChange={(e) => setFormData(prev => ({ ...prev, hourlyRate: Number(e.target.value) }))}
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-
-          {/* Consultores */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="mainConsultant">Consultor Principal</Label>
-              <SearchableSelect
-                options={consultants}
-                value={formData.mainConsultantId || ''}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, mainConsultantId: value as string }))}
-                placeholder="Selecione o consultor principal"
-                searchPlaceholder="Pesquisar consultores..."
-                emptyText="Nenhum consultor encontrado"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="supportConsultant">Consultor de Apoio</Label>
-              <SearchableSelect
-                options={[{ id: '', name: 'Nenhum' }, ...consultants]}
-                value={formData.supportConsultantId || ''}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, supportConsultantId: value as string }))}
-                placeholder="Selecione o consultor de apoio"
-                searchPlaceholder="Pesquisar consultores..."
-                emptyText="Nenhum consultor encontrado"
-              />
-            </div>
-          </div>
-
-          {/* Datas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>Data de Início *</Label>
-              <Input
-                type="date"
-                value={formData.startDate}
-                onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
-                required
-              />
-            </div>
-
-            <div>
-              <Label>Data de Término *</Label>
-              <Input
-                type="date"
-                value={formData.endDate}
-                onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Status e Tags */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as any }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="planned">Planejado</SelectItem>
-                  <SelectItem value="active">Ativo</SelectItem>
-                  <SelectItem value="completed">Concluído</SelectItem>
-                  <SelectItem value="cancelled">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="tags">Tags</Label>
-              <SearchableSelect
-                options={availableTags}
-                value=""
-                onValueChange={(value) => {
-                  const tag = availableTags.find(t => t.id === value);
-                  if (tag && !formData.tags?.includes(tag.name)) {
-                    setFormData(prev => ({
-                      ...prev,
-                      tags: [...(prev.tags || []), tag.name]
-                    }));
-                  }
-                }}
-                placeholder="Adicionar tag"
-                searchPlaceholder="Pesquisar tags..."
-                emptyText="Nenhuma tag encontrada"
-              />
-              {formData.tags && formData.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.tags.map((tag, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() => setFormData(prev => ({
-                          ...prev,
-                          tags: prev.tags?.filter((_, i) => i !== index)
-                        }))}
-                        className="ml-1 text-muted-foreground hover:text-destructive"
-                      >
-                        ×
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Informações do Gestor */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <InfoIcon className="h-5 w-5" />
-            Informações do Gestor
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="managerName">Nome do Gestor</Label>
-              <Input
-                id="managerName"
-                value={formData.managerName}
-                onChange={(e) => setFormData(prev => ({ ...prev, managerName: e.target.value }))}
-                placeholder="Nome do gestor"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="managerEmail">E-mail do Gestor</Label>
-              <Input
-                id="managerEmail"
-                type="email"
-                value={formData.managerEmail}
-                onChange={(e) => setFormData(prev => ({ ...prev, managerEmail: e.target.value }))}
-                placeholder="email@exemplo.com"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="managerPhone">Telefone do Gestor</Label>
-              <Input
-                id="managerPhone"
-                value={formData.managerPhone}
-                onChange={(e) => setFormData(prev => ({ ...prev, managerPhone: e.target.value }))}
-                placeholder="(11) 99999-9999"
-              />
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Os dados são preenchidos automaticamente com as informações do usuário logado
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={onCancel}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div>
+          <h2 className="text-2xl font-bold">
+            {project?.id ? 'Editar Projeto' : 'Novo Projeto'}
+          </h2>
+          <p className="text-muted-foreground">
+            Configure os detalhes do projeto e suas etapas
           </p>
-        </CardContent>
-      </Card>
-
-      {/* Etapas do Projeto */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle>Etapas do Projeto</CardTitle>
-          <Button type="button" variant="outline" size="sm" onClick={addStage}>
-            <PlusIcon className="h-4 w-4 mr-2" />
-            Adicionar Etapa
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {formData.stages && formData.stages.length > 0 ? (
-            <div className="space-y-4">
-              {formData.stages.map((stage, index) => (
-                <div key={stage.id} className="border rounded-lg p-4 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <h4 className="font-medium">Etapa {index + 1}</h4>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeStage(index)}
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Nome da Etapa</Label>
-                      <Input
-                        value={stage.name}
-                        onChange={(e) => updateStage(index, 'name', e.target.value)}
-                        placeholder="Nome da etapa"
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Valor (R$)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={stage.value}
-                        onChange={(e) => updateStage(index, 'value', Number(e.target.value))}
-                        placeholder="0.00"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Descrição</Label>
-                    <Textarea
-                      value={stage.description}
-                      onChange={(e) => updateStage(index, 'description', e.target.value)}
-                      placeholder="Descrição da etapa"
-                      rows={2}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div>
-                      <Label>Dias</Label>
-                      <Input
-                        type="number"
-                        value={stage.days}
-                        onChange={(e) => updateStage(index, 'days', Number(e.target.value))}
-                        min="1"
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Horas</Label>
-                      <Input
-                        type="number"
-                        value={stage.hours}
-                        onChange={(e) => updateStage(index, 'hours', Number(e.target.value))}
-                        min="1"
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Data de Início</Label>
-                      <Input
-                        type="date"
-                        value={stage.startDate}
-                        onChange={(e) => updateStage(index, 'startDate', e.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Data de Término</Label>
-                      <Input
-                        type="date"
-                        value={stage.endDate}
-                        onChange={(e) => updateStage(index, 'endDate', e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Consultor Responsável</Label>
-                    <SearchableSelect
-                      options={[{ id: '', name: 'Nenhum' }, ...consultants]}
-                      value={stage.consultantId || ''}
-                      onValueChange={(value) => updateStage(index, 'consultantId', value as string)}
-                      placeholder="Selecione um consultor"
-                      searchPlaceholder="Pesquisar consultores..."
-                      emptyText="Nenhum consultor encontrado"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-8">
-              Nenhuma etapa adicionada. Clique em "Adicionar Etapa" para começar.
-            </p>
-          )}
-          {formData.startDate && (
-            <p className="text-xs text-muted-foreground mt-4">
-              As datas das etapas são calculadas automaticamente com base na data de início do projeto
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Valores Financeiros */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Valores Financeiros</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="thirdPartyExpenses">Gastos com Terceiros (R$)</Label>
-              <Input
-                id="thirdPartyExpenses"
-                type="number"
-                step="0.01"
-                value={formData.thirdPartyExpenses}
-                onChange={(e) => setFormData(prev => ({ ...prev, thirdPartyExpenses: Number(e.target.value) }))}
-                placeholder="0.00"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="taxPercent">Taxa de Impostos (%)</Label>
-              <Input
-                id="taxPercent"
-                type="number"
-                step="0.01"
-                value={formData.taxPercent}
-                onChange={(e) => setFormData(prev => ({ ...prev, taxPercent: Number(e.target.value) }))}
-                placeholder="16"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="consultantValue">Valor Consultor Principal (R$)</Label>
-              <Input
-                id="consultantValue"
-                type="number"
-                step="0.01"
-                value={formData.consultantValue}
-                onChange={(e) => setFormData(prev => ({ ...prev, consultantValue: Number(e.target.value) }))}
-                placeholder="0.00"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="supportConsultantValue">Valor Consultor Apoio (R$)</Label>
-              <Input
-                id="supportConsultantValue"
-                type="number"
-                step="0.01"
-                value={formData.supportConsultantValue}
-                onChange={(e) => setFormData(prev => ({ ...prev, supportConsultantValue: Number(e.target.value) }))}
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-
-          <div className="border-t pt-4 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Total de Horas:</span>
-              <span className="text-sm">{formData.totalHours || 0}h</span>
-            </div>
-            <div className="flex justify-between items-center font-medium">
-              <span>Valor Total do Projeto:</span>
-              <span className="text-lg">
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL'
-                }).format(formData.totalValue || 0)}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Botões */}
-      <div className="flex justify-end space-x-4">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button type="submit" disabled={isLoading}>
-          {isLoading ? 'Salvando...' : project ? 'Atualizar' : 'Criar'} Projeto
-        </Button>
+        </div>
       </div>
-    </form>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Informações Básicas */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Informações Básicas</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="name">Nome do Projeto *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="serviceId">Serviço</Label>
+                <SearchableSelect
+                  options={services.map(service => ({
+                    value: service.id,
+                    label: service.name
+                  }))}
+                  value={formData.serviceId}
+                  onValueChange={handleServiceChange}
+                  placeholder="Selecionar serviço..."
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="description">Descrição</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={3}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="clientId">Cliente</Label>
+                <SearchableSelect
+                  options={clients.map(client => ({
+                    value: client.id,
+                    label: client.name
+                  }))}
+                  value={formData.clientId}
+                  onValueChange={(value) => setFormData({ ...formData, clientId: value })}
+                  placeholder="Selecionar cliente..."
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="startDate">Data de Início *</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="endDate">Data de Término</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={formData.endDate}
+                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Etapas do Projeto */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Etapas do Projeto</CardTitle>
+              <div className="flex gap-2">
+                <Button type="button" onClick={calculateDates} variant="outline" size="sm">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Calcular Datas
+                </Button>
+                <Button type="button" onClick={addStage} size="sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Adicionar Etapa
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {stages.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground mb-4">
+                  Nenhuma etapa adicionada. {!project?.id && formData.serviceId ? 
+                    'Selecione um serviço para carregar etapas automaticamente ou' : 
+                    'Clique em "Adicionar Etapa" para começar.'
+                  }
+                </p>
+              </div>
+            ) : (
+              <ProjectStageForm
+                stages={stages}
+                onStagesChange={setStages}
+                consultants={consultants}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Consultores */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Consultores</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="mainConsultantId">Consultor Principal</Label>
+                <SearchableSelect
+                  options={consultants.map(consultant => ({
+                    value: consultant.id,
+                    label: consultant.name
+                  }))}
+                  value={formData.mainConsultantId}
+                  onValueChange={(value) => {
+                    const consultant = consultants.find(c => c.id === value);
+                    setFormData({ 
+                      ...formData, 
+                      mainConsultantId: value,
+                      mainConsultantCommission: consultant?.commission_percentage || 0
+                    });
+                  }}
+                  placeholder="Selecionar consultor..."
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="mainConsultantCommission">Comissão (%)</Label>
+                <Input
+                  id="mainConsultantCommission"
+                  type="number"
+                  step="0.01"
+                  value={formData.mainConsultantCommission}
+                  onChange={(e) => setFormData({ ...formData, mainConsultantCommission: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="supportConsultantId">Consultor de Apoio</Label>
+                <SearchableSelect
+                  options={consultants.map(consultant => ({
+                    value: consultant.id,
+                    label: consultant.name
+                  }))}
+                  value={formData.supportConsultantId}
+                  onValueChange={(value) => {
+                    const consultant = consultants.find(c => c.id === value);
+                    setFormData({ 
+                      ...formData, 
+                      supportConsultantId: value,
+                      supportConsultantCommission: consultant?.commission_percentage || 0
+                    });
+                  }}
+                  placeholder="Selecionar consultor de apoio..."
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="supportConsultantCommission">Comissão (%)</Label>
+                <Input
+                  id="supportConsultantCommission"
+                  type="number"
+                  step="0.01"
+                  value={formData.supportConsultantCommission}
+                  onChange={(e) => setFormData({ ...formData, supportConsultantCommission: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Valores */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Valores e Configurações</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="totalValue">Valor Total (R$) *</Label>
+                <Input
+                  id="totalValue"
+                  type="number"
+                  step="0.01"
+                  value={formData.totalValue}
+                  onChange={(e) => setFormData({ ...formData, totalValue: parseFloat(e.target.value) || 0 })}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="taxPercent">Taxa de Imposto (%)</Label>
+                <Input
+                  id="taxPercent"
+                  type="number"
+                  step="0.01"
+                  value={formData.taxPercent}
+                  onChange={(e) => setFormData({ ...formData, taxPercent: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="hourlyRate">Valor por Hora (R$)</Label>
+                <Input
+                  id="hourlyRate"
+                  type="number"
+                  step="0.01"
+                  value={formData.hourlyRate}
+                  onChange={(e) => setFormData({ ...formData, hourlyRate: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="consultantValue">Valor Consultor Principal (R$)</Label>
+                <Input
+                  id="consultantValue"
+                  type="number"
+                  step="0.01"
+                  value={formData.consultantValue}
+                  onChange={(e) => setFormData({ ...formData, consultantValue: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="supportConsultantValue">Valor Consultor Apoio (R$)</Label>
+                <Input
+                  id="supportConsultantValue"
+                  type="number"
+                  step="0.01"
+                  value={formData.supportConsultantValue}
+                  onChange={(e) => setFormData({ ...formData, supportConsultantValue: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="thirdPartyExpenses">Gastos Terceiros (R$)</Label>
+                <Input
+                  id="thirdPartyExpenses"
+                  type="number"
+                  step="0.01"
+                  value={formData.thirdPartyExpenses}
+                  onChange={(e) => setFormData({ ...formData, thirdPartyExpenses: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Botões de Ação */}
+        <div className="flex gap-4 justify-end">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={loading || !formData.name.trim()}>
+            {loading ? 'Salvando...' : (project?.id ? 'Atualizar' : 'Criar')} Projeto
+          </Button>
+        </div>
+      </form>
+    </div>
   );
-}
+};
+
+export default ProjectForm;
