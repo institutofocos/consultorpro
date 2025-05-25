@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export const fetchConsultants = async () => {
@@ -90,6 +89,20 @@ export const calculateConsultantAvailableHours = async (consultantId: string, ho
   } catch (error) {
     console.error('Error calculating consultant available hours:', error);
     return hoursPerMonth;
+  }
+};
+
+export const calculateConsultantActiveProjects = async (consultantId: string): Promise<number> => {
+  try {
+    const { data, error } = await supabase.rpc('calculate_consultant_active_projects', {
+      consultant_id: consultantId
+    });
+
+    if (error) throw error;
+    return data || 0;
+  } catch (error) {
+    console.error('Error calculating consultant active projects:', error);
+    return 0;
   }
 };
 

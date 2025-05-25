@@ -24,7 +24,8 @@ import { Tables } from '@/integrations/supabase/types';
 import { 
   fetchConsultants, 
   calculateConsultantAvailableHours, 
-  calculateConsultantWorkedHours 
+  calculateConsultantWorkedHours,
+  calculateConsultantActiveProjects
 } from "@/integrations/supabase/consultants";
 
 export type Consultant = {
@@ -77,6 +78,7 @@ export const ConsultantList: React.FC = () => {
   const [editingConsultant, setEditingConsultant] = useState<Consultant | null>(null);
   const [availableHours, setAvailableHours] = useState<{[key: string]: number}>({});
   const [workedHours, setWorkedHours] = useState<{[key: string]: number}>({});
+  const [activeProjects, setActiveProjects] = useState<{[key: string]: number}>({});
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   
@@ -118,9 +120,10 @@ export const ConsultantList: React.FC = () => {
         const mappedConsultants = consultantsWithServices.map(mapConsultantFromDB);
         setConsultants(mappedConsultants);
 
-        // Calculate worked hours and available hours for each consultant
+        // Calculate worked hours, available hours, and active projects for each consultant
         const workedHoursMap: {[key: string]: number} = {};
         const availableHoursMap: {[key: string]: number} = {};
+        const activeProjectsMap: {[key: string]: number} = {};
         
         for (const consultant of mappedConsultants) {
           const worked = await calculateConsultantWorkedHours(consultant.id);
@@ -128,13 +131,16 @@ export const ConsultantList: React.FC = () => {
             consultant.id, 
             consultant.hoursPerMonth
           );
+          const projects = await calculateConsultantActiveProjects(consultant.id);
           
           workedHoursMap[consultant.id] = worked;
           availableHoursMap[consultant.id] = available;
+          activeProjectsMap[consultant.id] = projects;
         }
         
         setWorkedHours(workedHoursMap);
         setAvailableHours(availableHoursMap);
+        setActiveProjects(activeProjectsMap);
         
       } catch (error) {
         console.error('Error fetching consultants:', error);
@@ -182,9 +188,10 @@ export const ConsultantList: React.FC = () => {
         const mappedConsultants = consultantsWithServices.map(mapConsultantFromDB);
         setConsultants(mappedConsultants);
 
-        // Recalculate hours for all consultants
+        // Recalculate hours and projects for all consultants
         const workedHoursMap: {[key: string]: number} = {};
         const availableHoursMap: {[key: string]: number} = {};
+        const activeProjectsMap: {[key: string]: number} = {};
         
         for (const consultant of mappedConsultants) {
           const worked = await calculateConsultantWorkedHours(consultant.id);
@@ -192,13 +199,16 @@ export const ConsultantList: React.FC = () => {
             consultant.id, 
             consultant.hoursPerMonth
           );
+          const projects = await calculateConsultantActiveProjects(consultant.id);
           
           workedHoursMap[consultant.id] = worked;
           availableHoursMap[consultant.id] = available;
+          activeProjectsMap[consultant.id] = projects;
         }
         
         setWorkedHours(workedHoursMap);
         setAvailableHours(availableHoursMap);
+        setActiveProjects(activeProjectsMap);
       }
       
       // Reset form state
@@ -306,7 +316,7 @@ export const ConsultantList: React.FC = () => {
                         <TableCell>{consultant.hoursPerMonth}h</TableCell>
                         <TableCell>{workedHours[consultant.id] || 0}h</TableCell>
                         <TableCell>{availableHours[consultant.id] || consultant.hoursPerMonth}h</TableCell>
-                        <TableCell>{consultant.activeProjects || 0}</TableCell>
+                        <TableCell>{activeProjects[consultant.id] || 0}</TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="icon" onClick={() => handleEditConsultant(consultant)}>
                             <Edit className="h-4 w-4" />
