@@ -4,6 +4,23 @@ import type { Database } from './types';
 
 export type ScheduledMessage = Database['public']['Tables']['scheduled_messages']['Row'];
 
+// Tipo específico para criar mensagens agendadas
+export type CreateScheduledMessageData = {
+  title: string;
+  message: string;
+  room_id: string;
+  sender_id: string;
+  sender_name: string;
+  connection_id?: string | null;
+  send_date?: string | null;
+  send_time?: string | null;
+  is_recurring?: boolean;
+  recurrence_type?: string | null;
+  recurrence_day?: number | null;
+  recurrence_time?: string | null;
+  status?: string;
+};
+
 // Buscar todas as mensagens agendadas de uma sala
 export const fetchScheduledMessages = async (roomId: string) => {
   const { data, error } = await supabase
@@ -21,7 +38,7 @@ export const fetchScheduledMessages = async (roomId: string) => {
 };
 
 // Criar nova mensagem agendada
-export const createScheduledMessage = async (messageData: Partial<ScheduledMessage>) => {
+export const createScheduledMessage = async (messageData: CreateScheduledMessageData) => {
   const { data, error } = await supabase
     .from('scheduled_messages')
     .insert(messageData)
