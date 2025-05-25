@@ -560,8 +560,12 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
                 {checklistsData.map((checklist, index) => (
                   <ChecklistItem
                     key={checklist.id}
-                    checklist={checklist}
+                    item={checklist}
+                    noteId={initialData?.id || ''}
                     onUpdate={refreshChecklists}
+                    onDelete={(id) => {
+                      setChecklistsData(prev => prev.filter(item => item.id !== id));
+                    }}
                   />
                 ))}
               </div>

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -5,12 +6,19 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Edit2, Save, X, Trash2, User } from 'lucide-react';
+import { CalendarIcon, Edit2, Save, X, Trash2, User, MoreVertical } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { NoteChecklist } from '@/integrations/supabase/notes';
 import { updateChecklistStatus } from '@/integrations/supabase/notes';
 import { toast } from 'sonner';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 interface ChecklistItemProps {
   item: NoteChecklist;
@@ -24,7 +32,7 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, noteId, onUpdate, o
   const [editTitle, setEditTitle] = useState(item.title);
   const [editDescription, setEditDescription] = useState(item.description || '');
   const [editDueDate, setEditDueDate] = useState<Date | undefined>(
-    item.dueDate ? new Date(item.dueDate) : undefined
+    item.due_date ? new Date(item.due_date) : undefined
   );
 
   const handleToggleComplete = async (checked: boolean) => {
@@ -34,7 +42,7 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, noteId, onUpdate, o
       const updatedItem = {
         ...item,
         completed: checked,
-        completedAt: checked ? new Date().toISOString() : null
+        completed_at: checked ? new Date().toISOString() : null
       };
       
       onUpdate(updatedItem);
@@ -125,22 +133,22 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, noteId, onUpdate, o
           <div>
             {isEditing ? (
               <div className="flex space-x-2">
-                <Button size="xs" onClick={handleSave}>
+                <Button size="sm" onClick={handleSave}>
                   <Save className="h-3 w-3 mr-2" />
                   Salvar
                 </Button>
-                <Button size="xs" variant="ghost" onClick={() => setIsEditing(false)}>
+                <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>
                   <X className="h-3 w-3 mr-2" />
                   Cancelar
                 </Button>
               </div>
             ) : (
-              <Dropdown>
-                <DropdownTrigger asChild>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
                     <MoreVertical className="h-4 w-4" />
                   </Button>
-                </DropdownTrigger>
+                </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => setIsEditing(true)}>
                     <Edit2 className="h-3 w-3 mr-2" />
@@ -151,7 +159,7 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, noteId, onUpdate, o
                     Excluir
                   </DropdownMenuItem>
                 </DropdownMenuContent>
-              </Dropdown>
+              </DropdownMenu>
             )}
           </div>
         </div>
@@ -197,17 +205,17 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, noteId, onUpdate, o
               </PopoverContent>
             </Popover>
           ) : (
-            item.dueDate && (
+            item.due_date && (
               <div className="flex items-center">
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                <span>{formatDate(new Date(item.dueDate))}</span>
+                <span>{formatDate(new Date(item.due_date))}</span>
               </div>
             )
           )}
-          {item.responsibleConsultantId && (
+          {item.responsible_consultant_id && (
             <div className="flex items-center">
               <User className="mr-2 h-4 w-4" />
-              <span>{item.responsibleConsultantId}</span>
+              <span>{item.responsible_consultant_id}</span>
             </div>
           )}
         </div>
@@ -217,12 +225,3 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, noteId, onUpdate, o
 };
 
 export default ChecklistItem;
-
-import {
-  DropdownMenu as Dropdown,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu"
-import { MoreVertical } from 'lucide-react';
-import { cn } from "@/lib/utils"
