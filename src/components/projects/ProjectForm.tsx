@@ -8,7 +8,7 @@ import { ArrowLeft, Plus, Trash2, Calendar } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Project, Stage } from "./types";
 import { supabase } from '@/integrations/supabase/client';
-import { SearchableSelect } from "@/components/ui/searchable-select";
+import SearchableSelect from "@/components/ui/searchable-select";
 import ProjectStageForm from './ProjectStageForm';
 
 interface ProjectFormProps {
@@ -47,7 +47,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
     managerEmail: '',
     managerPhone: '',
     hourlyRate: 0,
-    status: 'planned' as const,
+    status: 'planned' as 'planned' | 'active' | 'completed' | 'cancelled',
     tags: [] as string[]
   });
   const [stages, setStages] = useState<Stage[]>([]);
@@ -122,11 +122,14 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
         .single();
 
       if (serviceData && serviceData.stages) {
-        const serviceStages = serviceData.stages.map((stage: any, index: number) => ({
+        // Fazer cast correto do tipo Json para array
+        const serviceStagesArray = Array.isArray(serviceData.stages) ? serviceData.stages : [];
+        
+        const serviceStages = serviceStagesArray.map((stage: any, index: number) => ({
           id: `temp-${Date.now()}-${index}`,
           projectId: '',
           name: stage.name || '',
-          description: stage.description || '', // Incluir descrição
+          description: stage.description || '',
           days: stage.days || 1,
           hours: stage.hours || 8,
           value: stage.value || 0,
@@ -341,8 +344,8 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
                 <Label htmlFor="serviceId">Serviço</Label>
                 <SearchableSelect
                   options={services.map(service => ({
-                    value: service.id,
-                    label: service.name
+                    id: service.id,
+                    name: service.name
                   }))}
                   value={formData.serviceId}
                   onValueChange={handleServiceChange}
@@ -366,8 +369,8 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
                 <Label htmlFor="clientId">Cliente</Label>
                 <SearchableSelect
                   options={clients.map(client => ({
-                    value: client.id,
-                    label: client.name
+                    id: client.id,
+                    name: client.name
                   }))}
                   value={formData.clientId}
                   onValueChange={(value) => setFormData({ ...formData, clientId: value })}
@@ -427,11 +430,79 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
                 </p>
               </div>
             ) : (
-              <ProjectStageForm
-                stages={stages}
-                onStagesChange={setStages}
-                consultants={consultants}
-              />
+              <div className="space-y-4">
+                {stages.map((stage, index) => (
+                  <Card key={stage.id} className="border-dashed">
+                    <CardContent className="pt-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-medium">Etapa {index + 1}</h4>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeStage(index)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                          <Label>Nome da Etapa *</Label>
+                          <Input
+                            value={stage.name}
+                            onChange={(e) => updateStage(index, 'name', e.target.value)}
+                            placeholder="Ex: Análise inicial"
+                            required
+                          />
+                        </div>
+                        
+                        <div className="md:col-span-2">
+                          <Label>Descrição da Etapa</Label>
+                          <Textarea
+                            value={stage.description || ''}
+                            onChange={(e) => updateStage(index, 'description', e.target.value)}
+                            placeholder="Descreva as atividades desta etapa..."
+                            rows={2}
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label>Dias</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={stage.days}
+                            onChange={(e) => updateStage(index, 'days', parseInt(e.target.value) || 1)}
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label>Horas</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={stage.hours}
+                            onChange={(e) => updateStage(index, 'hours', parseInt(e.target.value) || 1)}
+                          />
+                        </div>
+                        
+                        <div className="md:col-span-2">
+                          <Label>Valor (R$)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={stage.value}
+                            onChange={(e) => updateStage(index, 'value', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -447,8 +518,8 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
                 <Label htmlFor="mainConsultantId">Consultor Principal</Label>
                 <SearchableSelect
                   options={consultants.map(consultant => ({
-                    value: consultant.id,
-                    label: consultant.name
+                    id: consultant.id,
+                    name: consultant.name
                   }))}
                   value={formData.mainConsultantId}
                   onValueChange={(value) => {
@@ -480,8 +551,8 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
                 <Label htmlFor="supportConsultantId">Consultor de Apoio</Label>
                 <SearchableSelect
                   options={consultants.map(consultant => ({
-                    value: consultant.id,
-                    label: consultant.name
+                    id: consultant.id,
+                    name: consultant.name
                   }))}
                   value={formData.supportConsultantId}
                   onValueChange={(value) => {

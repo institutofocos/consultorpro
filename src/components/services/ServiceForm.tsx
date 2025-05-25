@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,7 +76,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     const newStage: ServiceStage = {
       id: `temp-${Date.now()}`,
       name: '',
-      description: '', // Novo campo
+      description: '',
       days: 1,
       hours: 8,
       value: 0,
@@ -133,11 +134,11 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
         net_value: totals.netValue,
         stages: stages.map(stage => ({
           name: stage.name,
-          description: stage.description || '', // Incluir descrição
+          description: stage.description || '',
           days: stage.days,
           hours: stage.hours,
           value: stage.value,
-          order: stage.order
+          order: stage.order || 1
         }))
       };
 
@@ -170,8 +171,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
         extraCosts: result.data.extra_costs,
         netValue: result.data.net_value,
         stages: result.data.stages || [],
-        createdAt: result.data.created_at,
-        updatedAt: result.data.updated_at
+        tags: []
       };
 
       toast({

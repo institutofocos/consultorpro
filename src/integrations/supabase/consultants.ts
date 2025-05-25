@@ -78,13 +78,15 @@ export const calculateConsultantActiveProjects = async (consultantId: string): P
 
 export const calculateConsultantWorkedHours = async (
   consultantId: string,
-  targetMonth?: Date
+  targetMonth?: string
 ): Promise<number> => {
   try {
+    const monthDate = targetMonth ? new Date(targetMonth) : new Date();
+    
     const { data, error } = await supabase
       .rpc('calculate_consultant_monthly_hours', {
         consultant_id: consultantId,
-        target_month: targetMonth || new Date()
+        target_month: monthDate.toISOString().split('T')[0]
       });
 
     if (error) {
