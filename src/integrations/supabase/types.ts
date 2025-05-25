@@ -537,32 +537,32 @@ export type Database = {
         Row: {
           bg_color: string
           column_id: string
-          created_at: string
+          created_at: string | null
           id: string
           is_default: boolean
           order_index: number
           title: string
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
           bg_color?: string
           column_id: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           is_default?: boolean
           order_index?: number
           title: string
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
           bg_color?: string
           column_id?: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           is_default?: boolean
           order_index?: number
           title?: string
-          updated_at?: string
+          updated_at?: string | null
         }
         Relationships: []
       }

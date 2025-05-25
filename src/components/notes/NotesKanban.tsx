@@ -25,7 +25,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 interface NotesKanbanProps {
@@ -41,7 +41,6 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
   onDeleteNote,
   onStatusChanged,
 }) => {
-  const queryClient = useQueryClient();
   const [notesByColumn, setNotesByColumn] = useState<Record<string, Note[]>>({});
   const [showAddColumn, setShowAddColumn] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState('');
