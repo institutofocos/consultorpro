@@ -55,7 +55,6 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     queryFn: fetchKanbanColumns,
   });
 
-  // Organizar notas por coluna
   useEffect(() => {
     if (columns.length === 0) return;
     
@@ -180,7 +179,6 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
       
       await swapColumnPositions(currentColumn.id, targetColumn.id);
       
-      // Invalidar cache para forçar refetch
       queryClient.invalidateQueries({ queryKey: ['kanban-columns'] });
       
       const directionText = direction === 'left' ? 'esquerda' : 'direita';
@@ -197,7 +195,6 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     
     if (!destination) return;
 
-    // Drag and drop de colunas
     if (type === 'COLUMN') {
       if (source.index === destination.index) return;
       
@@ -210,7 +207,6 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
         const columnIds = newColumns.map(col => col.id);
         await reorderColumns(columnIds);
         
-        // Invalidar cache para forçar refetch
         queryClient.invalidateQueries({ queryKey: ['kanban-columns'] });
         
         toast.success('Ordem das colunas atualizada!');
@@ -221,7 +217,6 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
       return;
     }
 
-    // Drag and drop de notes/cards
     if (source.droppableId === destination.droppableId && source.index === destination.index) {
       return;
     }
@@ -229,7 +224,6 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     const sourceColumn = source.droppableId as Note['status'];
     const destColumn = destination.droppableId as Note['status'];
     
-    // Verificar tarefas vinculadas antes de finalizar
     if (destColumn === "finalizado") {
       const draggedNote = notes.find(note => note.id === draggableId);
       if (draggedNote && draggedNote.linked_task_id) {
@@ -241,7 +235,6 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
       }
     }
     
-    // Reordenação na mesma coluna
     if (sourceColumn === destColumn) {
       const newColumnNotes = Array.from(notesByColumn[sourceColumn]);
       const [removed] = newColumnNotes.splice(source.index, 1);
@@ -254,7 +247,6 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
       return;
     }
     
-    // Movendo entre colunas (alterando status)
     const sourceNotes = Array.from(notesByColumn[sourceColumn]);
     const destNotes = Array.from(notesByColumn[destColumn]);
     const [removed] = sourceNotes.splice(source.index, 1);
@@ -262,7 +254,6 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     const updatedNote = { ...removed, status: destColumn };
     destNotes.splice(destination.index, 0, updatedNote);
     
-    // Atualizar estado local imediatamente
     setNotesByColumn({
       ...notesByColumn,
       [sourceColumn]: sourceNotes,
@@ -277,7 +268,6 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
       console.error("Erro ao atualizar status:", error);
       toast.error("Erro ao atualizar status da nota.");
       
-      // Reverter em caso de erro
       setNotesByColumn({
         ...notesByColumn,
         [sourceColumn]: [...notesByColumn[sourceColumn], removed],
@@ -377,6 +367,7 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
                             onDeleteColumn={handleDeleteColumn}
                             onUpdateColumnColor={handleUpdateColumnColor}
                             onMoveColumn={handleMoveColumn}
+                            isDragging={snapshot.isDragging}
                           >
                             {(notesByColumn[column.column_id] || []).map((note, noteIndex) => (
                               <Draggable key={note.id} draggableId={note.id} index={noteIndex}>

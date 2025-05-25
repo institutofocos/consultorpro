@@ -24,6 +24,7 @@ interface KanbanColumnProps {
   onUpdateColumnColor: (id: string, color: string) => void;
   onMoveColumn: (id: string, direction: 'left' | 'right') => void;
   children: React.ReactNode;
+  isDragging?: boolean;
 }
 
 const KanbanColumn: React.FC<KanbanColumnProps> = ({
@@ -36,6 +37,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   onUpdateColumnColor,
   onMoveColumn,
   children,
+  isDragging = false,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(title);
@@ -67,9 +69,12 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   };
 
   return (
-    <div className="flex flex-col min-w-[300px] w-1/4 max-h-[calc(100vh-200px)] relative">
-      {/* Header da coluna */}
-      <div className={`p-3 rounded-t-md font-medium ${bgColor} flex items-center justify-between border-b border-gray-200`}>
+    <div className={`flex flex-col min-w-[300px] w-1/4 max-h-[calc(100vh-200px)] relative transition-all duration-200 ${
+      isDragging ? 'opacity-50 transform rotate-2 scale-105' : ''
+    }`}>
+      <div className={`p-3 rounded-t-md font-medium ${bgColor} flex items-center justify-between border-b border-gray-200 ${
+        isDragging ? 'shadow-lg' : ''
+      }`}>
         <div className="flex items-center flex-1">
           {isEditing ? (
             <div className="flex items-center gap-2 flex-1">
@@ -153,7 +158,6 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
         </div>
       </div>
       
-      {/* Color picker */}
       {showColorPicker && (
         <div className="absolute top-14 right-0 z-50">
           <div className="relative">
@@ -169,7 +173,6 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
         </div>
       )}
       
-      {/* Área droppable para as notas */}
       <Droppable droppableId={id}>
         {(provided, snapshot) => (
           <div

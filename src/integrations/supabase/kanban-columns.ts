@@ -70,7 +70,7 @@ export const deleteKanbanColumn = async (id: string): Promise<void> => {
 };
 
 export const updateColumnOrder = async (updates: { id: string; order_index: number }[]): Promise<void> => {
-  console.log('Atualizando ordem das colunas:', updates);
+  console.log('Updating column order:', updates);
   
   for (const update of updates) {
     const { error } = await supabase
@@ -79,28 +79,26 @@ export const updateColumnOrder = async (updates: { id: string; order_index: numb
       .eq('id', update.id);
     
     if (error) {
-      console.error(`Erro ao atualizar coluna ${update.id}:`, error);
+      console.error(`Error updating column ${update.id}:`, error);
       throw error;
     }
   }
   
-  console.log('Ordem das colunas atualizada com sucesso');
+  console.log('Column order updated successfully');
 };
 
 export const swapColumnPositions = async (column1Id: string, column2Id: string): Promise<void> => {
-  // Buscar as duas colunas
   const { data: columns, error: fetchError } = await supabase
     .from('kanban_columns')
     .select('id, order_index')
     .in('id', [column1Id, column2Id]);
 
   if (fetchError || !columns || columns.length !== 2) {
-    throw new Error('Erro ao buscar colunas para troca');
+    throw new Error('Error fetching columns for swap');
   }
 
   const [col1, col2] = columns;
   
-  // Trocar as posições
   await updateColumnOrder([
     { id: col1.id, order_index: col2.order_index },
     { id: col2.id, order_index: col1.order_index }
