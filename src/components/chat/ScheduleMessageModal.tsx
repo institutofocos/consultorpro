@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,20 +8,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { fetchWhatsAppConnections } from '@/integrations/supabase/whatsapp';
+import { createScheduledMessage, updateScheduledMessage, type ScheduledMessage, type CreateScheduledMessageData } from '@/integrations/supabase/scheduled-messages';
 
 interface ScheduleMessageModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   roomId: string;
+  editingMessage?: ScheduledMessage | null;
 }
 
 const ScheduleMessageModal: React.FC<ScheduleMessageModalProps> = ({ 
   open, 
   onOpenChange, 
-  roomId 
+  roomId,
+  editingMessage = null
 }) => {
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
@@ -32,13 +34,80 @@ const ScheduleMessageModal: React.FC<ScheduleMessageModalProps> = ({
   const [recurrenceType, setRecurrenceType] = useState('');
   const [recurrenceDay, setRecurrenceDay] = useState('');
   const [recurrenceTime, setRecurrenceTime] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Buscar conexões WhatsApp disponíveis
   const { data: connections = [] } = useQuery({
     queryKey: ['whatsapp-connections'],
     queryFn: fetchWhatsAppConnections
+  });
+
+  // Preencher formulário se estiver editando
+  useEffect(() => {
+    if (editingMessage) {
+      setTitle(editingMessage.title);
+      setMessage(editingMessage.message);
+      setConnectionId(editingMessage.connection_id || '');
+      setSendDate(editingMessage.send_date || '');
+      setSendTime(editingMessage.send_time || '');
+      setIsRecurring(editingMessage.is_recurring || false);
+      setRecurrenceType(editingMessage.recurrence_type || '');
+      setRecurrenceDay(editingMessage.recurrence_day?.toString() || '');
+      setRecurrenceTime(editingMessage.recurrence_time || '');
+    } else {
+      // Resetar formulário para nova mensagem
+      setTitle('');
+      setMessage('');
+      setConnectionId('');
+      setSendDate('');
+      setSendTime('');
+      setIsRecurring(false);
+      setRecurrenceType('');
+      setRecurrenceDay('');
+      setRecurrenceTime('');
+    }
+  }, [editingMessage, open]);
+
+  // Criar mensagem agendada
+  const createMutation = useMutation({
+    mutationFn: createScheduledMessage,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scheduled-messages', roomId] });
+      toast({
+        title: "Sucesso",
+        description: "Mensagem agendada com sucesso!"
+      });
+      onOpenChange(false);
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível agendar a mensagem."
+      });
+    }
+  });
+
+  // Atualizar mensagem agendada
+  const updateMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<ScheduledMessage> }) => 
+      updateScheduledMessage(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scheduled-messages', roomId] });
+      toast({
+        title: "Sucesso",
+        description: "Mensagem atualizada com sucesso!"
+      });
+      onOpenChange(false);
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível atualizar a mensagem."
+      });
+    }
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -71,57 +140,29 @@ const ScheduleMessageModal: React.FC<ScheduleMessageModalProps> = ({
       return;
     }
 
-    setIsLoading(true);
-    
-    try {
-      const scheduledMessage = {
-        title: title.trim(),
-        message: message.trim(),
-        room_id: roomId,
-        sender_id: 'temp-user-id', // TODO: Usar ID do usuário atual
-        sender_name: 'Usuário Atual', // TODO: Usar nome do usuário atual
-        connection_id: connectionId || null,
-        send_date: isRecurring ? null : sendDate,
-        send_time: isRecurring ? null : sendTime,
-        is_recurring: isRecurring,
-        recurrence_type: isRecurring ? recurrenceType : null,
-        recurrence_day: isRecurring ? parseInt(recurrenceDay) : null,
-        recurrence_time: isRecurring ? recurrenceTime : null,
-        status: 'active'
-      };
+    const messageData = {
+      title: title.trim(),
+      message: message.trim(),
+      room_id: roomId,
+      sender_id: 'temp-user-id', // TODO: Usar ID do usuário atual
+      sender_name: 'Usuário Atual', // TODO: Usar nome do usuário atual
+      connection_id: connectionId || null,
+      send_date: isRecurring ? null : sendDate,
+      send_time: isRecurring ? null : sendTime,
+      is_recurring: isRecurring,
+      recurrence_type: isRecurring ? recurrenceType : null,
+      recurrence_day: isRecurring ? parseInt(recurrenceDay) : null,
+      recurrence_time: isRecurring ? recurrenceTime : null,
+      status: 'active'
+    };
 
-      const { error } = await supabase
-        .from('scheduled_messages')
-        .insert(scheduledMessage);
-
-      if (error) throw error;
-
-      toast({
-        title: "Sucesso",
-        description: "Mensagem agendada com sucesso!"
+    if (editingMessage) {
+      updateMutation.mutate({ 
+        id: editingMessage.id, 
+        updates: messageData 
       });
-
-      // Resetar formulário
-      setTitle('');
-      setMessage('');
-      setConnectionId('');
-      setSendDate('');
-      setSendTime('');
-      setIsRecurring(false);
-      setRecurrenceType('');
-      setRecurrenceDay('');
-      setRecurrenceTime('');
-      
-      onOpenChange(false);
-    } catch (error) {
-      console.error('Erro ao agendar mensagem:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível agendar a mensagem."
-      });
-    } finally {
-      setIsLoading(false);
+    } else {
+      createMutation.mutate(messageData as CreateScheduledMessageData);
     }
   };
 
@@ -143,11 +184,15 @@ const ScheduleMessageModal: React.FC<ScheduleMessageModalProps> = ({
     return days;
   };
 
+  const isLoading = createMutation.isPending || updateMutation.isPending;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Agendar Mensagem</DialogTitle>
+          <DialogTitle>
+            {editingMessage ? 'Editar Mensagem Agendada' : 'Agendar Mensagem'}
+          </DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -282,7 +327,7 @@ const ScheduleMessageModal: React.FC<ScheduleMessageModalProps> = ({
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Agendando...' : 'Agendar'}
+              {isLoading ? 'Salvando...' : editingMessage ? 'Atualizar' : 'Agendar'}
             </Button>
           </div>
         </form>

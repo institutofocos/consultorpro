@@ -5,8 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import EmojiPicker from './EmojiPicker';
 import ScheduleMessageModal from './ScheduleMessageModal';
+import ScheduledMessagesTab from './ScheduledMessagesTab';
+import AudioRecordingModal from './AudioRecordingModal';
 
 interface ChatInputProps {
   onSendMessage: (message: string) => Promise<void>;
@@ -19,10 +22,13 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = false, 
   const [isSending, setIsSending] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showAudioModal, setShowAudioModal] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [schedulePopoverOpen, setSchedulePopoverOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -90,27 +96,22 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = false, 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
-      
-      const audioChunks: Blob[] = [];
+      audioChunksRef.current = [];
       
       mediaRecorder.ondataavailable = (event) => {
-        audioChunks.push(event.data);
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
       };
       
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-        // TODO: Implementar envio de áudio
-        toast({
-          title: "Funcionalidade em desenvolvimento",
-          description: "Envio de áudio será implementado em breve."
-        });
-        
         // Parar todas as streams
         stream.getTracks().forEach(track => track.stop());
       };
       
       mediaRecorder.start();
       setIsRecording(true);
+      setShowAudioModal(true);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -120,11 +121,40 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = false, 
     }
   };
 
+  const pauseRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.pause();
+    }
+  };
+
+  const resumeRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.resume();
+    }
+  };
+
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
     }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      audioChunksRef.current = [];
+    }
+    setShowAudioModal(false);
+  };
+
+  const handleSendAudio = async (audioBlob: Blob) => {
+    // TODO: Implementar envio de áudio
+    toast({
+      title: "Funcionalidade em desenvolvimento",
+      description: "Envio de áudio será implementado em breve."
+    });
   };
 
   return (
@@ -176,17 +206,42 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = false, 
             </Popover>
             
             {/* Botão de agendamento */}
-            <Button 
-              type="button" 
-              size="icon" 
-              variant="ghost" 
-              className="h-8 w-8 rounded-full"
-              onClick={() => setShowScheduleModal(true)}
-              disabled={disabled || !roomId}
-            >
-              <Calendar className="h-4 w-4" />
-              <span className="sr-only">Agendar mensagem</span>
-            </Button>
+            <Popover open={schedulePopoverOpen} onOpenChange={setSchedulePopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button 
+                  type="button" 
+                  size="icon" 
+                  variant="ghost" 
+                  className="h-8 w-8 rounded-full"
+                  disabled={disabled || !roomId}
+                >
+                  <Calendar className="h-4 w-4" />
+                  <span className="sr-only">Agendar mensagem</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-96 p-4">
+                <Tabs defaultValue="new" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="new">Nova Mensagem</TabsTrigger>
+                    <TabsTrigger value="list">Agendadas</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="new" className="mt-4">
+                    <Button 
+                      onClick={() => {
+                        setShowScheduleModal(true);
+                        setSchedulePopoverOpen(false);
+                      }}
+                      className="w-full"
+                    >
+                      Agendar Nova Mensagem
+                    </Button>
+                  </TabsContent>
+                  <TabsContent value="list" className="mt-4">
+                    {roomId && <ScheduledMessagesTab roomId={roomId} />}
+                  </TabsContent>
+                </Tabs>
+              </PopoverContent>
+            </Popover>
             
             {/* Botão de gravação de áudio */}
             <Button 
@@ -194,10 +249,8 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = false, 
               size="icon" 
               variant="ghost" 
               className={`h-8 w-8 rounded-full ${isRecording ? 'bg-red-100 text-red-600' : ''}`}
-              onMouseDown={startRecording}
-              onMouseUp={stopRecording}
-              onMouseLeave={stopRecording}
-              disabled={disabled}
+              onClick={startRecording}
+              disabled={disabled || isRecording}
             >
               {isRecording ? (
                 <MicOff className="h-4 w-4" />
@@ -205,7 +258,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = false, 
                 <Mic className="h-4 w-4" />
               )}
               <span className="sr-only">
-                {isRecording ? 'Parar gravação' : 'Gravar áudio'}
+                {isRecording ? 'Gravando áudio' : 'Gravar áudio'}
               </span>
             </Button>
             
@@ -227,8 +280,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = false, 
         </div>
         
         <p className="text-xs text-muted-foreground mt-2">
-          Pressione Enter para enviar, Shift+Enter para nova linha. 
-          {isRecording && <span className="text-red-600 font-medium"> • Gravando áudio...</span>}
+          Pressione Enter para enviar, Shift+Enter para nova linha.
         </p>
         
         {/* Input oculto para arquivos */}
@@ -240,6 +292,18 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = false, 
           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
         />
       </form>
+
+      {/* Modal de gravação de áudio */}
+      <AudioRecordingModal
+        open={showAudioModal}
+        onOpenChange={setShowAudioModal}
+        onSendAudio={handleSendAudio}
+        isRecording={isRecording}
+        onStartRecording={resumeRecording}
+        onPauseRecording={pauseRecording}
+        onStopRecording={stopRecording}
+        onCancelRecording={cancelRecording}
+      />
 
       {/* Modal de agendamento */}
       {roomId && (
