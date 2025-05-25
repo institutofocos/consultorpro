@@ -274,36 +274,50 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
   // Nova função para mover colunas
   const handleMoveColumn = async (columnId: string, direction: 'left' | 'right') => {
     try {
+      console.log('Iniciando movimento da coluna:', { columnId, direction });
       const sortedColumns = [...columns].sort((a, b) => a.order_index - b.order_index);
       const currentIndex = sortedColumns.findIndex(col => col.column_id === columnId);
       
-      if (currentIndex === -1) return;
+      if (currentIndex === -1) {
+        console.error('Coluna não encontrada:', columnId);
+        toast.error('Coluna não encontrada.');
+        return;
+      }
       
       let newIndex: number;
       if (direction === 'left') {
         newIndex = Math.max(0, currentIndex - 1);
+        if (currentIndex === 0) {
+          toast.info('A coluna já está na primeira posição.');
+          return;
+        }
       } else {
         newIndex = Math.min(sortedColumns.length - 1, currentIndex + 1);
+        if (currentIndex === sortedColumns.length - 1) {
+          toast.info('A coluna já está na última posição.');
+          return;
+        }
       }
       
-      // Se não há mudança de posição, retorna
-      if (currentIndex === newIndex) return;
+      console.log('Movimento:', { currentIndex, newIndex, totalColumns: sortedColumns.length });
       
       // Reordena as colunas
       const newColumns = [...sortedColumns];
       const [movedColumn] = newColumns.splice(currentIndex, 1);
       newColumns.splice(newIndex, 0, movedColumn);
       
-      // Atualizar ordem no banco
+      // Atualizar ordem no banco - criar array de updates com os novos índices
       const updates = newColumns.map((col, index) => ({
         id: col.id,
         order_index: index
       }));
       
-      console.log('Movendo coluna:', { columnId, direction, from: currentIndex, to: newIndex });
+      console.log('Atualizando ordem das colunas:', updates);
       await updateColumnOrder(updates);
       await refetchColumns();
-      toast.success('Coluna movida com sucesso!');
+      
+      const directionText = direction === 'left' ? 'esquerda' : 'direita';
+      toast.success(`Coluna movida para a ${directionText}!`);
     } catch (error) {
       console.error('Erro ao mover coluna:', error);
       toast.error('Erro ao mover coluna.');
