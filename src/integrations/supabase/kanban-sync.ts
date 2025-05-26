@@ -42,6 +42,26 @@ export const syncKanbanToStages = async (
   try {
     console.log('Sincronizando Kanban -> Etapas:', { projectId, newKanbanStatus });
 
+    // Verificar se a coluna de destino é marcada como finalizada ou cancelada
+    const targetColumn = kanbanColumns.find(col => col.column_id === newKanbanStatus);
+    
+    if (targetColumn?.is_completion_column) {
+      // Verificar se todas as etapas estão concluídas antes de mover para finalizado
+      const { data: stages, error: stagesError } = await supabase
+        .from('project_stages')
+        .select('completed')
+        .eq('project_id', projectId);
+
+      if (stagesError) throw stagesError;
+
+      if (stages && stages.length > 0) {
+        const allCompleted = stages.every(stage => stage.completed);
+        if (!allCompleted) {
+          throw new Error('Não é possível finalizar o projeto. Todas as etapas devem estar concluídas primeiro.');
+        }
+      }
+    }
+
     // Buscar as etapas do projeto
     const { data: stages, error } = await supabase
       .from('project_stages')
@@ -73,27 +93,52 @@ export const syncKanbanToStages = async (
 
     const projectName = project?.name || 'Projeto';
 
-    // Atualizar etapas baseado na posição da coluna
-    for (let i = 0; i < stages.length; i++) {
-      const stage = stages[i];
-      const shouldBeCompleted = i <= currentColumnIndex;
-      const newStageStatus = shouldBeCompleted ? 'finalizados' : stage.status;
-
-      // Atualizar apenas se necessário
-      if (stage.completed !== shouldBeCompleted || stage.status !== newStageStatus) {
+    // Se a coluna é de finalização ou cancelamento, marcar todas as etapas adequadamente
+    if (targetColumn?.is_completion_column) {
+      const isFinalized = targetColumn.column_type === 'completed';
+      const isCancelled = targetColumn.column_type === 'cancelled';
+      
+      for (const stage of stages) {
         const updates: Partial<Stage> = {
-          completed: shouldBeCompleted,
-          status: newStageStatus as Stage['status']
+          completed: isFinalized,
+          status: isFinalized ? 'finalizados' : (isCancelled ? 'cancelados' : stage.status) as Stage['status']
         };
 
-        // Se está marcando como concluída, atualizar campos relacionados
-        if (shouldBeCompleted) {
+        // Se está finalizando, atualizar campos relacionados
+        if (isFinalized) {
           updates.managerApproved = true;
           updates.clientApproved = true;
+          updates.invoiceIssued = true;
+          updates.paymentReceived = true;
+          updates.consultantsSettled = true;
         }
 
         await updateStageStatus(stage.id, updates, projectName, stage.name);
         console.log(`Etapa ${stage.name} atualizada:`, updates);
+      }
+    } else {
+      // Lógica normal para outras colunas
+      for (let i = 0; i < stages.length; i++) {
+        const stage = stages[i];
+        const shouldBeCompleted = i <= currentColumnIndex;
+        const newStageStatus = shouldBeCompleted ? 'finalizados' : stage.status;
+
+        // Atualizar apenas se necessário
+        if (stage.completed !== shouldBeCompleted || stage.status !== newStageStatus) {
+          const updates: Partial<Stage> = {
+            completed: shouldBeCompleted,
+            status: newStageStatus as Stage['status']
+          };
+
+          // Se está marcando como concluída, atualizar campos relacionados
+          if (shouldBeCompleted) {
+            updates.managerApproved = true;
+            updates.clientApproved = true;
+          }
+
+          await updateStageStatus(stage.id, updates, projectName, stage.name);
+          console.log(`Etapa ${stage.name} atualizada:`, updates);
+        }
       }
     }
 

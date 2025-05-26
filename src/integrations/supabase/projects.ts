@@ -786,12 +786,16 @@ const syncStageWithTask = async (projectName: string, stageName: string, updates
       const totalCount = allStages.length;
       
       let taskStatus = 'a_fazer';
-      if (completedCount === totalCount && totalCount > 0) {
-        taskStatus = 'finalizado';
-      } else if (completedCount > 0) {
+      
+      if (completedCount === 0) {
+        taskStatus = 'a_fazer';
+      } else if (completedCount === totalCount) {
+        taskStatus = 'finalizados';
+      } else {
         taskStatus = 'em_producao';
       }
 
+      // Atualizar status da tarefa principal
       const { error: taskUpdateError } = await supabase
         .from('notes')
         .update({ 

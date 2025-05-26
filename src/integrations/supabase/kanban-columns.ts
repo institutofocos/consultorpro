@@ -1,4 +1,3 @@
-
 import { supabase } from './client';
 
 export interface KanbanColumn {
@@ -8,8 +7,10 @@ export interface KanbanColumn {
   bg_color: string;
   order_index: number;
   is_default: boolean;
-  created_at: string;
-  updated_at: string;
+  is_completion_column: boolean;
+  column_type: 'normal' | 'completed' | 'cancelled';
+  created_at?: string;
+  updated_at?: string;
 }
 
 export const fetchKanbanColumns = async (): Promise<KanbanColumn[]> => {
@@ -19,47 +20,69 @@ export const fetchKanbanColumns = async (): Promise<KanbanColumn[]> => {
       .select('*')
       .order('order_index');
 
-    if (error) {
-      console.error('Error fetching kanban columns:', error);
-      throw error;
-    }
+    if (error) throw error;
 
-    return data || [];
+    return (data || []).map(column => ({
+      id: column.id,
+      column_id: column.column_id,
+      title: column.title,
+      bg_color: column.bg_color,
+      order_index: column.order_index,
+      is_default: column.is_default,
+      is_completion_column: column.is_completion_column || false,
+      column_type: column.column_type || 'normal',
+      created_at: column.created_at,
+      updated_at: column.updated_at,
+    }));
   } catch (error) {
-    console.error('Error in fetchKanbanColumns:', error);
+    console.error('Error fetching kanban columns:', error);
     return [];
   }
 };
 
-export const createKanbanColumn = async (column: Omit<KanbanColumn, 'id' | 'created_at' | 'updated_at'>): Promise<KanbanColumn> => {
-  const { data, error } = await supabase
-    .from('kanban_columns')
-    .insert(column)
-    .select()
-    .single();
+export const createKanbanColumn = async (column: Omit<KanbanColumn, 'id' | 'created_at' | 'updated_at'>): Promise<KanbanColumn | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('kanban_columns')
+      .insert({
+        column_id: column.column_id,
+        title: column.title,
+        bg_color: column.bg_color,
+        order_index: column.order_index,
+        is_default: column.is_default,
+        is_completion_column: column.is_completion_column || false,
+        column_type: column.column_type || 'normal',
+      })
+      .select()
+      .single();
 
-  if (error) {
+    if (error) throw error;
+    return data as KanbanColumn;
+  } catch (error) {
     console.error('Error creating kanban column:', error);
-    throw error;
+    return null;
   }
-
-  return data;
 };
 
-export const updateKanbanColumn = async (id: string, updates: Partial<Omit<KanbanColumn, 'id' | 'created_at' | 'updated_at'>>): Promise<KanbanColumn> => {
-  const { data, error } = await supabase
-    .from('kanban_columns')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
+export const updateKanbanColumn = async (id: string, updates: Partial<KanbanColumn>): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('kanban_columns')
+      .update({
+        title: updates.title,
+        bg_color: updates.bg_color,
+        order_index: updates.order_index,
+        is_default: updates.is_default,
+        is_completion_column: updates.is_completion_column,
+        column_type: updates.column_type,
+      })
+      .eq('id', id);
 
-  if (error) {
+    if (error) throw error;
+  } catch (error) {
     console.error('Error updating kanban column:', error);
     throw error;
   }
-
-  return data;
 };
 
 export const deleteKanbanColumn = async (id: string): Promise<void> => {
