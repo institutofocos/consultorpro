@@ -22,8 +22,17 @@ export type Note = {
   service_name?: string;
   tag_names?: string[];
   checklists?: NoteChecklist[];
+  custom_fields?: NoteCustomField[];
   linked_task_id?: string | null;
   linked_task?: Note | null;
+};
+
+export type NoteCustomField = {
+  id: string;
+  note_id: string;
+  field_name: string;
+  field_value?: string;
+  created_at?: string;
 };
 
 export type NoteChecklist = {
@@ -78,6 +87,13 @@ export const fetchNotes = async (): Promise<Note[]> => {
           updated_at,
           responsible_consultant:responsible_consultant_id(name)
         ),
+        custom_fields:note_custom_fields(
+          id,
+          note_id,
+          field_name,
+          field_value,
+          created_at
+        ),
         linked_task:linked_task_id(id, title, status)
       `)
       .order('created_at', { ascending: false });
@@ -104,6 +120,8 @@ export const fetchNotes = async (): Promise<Note[]> => {
           }))
         : [];
 
+      const customFields = note.custom_fields || [];
+
       let linkedTask = null;
       if (note.linked_task && note.linked_task.id) {
         linkedTask = note.linked_task;
@@ -117,6 +135,7 @@ export const fetchNotes = async (): Promise<Note[]> => {
         consultant_names: consultantNames,
         tag_names: tagNames,
         checklists: checklists,
+        custom_fields: customFields,
         linked_task: linkedTask
       } as Note;
     });
@@ -146,6 +165,7 @@ export const fetchNoteById = async (id: string): Promise<Note | null> => {
     let serviceName: string | null = null;
     let tagNames: string[] = [];
     let checklists: NoteChecklist[] = [];
+    let customFields: NoteCustomField[] = [];
 
     const { data: noteConsultants } = await supabase
       .from('note_consultants')
@@ -207,6 +227,16 @@ export const fetchNoteById = async (id: string): Promise<Note | null> => {
       }));
     }
 
+    const { data: customFieldsData } = await supabase
+      .from('note_custom_fields')
+      .select('*')
+      .eq('note_id', data.id)
+      .order('created_at', { ascending: true });
+
+    if (customFieldsData) {
+      customFields = customFieldsData;
+    }
+
     const { data: noteTags } = await supabase
       .from('note_tag_relations')
       .select(`
@@ -226,6 +256,7 @@ export const fetchNoteById = async (id: string): Promise<Note | null> => {
       service_name: serviceName,
       tag_names: tagNames,
       checklists: checklists,
+      custom_fields: customFields,
       status: data.status as Note['status']
     } as Note;
   } catch (error) {
@@ -236,7 +267,7 @@ export const fetchNoteById = async (id: string): Promise<Note | null> => {
 
 export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'updated_at'>): Promise<Note | null> => {
   try {
-    const { consultant_ids, tag_ids, checklists, ...noteFields } = noteData;
+    const { consultant_ids, tag_ids, checklists, custom_fields, ...noteFields } = noteData;
     
     const dbFields = {
       title: noteFields.title,
@@ -296,6 +327,19 @@ export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'upd
         .insert(checklistData);
     }
 
+    if (custom_fields && custom_fields.length > 0) {
+      const customFieldsData = custom_fields.map(customField => ({
+        note_id: noteResult.id,
+        field_name: customField.field_name,
+        field_value: customField.field_value,
+        created_at: new Date().toISOString()
+      }));
+      
+      await supabase
+        .from('note_custom_fields')
+        .insert(customFieldsData);
+    }
+
     if (noteData.has_internal_chat) {
       try {
         const { data: chatRoom, error: chatError } = await supabase
@@ -340,7 +384,7 @@ export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'upd
 
 export const updateNote = async (id: string, noteData: Partial<Note>): Promise<Note | null> => {
   try {
-    const { consultant_ids, tag_ids, checklists, chat_room_id, consultant_names, client_name, service_name, tag_names, ...noteFields } = noteData;
+    const { consultant_ids, tag_ids, checklists, chat_room_id, consultant_names, client_name, service_name, tag_names, custom_fields, ...noteFields } = noteData;
 
     if (noteFields.status === 'finalizados') {
       const note = await fetchNoteById(id);
@@ -435,6 +479,26 @@ export const updateNote = async (id: string, noteData: Partial<Note>): Promise<N
         await supabase
           .from('note_checklists')
           .insert(checklistData);
+      }
+    }
+
+    if (custom_fields !== undefined) {
+      await supabase
+        .from('note_custom_fields')
+        .delete()
+        .eq('note_id', id);
+      
+      if (custom_fields.length > 0) {
+        const customFieldsData = custom_fields.map(customField => ({
+          note_id: id,
+          field_name: customField.field_name,
+          field_value: customField.field_value,
+          created_at: new Date().toISOString()
+        }));
+        
+        await supabase
+          .from('note_custom_fields')
+          .insert(customFieldsData);
       }
     }
     

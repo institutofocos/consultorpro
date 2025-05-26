@@ -180,6 +180,15 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
       // Passar informações do projeto e etapa para sincronização
       await updateStageStatus(stageId, updates, project.name, stageToUpdate.name);
       
+      // Sincronizar com o Kanban se a etapa foi marcada como concluída
+      if (newStatus === 'finalizados') {
+        const { syncStageToKanban } = await import('@/integrations/supabase/kanban-sync');
+        const { fetchKanbanColumns } = await import('@/integrations/supabase/kanban-columns');
+        
+        const kanbanColumns = await fetchKanbanColumns();
+        await syncStageToKanban(project.id, stageId, kanbanColumns);
+      }
+      
       toast({
         title: "Sucesso",
         description: "Status da etapa atualizado com sucesso!"
@@ -370,7 +379,12 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
                   <div key={stage.id} className="border rounded-md p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <div className="font-medium">{stage.name}</div>
+                        <div className={`font-medium ${stage.completed ? 'line-through text-muted-foreground' : ''}`}>
+                          {stage.name}
+                          {stage.completed && (
+                            <span className="ml-2 text-green-600 text-sm">✓ Concluída</span>
+                          )}
+                        </div>
                         {stage.description && (
                           <TooltipProvider>
                             <Tooltip>
@@ -425,7 +439,9 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
                       </DropdownMenu>
                     </div>
                     
-                    <div className="text-sm text-muted-foreground grid grid-cols-2 gap-1">
+                    <div className={`text-sm text-muted-foreground grid grid-cols-2 gap-1 ${
+                      stage.completed ? 'opacity-60' : ''
+                    }`}>
                       <div>Data de Início: {stage.startDate ? formatDate(stage.startDate) : 'Não definida'}</div>
                       <div>Data de Término: {stage.endDate ? formatDate(stage.endDate) : 'Não definida'}</div>
                       <div>Valor: {new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(stage.value || 0)}</div>

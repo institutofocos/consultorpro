@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { Note, updateNoteStatus } from '@/integrations/supabase/notes';
@@ -83,6 +82,8 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
           bg_color: getRandomColumnColor(),
           order_index: maxOrder + 1,
           is_default: false,
+          is_completion_column: false,
+          column_type: 'normal',
         };
         
         await createKanbanColumn(newColumn);
@@ -122,6 +123,20 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     } catch (error) {
       console.error('Erro ao atualizar cor da coluna:', error);
       toast.error('Erro ao atualizar cor da coluna.');
+    }
+  };
+
+  const handleConfigureColumn = async (columnId: string, updates: Partial<KanbanColumnType>) => {
+    try {
+      const column = columns.find(col => col.column_id === columnId);
+      if (!column) return;
+
+      await updateKanbanColumn(column.id, updates);
+      await refetchColumns();
+      toast.success('Coluna configurada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao configurar coluna:', error);
+      toast.error('Erro ao configurar coluna.');
     }
   };
 
@@ -216,7 +231,9 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
     const sourceColumn = source.droppableId as Note['status'];
     const destColumn = destination.droppableId as Note['status'];
     
-    if (destColumn === "finalizados") {
+    // Verificar se a coluna de destino é de finalização
+    const targetColumn = columns.find(col => col.column_id === destColumn);
+    if (targetColumn?.is_completion_column && targetColumn.column_type === 'completed') {
       const draggedNote = notes.find(note => note.id === draggableId);
       if (draggedNote && draggedNote.linked_task_id) {
         const linkedTask = draggedNote.linked_task;
@@ -368,9 +385,11 @@ const NotesKanban: React.FC<NotesKanbanProps> = ({
                             title={column.title}
                             bgColor={column.bg_color}
                             notes={notesByColumn[column.column_id] || []}
+                            column={column}
                             onUpdateColumn={handleUpdateColumn}
                             onDeleteColumn={handleDeleteColumn}
                             onUpdateColumnColor={handleUpdateColumnColor}
+                            onConfigureColumn={handleConfigureColumn}
                             onMoveColumn={handleMoveColumn}
                             isDragging={snapshot.isDragging}
                           >

@@ -177,7 +177,10 @@ export const updateStageStatus = async (stageId: string, updates: Partial<Stage>
   
   const { error } = await supabase
     .from('project_stages')
-    .update(updates)
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    })
     .eq('id', stageId);
 
   if (error) {
@@ -185,9 +188,40 @@ export const updateStageStatus = async (stageId: string, updates: Partial<Stage>
     throw error;
   }
 
-  // Sincronizar com a tarefa se informações necessárias estão disponíveis
-  if (projectName && stageName && updates.status) {
-    await syncStageWithTask(projectName, stageName, updates.status);
+  // Se temos informações do projeto e etapa, sincronizar com a tarefa
+  if (projectName && stageName) {
+    await syncStageWithTask(projectName, stageName, updates);
+  }
+
+  // Se a etapa foi marcada como concluída ou teve seu status alterado, 
+  // buscar o projeto para sincronizar o progresso geral
+  if (updates.completed !== undefined || updates.status) {
+    try {
+      // Buscar o projeto da etapa
+      const { data: stage } = await supabase
+        .from('project_stages')
+        .select('project_id')
+        .eq('id', stageId)
+        .single();
+
+      if (stage) {
+        // Buscar informações do projeto
+        const { data: project } = await supabase
+          .from('projects')
+          .select('id, name')
+          .eq('id', stage.project_id)
+          .single();
+
+        if (project) {
+          // Importar a função de sincronização dinamicamente para evitar dependência circular
+          const { syncProjectStageWithTask } = await import('./kanban-sync');
+          await syncProjectStageWithTask(project.id, project.name);
+        }
+      }
+    } catch (syncError) {
+      console.error('Erro na sincronização automática:', syncError);
+      // Não falhar a atualização da etapa por causa de erro de sincronização
+    }
   }
 };
 
@@ -685,69 +719,95 @@ export const fetchProjectById = async (projectId: string): Promise<Project | nul
 };
 
 // Função para sincronizar status da etapa com a tarefa correspondente
-const syncStageWithTask = async (projectName: string, stageName: string, newStatus: Stage['status']) => {
+const syncStageWithTask = async (projectName: string, stageName: string, updates: Partial<Stage>) => {
   try {
-    console.log('Sincronizando etapa com tarefa:', { projectName, stageName, newStatus });
+    console.log('Sincronizando etapa com tarefa:', { projectName, stageName, updates });
     
     // Buscar a tarefa principal do projeto
     const { data: mainTask, error: taskError } = await supabase
       .from('notes')
-      .select('id')
+      .select('id, title')
       .ilike('title', `Projeto: ${projectName}%`)
       .single();
 
     if (taskError || !mainTask) {
-      console.log('Tarefa principal não encontrada para sincronização');
+      console.log('Tarefa principal não encontrada para o projeto');
       return;
     }
 
-    // Buscar o checklist item correspondente à etapa
-    const { data: checklistItem, error: checklistError } = await supabase
-      .from('note_checklists')
-      .select('id')
-      .eq('note_id', mainTask.id)
-      .eq('title', stageName)
-      .single();
-
-    if (checklistError || !checklistItem) {
-      console.log('Item de checklist não encontrado para sincronização');
-      return;
-    }
-
-    // Atualizar o status do checklist item baseado no status da etapa
-    const completed = newStatus === 'finalizados';
-    const { error: updateError } = await supabase
-      .from('note_checklists')
-      .update({ 
-        completed: completed,
-        completed_at: completed ? new Date().toISOString() : null
-      })
-      .eq('id', checklistItem.id);
-
-    if (updateError) {
-      console.error('Erro ao atualizar checklist:', updateError);
-    } else {
-      console.log('Checklist sincronizado com sucesso');
-    }
-
-    // Se todas as etapas estão finalizadas, atualizar o status da tarefa principal
-    if (completed) {
-      const { data: allChecklists, error: allChecklistsError } = await supabase
+    // Se o status foi alterado para finalizados ou completed foi definido
+    if (updates.status === 'finalizados' || updates.completed === true) {
+      // Marcar o checklist item como concluído
+      const { error: checklistError } = await supabase
         .from('note_checklists')
-        .select('completed')
-        .eq('note_id', mainTask.id);
+        .update({
+          completed: true,
+          completed_at: new Date().toISOString()
+        })
+        .eq('note_id', mainTask.id)
+        .eq('title', stageName);
 
-      if (!allChecklistsError && allChecklists) {
-        const allCompleted = allChecklists.every(item => item.completed);
-        
-        if (allCompleted) {
-          await supabase
-            .from('notes')
-            .update({ status: 'finalizados' })
-            .eq('id', mainTask.id);
-          
-          console.log('Tarefa principal marcada como finalizada');
-        }
+      if (checklistError) {
+        console.error('Erro ao atualizar checklist item:', checklistError);
+      } else {
+        console.log(`Checklist item "${stageName}" marcado como concluído`);
+      }
+    } else if (updates.completed === false) {
+      // Desmarcar o checklist item
+      const { error: checklistError } = await supabase
+        .from('note_checklists')
+        .update({
+          completed: false,
+          completed_at: null
+        })
+        .eq('note_id', mainTask.id)
+        .eq('title', stageName);
+
+      if (checklistError) {
+        console.error('Erro ao atualizar checklist item:', checklistError);
+      } else {
+        console.log(`Checklist item "${stageName}" desmarcado como concluído`);
+      }
+    }
+
+    // Atualizar o status geral da tarefa baseado no progresso das etapas
+    const { data: allStages, error: stagesError } = await supabase
+      .from('project_stages')
+      .select('completed')
+      .eq('project_id', (await supabase
+        .from('projects')
+        .select('id')
+        .eq('name', projectName)
+        .single()
+      ).data?.id);
+
+    if (!stagesError && allStages) {
+      const completedCount = allStages.filter(stage => stage.completed).length;
+      const totalCount = allStages.length;
+      
+      let taskStatus = 'a_fazer';
+      
+      if (completedCount === 0) {
+        taskStatus = 'a_fazer';
+      } else if (completedCount === totalCount) {
+        taskStatus = 'finalizados';
+      } else {
+        taskStatus = 'em_producao';
+      }
+
+      // Atualizar status da tarefa principal
+      const { error: taskUpdateError } = await supabase
+        .from('notes')
+        .update({ 
+          status: taskStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', mainTask.id);
+
+      if (taskUpdateError) {
+        console.error('Erro ao atualizar status da tarefa:', taskUpdateError);
+      } else {
+        console.log(`Status da tarefa atualizado para: ${taskStatus}`);
       }
     }
   } catch (error) {
