@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit3, Trash2, Calendar, ChevronDown, ChevronRight, FileText, Check, X } from 'lucide-react';
+import { Edit3, Trash2, Calendar, ChevronDown, ChevronRight, FileText, Check, X, Pencil } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
@@ -50,6 +50,7 @@ interface ProjectsExpandedTableProps {
   projects: Project[];
   onUpdateProject?: (project: Project) => Promise<void>;
   onDeleteProject?: (id: string) => Promise<void>;
+  onEditProject?: (project: Project) => void;
   onRefresh?: () => void;
 }
 
@@ -98,6 +99,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
   projects,
   onUpdateProject,
   onDeleteProject,
+  onEditProject,
   onRefresh,
 }) => {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
@@ -194,6 +196,12 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
     if (window.confirm('Tem certeza que deseja excluir esta etapa?')) {
       await deleteStage(stageId);
       onRefresh?.();
+    }
+  };
+
+  const handleEditProject = (project: Project) => {
+    if (onEditProject) {
+      onEditProject(project);
     }
   };
 
@@ -300,6 +308,15 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
           </TableCell>
           <TableCell className="text-right">
             <div className="flex justify-end gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleEditProject(project)}
+                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700"
+                title="Editar projeto"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"

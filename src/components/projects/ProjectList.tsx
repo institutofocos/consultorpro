@@ -19,6 +19,7 @@ const ProjectList: React.FC = () => {
   const [clientFilter, setClientFilter] = useState<string>('');
   const [clients, setClients] = useState<Array<{id: string, name: string}>>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<any>(null);
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -62,6 +63,11 @@ const ProjectList: React.FC = () => {
     }
   };
 
+  const handleEditProject = (project: any) => {
+    setEditingProject(project);
+    setIsDialogOpen(true);
+  };
+
   const clearFilters = () => {
     setSearchTerm('');
     setStatusFilter('');
@@ -71,7 +77,13 @@ const ProjectList: React.FC = () => {
   const handleProjectSaved = () => {
     refetch();
     setIsDialogOpen(false);
+    setEditingProject(null);
     toast.success("Projeto salvo com sucesso!");
+  };
+
+  const handleDialogClose = () => {
+    setIsDialogOpen(false);
+    setEditingProject(null);
   };
 
   return (
@@ -79,7 +91,7 @@ const ProjectList: React.FC = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold tracking-tight">Projetos</h1>
         <div className="flex items-center">
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
             <DialogTrigger asChild>
               <Button size="sm" variant="outline" className="ml-auto gap-1">
                 <Plus className="h-4 w-4" />
@@ -88,11 +100,14 @@ const ProjectList: React.FC = () => {
             </DialogTrigger>
             <DialogContent size="full" className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Novo Projeto</DialogTitle>
+                <DialogTitle>
+                  {editingProject ? 'Editar Projeto' : 'Novo Projeto'}
+                </DialogTitle>
               </DialogHeader>
               <ProjectForm
+                project={editingProject}
                 onProjectSaved={handleProjectSaved}
-                onCancel={() => setIsDialogOpen(false)}
+                onCancel={handleDialogClose}
               />
             </DialogContent>
           </Dialog>
@@ -165,6 +180,7 @@ const ProjectList: React.FC = () => {
             <ProjectsExpandedTable
               projects={filteredProjects}
               onDeleteProject={handleDeleteProject}
+              onEditProject={handleEditProject}
               onRefresh={refetch}
             />
           )}
