@@ -522,9 +522,9 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
               />
               {formData.tags && formData.tags.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.tags.map((tag, index) => (
+                  {formData.tags.map((tagName, index) => (
                     <Badge key={index} variant="secondary" className="text-xs">
-                      {tag}
+                      {tagName}
                       <button
                         type="button"
                         onClick={() => setFormData(prev => ({
