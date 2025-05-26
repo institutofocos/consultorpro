@@ -56,7 +56,7 @@ export const syncKanbanToStages = async (
 
       if (stages && stages.length > 0) {
         const allCompleted = stages.every(stage => stage.completed);
-        if (!allCompleted) {
+        if (!allCompleted && targetColumn.column_type === 'completed') {
           throw new Error('Não é possível finalizar o projeto. Todas as etapas devem estar concluídas primeiro.');
         }
       }
@@ -106,11 +106,11 @@ export const syncKanbanToStages = async (
 
         // Se está finalizando, atualizar campos relacionados
         if (isFinalized) {
-          updates.managerApproved = true;
-          updates.clientApproved = true;
-          updates.invoiceIssued = true;
-          updates.paymentReceived = true;
-          updates.consultantsSettled = true;
+          updates.manager_approved = true;
+          updates.client_approved = true;
+          updates.invoice_issued = true;
+          updates.payment_received = true;
+          updates.consultants_settled = true;
         }
 
         await updateStageStatus(stage.id, updates, projectName, stage.name);
@@ -132,8 +132,8 @@ export const syncKanbanToStages = async (
 
           // Se está marcando como concluída, atualizar campos relacionados
           if (shouldBeCompleted) {
-            updates.managerApproved = true;
-            updates.clientApproved = true;
+            updates.manager_approved = true;
+            updates.client_approved = true;
           }
 
           await updateStageStatus(stage.id, updates, projectName, stage.name);
