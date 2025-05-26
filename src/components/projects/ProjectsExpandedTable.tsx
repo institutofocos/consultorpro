@@ -2,12 +2,20 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Eye, Search, ChevronDown, ChevronRight } from 'lucide-react';
+import { Edit, Trash2, Eye, Search, ChevronDown, ChevronRight, Zap } from 'lucide-react';
 import { Project } from './types';
 import ServiceNameCell from './ServiceNameCell';
 import ProjectDetails from './ProjectDetails';
 import ProjectDescriptionModal from './ProjectDescriptionModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useProjectActions } from '@/hooks/useProjectActions';
+import { toast } from 'sonner';
 
 interface ProjectsExpandedTableProps {
   projects: Project[];
@@ -29,6 +37,19 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
   const [selectedStageForDescription, setSelectedStageForDescription] = useState<{ name: string; description: string } | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
 
+  const { updateProjectStatus, updateStageStatus, completeStage, uncompleteStage, isLoading } = useProjectActions();
+
+  const statusOptions = [
+    { value: 'em_producao', label: 'Em produção' },
+    { value: 'aguardando_assinatura', label: 'Aguardando Assinatura' },
+    { value: 'aguardando_aprovacao', label: 'Aguardando Aprovação' },
+    { value: 'aguardando_nota_fiscal', label: 'Aguardando Nota Fiscal' },
+    { value: 'aguardando_repasse', label: 'Aguardando Repasse' },
+    { value: 'aguardando_pagamento', label: 'Aguardando Pagamento' },
+    { value: 'concluido', label: 'Concluído' },
+    { value: 'cancelado', label: 'Cancelado' }
+  ];
+
   const toggleProjectExpansion = (projectId: string) => {
     const newExpanded = new Set(expandedProjects);
     if (newExpanded.has(projectId)) {
@@ -37,6 +58,33 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
       newExpanded.add(projectId);
     }
     setExpandedProjects(newExpanded);
+  };
+
+  const handleProjectStatusChange = async (projectId: string, newStatus: string) => {
+    try {
+      await updateProjectStatus(projectId, newStatus);
+      toast.success('Status do projeto atualizado com sucesso!');
+      await onRefresh();
+    } catch (error) {
+      console.error('Erro ao atualizar status do projeto:', error);
+      toast.error('Erro ao atualizar status do projeto');
+    }
+  };
+
+  const handleStageStatusChange = async (stageId: string, newStatus: string) => {
+    try {
+      if (newStatus === 'concluido') {
+        await completeStage(stageId);
+        toast.success('Etapa concluída com sucesso!');
+      } else {
+        await updateStageStatus(stageId, newStatus);
+        toast.success('Status da etapa atualizado com sucesso!');
+      }
+      await onRefresh();
+    } catch (error) {
+      console.error('Erro ao atualizar status da etapa:', error);
+      toast.error('Erro ao atualizar status da etapa');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -303,6 +351,29 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={isLoading}
+                              title="Alterar status do projeto"
+                            >
+                              <Zap className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            {statusOptions.map((option) => (
+                              <DropdownMenuItem
+                                key={option.value}
+                                onClick={() => handleProjectStatusChange(project.id, option.value)}
+                              >
+                                {option.label}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        
                         <Button
                           variant="outline"
                           size="sm"
@@ -346,8 +417,8 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-xs">
-                          Etapa
+                        <Badge className={getStatusColor(stage.status)} variant="outline">
+                          {getStatusLabel(stage.status)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">-</TableCell>
@@ -380,7 +451,32 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                       <TableCell className="text-muted-foreground text-sm">
                         {stage.completed ? '100%' : '0%'}
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">-</TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={isLoading}
+                                title="Alterar status da etapa"
+                              >
+                                <Zap className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              {statusOptions.map((option) => (
+                                <DropdownMenuItem
+                                  key={option.value}
+                                  onClick={() => handleStageStatusChange(stage.id, option.value)}
+                                >
+                                  {option.label}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </React.Fragment>
