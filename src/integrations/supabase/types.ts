@@ -221,13 +221,6 @@ export type Database = {
             referencedRelation: "chat_rooms"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "chat_rooms_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
         ]
       }
       clients: {
@@ -455,20 +448,6 @@ export type Database = {
             columns: ["consultant_id"]
             isOneToOne: false
             referencedRelation: "consultants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "financial_transactions_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "financial_transactions_stage_id_fkey"
-            columns: ["stage_id"]
-            isOneToOne: false
-            referencedRelation: "project_stages"
             referencedColumns: ["id"]
           },
         ]
@@ -1057,13 +1036,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "project_stages_consultant_id_fkey"
-            columns: ["consultant_id"]
-            isOneToOne: false
-            referencedRelation: "consultants"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "project_stages_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -1145,7 +1117,6 @@ export type Database = {
           manager_phone: string | null
           name: string
           project_id: string | null
-          selected_tags: string[] | null
           service_id: string | null
           start_date: string
           status: string
@@ -1174,7 +1145,6 @@ export type Database = {
           manager_phone?: string | null
           name: string
           project_id?: string | null
-          selected_tags?: string[] | null
           service_id?: string | null
           start_date: string
           status?: string
@@ -1203,7 +1173,6 @@ export type Database = {
           manager_phone?: string | null
           name?: string
           project_id?: string | null
-          selected_tags?: string[] | null
           service_id?: string | null
           start_date?: string
           status?: string
@@ -1217,36 +1186,7 @@ export type Database = {
           total_value?: number
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "projects_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "projects_main_consultant_id_fkey"
-            columns: ["main_consultant_id"]
-            isOneToOne: false
-            referencedRelation: "consultants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "projects_service_id_fkey"
-            columns: ["service_id"]
-            isOneToOne: false
-            referencedRelation: "services"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "projects_support_consultant_id_fkey"
-            columns: ["support_consultant_id"]
-            isOneToOne: false
-            referencedRelation: "consultants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       scheduled_messages: {
         Row: {
@@ -1419,22 +1359,7 @@ export type Database = {
           stage_id?: string
           tag_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "stage_tag_relations_stage_id_fkey"
-            columns: ["stage_id"]
-            isOneToOne: false
-            referencedRelation: "project_stages"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "stage_tag_relations_tag_id_fkey"
-            columns: ["tag_id"]
-            isOneToOne: false
-            referencedRelation: "project_tags"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       system_logs: {
         Row: {

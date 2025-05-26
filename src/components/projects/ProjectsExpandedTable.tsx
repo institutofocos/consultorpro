@@ -88,12 +88,17 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
-    }).format(value);
+    }).format(value || 0);
   };
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('pt-BR');
+    try {
+      return new Date(dateString).toLocaleDateString('pt-BR');
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return '-';
+    }
   };
 
   const handleViewProject = (project: Project) => {
@@ -109,6 +114,14 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
   const handleProjectUpdated = async () => {
     await onRefresh();
   };
+
+  if (!projects || projects.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <p>Nenhum projeto encontrado.</p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -135,7 +148,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
               <TableRow key={project.id}>
                 <TableCell className="font-medium">
                   <div>
-                    <div className="font-semibold">{project.name}</div>
+                    <div className="font-semibold">{project.name || 'Sem nome'}</div>
                     {project.projectId && (
                       <div className="text-sm text-muted-foreground">
                         ID: {project.projectId}

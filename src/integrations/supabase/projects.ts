@@ -3,6 +3,7 @@ import { supabase } from "./client";
 
 export const fetchProjects = async () => {
   try {
+    console.log('Fetching projects...');
     const { data, error } = await supabase
       .from('projects')
       .select(`
@@ -40,68 +41,78 @@ export const fetchProjects = async () => {
       `)
       .order('created_at', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching projects:', error);
+      throw error;
+    }
+
+    console.log('Raw projects data:', data);
 
     // Transform the data to match the Project interface
-    const transformedData = data?.map(project => ({
-      id: project.id,
-      projectId: project.project_id,
-      name: project.name,
-      description: project.description,
-      serviceId: project.service_id,
-      clientId: project.client_id,
-      mainConsultantId: project.main_consultant_id,
-      mainConsultantCommission: project.main_consultant_commission || 0,
-      supportConsultantId: project.support_consultant_id,
-      supportConsultantCommission: project.support_consultant_commission || 0,
-      startDate: project.start_date,
-      endDate: project.end_date,
-      totalValue: project.total_value || 0,
-      taxPercent: project.tax_percent || 16,
-      thirdPartyExpenses: project.third_party_expenses || 0,
-      consultantValue: project.main_consultant_value || 0,
-      supportConsultantValue: project.support_consultant_value || 0,
-      managerName: project.manager_name,
-      managerEmail: project.manager_email,
-      managerPhone: project.manager_phone,
-      totalHours: project.total_hours || 0,
-      hourlyRate: project.hourly_rate || 0,
-      status: project.status,
-      tags: project.project_tag_relations?.map(rel => rel.tag?.name).filter(Boolean) || [],
-      tagIds: project.project_tag_relations?.map(rel => rel.tag?.id).filter(Boolean) || [],
-      stages: project.project_stages?.map(stage => ({
-        id: stage.id,
-        projectId: project.id,
-        name: stage.name,
-        description: stage.description || '',
-        days: stage.days || 1,
-        hours: stage.hours || 8,
-        value: stage.value || 0,
-        startDate: stage.start_date,
-        endDate: stage.end_date,
-        consultantId: stage.consultant_id,
-        completed: stage.completed || false,
-        clientApproved: stage.client_approved || false,
-        managerApproved: stage.manager_approved || false,
-        invoiceIssued: stage.invoice_issued || false,
-        paymentReceived: stage.payment_received || false,
-        consultantsSettled: stage.consultants_settled || false,
-        attachment: stage.attachment,
-        stageOrder: stage.stage_order || 1,
-        status: stage.status || 'iniciar_projeto',
-        createdAt: stage.created_at,
-        updatedAt: stage.updated_at
-      })) || [],
-      // Extended properties from joins
-      mainConsultantName: project.main_consultant?.name,
-      supportConsultantName: project.support_consultant?.name,
-      serviceName: project.services?.name,
-      clientName: project.clients?.name,
-      completedStages: project.project_stages?.filter(stage => stage.completed).length || 0,
-      createdAt: project.created_at,
-      updatedAt: project.updated_at
-    })) || [];
+    const transformedData = data?.map(project => {
+      console.log('Transforming project:', project);
+      
+      return {
+        id: project.id,
+        projectId: project.project_id,
+        name: project.name,
+        description: project.description,
+        serviceId: project.service_id,
+        clientId: project.client_id,
+        mainConsultantId: project.main_consultant_id,
+        mainConsultantCommission: project.main_consultant_commission || 0,
+        supportConsultantId: project.support_consultant_id,
+        supportConsultantCommission: project.support_consultant_commission || 0,
+        startDate: project.start_date,
+        endDate: project.end_date,
+        totalValue: project.total_value || 0,
+        taxPercent: project.tax_percent || 16,
+        thirdPartyExpenses: project.third_party_expenses || 0,
+        consultantValue: project.main_consultant_value || 0,
+        supportConsultantValue: project.support_consultant_value || 0,
+        managerName: project.manager_name,
+        managerEmail: project.manager_email,
+        managerPhone: project.manager_phone,
+        totalHours: project.total_hours || 0,
+        hourlyRate: project.hourly_rate || 0,
+        status: project.status,
+        tags: project.project_tag_relations?.map(rel => rel.tag?.name).filter(Boolean) || [],
+        tagIds: project.project_tag_relations?.map(rel => rel.tag?.id).filter(Boolean) || [],
+        stages: project.project_stages?.map(stage => ({
+          id: stage.id,
+          projectId: project.id,
+          name: stage.name,
+          description: stage.description || '',
+          days: stage.days || 1,
+          hours: stage.hours || 8,
+          value: stage.value || 0,
+          startDate: stage.start_date,
+          endDate: stage.end_date,
+          consultantId: stage.consultant_id,
+          completed: stage.completed || false,
+          clientApproved: stage.client_approved || false,
+          managerApproved: stage.manager_approved || false,
+          invoiceIssued: stage.invoice_issued || false,
+          paymentReceived: stage.payment_received || false,
+          consultantsSettled: stage.consultants_settled || false,
+          attachment: stage.attachment,
+          stageOrder: stage.stage_order || 1,
+          status: stage.status || 'iniciar_projeto',
+          createdAt: stage.created_at,
+          updatedAt: stage.updated_at
+        })) || [],
+        // Extended properties from joins
+        mainConsultantName: project.main_consultant?.name,
+        supportConsultantName: project.support_consultant?.name,
+        serviceName: project.services?.name,
+        clientName: project.clients?.name,
+        completedStages: project.project_stages?.filter(stage => stage.completed).length || 0,
+        createdAt: project.created_at,
+        updatedAt: project.updated_at
+      };
+    }) || [];
 
+    console.log('Transformed projects data:', transformedData);
     return transformedData;
   } catch (error) {
     console.error('Error fetching projects:', error);
