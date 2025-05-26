@@ -36,7 +36,7 @@ export const useProjectStatuses = () => {
       return data || [];
     },
     staleTime: 0, // Always refetch to ensure fresh data
-    cacheTime: 0, // Don't cache to prevent stale data
+    gcTime: 0, // Don't cache to prevent stale data (renamed from cacheTime)
   });
 
   const getStatusDisplay = (statusName: string) => {
