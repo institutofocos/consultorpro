@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -40,7 +39,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
 
   const { updateProjectStatus, updateStageStatus, completeStage, uncompleteStage, isLoading } = useProjectActions();
-  const { statuses, getStatusDisplay, getStatusColorClass } = useProjectStatuses();
+  const { statuses, getStatusDisplay, getStatusBadgeStyle } = useProjectStatuses();
 
   const toggleProjectExpansion = (projectId: string) => {
     const newExpanded = new Set(expandedProjects);
@@ -65,7 +64,10 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
 
   const handleStageStatusChange = async (stageId: string, newStatus: string) => {
     try {
-      if (newStatus === 'concluido') {
+      // Verificar se o novo status é um status de conclusão
+      const statusSetting = statuses.find(s => s.name === newStatus);
+      
+      if (statusSetting?.is_completion_status) {
         await completeStage(stageId);
         toast.success('Etapa concluída com sucesso!');
       } else {
@@ -79,54 +81,22 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'em_planejamento':
-        return 'bg-blue-100 text-blue-800';
-      case 'em_producao':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'concluido':
-        return 'bg-green-100 text-green-800';
-      case 'cancelado':
-        return 'bg-red-100 text-red-800';
-      case 'aguardando_assinatura':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'aguardando_aprovacao':
-        return 'bg-orange-100 text-orange-800';
-      case 'aguardando_nota_fiscal':
-        return 'bg-purple-100 text-purple-800';
-      case 'aguardando_pagamento':
-        return 'bg-pink-100 text-pink-800';
-      case 'aguardando_repasse':
-        return 'bg-indigo-100 text-indigo-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+  // Função para calcular o progresso do projeto baseado em status de conclusão
+  const calculateProjectProgress = (project: Project) => {
+    if (!project.stages || project.stages.length === 0) return { completed: 0, total: 0 };
+    
+    const completedStages = project.stages.filter(stage => {
+      const stageStatus = statuses.find(s => s.name === stage.status);
+      return stageStatus?.is_completion_status || false;
+    }).length;
+    
+    return { completed: completedStages, total: project.stages.length };
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'em_planejamento':
-        return 'Em Planejamento';
-      case 'em_producao':
-        return 'Em Produção';
-      case 'concluido':
-        return 'Concluído';
-      case 'cancelado':
-        return 'Cancelado';
-      case 'aguardando_assinatura':
-        return 'Aguardando Assinatura';
-      case 'aguardando_aprovacao':
-        return 'Aguardando Aprovação';
-      case 'aguardando_nota_fiscal':
-        return 'Aguardando Nota Fiscal';
-      case 'aguardando_pagamento':
-        return 'Aguardando Pagamento';
-      case 'aguardando_repasse':
-        return 'Aguardando Repasse';
-      default:
-        return status;
-    }
+  // Função para verificar se uma etapa está concluída baseada no status
+  const isStageCompleted = (stageStatus: string) => {
+    const statusSetting = statuses.find(s => s.name === stageStatus);
+    return statusSetting?.is_completion_status || false;
   };
 
   const formatCurrency = (value: number) => {
@@ -240,6 +210,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
               const isExpanded = expandedProjects.has(project.id);
               const hasStages = project.stages && project.stages.length > 0;
               const statusDisplay = getStatusDisplay(project.status);
+              const progress = calculateProjectProgress(project);
               
               return (
                 <React.Fragment key={project.id}>
@@ -274,7 +245,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge className={getStatusColorClass(project.status)}>
+                      <Badge style={getStatusBadgeStyle(project.status)}>
                         {statusDisplay.label}
                       </Badge>
                     </TableCell>
@@ -315,7 +286,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        {project.completedStages || 0}/{project.stages?.length || 0}
+                        {progress.completed}/{progress.total}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
@@ -331,7 +302,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                               <Zap className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent>
+                          <DropdownMenuContent className="bg-white border shadow-lg z-50">
                             {statuses.length === 0 ? (
                               <DropdownMenuItem disabled className="text-muted-foreground">
                                 Nenhum status disponível
@@ -342,6 +313,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                                   key={status.id}
                                   onClick={() => handleProjectStatusChange(project.id, status.name)}
                                   disabled={status.name === project.status}
+                                  className="cursor-pointer hover:bg-gray-100"
                                 >
                                   <div className="flex items-center gap-2">
                                     <div 
@@ -387,6 +359,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                   {/* Linhas das etapas expandidas */}
                   {isExpanded && hasStages && project.stages?.map((stage, index) => {
                     const stageStatusDisplay = getStatusDisplay(stage.status);
+                    const stageCompleted = isStageCompleted(stage.status);
                     
                     return (
                       <TableRow key={`${project.id}-stage-${index}`} className="bg-muted/30">
@@ -397,7 +370,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge className={getStatusColorClass(stage.status)} variant="outline">
+                          <Badge style={getStatusBadgeStyle(stage.status)} variant="outline">
                             {stageStatusDisplay.label}
                           </Badge>
                         </TableCell>
@@ -431,7 +404,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                           )}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
-                          {stage.completed ? '100%' : '0%'}
+                          {stageCompleted ? '100%' : '0%'}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end space-x-2">
@@ -446,7 +419,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                                   <Zap className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent>
+                              <DropdownMenuContent className="bg-white border shadow-lg z-50">
                                 {statuses.length === 0 ? (
                                   <DropdownMenuItem disabled className="text-muted-foreground">
                                     Nenhum status disponível
@@ -457,6 +430,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                                       key={status.id}
                                       onClick={() => handleStageStatusChange(stage.id, status.name)}
                                       disabled={status.name === stage.status}
+                                      className="cursor-pointer hover:bg-gray-100"
                                     >
                                       <div className="flex items-center gap-2">
                                         <div 

@@ -62,18 +62,8 @@ export const useProjectStatuses = () => {
   const getStatusColorClass = (statusName: string) => {
     const statusSetting = statuses.find(s => s.name === statusName);
     if (statusSetting) {
-      // Mapear cores hex para classes Tailwind
-      const colorMap: { [key: string]: string } = {
-        '#3b82f6': 'bg-blue-100 text-blue-800',
-        '#f59e0b': 'bg-yellow-100 text-yellow-800', 
-        '#10b981': 'bg-green-100 text-green-800',
-        '#ef4444': 'bg-red-100 text-red-800',
-        '#8b5cf6': 'bg-purple-100 text-purple-800',
-        '#06b6d4': 'bg-cyan-100 text-cyan-800',
-        '#84cc16': 'bg-lime-100 text-lime-800',
-        '#f97316': 'bg-orange-100 text-orange-800',
-      };
-      return colorMap[statusSetting.color] || 'bg-gray-100 text-gray-800';
+      // Create dynamic inline styles based on the actual color from database
+      return `text-white border-transparent shadow`;
     }
 
     // Fallback para status antigos
@@ -85,6 +75,19 @@ export const useProjectStatuses = () => {
     };
     
     return fallbackColorClasses[statusName] || 'bg-gray-100 text-gray-800';
+  };
+
+  // Function to get badge style with dynamic background color
+  const getStatusBadgeStyle = (statusName: string) => {
+    const statusSetting = statuses.find(s => s.name === statusName);
+    if (statusSetting) {
+      return {
+        backgroundColor: statusSetting.color,
+        color: '#ffffff',
+        border: 'transparent'
+      };
+    }
+    return {};
   };
 
   // Function to invalidate and refetch statuses
@@ -99,6 +102,7 @@ export const useProjectStatuses = () => {
     refetch,
     getStatusDisplay,
     getStatusColorClass,
+    getStatusBadgeStyle,
     invalidateStatuses
   };
 };

@@ -24,7 +24,7 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
   onClose,
   onProjectUpdated
 }) => {
-  const { statuses, isLoading: statusesLoading, getStatusDisplay, getStatusColorClass } = useProjectStatuses();
+  const { statuses, isLoading: statusesLoading, getStatusDisplay, getStatusBadgeStyle } = useProjectStatuses();
   const { updateProjectStatus, isLoading } = useProjectActions();
 
   const handleStatusChange = async (newStatus: string) => {
@@ -55,7 +55,20 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
     }
   };
 
+  // Calcular progresso baseado em status de conclusão
+  const calculateProgress = () => {
+    if (!project.stages || project.stages.length === 0) return { completed: 0, total: 0 };
+    
+    const completedStages = project.stages.filter(stage => {
+      const stageStatus = statuses.find(s => s.name === stage.status);
+      return stageStatus?.is_completion_status || false;
+    }).length;
+    
+    return { completed: completedStages, total: project.stages.length };
+  };
+
   const statusDisplay = getStatusDisplay(project.status);
+  const progress = calculateProgress();
 
   return (
     <div className="space-y-6">
@@ -64,7 +77,7 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
         <div>
           <div className="flex items-center gap-3 mb-2">
             <h2 className="text-2xl font-bold">{project.name}</h2>
-            <Badge className={getStatusColorClass(project.status)}>
+            <Badge style={getStatusBadgeStyle(project.status)}>
               {statusDisplay.label}
             </Badge>
             {project.projectId && (
@@ -215,7 +228,7 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Progresso</label>
                   <p className="text-lg font-semibold">
-                    {project.completedStages || 0}/{project.stages?.length || 0}
+                    {progress.completed}/{progress.total}
                   </p>
                 </div>
               </div>
