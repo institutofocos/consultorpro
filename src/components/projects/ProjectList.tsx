@@ -23,9 +23,27 @@ const ProjectList: React.FC = () => {
 
   useEffect(() => {
     const fetchClients = async () => {
-      const { data } = await supabase.from('clients').select('id, name').order('name');
-      if (data) setClients(data);
+      try {
+        const { data, error } = await supabase
+          .from('clients')
+          .select('id, name')
+          .order('name');
+        
+        if (error) {
+          console.error('Erro ao buscar clientes:', error);
+          toast.error('Erro ao carregar clientes');
+          return;
+        }
+        
+        if (data) {
+          setClients(data);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar clientes:', error);
+        toast.error('Erro ao carregar clientes');
+      }
     };
+    
     fetchClients();
   }, []);
 
@@ -54,7 +72,7 @@ const ProjectList: React.FC = () => {
     if (window.confirm("Tem certeza que deseja excluir este projeto?")) {
       try {
         await deleteProject(id);
-        refetch();
+        await refetch();
         toast.success("Projeto excluído com sucesso!");
       } catch (error) {
         console.error("Erro ao excluir projeto:", error);
@@ -64,7 +82,14 @@ const ProjectList: React.FC = () => {
   };
 
   const handleEditProject = (project: any) => {
+    console.log('Editando projeto:', project);
     setEditingProject(project);
+    setIsDialogOpen(true);
+  };
+
+  const handleNewProject = () => {
+    console.log('Criando novo projeto');
+    setEditingProject(null);
     setIsDialogOpen(true);
   };
 
@@ -72,18 +97,35 @@ const ProjectList: React.FC = () => {
     setSearchTerm('');
     setStatusFilter('');
     setClientFilter('');
+    toast.success('Filtros limpos com sucesso!');
   };
 
-  const handleProjectSaved = () => {
-    refetch();
-    setIsDialogOpen(false);
-    setEditingProject(null);
-    toast.success("Projeto salvo com sucesso!");
+  const handleProjectSaved = async () => {
+    try {
+      await refetch();
+      setIsDialogOpen(false);
+      setEditingProject(null);
+      toast.success("Projeto salvo com sucesso!");
+    } catch (error) {
+      console.error('Erro ao atualizar lista de projetos:', error);
+      toast.error('Erro ao atualizar lista de projetos');
+    }
   };
 
   const handleDialogClose = () => {
+    console.log('Fechando dialog');
     setIsDialogOpen(false);
     setEditingProject(null);
+  };
+
+  const handleStatusFilterChange = (value: string) => {
+    console.log('Mudando filtro de status para:', value);
+    setStatusFilter(value);
+  };
+
+  const handleClientFilterChange = (value: string) => {
+    console.log('Mudando filtro de cliente para:', value);
+    setClientFilter(value);
   };
 
   return (
@@ -93,7 +135,12 @@ const ProjectList: React.FC = () => {
         <div className="flex items-center">
           <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
             <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="ml-auto gap-1">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="ml-auto gap-1"
+                onClick={handleNewProject}
+              >
                 <Plus className="h-4 w-4" />
                 <span>Novo</span>
               </Button>
@@ -120,10 +167,13 @@ const ProjectList: React.FC = () => {
             <Input
               placeholder="Buscar projetos..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                console.log('Mudando termo de busca:', e.target.value);
+                setSearchTerm(e.target.value);
+              }}
             />
             
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -140,7 +190,7 @@ const ProjectList: React.FC = () => {
               </SelectContent>
             </Select>
 
-            <Select value={clientFilter} onValueChange={setClientFilter}>
+            <Select value={clientFilter} onValueChange={handleClientFilterChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Cliente" />
               </SelectTrigger>

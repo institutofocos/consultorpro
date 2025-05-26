@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -17,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { useProjectActions } from '@/hooks/useProjectActions';
+import { toast } from 'sonner';
 
 interface Project {
   id: string;
@@ -153,55 +153,115 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
   };
 
   const handleStatusChange = async (projectId: string, newStatus: string, isStage = false, stageId?: string) => {
-    if (isStage && stageId) {
-      await updateStageStatus(stageId, newStatus);
-    } else {
-      await updateProjectStatus(projectId, newStatus);
+    try {
+      console.log('Mudando status:', { projectId, newStatus, isStage, stageId });
+      
+      if (isStage && stageId) {
+        await updateStageStatus(stageId, newStatus);
+        toast.success('Status da etapa atualizado com sucesso!');
+      } else {
+        await updateProjectStatus(projectId, newStatus);
+        toast.success('Status do projeto atualizado com sucesso!');
+      }
+      
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      toast.error('Erro ao atualizar status');
     }
-    onRefresh?.();
   };
 
   const handleCompleteProject = async (projectId: string, isStage = false, stageId?: string) => {
-    if (isStage && stageId) {
-      const project = projects.find(p => p.id === projectId);
-      const stage = project?.stages?.find(s => s.id === stageId);
+    try {
+      console.log('Completando:', { projectId, isStage, stageId });
       
-      if (stage?.completed) {
-        await uncompleteStage(stageId);
+      if (isStage && stageId) {
+        const project = projects.find(p => p.id === projectId);
+        const stage = project?.stages?.find(s => s.id === stageId);
+        
+        if (stage?.completed) {
+          await uncompleteStage(stageId);
+          toast.success('Conclusão da etapa desfeita com sucesso!');
+        } else {
+          await completeStage(stageId);
+          toast.success('Etapa concluída com sucesso!');
+        }
       } else {
-        await completeStage(stageId);
+        const project = projects.find(p => p.id === projectId);
+        const allStagesCompleted = project?.stages?.every(stage => stage.completed) ?? true;
+        
+        if (!allStagesCompleted) {
+          toast.error('Todas as etapas devem estar concluídas antes de concluir o projeto.');
+          return;
+        }
+        
+        await completeProject(projectId);
+        toast.success('Projeto concluído com sucesso!');
       }
-    } else {
-      const project = projects.find(p => p.id === projectId);
-      const allStagesCompleted = project?.stages?.every(stage => stage.completed) ?? true;
       
-      if (!allStagesCompleted) {
-        alert('Todas as etapas devem estar concluídas antes de concluir o projeto.');
-        return;
+      if (onRefresh) {
+        await onRefresh();
       }
-      
-      await completeProject(projectId);
+    } catch (error) {
+      console.error('Erro ao completar:', error);
+      toast.error('Erro ao completar');
     }
-    onRefresh?.();
   };
 
   const handleCancelProject = async (projectId: string) => {
     if (window.confirm('Tem certeza que deseja cancelar este projeto?')) {
-      await cancelProject(projectId);
-      onRefresh?.();
+      try {
+        console.log('Cancelando projeto:', projectId);
+        await cancelProject(projectId);
+        toast.success('Projeto cancelado com sucesso!');
+        
+        if (onRefresh) {
+          await onRefresh();
+        }
+      } catch (error) {
+        console.error('Erro ao cancelar projeto:', error);
+        toast.error('Erro ao cancelar projeto');
+      }
     }
   };
 
   const handleDeleteStage = async (stageId: string) => {
     if (window.confirm('Tem certeza que deseja excluir esta etapa?')) {
-      await deleteStage(stageId);
-      onRefresh?.();
+      try {
+        console.log('Deletando etapa:', stageId);
+        await deleteStage(stageId);
+        toast.success('Etapa excluída com sucesso!');
+        
+        if (onRefresh) {
+          await onRefresh();
+        }
+      } catch (error) {
+        console.error('Erro ao excluir etapa:', error);
+        toast.error('Erro ao excluir etapa');
+      }
     }
   };
 
   const handleEditProject = (project: Project) => {
+    console.log('Editando projeto na tabela:', project);
     if (onEditProject) {
       onEditProject(project);
+    }
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    if (window.confirm('Tem certeza que deseja excluir este projeto?')) {
+      try {
+        console.log('Deletando projeto:', projectId);
+        if (onDeleteProject) {
+          await onDeleteProject(projectId);
+        }
+      } catch (error) {
+        console.error('Erro ao excluir projeto:', error);
+        toast.error('Erro ao excluir projeto');
+      }
     }
   };
 
@@ -335,17 +395,15 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
               >
                 <X className="h-4 w-4" />
               </Button>
-              {onDeleteProject && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onDeleteProject(project.id)}
-                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
-                  title="Excluir projeto"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDeleteProject(project.id)}
+                className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                title="Excluir projeto"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
           </TableCell>
         </TableRow>
