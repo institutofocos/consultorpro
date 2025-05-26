@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,10 +13,10 @@ import { Textarea } from "@/components/ui/textarea";
 interface ChatRoom {
   id: string;
   name: string;
-  description: string; // Make this required to match the expected type
+  description: string;
   level: number;
-  parent_id?: string;
-  project_id?: string;
+  parent_id: string; // Make this required to match the expected type
+  project_id: string; // Make this required to match the expected type
   created_at: string;
   updated_at: string;
   projects?: {
@@ -64,10 +63,12 @@ const ChatPage: React.FC = () => {
         return;
       }
 
-      // Transform the data to handle the join properly
+      // Transform the data to handle the join properly and ensure required fields
       const transformedData = data?.map(room => ({
         ...room,
         description: room.description || '', // Ensure description is always a string
+        parent_id: room.parent_id || '', // Ensure parent_id is always a string
+        project_id: room.project_id || '', // Ensure project_id is always a string
         projects: room.projects ? { status: room.projects.status } : undefined
       })) || [];
 
@@ -202,8 +203,8 @@ const ChatPage: React.FC = () => {
               name: selectedRoom.name,
               description: selectedRoom.description,
               level: selectedRoom.level,
-              parent_id: selectedRoom.parent_id || '',
-              project_id: selectedRoom.project_id || '',
+              parent_id: selectedRoom.parent_id,
+              project_id: selectedRoom.project_id,
               created_at: selectedRoom.created_at,
               updated_at: selectedRoom.updated_at
             }}

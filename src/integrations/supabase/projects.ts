@@ -9,8 +9,8 @@ export const fetchProjects = async () => {
         *,
         clients:client_id(id, name),
         services:service_id(id, name),
-        main_consultant:main_consultant_id(id, name),
-        support_consultant:support_consultant_id(id, name),
+        main_consultant:consultants!projects_main_consultant_id_fkey(id, name),
+        support_consultant:consultants!projects_support_consultant_id_fkey(id, name),
         project_stages(
           id,
           name,
@@ -32,7 +32,7 @@ export const fetchProjects = async () => {
           attachment,
           created_at,
           updated_at,
-          consultant:consultant_id(id, name)
+          consultant:consultants!project_stages_consultant_id_fkey(id, name)
         ),
         project_tag_relations(
           tag:project_tags(id, name, color)
