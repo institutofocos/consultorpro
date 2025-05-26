@@ -1,3 +1,4 @@
+
 import { supabase } from './client';
 import { updateStageStatus } from './projects';
 import { Project, Stage } from '@/components/projects/types';
@@ -187,16 +188,7 @@ export const syncStageToKanban = async (
     
     // Se todas as etapas estão concluídas, mover para a última coluna (geralmente "Finalizados")
     if (completedStagesCount === stages.length) {
-      // Procurar por uma coluna marcada como de conclusão (finalizados)
-      const completionColumn = kanbanColumns.find(col => 
-        col.is_completion_column && col.column_type === 'completed'
-      );
-      
-      if (completionColumn) {
-        targetColumnIndex = kanbanColumns.findIndex(col => col.id === completionColumn.id);
-      } else {
-        targetColumnIndex = kanbanColumns.length - 1;
-      }
+      targetColumnIndex = kanbanColumns.length - 1;
     }
 
     const targetColumn = kanbanColumns[targetColumnIndex];
@@ -222,77 +214,6 @@ export const syncStageToKanban = async (
   } catch (error) {
     console.error('Erro na sincronização Etapa -> Kanban:', error);
     return null;
-  }
-};
-
-/**
- * Sincroniza quando uma etapa é atualizada em "Atualizar Status da Etapa"
- * Esta função é chamada quando o usuário marca uma etapa como finalizada/cancelada
- */
-export const syncStageStatusToKanban = async (
-  stageId: string,
-  newStatus: Stage['status'],
-  kanbanColumns: KanbanColumn[]
-): Promise<void> => {
-  try {
-    console.log('Sincronizando status da etapa para Kanban:', { stageId, newStatus });
-
-    // Buscar a etapa e o projeto
-    const { data: stage, error: stageError } = await supabase
-      .from('project_stages')
-      .select('*, project_id')
-      .eq('id', stageId)
-      .single();
-
-    if (stageError || !stage) {
-      console.error('Erro ao buscar etapa:', stageError);
-      return;
-    }
-
-    // Buscar o nome do projeto
-    const { data: project } = await supabase
-      .from('projects')
-      .select('name')
-      .eq('id', stage.project_id)
-      .single();
-
-    const projectName = project?.name || 'Projeto';
-
-    // Se o status é "finalizados" ou "cancelados", procurar coluna correspondente
-    if (newStatus === 'finalizados' || newStatus === 'cancelados') {
-      const targetColumnType = newStatus === 'finalizados' ? 'completed' : 'cancelled';
-      const targetColumn = kanbanColumns.find(col => 
-        col.is_completion_column && col.column_type === targetColumnType
-      );
-
-      if (targetColumn) {
-        // Verificar se todas as etapas do projeto estão finalizadas
-        const { data: allStages } = await supabase
-          .from('project_stages')
-          .select('completed, status, id')
-          .eq('project_id', stage.project_id)
-          .order('stage_order');
-
-        if (allStages) {
-          // Contar etapas concluídas (incluindo a atual que está sendo atualizada)
-          const completedCount = allStages.filter(s => 
-            s.id === stageId ? (newStatus === 'finalizados') : s.completed
-          ).length;
-
-          // Se todas as etapas estão concluídas ou se está cancelando
-          if (completedCount === allStages.length || newStatus === 'cancelados') {
-            await updateProjectTaskStatus(stage.project_id, targetColumn.column_id);
-            console.log(`Projeto movido para coluna ${targetColumn.title} devido ao status da etapa`);
-          }
-        }
-      }
-    }
-
-    // Sincronizar progresso geral
-    await syncProjectStageWithTask(stage.project_id, projectName);
-
-  } catch (error) {
-    console.error('Erro na sincronização status da etapa -> Kanban:', error);
   }
 };
 
@@ -336,7 +257,7 @@ export const syncProjectStageWithTask = async (projectId: string, projectName: s
     if (completedStagesCount === 0) {
       taskStatus = 'a_fazer';
     } else if (completedStagesCount === totalStages) {
-      taskStatus = 'finalizados';
+      taskStatus = 'finalizado';
     } else {
       taskStatus = 'em_producao';
     }
@@ -485,8 +406,8 @@ const updateProjectTaskStatus = async (projectId: string, newStatus: string): Pr
       'aguardando_nota_fiscal': 'em_producao',
       'aguardando_pagamento': 'em_producao',
       'aguardando_repasse': 'em_producao',
-      'finalizados': 'finalizados',
-      'cancelados': 'cancelados'
+      'finalizados': 'finalizado',
+      'cancelados': 'cancelado'
     };
 
     const taskStatus = taskStatusMap[newStatus] || 'a_fazer';

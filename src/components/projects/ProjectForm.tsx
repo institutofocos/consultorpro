@@ -293,8 +293,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       let savedProject: Project;
       if (project?.id) {
         console.log('Atualizando projeto existente');
-        await updateProject(project.id, projectData);
-        savedProject = projectData; // Use the updated data since updateProject returns void
+        savedProject = await updateProject(projectData);
         toast.success('Projeto atualizado com sucesso!');
       } else {
         console.log('Criando novo projeto');
