@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Eye } from 'lucide-react';
+import { Edit, Trash2, Eye, Search } from 'lucide-react';
 import { Project } from './types';
 import ServiceNameCell from './ServiceNameCell';
 import ProjectDetails from './ProjectDetails';
+import ProjectDescriptionModal from './ProjectDescriptionModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface ProjectsExpandedTableProps {
@@ -23,6 +24,8 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
 }) => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showProjectDetails, setShowProjectDetails] = useState(false);
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
+  const [selectedProjectForDescription, setSelectedProjectForDescription] = useState<Project | null>(null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -123,7 +126,16 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
     await onRefresh();
   };
 
-  // Calculate dynamic status for each project
+  const handleViewDescription = (project: Project) => {
+    setSelectedProjectForDescription(project);
+    setShowDescriptionModal(true);
+  };
+
+  const handleCloseDescriptionModal = () => {
+    setShowDescriptionModal(false);
+    setSelectedProjectForDescription(null);
+  };
+
   const calculateDynamicStatus = (project: Project) => {
     // Rule 1: If no consultant assigned, status should be "Em Planejamento"
     if (!project.mainConsultantId) {
@@ -144,6 +156,20 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
     
     // If consultant assigned but no stages, status should be "Em Produção"
     return 'em_producao';
+  };
+
+  // Helper function to get first name only
+  const getFirstName = (fullName: string | null | undefined): string => {
+    if (!fullName) return '-';
+    return fullName.split(' ')[0];
+  };
+
+  // Helper function to get first and second names
+  const getFirstAndSecondName = (fullName: string | null | undefined): string => {
+    if (!fullName) return '-';
+    const names = fullName.split(' ');
+    if (names.length === 1) return names[0];
+    return `${names[0]} ${names[1] || ''}`.trim();
   };
 
   if (!projects || projects.length === 0) {
@@ -184,7 +210,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                     <div>
                       <div className="font-semibold">{project.name || 'Sem nome'}</div>
                       {project.projectId && (
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-xs text-muted-foreground">
                           ID: {project.projectId}
                         </div>
                       )}
@@ -195,8 +221,8 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                       {getStatusLabel(dynamicStatus)}
                     </Badge>
                   </TableCell>
-                  <TableCell>{project.clientName || '-'}</TableCell>
-                  <TableCell>{project.mainConsultantName || '-'}</TableCell>
+                  <TableCell>{getFirstName(project.clientName)}</TableCell>
+                  <TableCell>{getFirstAndSecondName(project.mainConsultantName)}</TableCell>
                   <TableCell>
                     {project.serviceName ? (
                       <ServiceNameCell serviceName={project.serviceName} />
@@ -221,9 +247,14 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                   <TableCell>{formatDate(project.startDate)}</TableCell>
                   <TableCell>{formatDate(project.endDate)}</TableCell>
                   <TableCell>
-                    <div className="max-w-xs truncate" title={project.description}>
-                      {project.description || '-'}
-                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewDescription(project)}
+                      title="Ver descrição completa"
+                    >
+                      <Search className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
@@ -280,6 +311,16 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal de descrição do projeto */}
+      {selectedProjectForDescription && (
+        <ProjectDescriptionModal
+          isOpen={showDescriptionModal}
+          onClose={handleCloseDescriptionModal}
+          projectName={selectedProjectForDescription.name || 'Projeto sem nome'}
+          description={selectedProjectForDescription.description || ''}
+        />
+      )}
     </>
   );
 };
