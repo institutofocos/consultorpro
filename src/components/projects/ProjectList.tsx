@@ -11,12 +11,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { fetchProjects, deleteProject } from '@/integrations/supabase/projects';
 import ProjectsExpandedTable from './ProjectsExpandedTable';
 import ProjectForm from './ProjectForm';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 const ProjectList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [clientFilter, setClientFilter] = useState<string>('');
   const [clients, setClients] = useState<Array<{id: string, name: string}>>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -42,7 +44,7 @@ const ProjectList: React.FC = () => {
       (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesStatus = statusFilter === '' || project.status === statusFilter;
-    const matchesClient = clientFilter === '' || project.client_id === clientFilter;
+    const matchesClient = clientFilter === '' || project.clientId === clientFilter;
     
     return matchesSearch && matchesStatus && matchesClient;
   });
@@ -66,17 +68,34 @@ const ProjectList: React.FC = () => {
     setClientFilter('');
   };
 
+  const handleProjectSaved = () => {
+    refetch();
+    setIsDialogOpen(false);
+    toast.success("Projeto salvo com sucesso!");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold tracking-tight">Projetos</h1>
         <div className="flex items-center">
-          <ProjectForm onSave={() => refetch()}>
-            <Button size="sm" variant="outline" className="ml-auto gap-1">
-              <Plus className="h-4 w-4" />
-              <span>Novo</span>
-            </Button>
-          </ProjectForm>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline" className="ml-auto gap-1">
+                <Plus className="h-4 w-4" />
+                <span>Novo</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent size="full" className="max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Novo Projeto</DialogTitle>
+              </DialogHeader>
+              <ProjectForm
+                onProjectSaved={handleProjectSaved}
+                onCancel={() => setIsDialogOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
