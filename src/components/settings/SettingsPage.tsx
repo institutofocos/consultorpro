@@ -12,7 +12,7 @@ import WhatsAppConnections from './WhatsAppConnections';
 import ProjectRulesManager from './ProjectRulesManager';
 import TagList from '@/components/tags/TagList';
 import { useAuth } from '@/contexts/AuthContext';
-import { Settings, Users, Clock, FileText, Zap, MessageSquare, Tag, Rules } from 'lucide-react';
+import { Settings, Users, Clock, FileText, Zap, MessageSquare, Tag, Shield } from 'lucide-react';
 
 const SettingsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("general");
@@ -33,7 +33,7 @@ const SettingsPage: React.FC = () => {
             Geral
           </TabsTrigger>
           <TabsTrigger value="project-rules">
-            <Rules className="h-4 w-4 mr-2" />
+            <Shield className="h-4 w-4 mr-2" />
             Regras de Projetos
           </TabsTrigger>
           <TabsTrigger value="tags">

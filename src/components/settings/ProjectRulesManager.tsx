@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -79,10 +78,19 @@ const ProjectRulesManager: React.FC = () => {
   const onSubmit = async (data: StatusFormData) => {
     try {
       if (editingStatus) {
-        // Atualizar status existente
+        // Atualizar status existente - ensure all required fields are present
+        const updateData = {
+          name: data.name,
+          display_name: data.display_name,
+          color: data.color,
+          is_completion_status: data.is_completion_status,
+          is_cancellation_status: data.is_cancellation_status,
+          is_active: data.is_active,
+        };
+
         const { error } = await supabase
           .from('project_status_settings')
-          .update(data)
+          .update(updateData)
           .eq('id', editingStatus.id);
 
         if (error) throw error;
@@ -90,9 +98,19 @@ const ProjectRulesManager: React.FC = () => {
       } else {
         // Criar novo status
         const maxOrder = Math.max(...statuses.map(s => s.order_index), 0);
+        const insertData = {
+          name: data.name,
+          display_name: data.display_name,
+          color: data.color,
+          is_completion_status: data.is_completion_status,
+          is_cancellation_status: data.is_cancellation_status,
+          is_active: data.is_active,
+          order_index: maxOrder + 1,
+        };
+
         const { error } = await supabase
           .from('project_status_settings')
-          .insert({ ...data, order_index: maxOrder + 1 });
+          .insert(insertData);
 
         if (error) throw error;
         toast.success('Status criado com sucesso!');
