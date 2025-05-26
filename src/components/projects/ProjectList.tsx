@@ -242,7 +242,8 @@ const ProjectList: React.FC = () => {
 
       <Card>
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {/* Primeira linha - filtros principais */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-4">
             <Input
               placeholder="Buscar projetos..."
               value={searchTerm}
@@ -303,18 +304,24 @@ const ProjectList: React.FC = () => {
               placeholder="Consultor"
               searchPlaceholder="Buscar consultor..."
             />
+          </div>
 
-            <SearchableSelect
-              options={tags}
-              value={tagFilter}
-              onValueChange={handleTagFilterChange}
-              placeholder="Tags"
-              searchPlaceholder="Buscar tags..."
-              multiple={true}
-            />
+          {/* Segunda linha - filtros compactos */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+            <div className="lg:col-span-2">
+              <SearchableSelect
+                options={tags}
+                value={tagFilter}
+                onValueChange={handleTagFilterChange}
+                placeholder="Tags"
+                searchPlaceholder="Buscar tags..."
+                multiple={true}
+                className="w-full"
+              />
+            </div>
 
             <div className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4 text-gray-500" />
+              <Calendar className="h-4 w-4 text-gray-500 flex-shrink-0" />
               <Input
                 type="date"
                 placeholder="Data início"
@@ -325,7 +332,7 @@ const ProjectList: React.FC = () => {
             </div>
 
             <div className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4 text-gray-500" />
+              <Calendar className="h-4 w-4 text-gray-500 flex-shrink-0" />
               <Input
                 type="date"
                 placeholder="Data fim"
@@ -335,7 +342,7 @@ const ProjectList: React.FC = () => {
               />
             </div>
 
-            <Button variant="outline" size="sm" onClick={clearFilters}>
+            <Button variant="outline" size="sm" onClick={clearFilters} className="w-full">
               <Filter className="h-4 w-4 mr-2" />
               Limpar filtros
             </Button>
