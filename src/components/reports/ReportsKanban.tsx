@@ -1,10 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { KanbanSquare, User, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from "@/integrations/supabase/client";
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { fetchKanbanColumns, KanbanColumn } from '@/integrations/supabase/kanban-columns';
+import { syncKanbanToStages } from '@/integrations/supabase/kanban-sync';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 // Componentes de exemplo para o Kanban
 const KanbanColumn = ({ title, children, color, count }: { title: string, children: React.ReactNode, color: string, count: number }) => (
@@ -72,7 +76,7 @@ interface KanbanProject {
   id: string;
   name: string;
   description?: string;
-  status: 'planned' | 'active' | 'completed' | 'cancelled';
+  status: string;
   endDate: Date;
   consultant?: string;
   tags?: string[];
@@ -81,6 +85,13 @@ interface KanbanProject {
 export default function ReportsKanban() {
   const [projects, setProjects] = useState<KanbanProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+  
+  // Buscar colunas do Kanban
+  const { data: kanbanColumns = [] } = useQuery({
+    queryKey: ['kanban-columns'],
+    queryFn: fetchKanbanColumns,
+  });
   
   useEffect(() => {
     fetchProjects();
@@ -93,54 +104,117 @@ export default function ReportsKanban() {
       const { data: projectsData, error } = await supabase
         .from('projects')
         .select(`
-          id, name, description, status, end_date,
-          main_consultant:consultants!main_consultant_id(name)
+          id, name, description, end_date,
+          main_consultant:consultants!main_consultant_id(name),
+          project_stages!inner(status)
         `);
         
       if (error) throw error;
       
-      // Buscar tags de serviços associados aos projetos
-      const { data: serviceTags } = await supabase
-        .from('service_tags')
-        .select(`
-          tag_id,
-          tags(name),
-          service_id
-        `);
-      
       // Transformar os dados para o formato do Kanban
       const formattedProjects: KanbanProject[] = (projectsData || []).map(project => {
+        // Determinar o status baseado nas etapas
+        const stages = project.project_stages || [];
+        const completedStages = stages.filter((stage: any) => stage.completed);
+        
+        // Se não há etapas, usar o primeiro status
+        let projectStatus = 'iniciar_projeto';
+        
+        if (stages.length > 0) {
+          const completedCount = completedStages.length;
+          const totalStages = stages.length;
+          
+          if (completedCount === totalStages) {
+            projectStatus = 'finalizados';
+          } else if (completedCount === 0) {
+            projectStatus = 'iniciar_projeto';
+          } else {
+            // Projeto em andamento - usar uma lógica para determinar a coluna
+            const progressPercentage = (completedCount / totalStages) * 100;
+            
+            if (progressPercentage <= 25) {
+              projectStatus = 'em_producao';
+            } else if (progressPercentage <= 50) {
+              projectStatus = 'aguardando_assinatura';
+            } else if (progressPercentage <= 75) {
+              projectStatus = 'aguardando_aprovacao';
+            } else {
+              projectStatus = 'aguardando_pagamento';
+            }
+          }
+        }
+        
         return {
           id: project.id,
           name: project.name,
           description: project.description,
-          status: project.status as 'planned' | 'active' | 'completed' | 'cancelled',
+          status: projectStatus,
           endDate: new Date(project.end_date),
           consultant: project.main_consultant?.name,
-          tags: [] // Será preenchido se implementarmos a integração completa com tags
+          tags: []
         };
       });
       
       setProjects(formattedProjects);
     } catch (error) {
       console.error("Error fetching projects for Kanban:", error);
+      toast.error("Erro ao carregar projetos");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Separar projetos por status para as colunas
-  const plannedProjects = projects.filter(p => p.status === 'planned');
-  const activeProjects = projects.filter(p => p.status === 'active');
-  const completedProjects = projects.filter(p => p.status === 'completed');
-  const cancelledProjects = projects.filter(p => p.status === 'cancelled');
+  const handleDragEnd = async (result: any) => {
+    const { destination, source, draggableId } = result;
 
-  const columns = [
-    { title: "Planejados", projects: plannedProjects, color: "bg-amber-500" },
-    { title: "Em Andamento", projects: activeProjects, color: "bg-green-500" },
-    { title: "Concluídos", projects: completedProjects, color: "bg-blue-500" },
-    { title: "Cancelados", projects: cancelledProjects, color: "bg-red-500" }
-  ];
+    // Se não há destino ou o item foi solto no mesmo lugar
+    if (!destination || 
+        (destination.droppableId === source.droppableId && 
+         destination.index === source.index)) {
+      return;
+    }
+
+    const projectId = draggableId;
+    const newStatus = destination.droppableId;
+
+    try {
+      // Atualizar estado local imediatamente para feedback visual
+      setProjects(prevProjects => 
+        prevProjects.map(project => 
+          project.id === projectId 
+            ? { ...project, status: newStatus }
+            : project
+        )
+      );
+
+      // Sincronizar com as etapas do projeto
+      await syncKanbanToStages(projectId, newStatus, kanbanColumns);
+      
+      // Invalidar queries relacionadas para atualizar outros componentes
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      
+      toast.success("Projeto movido e etapas atualizadas com sucesso!");
+    } catch (error) {
+      console.error("Erro ao mover projeto:", error);
+      toast.error("Erro ao mover projeto");
+      
+      // Reverter estado local em caso de erro
+      fetchProjects();
+    }
+  };
+
+  // Organizar projetos por status das colunas do Kanban
+  const organizeProjectsByColumns = () => {
+    const columnProjects: Record<string, KanbanProject[]> = {};
+    
+    kanbanColumns.forEach(column => {
+      columnProjects[column.column_id] = projects.filter(p => p.status === column.column_id);
+    });
+    
+    return columnProjects;
+  };
+
+  const projectsByColumn = organizeProjectsByColumns();
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -168,33 +242,60 @@ export default function ReportsKanban() {
               <p className="text-muted-foreground">Nenhum projeto encontrado</p>
             </div>
           ) : (
-            <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-300px)]">
-              {columns.map((column, index) => (
-                <KanbanColumn 
-                  key={index} 
-                  title={column.title} 
-                  color={column.color}
-                  count={column.projects.length}
-                >
-                  {column.projects.map((project) => (
-                    <KanbanCard 
-                      key={project.id} 
-                      title={project.name} 
-                      description={project.description?.substring(0, 100) + (project.description && project.description.length > 100 ? '...' : '')} 
-                      dueDate={project.endDate}
-                      consultant={project.consultant}
-                      tags={project.tags}
-                    />
-                  ))}
-                  
-                  {column.projects.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground text-sm">
-                      Nenhum projeto nesta categoria
-                    </div>
-                  )}
-                </KanbanColumn>
-              ))}
-            </div>
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-300px)]">
+                {kanbanColumns.map((column) => (
+                  <KanbanColumn 
+                    key={column.column_id}
+                    title={column.title} 
+                    color={column.bg_color}
+                    count={projectsByColumn[column.column_id]?.length || 0}
+                  >
+                    <Droppable droppableId={column.column_id}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`min-h-[200px] transition-colors ${
+                            snapshot.isDraggingOver ? 'bg-blue-50' : ''
+                          }`}
+                        >
+                          {(projectsByColumn[column.column_id] || []).map((project, index) => (
+                            <Draggable key={project.id} draggableId={project.id} index={index}>
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className={`mb-2 ${
+                                    snapshot.isDragging ? 'rotate-2 scale-105' : ''
+                                  }`}
+                                >
+                                  <KanbanCard 
+                                    title={project.name} 
+                                    description={project.description?.substring(0, 100) + (project.description && project.description.length > 100 ? '...' : '')} 
+                                    dueDate={project.endDate}
+                                    consultant={project.consultant}
+                                    tags={project.tags}
+                                  />
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                          
+                          {(projectsByColumn[column.column_id]?.length || 0) === 0 && (
+                            <div className="text-center py-8 text-muted-foreground text-sm">
+                              Nenhum projeto nesta categoria
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </Droppable>
+                  </KanbanColumn>
+                ))}
+              </div>
+            </DragDropContext>
           )}
         </CardContent>
       </Card>
