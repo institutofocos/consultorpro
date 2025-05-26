@@ -9,8 +9,8 @@ export const fetchProjects = async () => {
         *,
         clients:client_id(id, name),
         services:service_id(id, name),
-        main_consultant:main_consultant_id(id, name),
-        support_consultant:support_consultant_id(id, name),
+        main_consultant:consultants!main_consultant_id(id, name),
+        support_consultant:consultants!support_consultant_id(id, name),
         project_stages(
           id,
           name,
@@ -32,7 +32,7 @@ export const fetchProjects = async () => {
           attachment,
           created_at,
           updated_at,
-          consultant:consultant_id(id, name)
+          consultant:consultants!consultant_id(id, name)
         )
       `)
       .order('created_at', { ascending: false });
