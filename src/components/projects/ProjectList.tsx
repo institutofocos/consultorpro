@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -19,6 +18,7 @@ import ProjectForm from './ProjectForm';
 import SearchableSelect from '@/components/ui/searchable-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Project } from './types';
+import { useProjectStatuses } from '@/hooks/useProjectStatuses';
 
 const ProjectList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -35,6 +35,9 @@ const ProjectList: React.FC = () => {
   const [services, setServices] = useState<Array<{id: string, name: string}>>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<any>(null);
+
+  // Hook para buscar status dinâmicos
+  const { statuses } = useProjectStatuses();
 
   useEffect(() => {
     const fetchFilterData = async () => {
@@ -172,6 +175,15 @@ const ProjectList: React.FC = () => {
     }
   };
 
+  // Preparar opções de status dinamicamente
+  const statusOptions = [
+    { id: '', name: 'Todos os status' },
+    ...statuses.map(status => ({
+      id: status.name,
+      name: status.display_name
+    }))
+  ];
+
   // Helper functions to handle SearchableSelect value changes
   const handleStatusFilterChange = (value: string | string[]) => {
     if (typeof value === 'string') {
@@ -254,22 +266,9 @@ const ProjectList: React.FC = () => {
               }}
             />
             
+            {/* Filtro de status usando dados dinâmicos */}
             <SearchableSelect
-              options={[
-                { id: '', name: 'Todos os status' },
-                { id: 'planned', name: 'Planejado' },
-                { id: 'active', name: 'Ativo' },
-                { id: 'completed', name: 'Concluído' },
-                { id: 'cancelled', name: 'Cancelado' },
-                { id: 'em_producao', name: 'Em Produção' },
-                { id: 'aguardando_assinatura', name: 'Aguardando Assinatura' },
-                { id: 'aguardando_aprovacao', name: 'Aguardando Aprovação' },
-                { id: 'aguardando_nota_fiscal', name: 'Aguardando Nota Fiscal' },
-                { id: 'aguardando_pagamento', name: 'Aguardando Pagamento' },
-                { id: 'aguardando_repasse', name: 'Aguardando Repasse' },
-                { id: 'concluido', name: 'Concluído' },
-                { id: 'cancelado', name: 'Cancelado' }
-              ]}
+              options={statusOptions}
               value={statusFilter}
               onValueChange={handleStatusFilterChange}
               placeholder="Status"

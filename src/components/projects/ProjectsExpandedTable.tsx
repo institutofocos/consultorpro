@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -15,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useProjectActions } from '@/hooks/useProjectActions';
+import { useProjectStatuses } from '@/hooks/useProjectStatuses';
 import { toast } from 'sonner';
 
 interface ProjectsExpandedTableProps {
@@ -38,17 +40,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
 
   const { updateProjectStatus, updateStageStatus, completeStage, uncompleteStage, isLoading } = useProjectActions();
-
-  const statusOptions = [
-    { value: 'em_producao', label: 'Em produção' },
-    { value: 'aguardando_assinatura', label: 'Aguardando Assinatura' },
-    { value: 'aguardando_aprovacao', label: 'Aguardando Aprovação' },
-    { value: 'aguardando_nota_fiscal', label: 'Aguardando Nota Fiscal' },
-    { value: 'aguardando_repasse', label: 'Aguardando Repasse' },
-    { value: 'aguardando_pagamento', label: 'Aguardando Pagamento' },
-    { value: 'concluido', label: 'Concluído' },
-    { value: 'cancelado', label: 'Cancelado' }
-  ];
+  const { statuses, getStatusDisplay, getStatusColorClass } = useProjectStatuses();
 
   const toggleProjectExpansion = (projectId: string) => {
     const newExpanded = new Set(expandedProjects);
@@ -247,6 +239,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
             {projects.map((project) => {
               const isExpanded = expandedProjects.has(project.id);
               const hasStages = project.stages && project.stages.length > 0;
+              const statusDisplay = getStatusDisplay(project.status);
               
               return (
                 <React.Fragment key={project.id}>
@@ -281,8 +274,8 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(project.status)}>
-                        {getStatusLabel(project.status)}
+                      <Badge className={getStatusColorClass(project.status)}>
+                        {statusDisplay.label}
                       </Badge>
                     </TableCell>
                     <TableCell>{getFirstName(project.clientName)}</TableCell>
@@ -339,14 +332,27 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent>
-                            {statusOptions.map((option) => (
-                              <DropdownMenuItem
-                                key={option.value}
-                                onClick={() => handleProjectStatusChange(project.id, option.value)}
-                              >
-                                {option.label}
+                            {statuses.length === 0 ? (
+                              <DropdownMenuItem disabled className="text-muted-foreground">
+                                Nenhum status disponível
                               </DropdownMenuItem>
-                            ))}
+                            ) : (
+                              statuses.map((status) => (
+                                <DropdownMenuItem
+                                  key={status.id}
+                                  onClick={() => handleProjectStatusChange(project.id, status.name)}
+                                  disabled={status.name === project.status}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div 
+                                      className="w-3 h-3 rounded-full"
+                                      style={{ backgroundColor: status.color }}
+                                    />
+                                    {status.display_name}
+                                  </div>
+                                </DropdownMenuItem>
+                              ))
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                         
@@ -379,79 +385,96 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                   </TableRow>
 
                   {/* Linhas das etapas expandidas */}
-                  {isExpanded && hasStages && project.stages?.map((stage, index) => (
-                    <TableRow key={`${project.id}-stage-${index}`} className="bg-muted/30">
-                      <TableCell className="pl-12">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
-                          <span className="text-sm font-medium">{stage.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(stage.status)} variant="outline">
-                          {getStatusLabel(stage.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">-</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {getStageConsultantName(stage, project)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">-</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">-</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {stage.value ? formatCurrency(stage.value) : '-'}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {stage.startDate ? formatDate(stage.startDate) : '-'}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {stage.endDate ? formatDate(stage.endDate) : '-'}
-                      </TableCell>
-                      <TableCell>
-                        {stage.description ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewStageDescription(stage.name, stage.description || '')}
-                            title="Ver descrição da etapa"
-                          >
-                            <Search className="h-4 w-4" />
-                          </Button>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {stage.completed ? '100%' : '0%'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end space-x-2">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={isLoading}
-                                title="Alterar status da etapa"
-                              >
-                                <Zap className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                              {statusOptions.map((option) => (
-                                <DropdownMenuItem
-                                  key={option.value}
-                                  onClick={() => handleStageStatusChange(stage.id, option.value)}
+                  {isExpanded && hasStages && project.stages?.map((stage, index) => {
+                    const stageStatusDisplay = getStatusDisplay(stage.status);
+                    
+                    return (
+                      <TableRow key={`${project.id}-stage-${index}`} className="bg-muted/30">
+                        <TableCell className="pl-12">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+                            <span className="text-sm font-medium">{stage.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColorClass(stage.status)} variant="outline">
+                            {stageStatusDisplay.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">-</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {getStageConsultantName(stage, project)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">-</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">-</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {stage.value ? formatCurrency(stage.value) : '-'}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {stage.startDate ? formatDate(stage.startDate) : '-'}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {stage.endDate ? formatDate(stage.endDate) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {stage.description ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewStageDescription(stage.name, stage.description || '')}
+                              title="Ver descrição da etapa"
+                            >
+                              <Search className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {stage.completed ? '100%' : '0%'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end space-x-2">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={isLoading}
+                                  title="Alterar status da etapa"
                                 >
-                                  {option.label}
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                                  <Zap className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent>
+                                {statuses.length === 0 ? (
+                                  <DropdownMenuItem disabled className="text-muted-foreground">
+                                    Nenhum status disponível
+                                  </DropdownMenuItem>
+                                ) : (
+                                  statuses.map((status) => (
+                                    <DropdownMenuItem
+                                      key={status.id}
+                                      onClick={() => handleStageStatusChange(stage.id, status.name)}
+                                      disabled={status.name === stage.status}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <div 
+                                          className="w-3 h-3 rounded-full"
+                                          style={{ backgroundColor: status.color }}
+                                        />
+                                        {status.display_name}
+                                      </div>
+                                    </DropdownMenuItem>
+                                  ))
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </React.Fragment>
               );
             })}

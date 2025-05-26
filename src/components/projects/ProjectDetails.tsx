@@ -73,7 +73,7 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
               </Badge>
             )}
             
-            {/* Status Change Dropdown */}
+            {/* Status Change Dropdown - Usando status dinâmicos */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" disabled={isLoading || statusesLoading}>
@@ -82,22 +82,28 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="bg-white border shadow-lg z-50">
-                {statuses.map((status) => (
-                  <DropdownMenuItem
-                    key={status.id}
-                    onClick={() => handleStatusChange(status.name)}
-                    className="cursor-pointer hover:bg-gray-100"
-                    disabled={status.name === project.status}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: status.color }}
-                      />
-                      {status.display_name}
-                    </div>
+                {statuses.length === 0 ? (
+                  <DropdownMenuItem disabled className="text-muted-foreground">
+                    Nenhum status disponível
                   </DropdownMenuItem>
-                ))}
+                ) : (
+                  statuses.map((status) => (
+                    <DropdownMenuItem
+                      key={status.id}
+                      onClick={() => handleStatusChange(status.name)}
+                      className="cursor-pointer hover:bg-gray-100"
+                      disabled={status.name === project.status}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: status.color }}
+                        />
+                        {status.display_name}
+                      </div>
+                    </DropdownMenuItem>
+                  ))
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
