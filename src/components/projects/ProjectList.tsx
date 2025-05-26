@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -298,11 +299,12 @@ const ProjectList: React.FC = () => {
             />
 
             <SearchableSelect
-              options={consultants}
-              value={consultantFilter}
-              onValueChange={handleConsultantFilterChange}
-              placeholder="Consultor"
-              searchPlaceholder="Buscar consultor..."
+              options={tags}
+              value={tagFilter}
+              onValueChange={handleTagFilterChange}
+              placeholder="Tags"
+              searchPlaceholder="Buscar tags..."
+              multiple={true}
             />
           </div>
 
@@ -310,12 +312,11 @@ const ProjectList: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
             <div className="lg:col-span-2">
               <SearchableSelect
-                options={tags}
-                value={tagFilter}
-                onValueChange={handleTagFilterChange}
-                placeholder="Tags"
-                searchPlaceholder="Buscar tags..."
-                multiple={true}
+                options={consultants}
+                value={consultantFilter}
+                onValueChange={handleConsultantFilterChange}
+                placeholder="Consultor"
+                searchPlaceholder="Buscar consultor..."
                 className="w-full"
               />
             </div>
