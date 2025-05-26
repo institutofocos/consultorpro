@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 interface ChatRoom {
   id: string;
   name: string;
-  description?: string;
+  description: string; // Make this required to match the expected type
   level: number;
   parent_id?: string;
   project_id?: string;
@@ -200,7 +200,7 @@ const ChatPage: React.FC = () => {
             room={{
               id: selectedRoom.id,
               name: selectedRoom.name,
-              description: selectedRoom.description || '',
+              description: selectedRoom.description,
               level: selectedRoom.level,
               parent_id: selectedRoom.parent_id || '',
               project_id: selectedRoom.project_id || '',

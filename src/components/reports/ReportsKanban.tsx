@@ -105,7 +105,7 @@ export default function ReportsKanban() {
         .from('projects')
         .select(`
           id, name, description, end_date,
-          main_consultant:consultants!projects_main_consultant_id_fkey(name),
+          main_consultant:main_consultant_id(name),
           project_stages!inner(status)
         `);
         
