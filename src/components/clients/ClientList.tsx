@@ -123,19 +123,47 @@ const ClientList = () => {
   };
 
   const handleDeleteClient = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir este cliente?')) return;
+    console.log('Tentando excluir cliente com ID:', id);
+    
+    if (!window.confirm('Tem certeza que deseja excluir este cliente?')) {
+      console.log('Exclusão cancelada pelo usuário');
+      return;
+    }
     
     try {
+      console.log('Iniciando exclusão do cliente...');
+      
+      // First check if client has any projects
+      const { data: projects, error: projectsError } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('client_id', id);
+        
+      if (projectsError) {
+        console.error('Erro ao verificar projetos:', projectsError);
+        throw projectsError;
+      }
+      
+      if (projects && projects.length > 0) {
+        toast.error('Não é possível excluir este cliente pois ele possui projetos associados.');
+        return;
+      }
+      
       const { error } = await supabase
         .from('clients')
         .delete()
         .eq('id', id);
         
-      if (error) throw error;
+      if (error) {
+        console.error('Erro na exclusão:', error);
+        throw error;
+      }
       
+      console.log('Cliente excluído com sucesso');
       toast.success('Cliente excluído com sucesso!');
-      fetchClients();
+      fetchClients(); // Refresh the list
     } catch (error: any) {
+      console.error('Erro completo:', error);
       toast.error('Erro ao excluir cliente: ' + error.message);
     }
   };
@@ -232,6 +260,7 @@ const ClientList = () => {
                         variant="ghost"
                         size="icon"
                         onClick={() => setEditingClient(client)}
+                        title="Editar cliente"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -239,6 +268,8 @@ const ClientList = () => {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDeleteClient(client.id)}
+                        title="Excluir cliente"
+                        className="text-red-500 hover:text-red-700"
                       >
                         <Trash className="h-4 w-4" />
                       </Button>
