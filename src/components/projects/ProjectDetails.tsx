@@ -450,9 +450,9 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
                       
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm">Atualizar Status da Etapa</Button>
+                          <Button variant="outline" size="sm">Status</Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-64">
+                        <DropdownMenuContent className="w-56">
                           <DropdownMenuLabel>Selecionar Status</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           <DropdownMenuGroup>

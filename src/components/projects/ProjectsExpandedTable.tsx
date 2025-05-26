@@ -26,6 +26,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
   const [showProjectDetails, setShowProjectDetails] = useState(false);
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
   const [selectedProjectForDescription, setSelectedProjectForDescription] = useState<Project | null>(null);
+  const [selectedStageForDescription, setSelectedStageForDescription] = useState<{ name: string; description: string } | null>(null);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
 
   const toggleProjectExpansion = (projectId: string) => {
@@ -142,9 +143,15 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
     setShowDescriptionModal(true);
   };
 
+  const handleViewStageDescription = (stageName: string, stageDescription: string) => {
+    setSelectedStageForDescription({ name: stageName, description: stageDescription });
+    setShowDescriptionModal(true);
+  };
+
   const handleCloseDescriptionModal = () => {
     setShowDescriptionModal(false);
     setSelectedProjectForDescription(null);
+    setSelectedStageForDescription(null);
   };
 
   const calculateDynamicStatus = (project: Project) => {
@@ -264,9 +271,9 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                       )}
                     </TableCell>
                     <TableCell>
-                      {project.tags && project.tags.length > 0 ? (
+                      {project.tagNames && project.tagNames.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
-                          {project.tags.map((tagName, index) => (
+                          {project.tagNames.map((tagName, index) => (
                             <Badge key={index} variant="secondary" className="text-xs">
                               {tagName}
                             </Badge>
@@ -356,7 +363,20 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                       <TableCell className="text-muted-foreground text-sm">
                         {stage.endDate ? formatDate(stage.endDate) : '-'}
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">-</TableCell>
+                      <TableCell>
+                        {stage.description ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewStageDescription(stage.name, stage.description || '')}
+                            title="Ver descrição da etapa"
+                          >
+                            <Search className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {stage.completed ? '100%' : '0%'}
                       </TableCell>
@@ -386,13 +406,21 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Modal de descrição do projeto */}
-      {selectedProjectForDescription && (
+      {/* Modal de descrição do projeto/etapa */}
+      {(selectedProjectForDescription || selectedStageForDescription) && (
         <ProjectDescriptionModal
           isOpen={showDescriptionModal}
           onClose={handleCloseDescriptionModal}
-          projectName={selectedProjectForDescription.name || 'Projeto sem nome'}
-          description={selectedProjectForDescription.description || ''}
+          projectName={
+            selectedProjectForDescription ? 
+              (selectedProjectForDescription.name || 'Projeto sem nome') : 
+              (selectedStageForDescription?.name || 'Etapa sem nome')
+          }
+          description={
+            selectedProjectForDescription ?
+              (selectedProjectForDescription.description || '') :
+              (selectedStageForDescription?.description || '')
+          }
         />
       )}
     </>
