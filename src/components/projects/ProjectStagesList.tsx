@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, Circle, Calendar, User, DollarSign, Zap } from 'lucide-react';
 import { Project } from './types';
 import { useProjectActions } from '@/hooks/useProjectActions';
+import { useProjectHistory } from '@/hooks/useProjectHistory';
 import { toast } from 'sonner';
 import {
   DropdownMenu,
@@ -24,6 +24,7 @@ const ProjectStagesList: React.FC<ProjectStagesListProps> = ({
   onProjectUpdated 
 }) => {
   const { updateStageStatus, isLoading } = useProjectActions();
+  const { getStageStatusChangeDate } = useProjectHistory(project.id);
 
   const statusOptions = [
     { value: 'iniciar_projeto', label: 'Iniciar Projeto' },
@@ -85,6 +86,18 @@ const ProjectStagesList: React.FC<ProjectStagesListProps> = ({
     }
   };
 
+  const formatStatusWithDate = (status: string, stageId: string) => {
+    const statusLabel = getStatusLabel(status);
+    const changeDate = getStageStatusChangeDate(stageId, status);
+    
+    if (changeDate) {
+      const formattedDate = formatDate(changeDate);
+      return `${statusLabel} EM ${formattedDate}`;
+    }
+    
+    return statusLabel;
+  };
+
   if (!project.stages || project.stages.length === 0) {
     return (
       <Card>
@@ -133,7 +146,7 @@ const ProjectStagesList: React.FC<ProjectStagesListProps> = ({
                     </p>
                   )}
                   <Badge className={getStatusColor(stage.status)} variant="secondary">
-                    {getStatusLabel(stage.status)}
+                    {formatStatusWithDate(stage.status, stage.id)}
                   </Badge>
                 </div>
               </div>

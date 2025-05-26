@@ -46,6 +46,16 @@ export const useProjectHistory = (projectId?: string) => {
     enabled: !!projectId,
   });
 
+  const getStageStatusChangeDate = (stageId: string, currentStatus: string): string | null => {
+    const statusChangeEntry = history.find(entry => 
+      entry.stage_id === stageId && 
+      entry.action_type === 'stage_status_changed' &&
+      entry.new_value === currentStatus
+    );
+    
+    return statusChangeEntry ? statusChangeEntry.created_at : null;
+  };
+
   const addHistoryEntry = async (
     projectId: string,
     actionType: string,
@@ -101,6 +111,7 @@ export const useProjectHistory = (projectId?: string) => {
     isLoading: queryLoading || isLoading,
     isError,
     refetch,
-    addHistoryEntry
+    addHistoryEntry,
+    getStageStatusChangeDate
   };
 };
