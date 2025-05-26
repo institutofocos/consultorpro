@@ -116,6 +116,8 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
         return 'bg-pink-100 text-pink-800';
       case 'aguardando_repasse':
         return 'bg-indigo-100 text-indigo-800';
+      case 'finalizados':
+        return 'bg-green-100 text-green-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -150,6 +152,8 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
         return 'Aguardando Pagamento';
       case 'aguardando_repasse':
         return 'Aguardando Repasse';
+      case 'finalizados':
+        return 'Concluído';
       default:
         return status;
     }
@@ -409,11 +413,6 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
                           <span className="text-sm font-medium">{stage.name}</span>
-                          {stage.completed && (
-                            <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
-                              Concluída
-                            </Badge>
-                          )}
                         </div>
                       </TableCell>
                       <TableCell>

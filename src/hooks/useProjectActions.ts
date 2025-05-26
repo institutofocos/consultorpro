@@ -80,7 +80,7 @@ export const useProjectActions = () => {
         .from('project_stages')
         .update({ 
           completed: true, 
-          status: 'finalizados',
+          status: 'concluido',
           completed_at: new Date().toISOString()
         })
         .eq('id', stageId);
