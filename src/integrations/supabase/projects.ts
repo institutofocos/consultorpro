@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -148,8 +147,66 @@ export const fetchDemandsWithoutConsultants = async () => {
   }
 };
 
-// Function to calculate project status based on business rules
-export const calculateProjectStatus = (project: any): string => {
+// Function to calculate project status based on business rules and configured statuses
+export const calculateProjectStatus = async (project: any): Promise<string> => {
+  try {
+    // First, fetch the configured active statuses
+    const { data: activeStatuses, error } = await supabase
+      .from('project_status_settings')
+      .select('*')
+      .eq('is_active', true)
+      .order('order_index');
+
+    if (error) {
+      console.error('Error fetching active statuses:', error);
+      // Fallback to original logic if can't fetch configured statuses
+      return calculateLegacyProjectStatus(project);
+    }
+
+    // Check if project has a valid configured status
+    const currentStatusSetting = activeStatuses?.find(s => s.name === project.status);
+    if (currentStatusSetting) {
+      return project.status; // Keep current status if it's valid and active
+    }
+
+    // Auto-assign status based on business rules using configured statuses
+    
+    // Rule 1: If no consultant assigned, look for planning status
+    if (!project.main_consultant_id) {
+      const planningStatus = activeStatuses?.find(s => 
+        s.name.includes('planejamento') || s.name.includes('planning')
+      );
+      return planningStatus?.name || 'em_planejamento';
+    }
+    
+    // Rule 2: If consultant assigned but not all stages completed, look for production status
+    if (project.main_consultant_id && project.project_stages) {
+      const totalStages = project.project_stages.length;
+      const completedStages = project.project_stages.filter((stage: any) => stage.completed).length;
+      
+      // Rule 3: If all stages are completed, look for completion status
+      if (totalStages > 0 && completedStages === totalStages) {
+        const completionStatus = activeStatuses?.find(s => s.is_completion_status);
+        return completionStatus?.name || 'concluido';
+      }
+      
+      // Look for production status
+      const productionStatus = activeStatuses?.find(s => 
+        s.name.includes('producao') || s.name.includes('production')
+      );
+      return productionStatus?.name || 'em_producao';
+    }
+    
+    // Default to first active status if available
+    return activeStatuses?.[0]?.name || 'em_producao';
+  } catch (error) {
+    console.error('Error in calculateProjectStatus:', error);
+    return calculateLegacyProjectStatus(project);
+  }
+};
+
+// Legacy status calculation for fallback
+const calculateLegacyProjectStatus = (project: any): string => {
   // Rule 1: If no consultant assigned, status should be "em_planejamento"
   if (!project.main_consultant_id) {
     return 'em_planejamento';
@@ -191,7 +248,7 @@ export const updateProjectStatusAutomatically = async (projectId: string) => {
     }
     
     // Calculate the new status
-    const newStatus = calculateProjectStatus(project);
+    const newStatus = await calculateProjectStatus(project);
     
     // Update the project status if it's different
     if (project.status !== newStatus) {
