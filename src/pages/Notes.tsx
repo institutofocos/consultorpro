@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { LayoutGrid, List, Kanban, Plus, Filter, Calendar as CalendarIcon, BarChart3 } from 'lucide-react';
@@ -25,6 +24,7 @@ import { Calendar } from '@/components/ui/calendar';
 
 import NotesGrid from '@/components/notes/NotesGrid';
 import NotesTable from '@/components/notes/NotesTable';
+import NotesExpandedTable from '@/components/notes/NotesExpandedTable';
 import NotesKanban from '@/components/notes/NotesKanban';
 import NotesGantt from '@/components/notes/NotesGantt';
 import NoteForm from '@/components/notes/NoteForm';
@@ -355,7 +355,7 @@ const NotesPage: React.FC = () => {
                 />
               )}
               {viewMode === 'lista' && (
-                <NotesTable
+                <NotesExpandedTable
                   notes={filteredNotes}
                   onUpdateNote={handleUpdateNote}
                   onDeleteNote={handleDeleteNote}
