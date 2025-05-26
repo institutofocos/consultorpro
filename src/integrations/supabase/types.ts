@@ -1145,6 +1145,7 @@ export type Database = {
           manager_phone: string | null
           name: string
           project_id: string | null
+          selected_tags: string[] | null
           service_id: string | null
           start_date: string
           status: string
@@ -1173,6 +1174,7 @@ export type Database = {
           manager_phone?: string | null
           name: string
           project_id?: string | null
+          selected_tags?: string[] | null
           service_id?: string | null
           start_date: string
           status?: string
@@ -1201,6 +1203,7 @@ export type Database = {
           manager_phone?: string | null
           name?: string
           project_id?: string | null
+          selected_tags?: string[] | null
           service_id?: string | null
           start_date?: string
           status?: string

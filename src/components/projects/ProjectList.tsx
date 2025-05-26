@@ -3,48 +3,72 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Filter } from 'lucide-react';
+import { Plus, Filter, Calendar } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchProjects, deleteProject } from '@/integrations/supabase/projects';
+import { 
+  fetchProjects, 
+  deleteProject, 
+  fetchTags, 
+  fetchConsultants, 
+  fetchServices 
+} from '@/integrations/supabase/projects';
 import ProjectsExpandedTable from './ProjectsExpandedTable';
 import ProjectForm from './ProjectForm';
+import SearchableSelect from '@/components/ui/searchable-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 const ProjectList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [clientFilter, setClientFilter] = useState<string>('');
+  const [serviceFilter, setServiceFilter] = useState<string>('');
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const [consultantFilter, setConsultantFilter] = useState<string>('');
+  const [startDateFilter, setStartDateFilter] = useState<string>('');
+  const [endDateFilter, setEndDateFilter] = useState<string>('');
   const [clients, setClients] = useState<Array<{id: string, name: string}>>([]);
+  const [tags, setTags] = useState<Array<{id: string, name: string}>>([]);
+  const [consultants, setConsultants] = useState<Array<{id: string, name: string}>>([]);
+  const [services, setServices] = useState<Array<{id: string, name: string}>>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<any>(null);
 
   useEffect(() => {
-    const fetchClients = async () => {
+    const fetchFilterData = async () => {
       try {
-        const { data, error } = await supabase
+        // Fetch clients
+        const { data: clientsData, error: clientsError } = await supabase
           .from('clients')
           .select('id, name')
           .order('name');
         
-        if (error) {
-          console.error('Erro ao buscar clientes:', error);
+        if (clientsError) {
+          console.error('Erro ao buscar clientes:', clientsError);
           toast.error('Erro ao carregar clientes');
-          return;
+        } else if (clientsData) {
+          setClients(clientsData);
         }
-        
-        if (data) {
-          setClients(data);
-        }
+
+        // Fetch tags
+        const tagsData = await fetchTags();
+        setTags(tagsData);
+
+        // Fetch consultants
+        const consultantsData = await fetchConsultants();
+        setConsultants(consultantsData);
+
+        // Fetch services
+        const servicesData = await fetchServices();
+        setServices(servicesData);
       } catch (error) {
-        console.error('Erro ao buscar clientes:', error);
-        toast.error('Erro ao carregar clientes');
+        console.error('Erro ao buscar dados para filtros:', error);
+        toast.error('Erro ao carregar dados para filtros');
       }
     };
     
-    fetchClients();
+    fetchFilterData();
   }, []);
 
   const { 
@@ -64,8 +88,22 @@ const ProjectList: React.FC = () => {
     
     const matchesStatus = statusFilter === '' || project.status === statusFilter;
     const matchesClient = clientFilter === '' || project.client_id === clientFilter;
+    const matchesService = serviceFilter === '' || project.service_id === serviceFilter;
+    const matchesConsultant = consultantFilter === '' || 
+      project.main_consultant_id === consultantFilter || 
+      project.support_consultant_id === consultantFilter;
     
-    return matchesSearch && matchesStatus && matchesClient;
+    const matchesTags = tagFilter.length === 0 || 
+      (project.tags && project.tags.some((tag: any) => tagFilter.includes(tag.id)));
+    
+    const matchesStartDate = startDateFilter === '' || 
+      (project.start_date && project.start_date >= startDateFilter);
+    
+    const matchesEndDate = endDateFilter === '' || 
+      (project.end_date && project.end_date <= endDateFilter);
+    
+    return matchesSearch && matchesStatus && matchesClient && matchesService && 
+           matchesConsultant && matchesTags && matchesStartDate && matchesEndDate;
   });
 
   const handleDeleteProject = async (id: string) => {
@@ -97,6 +135,11 @@ const ProjectList: React.FC = () => {
     setSearchTerm('');
     setStatusFilter('');
     setClientFilter('');
+    setServiceFilter('');
+    setTagFilter([]);
+    setConsultantFilter('');
+    setStartDateFilter('');
+    setEndDateFilter('');
     toast.success('Filtros limpos com sucesso!');
   };
 
@@ -118,16 +161,6 @@ const ProjectList: React.FC = () => {
     if (!open) {
       setEditingProject(null);
     }
-  };
-
-  const handleStatusFilterChange = (value: string) => {
-    console.log('Mudando filtro de status para:', value);
-    setStatusFilter(value);
-  };
-
-  const handleClientFilterChange = (value: string) => {
-    console.log('Mudando filtro de cliente para:', value);
-    setClientFilter(value);
   };
 
   return (
@@ -175,40 +208,88 @@ const ProjectList: React.FC = () => {
               }}
             />
             
-            <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Todos os status</SelectItem>
-                <SelectItem value="planned">Planejado</SelectItem>
-                <SelectItem value="active">Ativo</SelectItem>
-                <SelectItem value="completed">Concluído</SelectItem>
-                <SelectItem value="cancelled">Cancelado</SelectItem>
-                <SelectItem value="em_producao">Em Produção</SelectItem>
-                <SelectItem value="aguardando_assinatura">Aguardando Assinatura</SelectItem>
-                <SelectItem value="aguardando_aprovacao">Aguardando Aprovação</SelectItem>
-                <SelectItem value="aguardando_nota_fiscal">Aguardando Nota Fiscal</SelectItem>
-                <SelectItem value="aguardando_pagamento">Aguardando Pagamento</SelectItem>
-                <SelectItem value="aguardando_repasse">Aguardando Repasse</SelectItem>
-                <SelectItem value="concluido">Concluído</SelectItem>
-                <SelectItem value="cancelado">Cancelado</SelectItem>
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              options={[
+                { id: '', name: 'Todos os status' },
+                { id: 'planned', name: 'Planejado' },
+                { id: 'active', name: 'Ativo' },
+                { id: 'completed', name: 'Concluído' },
+                { id: 'cancelled', name: 'Cancelado' },
+                { id: 'em_producao', name: 'Em Produção' },
+                { id: 'aguardando_assinatura', name: 'Aguardando Assinatura' },
+                { id: 'aguardando_aprovacao', name: 'Aguardando Aprovação' },
+                { id: 'aguardando_nota_fiscal', name: 'Aguardando Nota Fiscal' },
+                { id: 'aguardando_pagamento', name: 'Aguardando Pagamento' },
+                { id: 'aguardando_repasse', name: 'Aguardando Repasse' },
+                { id: 'concluido', name: 'Concluído' },
+                { id: 'cancelado', name: 'Cancelado' }
+              ]}
+              value={statusFilter}
+              onValueChange={setStatusFilter}
+              placeholder="Status"
+              searchPlaceholder="Buscar status..."
+            />
 
-            <Select value={clientFilter} onValueChange={handleClientFilterChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Cliente" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Todos os clientes</SelectItem>
-                {clients.map((client) => (
-                  <SelectItem key={client.id} value={client.id}>
-                    {client.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              options={[
+                { id: '', name: 'Todos os clientes' },
+                ...clients
+              ]}
+              value={clientFilter}
+              onValueChange={setClientFilter}
+              placeholder="Cliente"
+              searchPlaceholder="Buscar cliente..."
+            />
+
+            <SearchableSelect
+              options={[
+                { id: '', name: 'Todos os serviços' },
+                ...services
+              ]}
+              value={serviceFilter}
+              onValueChange={setServiceFilter}
+              placeholder="Serviço"
+              searchPlaceholder="Buscar serviço..."
+            />
+
+            <SearchableSelect
+              options={consultants}
+              value={consultantFilter}
+              onValueChange={setConsultantFilter}
+              placeholder="Consultor"
+              searchPlaceholder="Buscar consultor..."
+            />
+
+            <SearchableSelect
+              options={tags}
+              value={tagFilter}
+              onValueChange={setTagFilter}
+              placeholder="Tags"
+              searchPlaceholder="Buscar tags..."
+              multiple={true}
+            />
+
+            <div className="flex items-center space-x-2">
+              <Calendar className="h-4 w-4 text-gray-500" />
+              <Input
+                type="date"
+                placeholder="Data início"
+                value={startDateFilter}
+                onChange={(e) => setStartDateFilter(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Calendar className="h-4 w-4 text-gray-500" />
+              <Input
+                type="date"
+                placeholder="Data fim"
+                value={endDateFilter}
+                onChange={(e) => setEndDateFilter(e.target.value)}
+                className="text-sm"
+              />
+            </div>
 
             <Button variant="outline" size="sm" onClick={clearFilters}>
               <Filter className="h-4 w-4 mr-2" />

@@ -1,5 +1,4 @@
 
-
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -34,6 +33,9 @@ export const fetchProjects = async () => {
           created_at,
           updated_at,
           consultant:consultants!consultant_id(id, name)
+        ),
+        project_tag_relations(
+          tag:project_tags(id, name, color)
         )
       `)
       .order('created_at', { ascending: false });
@@ -50,7 +52,8 @@ export const fetchProjects = async () => {
       stages: project.project_stages?.map(stage => ({
         ...stage,
         consultant_name: stage.consultant?.name
-      })) || []
+      })) || [],
+      tags: project.project_tag_relations?.map(rel => rel.tag) || []
     })) || [];
 
     return transformedData;
@@ -146,6 +149,29 @@ export const updateStageStatus = async (
 
 export const deleteProject = async (id: string) => {
   try {
+    // First delete all related project stages
+    const { error: stagesError } = await supabase
+      .from('project_stages')
+      .delete()
+      .eq('project_id', id);
+    
+    if (stagesError) {
+      console.error('Error deleting project stages:', stagesError);
+      throw stagesError;
+    }
+
+    // Delete project tag relations
+    const { error: tagsError } = await supabase
+      .from('project_tag_relations')
+      .delete()
+      .eq('project_id', id);
+    
+    if (tagsError) {
+      console.error('Error deleting project tag relations:', tagsError);
+      throw tagsError;
+    }
+
+    // Finally delete the project
     const { error } = await supabase
       .from('projects')
       .delete()
@@ -203,6 +229,11 @@ export const createProject = async (project: any) => {
     }
 
     console.log('Projeto criado com sucesso:', data);
+
+    // Link project to tags if they exist
+    if (project.tagIds && project.tagIds.length > 0) {
+      await linkProjectToTags(data.id, project.tagIds);
+    }
 
     // Create stages if they exist
     if (project.stages && project.stages.length > 0) {
@@ -287,6 +318,11 @@ export const updateProject = async (project: any) => {
     }
 
     console.log('Projeto atualizado com sucesso:', data);
+
+    // Update project tags if they exist
+    if (project.tagIds) {
+      await linkProjectToTags(project.id, project.tagIds);
+    }
 
     // Update stages if they exist
     if (project.stages && project.stages.length > 0) {
@@ -395,3 +431,50 @@ export const linkProjectToTags = async (projectId: string, tagIds: string[]) => 
   }
 };
 
+// Fetch basic tags for filters
+export const fetchTags = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('tags')
+      .select('*')
+      .order('name');
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching tags:', error);
+    return [];
+  }
+};
+
+// Fetch consultants for filters
+export const fetchConsultants = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('consultants')
+      .select('id, name')
+      .order('name');
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching consultants:', error);
+    return [];
+  }
+};
+
+// Fetch services for filters
+export const fetchServices = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('services')
+      .select('id, name')
+      .order('name');
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching services:', error);
+    return [];
+  }
+};
