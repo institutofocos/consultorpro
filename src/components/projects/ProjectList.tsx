@@ -112,10 +112,12 @@ const ProjectList: React.FC = () => {
     }
   };
 
-  const handleDialogClose = () => {
-    console.log('Fechando dialog');
-    setIsDialogOpen(false);
-    setEditingProject(null);
+  const handleDialogOpenChange = (open: boolean) => {
+    console.log('Dialog open change:', open);
+    setIsDialogOpen(open);
+    if (!open) {
+      setEditingProject(null);
+    }
   };
 
   const handleStatusFilterChange = (value: string) => {
@@ -133,7 +135,7 @@ const ProjectList: React.FC = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold tracking-tight">Projetos</h1>
         <div className="flex items-center">
-          <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
+          <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
             <DialogTrigger asChild>
               <Button 
                 size="sm" 
@@ -154,7 +156,7 @@ const ProjectList: React.FC = () => {
               <ProjectForm
                 project={editingProject}
                 onProjectSaved={handleProjectSaved}
-                onCancel={handleDialogClose}
+                onCancel={() => setIsDialogOpen(false)}
               />
             </DialogContent>
           </Dialog>
@@ -179,6 +181,10 @@ const ProjectList: React.FC = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">Todos os status</SelectItem>
+                <SelectItem value="planned">Planejado</SelectItem>
+                <SelectItem value="active">Ativo</SelectItem>
+                <SelectItem value="completed">Concluído</SelectItem>
+                <SelectItem value="cancelled">Cancelado</SelectItem>
                 <SelectItem value="em_producao">Em Produção</SelectItem>
                 <SelectItem value="aguardando_assinatura">Aguardando Assinatura</SelectItem>
                 <SelectItem value="aguardando_aprovacao">Aguardando Aprovação</SelectItem>

@@ -9,16 +9,20 @@ export const useProjectActions = () => {
   const updateProjectStatus = async (projectId: string, status: string) => {
     setIsLoading(true);
     try {
+      console.log('Atualizando status do projeto:', projectId, 'para:', status);
       const { error } = await supabase
         .from('projects')
         .update({ status })
         .eq('id', projectId);
 
-      if (error) throw error;
-      toast.success('Status do projeto atualizado com sucesso!');
+      if (error) {
+        console.error('Erro ao atualizar status do projeto:', error);
+        throw error;
+      }
+      console.log('Status do projeto atualizado com sucesso');
     } catch (error) {
       console.error('Erro ao atualizar status do projeto:', error);
-      toast.error('Erro ao atualizar status do projeto.');
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -27,16 +31,20 @@ export const useProjectActions = () => {
   const updateStageStatus = async (stageId: string, status: string) => {
     setIsLoading(true);
     try {
+      console.log('Atualizando status da etapa:', stageId, 'para:', status);
       const { error } = await supabase
         .from('project_stages')
         .update({ status })
         .eq('id', stageId);
 
-      if (error) throw error;
-      toast.success('Status da etapa atualizado com sucesso!');
+      if (error) {
+        console.error('Erro ao atualizar status da etapa:', error);
+        throw error;
+      }
+      console.log('Status da etapa atualizado com sucesso');
     } catch (error) {
       console.error('Erro ao atualizar status da etapa:', error);
-      toast.error('Erro ao atualizar status da etapa.');
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -45,16 +53,20 @@ export const useProjectActions = () => {
   const completeProject = async (projectId: string) => {
     setIsLoading(true);
     try {
+      console.log('Concluindo projeto:', projectId);
       const { error } = await supabase
         .from('projects')
         .update({ status: 'concluido' })
         .eq('id', projectId);
 
-      if (error) throw error;
-      toast.success('Projeto concluído com sucesso!');
+      if (error) {
+        console.error('Erro ao concluir projeto:', error);
+        throw error;
+      }
+      console.log('Projeto concluído com sucesso');
     } catch (error) {
       console.error('Erro ao concluir projeto:', error);
-      toast.error('Erro ao concluir projeto.');
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -63,6 +75,7 @@ export const useProjectActions = () => {
   const completeStage = async (stageId: string) => {
     setIsLoading(true);
     try {
+      console.log('Concluindo etapa:', stageId);
       const { error } = await supabase
         .from('project_stages')
         .update({ 
@@ -72,11 +85,14 @@ export const useProjectActions = () => {
         })
         .eq('id', stageId);
 
-      if (error) throw error;
-      toast.success('Etapa concluída com sucesso!');
+      if (error) {
+        console.error('Erro ao concluir etapa:', error);
+        throw error;
+      }
+      console.log('Etapa concluída com sucesso');
     } catch (error) {
       console.error('Erro ao concluir etapa:', error);
-      toast.error('Erro ao concluir etapa.');
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -85,6 +101,7 @@ export const useProjectActions = () => {
   const uncompleteStage = async (stageId: string) => {
     setIsLoading(true);
     try {
+      console.log('Desfazendo conclusão da etapa:', stageId);
       const { error } = await supabase
         .from('project_stages')
         .update({ 
@@ -94,11 +111,14 @@ export const useProjectActions = () => {
         })
         .eq('id', stageId);
 
-      if (error) throw error;
-      toast.success('Conclusão da etapa desfeita com sucesso!');
+      if (error) {
+        console.error('Erro ao desfazer conclusão da etapa:', error);
+        throw error;
+      }
+      console.log('Conclusão da etapa desfeita com sucesso');
     } catch (error) {
       console.error('Erro ao desfazer conclusão da etapa:', error);
-      toast.error('Erro ao desfazer conclusão da etapa.');
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -107,16 +127,20 @@ export const useProjectActions = () => {
   const cancelProject = async (projectId: string) => {
     setIsLoading(true);
     try {
+      console.log('Cancelando projeto:', projectId);
       const { error } = await supabase
         .from('projects')
         .update({ status: 'cancelado' })
         .eq('id', projectId);
 
-      if (error) throw error;
-      toast.success('Projeto cancelado com sucesso!');
+      if (error) {
+        console.error('Erro ao cancelar projeto:', error);
+        throw error;
+      }
+      console.log('Projeto cancelado com sucesso');
     } catch (error) {
       console.error('Erro ao cancelar projeto:', error);
-      toast.error('Erro ao cancelar projeto.');
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -125,19 +149,20 @@ export const useProjectActions = () => {
   const deleteStage = async (stageId: string) => {
     setIsLoading(true);
     try {
+      console.log('Deletando etapa:', stageId);
       const { data, error } = await supabase
         .rpc('delete_project_stage', { stage_id: stageId });
 
-      if (error) throw error;
-      
-      if (data) {
-        toast.success('Etapa excluída com sucesso!');
-      } else {
-        throw new Error('Falha ao excluir etapa');
+      if (error) {
+        console.error('Erro ao excluir etapa:', error);
+        throw error;
       }
+      
+      console.log('Etapa excluída com sucesso');
+      return true;
     } catch (error) {
       console.error('Erro ao excluir etapa:', error);
-      toast.error('Erro ao excluir etapa.');
+      throw error;
     } finally {
       setIsLoading(false);
     }
