@@ -44,7 +44,7 @@ const ProjectList: React.FC = () => {
       (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesStatus = statusFilter === '' || project.status === statusFilter;
-    const matchesClient = clientFilter === '' || project.clientId === clientFilter;
+    const matchesClient = clientFilter === '' || project.client_id === clientFilter;
     
     return matchesSearch && matchesStatus && matchesClient;
   });
@@ -114,10 +114,14 @@ const ProjectList: React.FC = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">Todos os status</SelectItem>
-                <SelectItem value="planned">Planejado</SelectItem>
-                <SelectItem value="active">Ativo</SelectItem>
-                <SelectItem value="completed">Concluído</SelectItem>
-                <SelectItem value="cancelled">Cancelado</SelectItem>
+                <SelectItem value="em_producao">Em Produção</SelectItem>
+                <SelectItem value="aguardando_assinatura">Aguardando Assinatura</SelectItem>
+                <SelectItem value="aguardando_aprovacao">Aguardando Aprovação</SelectItem>
+                <SelectItem value="aguardando_nota_fiscal">Aguardando Nota Fiscal</SelectItem>
+                <SelectItem value="aguardando_pagamento">Aguardando Pagamento</SelectItem>
+                <SelectItem value="aguardando_repasse">Aguardando Repasse</SelectItem>
+                <SelectItem value="concluido">Concluído</SelectItem>
+                <SelectItem value="cancelado">Cancelado</SelectItem>
               </SelectContent>
             </Select>
 
@@ -161,6 +165,7 @@ const ProjectList: React.FC = () => {
             <ProjectsExpandedTable
               projects={filteredProjects}
               onDeleteProject={handleDeleteProject}
+              onRefresh={refetch}
             />
           )}
         </CardContent>
