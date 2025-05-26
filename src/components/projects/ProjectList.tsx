@@ -18,6 +18,7 @@ import ProjectsExpandedTable from './ProjectsExpandedTable';
 import ProjectForm from './ProjectForm';
 import SearchableSelect from '@/components/ui/searchable-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Project } from './types';
 
 const ProjectList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -81,26 +82,26 @@ const ProjectList: React.FC = () => {
     queryFn: fetchProjects,
   });
 
-  const filteredProjects = projects.filter(project => {
+  const filteredProjects = projects.filter((project: Project) => {
     const matchesSearch = searchTerm === '' || 
       project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesStatus = statusFilter === '' || project.status === statusFilter;
-    const matchesClient = clientFilter === '' || project.client_id === clientFilter;
-    const matchesService = serviceFilter === '' || project.service_id === serviceFilter;
+    const matchesClient = clientFilter === '' || project.clientId === clientFilter;
+    const matchesService = serviceFilter === '' || project.serviceId === serviceFilter;
     const matchesConsultant = consultantFilter === '' || 
-      project.main_consultant_id === consultantFilter || 
-      project.support_consultant_id === consultantFilter;
+      project.mainConsultantId === consultantFilter || 
+      project.supportConsultantId === consultantFilter;
     
     const matchesTags = tagFilter.length === 0 || 
-      (project.tags && project.tags.some((tag: any) => tagFilter.includes(tag.id)));
+      (project.tagIds && project.tagIds.some((tagId: string) => tagFilter.includes(tagId)));
     
     const matchesStartDate = startDateFilter === '' || 
-      (project.start_date && project.start_date >= startDateFilter);
+      (project.startDate && project.startDate >= startDateFilter);
     
     const matchesEndDate = endDateFilter === '' || 
-      (project.end_date && project.end_date <= endDateFilter);
+      (project.endDate && project.endDate <= endDateFilter);
     
     return matchesSearch && matchesStatus && matchesClient && matchesService && 
            matchesConsultant && matchesTags && matchesStartDate && matchesEndDate;
