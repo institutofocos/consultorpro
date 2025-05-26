@@ -1,3 +1,4 @@
+
 import { supabase } from './client';
 
 export interface KanbanColumn {
@@ -30,7 +31,7 @@ export const fetchKanbanColumns = async (): Promise<KanbanColumn[]> => {
       order_index: column.order_index,
       is_default: column.is_default,
       is_completion_column: column.is_completion_column || false,
-      column_type: column.column_type || 'normal',
+      column_type: (column.column_type as 'normal' | 'completed' | 'cancelled') || 'normal',
       created_at: column.created_at,
       updated_at: column.updated_at,
     }));

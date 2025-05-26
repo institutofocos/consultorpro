@@ -106,11 +106,11 @@ export const syncKanbanToStages = async (
 
         // Se está finalizando, atualizar campos relacionados
         if (isFinalized) {
-          updates.manager_approved = true;
-          updates.client_approved = true;
-          updates.invoice_issued = true;
-          updates.payment_received = true;
-          updates.consultants_settled = true;
+          updates.managerApproved = true;
+          updates.clientApproved = true;
+          updates.invoiceIssued = true;
+          updates.paymentReceived = true;
+          updates.consultantsSettled = true;
         }
 
         await updateStageStatus(stage.id, updates, projectName, stage.name);
@@ -132,8 +132,8 @@ export const syncKanbanToStages = async (
 
           // Se está marcando como concluída, atualizar campos relacionados
           if (shouldBeCompleted) {
-            updates.manager_approved = true;
-            updates.client_approved = true;
+            updates.managerApproved = true;
+            updates.clientApproved = true;
           }
 
           await updateStageStatus(stage.id, updates, projectName, stage.name);
