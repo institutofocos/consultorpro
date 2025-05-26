@@ -94,10 +94,10 @@ const NotesExpandedTable: React.FC<NotesExpandedTableProps> = ({
     return STATUS_LABELS[status] || status;
   };
 
-  const renderProjectRow = (project: Note) => {
+  const renderProjectRow = (project: Note & { stages: any[] }) => {
     const isExpanded = expandedProjects.has(project.id);
-    const completedStages = project.checklists?.filter(c => c.completed).length || 0;
-    const totalStages = project.checklists?.length || 0;
+    const completedStages = project.stages?.filter(c => c.completed).length || 0;
+    const totalStages = project.stages?.length || 0;
 
     return (
       <React.Fragment key={project.id}>
