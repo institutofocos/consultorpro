@@ -987,6 +987,7 @@ export type Database = {
           attachment: string | null
           client_approved: boolean | null
           completed: boolean | null
+          completed_at: string | null
           consultant_id: string | null
           consultants_settled: boolean | null
           created_at: string | null
@@ -1010,6 +1011,7 @@ export type Database = {
           attachment?: string | null
           client_approved?: boolean | null
           completed?: boolean | null
+          completed_at?: string | null
           consultant_id?: string | null
           consultants_settled?: boolean | null
           created_at?: string | null
@@ -1033,6 +1035,7 @@ export type Database = {
           attachment?: string | null
           client_approved?: boolean | null
           completed?: boolean | null
+          completed_at?: string | null
           consultant_id?: string | null
           consultants_settled?: boolean | null
           created_at?: string | null
@@ -1714,6 +1717,10 @@ export type Database = {
       calculate_stage_dates: {
         Args: { project_start_date: string; stages: Json }
         Returns: Json
+      }
+      delete_project_stage: {
+        Args: { stage_id: string }
+        Returns: boolean
       }
       generate_project_id: {
         Args: Record<PropertyKey, never>

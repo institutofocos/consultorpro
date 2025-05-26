@@ -67,7 +67,7 @@ export const useProjectActions = () => {
         .from('project_stages')
         .update({ 
           completed: true, 
-          status: 'concluido',
+          status: 'finalizados',
           completed_at: new Date().toISOString()
         })
         .eq('id', stageId);
@@ -122,6 +122,27 @@ export const useProjectActions = () => {
     }
   };
 
+  const deleteStage = async (stageId: string) => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .rpc('delete_project_stage', { stage_id: stageId });
+
+      if (error) throw error;
+      
+      if (data) {
+        toast.success('Etapa excluída com sucesso!');
+      } else {
+        throw new Error('Falha ao excluir etapa');
+      }
+    } catch (error) {
+      console.error('Erro ao excluir etapa:', error);
+      toast.error('Erro ao excluir etapa.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     isLoading,
     updateProjectStatus,
@@ -130,5 +151,6 @@ export const useProjectActions = () => {
     completeStage,
     uncompleteStage,
     cancelProject,
+    deleteStage,
   };
 };

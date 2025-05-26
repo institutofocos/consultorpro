@@ -64,6 +64,7 @@ const STATUS_COLORS = {
   'aguardando_nota_fiscal': 'bg-pink-100 text-pink-800',
   'aguardando_pagamento': 'bg-indigo-100 text-indigo-800',
   'aguardando_repasse': 'bg-cyan-100 text-cyan-800',
+  'finalizados': 'bg-green-100 text-green-800',
   'concluido': 'bg-green-100 text-green-800',
   'cancelado': 'bg-red-100 text-red-800',
 };
@@ -79,6 +80,7 @@ const STATUS_LABELS = {
   'aguardando_nota_fiscal': 'Aguardando Nota Fiscal',
   'aguardando_pagamento': 'Aguardando Pagamento',
   'aguardando_repasse': 'Aguardando Repasse',
+  'finalizados': 'Finalizados',
   'concluido': 'Concluído',
   'cancelado': 'Cancelado',
 };
@@ -112,6 +114,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
     completeStage,
     uncompleteStage,
     cancelProject,
+    deleteStage,
   } = useProjectActions();
 
   const toggleProjectExpansion = (projectId: string) => {
@@ -183,6 +186,13 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
   const handleCancelProject = async (projectId: string) => {
     if (window.confirm('Tem certeza que deseja cancelar este projeto?')) {
       await cancelProject(projectId);
+      onRefresh?.();
+    }
+  };
+
+  const handleDeleteStage = async (stageId: string) => {
+    if (window.confirm('Tem certeza que deseja excluir esta etapa?')) {
+      await deleteStage(stageId);
       onRefresh?.();
     }
   };
@@ -363,11 +373,11 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                       {getStatusLabel(status)}
                     </SelectItem>
                   ))}
-                  {stage.status === 'concluido' && (
-                    <SelectItem value="concluido">Concluído</SelectItem>
+                  {stage.status === 'finalizados' && (
+                    <SelectItem value="finalizados">Finalizados</SelectItem>
                   )}
-                  {stage.status === 'cancelado' && (
-                    <SelectItem value="cancelado">Cancelado</SelectItem>
+                  {stage.status === 'cancelados' && (
+                    <SelectItem value="cancelados">Cancelados</SelectItem>
                   )}
                 </SelectContent>
               </Select>
@@ -431,6 +441,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
+                  onClick={() => handleDeleteStage(stage.id)}
                   className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
                   title="Excluir etapa"
                 >
