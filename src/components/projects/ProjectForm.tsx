@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 
 interface ProjectFormProps {
   project?: Project;
-  onProjectSaved: (project: Project) => void;
+  onProjectSaved: (project?: Project) => void;
   onCancel: () => void;
 }
 
@@ -256,6 +256,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
 
       console.log('=== INICIANDO SUBMISSÃO DO FORMULÁRIO ===');
       console.log('Tipo de operação:', project ? 'UPDATE' : 'CREATE');
+      console.log('Dados do formulário:', formData);
 
       const projectData: Project = {
         id: project?.id || '',
@@ -284,9 +285,11 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         stages: formData.stages || []
       };
 
+      console.log('Dados do projeto preparados:', projectData);
+
       let savedProject: any;
       if (project?.id) {
-        console.log('Atualizando projeto existente');
+        console.log('Atualizando projeto existente com ID:', project.id);
         savedProject = await updateProject(projectData);
         toast.success('Projeto atualizado com sucesso!');
       } else {
@@ -294,6 +297,8 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         savedProject = await createProject(projectData);
         toast.success('Projeto criado com sucesso!');
       }
+
+      console.log('Projeto salvo no banco:', savedProject);
 
       // Transform the saved project to match the Project interface
       const transformedProject: Project = {
@@ -323,12 +328,17 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         stages: formData.stages || []
       };
 
-      console.log('Projeto salvo com sucesso, chamando onProjectSaved');
+      console.log('Projeto transformado:', transformedProject);
+      console.log('Chamando onProjectSaved...');
+      
+      // Call the callback with the saved project
       onProjectSaved(transformedProject);
-      console.log('=== SUBMISSÃO CONCLUÍDA ===');
+      
+      console.log('=== SUBMISSÃO CONCLUÍDA COM SUCESSO ===');
     } catch (error) {
+      console.error('=== ERRO NA SUBMISSÃO ===');
       console.error('Error saving project:', error);
-      toast.error('Erro ao salvar projeto');
+      toast.error('Erro ao salvar projeto: ' + (error.message || 'Erro desconhecido'));
     } finally {
       setIsLoading(false);
     }

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -144,12 +143,20 @@ const ProjectList: React.FC = () => {
     toast.success('Filtros limpos com sucesso!');
   };
 
-  const handleProjectSaved = async () => {
+  const handleProjectSaved = async (savedProject?: Project) => {
     try {
+      console.log('=== PROJETO SALVO - ATUALIZANDO LISTA ===');
+      console.log('Projeto salvo:', savedProject);
+      
+      // Force refetch data to ensure we get the latest
       await refetch();
+      
+      // Close dialog and clear editing state
       setIsDialogOpen(false);
       setEditingProject(null);
-      toast.success("Projeto salvo com sucesso!");
+      
+      console.log('Lista de projetos atualizada com sucesso');
+      toast.success("Projeto salvo e lista atualizada com sucesso!");
     } catch (error) {
       console.error('Erro ao atualizar lista de projetos:', error);
       toast.error('Erro ao atualizar lista de projetos');
@@ -200,7 +207,10 @@ const ProjectList: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Projetos</h1>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Projetos</h1>
+          <p className="text-muted-foreground">Gerenciamento de projetos</p>
+        </div>
         <div className="flex items-center">
           <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
             <DialogTrigger asChild>
