@@ -55,7 +55,7 @@ export interface Project {
   totalHours?: number;
   hourlyRate?: number;
   status: 'planned' | 'active' | 'completed' | 'cancelled' | 'em_producao' | 'aguardando_assinatura' | 'aguardando_aprovacao' | 'aguardando_nota_fiscal' | 'aguardando_pagamento' | 'aguardando_repasse' | 'concluido' | 'cancelado';
-  tags?: ProjectTag[];
+  tags?: string[]; // Changed from ProjectTag[] to string[]
   tagIds?: string[];
   stages?: Stage[];
   // Extended properties from joins
