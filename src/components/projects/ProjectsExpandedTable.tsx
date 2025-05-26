@@ -1,11 +1,13 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, Eye } from 'lucide-react';
 import { Project } from './types';
 import ServiceNameCell from './ServiceNameCell';
+import ProjectDetails from './ProjectDetails';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface ProjectsExpandedTableProps {
   projects: Project[];
@@ -20,6 +22,9 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
   onEditProject,
   onRefresh
 }) => {
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [showProjectDetails, setShowProjectDetails] = useState(false);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'planned':
@@ -91,101 +96,143 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
+  const handleViewProject = (project: Project) => {
+    setSelectedProject(project);
+    setShowProjectDetails(true);
+  };
+
+  const handleCloseProjectDetails = () => {
+    setShowProjectDetails(false);
+    setSelectedProject(null);
+  };
+
+  const handleProjectUpdated = async () => {
+    await onRefresh();
+  };
+
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Projeto</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Cliente</TableHead>
-            <TableHead>Consultor</TableHead>
-            <TableHead>Serviço</TableHead>
-            <TableHead>Tags</TableHead>
-            <TableHead>Valor Total</TableHead>
-            <TableHead>Data Início</TableHead>
-            <TableHead>Data Fim</TableHead>
-            <TableHead>Descrição</TableHead>
-            <TableHead>Progresso</TableHead>
-            <TableHead>Ações</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {projects.map((project) => (
-            <TableRow key={project.id}>
-              <TableCell className="font-medium">
-                <div>
-                  <div className="font-semibold">{project.name}</div>
-                  {project.projectId && (
-                    <div className="text-sm text-muted-foreground">
-                      ID: {project.projectId}
-                    </div>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell>
-                <Badge className={getStatusColor(project.status)}>
-                  {getStatusLabel(project.status)}
-                </Badge>
-              </TableCell>
-              <TableCell>{project.clientName || '-'}</TableCell>
-              <TableCell>{project.mainConsultantName || '-'}</TableCell>
-              <TableCell>
-                {project.serviceName ? (
-                  <ServiceNameCell serviceName={project.serviceName} />
-                ) : (
-                  '-'
-                )}
-              </TableCell>
-              <TableCell>
-                {project.tags && project.tags.length > 0 ? (
-                  <div className="flex flex-wrap gap-1">
-                    {project.tags.map((tagName, index) => (
-                      <Badge key={index} variant="secondary" className="text-xs">
-                        {tagName}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : (
-                  '-'
-                )}
-              </TableCell>
-              <TableCell>{formatCurrency(project.totalValue)}</TableCell>
-              <TableCell>{formatDate(project.startDate)}</TableCell>
-              <TableCell>{formatDate(project.endDate)}</TableCell>
-              <TableCell>
-                <div className="max-w-xs truncate" title={project.description}>
-                  {project.description || '-'}
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="text-sm">
-                  {project.completedStages || 0}/{project.stages?.length || 0}
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onEditProject(project)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onDeleteProject(project.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </TableCell>
+    <>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Projeto</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Cliente</TableHead>
+              <TableHead>Consultor</TableHead>
+              <TableHead>Serviço</TableHead>
+              <TableHead>Tags</TableHead>
+              <TableHead>Valor Total</TableHead>
+              <TableHead>Data Início</TableHead>
+              <TableHead>Data Fim</TableHead>
+              <TableHead>Descrição</TableHead>
+              <TableHead>Progresso</TableHead>
+              <TableHead>Ações</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {projects.map((project) => (
+              <TableRow key={project.id}>
+                <TableCell className="font-medium">
+                  <div>
+                    <div className="font-semibold">{project.name}</div>
+                    {project.projectId && (
+                      <div className="text-sm text-muted-foreground">
+                        ID: {project.projectId}
+                      </div>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge className={getStatusColor(project.status)}>
+                    {getStatusLabel(project.status)}
+                  </Badge>
+                </TableCell>
+                <TableCell>{project.clientName || '-'}</TableCell>
+                <TableCell>{project.mainConsultantName || '-'}</TableCell>
+                <TableCell>
+                  {project.serviceName ? (
+                    <ServiceNameCell serviceName={project.serviceName} />
+                  ) : (
+                    '-'
+                  )}
+                </TableCell>
+                <TableCell>
+                  {project.tags && project.tags.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {project.tags.map((tagName, index) => (
+                        <Badge key={index} variant="secondary" className="text-xs">
+                          {tagName}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    '-'
+                  )}
+                </TableCell>
+                <TableCell>{formatCurrency(project.totalValue)}</TableCell>
+                <TableCell>{formatDate(project.startDate)}</TableCell>
+                <TableCell>{formatDate(project.endDate)}</TableCell>
+                <TableCell>
+                  <div className="max-w-xs truncate" title={project.description}>
+                    {project.description || '-'}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm">
+                    {project.completedStages || 0}/{project.stages?.length || 0}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewProject(project)}
+                      title="Ver detalhes e etapas"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onEditProject(project)}
+                      title="Editar projeto"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onDeleteProject(project.id)}
+                      title="Excluir projeto"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Modal de detalhes do projeto */}
+      <Dialog open={showProjectDetails} onOpenChange={setShowProjectDetails}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Projeto</DialogTitle>
+          </DialogHeader>
+          {selectedProject && (
+            <ProjectDetails
+              project={selectedProject}
+              onClose={handleCloseProjectDetails}
+              onProjectUpdated={handleProjectUpdated}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

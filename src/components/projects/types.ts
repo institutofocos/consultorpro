@@ -1,3 +1,4 @@
+
 export interface Stage {
   id: string;
   projectId: string;
@@ -17,7 +18,7 @@ export interface Stage {
   consultantsSettled: boolean;
   attachment?: string;
   stageOrder: number;
-  status: string; // Changed to string to allow any status value from database
+  status: 'iniciar_projeto' | 'em_producao' | 'aguardando_assinatura' | 'aguardando_aprovacao' | 'aguardando_nota_fiscal' | 'aguardando_pagamento' | 'aguardando_repasse' | 'finalizados' | 'cancelados' | string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -53,7 +54,7 @@ export interface Project {
   // Novos campos de horas e valor
   totalHours?: number;
   hourlyRate?: number;
-  status: string; // Changed to string to allow any status value from database
+  status: 'planned' | 'active' | 'completed' | 'cancelled' | 'em_producao' | 'aguardando_assinatura' | 'aguardando_aprovacao' | 'aguardando_nota_fiscal' | 'aguardando_pagamento' | 'aguardando_repasse' | 'concluido' | 'cancelado' | string;
   tags?: string[]; // Changed from ProjectTag[] to string[]
   tagIds?: string[];
   stages?: Stage[];
