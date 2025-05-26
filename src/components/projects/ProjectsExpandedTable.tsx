@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Eye, Search } from 'lucide-react';
+import { Edit, Trash2, Eye, Search, ChevronDown, ChevronRight } from 'lucide-react';
 import { Project } from './types';
 import ServiceNameCell from './ServiceNameCell';
 import ProjectDetails from './ProjectDetails';
@@ -26,6 +26,17 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
   const [showProjectDetails, setShowProjectDetails] = useState(false);
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
   const [selectedProjectForDescription, setSelectedProjectForDescription] = useState<Project | null>(null);
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+
+  const toggleProjectExpansion = (projectId: string) => {
+    const newExpanded = new Set(expandedProjects);
+    if (newExpanded.has(projectId)) {
+      newExpanded.delete(projectId);
+    } else {
+      newExpanded.add(projectId);
+    }
+    setExpandedProjects(newExpanded);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -203,93 +214,156 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
           <TableBody>
             {projects.map((project) => {
               const dynamicStatus = calculateDynamicStatus(project);
+              const isExpanded = expandedProjects.has(project.id);
+              const hasStages = project.stages && project.stages.length > 0;
               
               return (
-                <TableRow key={project.id}>
-                  <TableCell className="font-medium">
-                    <div>
-                      <div className="font-semibold">{project.name || 'Sem nome'}</div>
-                      {project.projectId && (
-                        <div className="text-xs text-muted-foreground">
-                          ID: {project.projectId}
+                <React.Fragment key={project.id}>
+                  {/* Linha principal do projeto */}
+                  <TableRow>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {hasStages ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-0 h-6 w-6"
+                            onClick={() => toggleProjectExpansion(project.id)}
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                          </Button>
+                        ) : (
+                          <div className="w-6" />
+                        )}
+                        <div>
+                          <div className="font-semibold">{project.name || 'Sem nome'}</div>
+                          {project.projectId && (
+                            <div className="text-xs text-muted-foreground">
+                              ID: {project.projectId}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(dynamicStatus)}>
-                      {getStatusLabel(dynamicStatus)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{getFirstName(project.clientName)}</TableCell>
-                  <TableCell>{getFirstAndSecondName(project.mainConsultantName)}</TableCell>
-                  <TableCell>
-                    {project.serviceName ? (
-                      <ServiceNameCell serviceName={project.serviceName} />
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {project.tags && project.tags.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {project.tags.map((tagName, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
-                            {tagName}
-                          </Badge>
-                        ))}
                       </div>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                  <TableCell>{formatCurrency(project.totalValue)}</TableCell>
-                  <TableCell>{formatDate(project.startDate)}</TableCell>
-                  <TableCell>{formatDate(project.endDate)}</TableCell>
-                  <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewDescription(project)}
-                      title="Ver descrição completa"
-                    >
-                      <Search className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      {project.completedStages || 0}/{project.stages?.length || 0}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(dynamicStatus)}>
+                        {getStatusLabel(dynamicStatus)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{getFirstName(project.clientName)}</TableCell>
+                    <TableCell>{getFirstAndSecondName(project.mainConsultantName)}</TableCell>
+                    <TableCell>
+                      {project.serviceName ? (
+                        <ServiceNameCell serviceName={project.serviceName} />
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {project.tags && project.tags.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {project.tags.map((tagName, index) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {tagName}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell>{formatCurrency(project.totalValue)}</TableCell>
+                    <TableCell>{formatDate(project.startDate)}</TableCell>
+                    <TableCell>{formatDate(project.endDate)}</TableCell>
+                    <TableCell>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleViewProject(project)}
-                        title="Ver detalhes e etapas"
+                        onClick={() => handleViewDescription(project)}
+                        title="Ver descrição completa"
                       >
-                        <Eye className="h-4 w-4" />
+                        <Search className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onEditProject(project)}
-                        title="Editar projeto"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onDeleteProject(project.id)}
-                        title="Excluir projeto"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        {project.completedStages || 0}/{project.stages?.length || 0}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewProject(project)}
+                          title="Ver detalhes e etapas"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onEditProject(project)}
+                          title="Editar projeto"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onDeleteProject(project.id)}
+                          title="Excluir projeto"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Linhas das etapas expandidas */}
+                  {isExpanded && hasStages && project.stages?.map((stage, index) => (
+                    <TableRow key={`${project.id}-stage-${index}`} className="bg-muted/30">
+                      <TableCell className="pl-12">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+                          <span className="text-sm font-medium">{stage.name}</span>
+                          {stage.completed && (
+                            <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                              Concluída
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          Etapa
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">-</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">-</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">-</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">-</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {stage.value ? formatCurrency(stage.value) : '-'}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {stage.startDate ? formatDate(stage.startDate) : '-'}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {stage.endDate ? formatDate(stage.endDate) : '-'}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">-</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {stage.completed ? '100%' : '0%'}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">-</TableCell>
+                    </TableRow>
+                  ))}
+                </React.Fragment>
               );
             })}
           </TableBody>
