@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchServices } from "@/integrations/supabase/services";
+import SearchableSelect from "@/components/ui/searchable-select";
 
 interface Consultant {
   id?: string;
@@ -25,6 +27,7 @@ interface Consultant {
   username?: string;
   password?: string;
   profile_photo?: string;
+  services?: string[];
 }
 
 interface ConsultantFormProps {
@@ -49,13 +52,50 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
     pix_key: '',
     username: '',
     password: '',
-    profile_photo: ''
+    profile_photo: '',
+    services: []
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [availableServices, setAvailableServices] = useState<Array<{ id: string; name: string }>>([]);
+
+  useEffect(() => {
+    const loadServices = async () => {
+      try {
+        const services = await fetchServices();
+        setAvailableServices(services.map(service => ({
+          id: service.id,
+          name: service.name
+        })));
+      } catch (error) {
+        console.error('Error loading services:', error);
+        toast.error('Erro ao carregar serviços');
+      }
+    };
+
+    loadServices();
+  }, []);
 
   useEffect(() => {
     if (consultant) {
-      setFormData(consultant);
+      const loadConsultantServices = async () => {
+        try {
+          // Buscar serviços do consultor
+          const { data: consultantServices, error } = await supabase
+            .from('consultant_services')
+            .select('service_id')
+            .eq('consultant_id', consultant.id);
+
+          if (error) throw error;
+
+          const serviceIds = consultantServices?.map(cs => cs.service_id) || [];
+          setFormData({ ...consultant, services: serviceIds });
+        } catch (error) {
+          console.error('Error loading consultant services:', error);
+          setFormData({ ...consultant, services: [] });
+        }
+      };
+
+      loadConsultantServices();
     }
   }, [consultant]);
 
@@ -106,6 +146,32 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
         if (error) throw error;
         savedConsultant = data;
         toast.success('Consultor criado com sucesso!');
+      }
+
+      // Gerenciar serviços do consultor
+      if (formData.services && formData.services.length > 0) {
+        // Remover serviços existentes
+        if (consultant?.id) {
+          await supabase
+            .from('consultant_services')
+            .delete()
+            .eq('consultant_id', savedConsultant.id);
+        }
+
+        // Adicionar novos serviços
+        const serviceRelations = formData.services.map(serviceId => ({
+          consultant_id: savedConsultant.id,
+          service_id: serviceId
+        }));
+
+        const { error: servicesError } = await supabase
+          .from('consultant_services')
+          .insert(serviceRelations);
+
+        if (servicesError) {
+          console.error('Error saving consultant services:', servicesError);
+          toast.warning('Consultor salvo, mas houve erro ao associar serviços');
+        }
       }
 
       // Se tem username/password, criar perfil de usuário
@@ -198,6 +264,21 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
                 placeholder="https://exemplo.com/foto.jpg"
               />
             </div>
+          </div>
+
+          {/* Serviços Autorizados */}
+          <div>
+            <Label htmlFor="services">Serviços Autorizados</Label>
+            <SearchableSelect
+              options={availableServices}
+              value={formData.services || []}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, services: value as string[] }))}
+              placeholder="Selecione os serviços que o consultor pode executar..."
+              multiple={true}
+              searchPlaceholder="Pesquisar serviços..."
+              emptyText="Nenhum serviço encontrado."
+              className="mt-1"
+            />
           </div>
 
           {/* Endereço */}

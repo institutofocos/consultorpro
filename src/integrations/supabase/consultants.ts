@@ -4,7 +4,13 @@ export const fetchConsultants = async () => {
   try {
     const { data, error } = await supabase
       .from('consultants')
-      .select('*')
+      .select(`
+        *,
+        consultant_services(
+          service_id,
+          services(id, name)
+        )
+      `)
       .order('name');
     
     if (error) throw error;
@@ -60,6 +66,73 @@ export const deleteConsultant = async (id: string) => {
   } catch (error) {
     console.error('Error deleting consultant:', error);
     throw error;
+  }
+};
+
+export const fetchConsultantServices = async (consultantId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('consultant_services')
+      .select(`
+        service_id,
+        services(id, name)
+      `)
+      .eq('consultant_id', consultantId);
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching consultant services:', error);
+    return [];
+  }
+};
+
+export const updateConsultantServices = async (consultantId: string, serviceIds: string[]) => {
+  try {
+    // Remover serviços existentes
+    await supabase
+      .from('consultant_services')
+      .delete()
+      .eq('consultant_id', consultantId);
+
+    // Adicionar novos serviços
+    if (serviceIds.length > 0) {
+      const serviceRelations = serviceIds.map(serviceId => ({
+        consultant_id: consultantId,
+        service_id: serviceId
+      }));
+
+      const { error } = await supabase
+        .from('consultant_services')
+        .insert(serviceRelations);
+
+      if (error) throw error;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error updating consultant services:', error);
+    throw error;
+  }
+};
+
+export const checkConsultantAuthorizedForService = async (consultantId: string, serviceId: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('consultant_services')
+      .select('id')
+      .eq('consultant_id', consultantId)
+      .eq('service_id', serviceId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+
+    return !!data;
+  } catch (error) {
+    console.error('Error checking consultant authorization:', error);
+    return false;
   }
 };
 
