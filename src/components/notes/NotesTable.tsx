@@ -47,12 +47,13 @@ const NotesTable: React.FC<NotesTableProps> = ({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Título</TableHead>
+            <TableHead>Título / Tarefa</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Cliente</TableHead>
             <TableHead>Serviço</TableHead>
-            <TableHead>Consultor</TableHead>
+            <TableHead>Consultor / Responsável</TableHead>
             <TableHead>Data Vencimento</TableHead>
+            <TableHead>Descrição / Progresso</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
@@ -96,6 +97,16 @@ const NotesTable: React.FC<NotesTableProps> = ({
                     '-'
                   )}
                 </TableCell>
+                <TableCell>
+                  <div className="text-sm text-muted-foreground">
+                    {note.content ? note.content.substring(0, 50) + (note.content.length > 50 ? '...' : '') : '-'}
+                    {note.checklists && note.checklists.length > 0 && (
+                      <div className="text-xs mt-1">
+                        {note.checklists.filter(c => c.completed).length}/{note.checklists.length} concluídos
+                      </div>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
                     <NoteForm
@@ -120,7 +131,7 @@ const NotesTable: React.FC<NotesTableProps> = ({
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-4 text-muted-foreground">
+              <TableCell colSpan={8} className="text-center py-4 text-muted-foreground">
                 Nenhuma tarefa encontrada.
               </TableCell>
             </TableRow>

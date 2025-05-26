@@ -24,14 +24,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 
 import NotesGrid from '@/components/notes/NotesGrid';
-import NotesExpandedTable from '@/components/notes/NotesExpandedTable';
+import NotesTable from '@/components/notes/NotesTable';
 import NotesKanban from '@/components/notes/NotesKanban';
 import NotesGantt from '@/components/notes/NotesGantt';
 import NoteForm from '@/components/notes/NoteForm';
 import NoteFormSelect from '@/components/notes/NoteFormSelect';
 
 const NotesPage: React.FC = () => {
-  const [viewMode, setViewMode] = useState<string>('kanban');
+  const [viewMode, setViewMode] = useState<string>('lista');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [consultantFilter, setConsultantFilter] = useState<string>('');
@@ -220,15 +220,10 @@ const NotesPage: React.FC = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">Todos os status</SelectItem>
-                <SelectItem value="iniciar_projeto">Iniciar Projeto</SelectItem>
+                <SelectItem value="a_fazer">A fazer</SelectItem>
                 <SelectItem value="em_producao">Em produção</SelectItem>
-                <SelectItem value="aguardando_assinatura">Aguardando Assinatura</SelectItem>
-                <SelectItem value="aguardando_aprovacao">Aguardando Aprovação</SelectItem>
-                <SelectItem value="aguardando_nota_fiscal">Aguardando Nota Fiscal</SelectItem>
-                <SelectItem value="aguardando_pagamento">Aguardando Pagamento</SelectItem>
-                <SelectItem value="aguardando_repasse">Aguardando Repasse</SelectItem>
-                <SelectItem value="finalizados">Finalizados</SelectItem>
-                <SelectItem value="cancelados">Cancelados</SelectItem>
+                <SelectItem value="finalizado">Finalizado</SelectItem>
+                <SelectItem value="cancelado">Cancelado</SelectItem>
               </SelectContent>
             </Select>
 
@@ -360,7 +355,7 @@ const NotesPage: React.FC = () => {
                 />
               )}
               {viewMode === 'lista' && (
-                <NotesExpandedTable
+                <NotesTable
                   notes={filteredNotes}
                   onUpdateNote={handleUpdateNote}
                   onDeleteNote={handleDeleteNote}
