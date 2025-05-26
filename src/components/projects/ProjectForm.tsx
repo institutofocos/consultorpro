@@ -334,6 +334,18 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     }
   };
 
+  const handleTagSelection = (value: string | string[]) => {
+    if (typeof value === 'string') {
+      const tag = availableTags.find(t => t.id === value);
+      if (tag && !formData.tags?.includes(tag.name)) {
+        setFormData(prev => ({
+          ...prev,
+          tags: [...(prev.tags || []), tag.name]
+        }));
+      }
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <Card>
@@ -503,15 +515,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
               <SearchableSelect
                 options={availableTags}
                 value=""
-                onValueChange={(value) => {
-                  const tag = availableTags.find(t => t.id === value);
-                  if (tag && !formData.tags?.includes(tag.name)) {
-                    setFormData(prev => ({
-                      ...prev,
-                      tags: [...(prev.tags || []), tag.name]
-                    }));
-                  }
-                }}
+                onValueChange={handleTagSelection}
                 placeholder="Adicionar tag"
                 searchPlaceholder="Pesquisar tags..."
                 emptyText="Nenhuma tag encontrada"

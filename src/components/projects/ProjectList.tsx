@@ -163,6 +163,39 @@ const ProjectList: React.FC = () => {
     }
   };
 
+  // Helper functions to handle SearchableSelect value changes
+  const handleStatusFilterChange = (value: string | string[]) => {
+    if (typeof value === 'string') {
+      setStatusFilter(value);
+    }
+  };
+
+  const handleClientFilterChange = (value: string | string[]) => {
+    if (typeof value === 'string') {
+      setClientFilter(value);
+    }
+  };
+
+  const handleServiceFilterChange = (value: string | string[]) => {
+    if (typeof value === 'string') {
+      setServiceFilter(value);
+    }
+  };
+
+  const handleConsultantFilterChange = (value: string | string[]) => {
+    if (typeof value === 'string') {
+      setConsultantFilter(value);
+    }
+  };
+
+  const handleTagFilterChange = (value: string | string[]) => {
+    if (Array.isArray(value)) {
+      setTagFilter(value);
+    } else if (typeof value === 'string') {
+      setTagFilter([value]);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -225,7 +258,7 @@ const ProjectList: React.FC = () => {
                 { id: 'cancelado', name: 'Cancelado' }
               ]}
               value={statusFilter}
-              onValueChange={setStatusFilter}
+              onValueChange={handleStatusFilterChange}
               placeholder="Status"
               searchPlaceholder="Buscar status..."
             />
@@ -236,7 +269,7 @@ const ProjectList: React.FC = () => {
                 ...clients
               ]}
               value={clientFilter}
-              onValueChange={setClientFilter}
+              onValueChange={handleClientFilterChange}
               placeholder="Cliente"
               searchPlaceholder="Buscar cliente..."
             />
@@ -247,7 +280,7 @@ const ProjectList: React.FC = () => {
                 ...services
               ]}
               value={serviceFilter}
-              onValueChange={setServiceFilter}
+              onValueChange={handleServiceFilterChange}
               placeholder="Serviço"
               searchPlaceholder="Buscar serviço..."
             />
@@ -255,7 +288,7 @@ const ProjectList: React.FC = () => {
             <SearchableSelect
               options={consultants}
               value={consultantFilter}
-              onValueChange={setConsultantFilter}
+              onValueChange={handleConsultantFilterChange}
               placeholder="Consultor"
               searchPlaceholder="Buscar consultor..."
             />
@@ -263,7 +296,7 @@ const ProjectList: React.FC = () => {
             <SearchableSelect
               options={tags}
               value={tagFilter}
-              onValueChange={setTagFilter}
+              onValueChange={handleTagFilterChange}
               placeholder="Tags"
               searchPlaceholder="Buscar tags..."
               multiple={true}
