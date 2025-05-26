@@ -175,10 +175,8 @@ const DemandsList = () => {
     try {
       await assignConsultantsToDemand(
         selectedDemand.id,
-        mainConsultantId || null,
-        mainConsultantCommission,
-        supportConsultantId || null,
-        supportConsultantCommission
+        mainConsultantId || undefined,
+        supportConsultantId || undefined
       );
       
       toast({

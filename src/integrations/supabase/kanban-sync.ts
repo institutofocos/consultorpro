@@ -1,4 +1,3 @@
-
 import { supabase } from './client';
 import { updateStageStatus } from './projects';
 import { Project, Stage } from '@/components/projects/types';
@@ -270,7 +269,7 @@ export const syncStageStatusToKanban = async (
         // Verificar se todas as etapas do projeto estão finalizadas
         const { data: allStages } = await supabase
           .from('project_stages')
-          .select('completed, status')
+          .select('completed, status, id')
           .eq('project_id', stage.project_id)
           .order('stage_order');
 
