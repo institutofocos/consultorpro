@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -188,7 +189,23 @@ const ChatPage: React.FC = () => {
       {/* Chat Room */}
       <div className="flex-1">
         {selectedRoom ? (
-          <ChatRoom room={selectedRoom} />
+          <ChatRoom 
+            room={{
+              id: selectedRoom.id,
+              name: selectedRoom.name,
+              description: selectedRoom.description || '',
+              level: selectedRoom.level,
+              parent_id: selectedRoom.parent_id || '',
+              project_id: selectedRoom.project_id || '',
+              created_at: selectedRoom.created_at,
+              updated_at: selectedRoom.updated_at
+            }}
+            currentUser={{
+              id: 'current-user-id',
+              name: 'Current User',
+              role: 'admin'
+            }}
+          />
         ) : (
           <Card className="h-full rounded-none shadow-none">
             <CardContent className="flex items-center justify-center h-full">

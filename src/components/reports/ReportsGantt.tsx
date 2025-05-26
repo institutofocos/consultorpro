@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ChartGantt } from 'lucide-react';
@@ -66,7 +65,6 @@ export default function ReportsGantt() {
     }
   };
 
-  // Calcula total de dias no intervalo para visualização do Gantt
   const minDate = projects.length > 0 
     ? new Date(Math.min(...projects.map(p => p.start.getTime()))) 
     : new Date();
@@ -75,7 +73,6 @@ export default function ReportsGantt() {
     : addDays(new Date(), 30);
   const totalDays = Math.ceil((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24));
 
-  // Função para calcular a posição e tamanho das barras
   const calculateBarStyle = (project: typeof projects[0]) => {
     const startOffset = Math.ceil((project.start.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24));
     const duration = Math.ceil((project.end.getTime() - project.start.getTime()) / (1000 * 60 * 60 * 24));

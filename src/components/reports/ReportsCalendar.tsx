@@ -32,7 +32,7 @@ export default function ReportsCalendar() {
         .from('projects')
         .select(`
           id, name, start_date, end_date,
-          main_consultant:consultants!main_consultant_id(name)
+          main_consultant:main_consultant_id(name)
         `);
 
       if (projectsError) throw projectsError;
@@ -42,7 +42,7 @@ export default function ReportsCalendar() {
         .from('project_stages')
         .select(`
           id, name, start_date, end_date, project_id,
-          projects(name)
+          project:project_id(name)
         `);
 
       if (stagesError) throw stagesError;
@@ -79,7 +79,7 @@ export default function ReportsCalendar() {
         stages.forEach(stage => {
           if (stage.start_date) {
             allEvents.push({
-              title: `Início ${stage.name} - ${stage.projects?.name || 'Projeto'}`,
+              title: `Início ${stage.name} - ${stage.project?.name || 'Projeto'}`,
               date: new Date(stage.start_date),
               type: 'task',
               projectId: stage.project_id,
@@ -89,7 +89,7 @@ export default function ReportsCalendar() {
           
           if (stage.end_date) {
             allEvents.push({
-              title: `Fim ${stage.name} - ${stage.projects?.name || 'Projeto'}`,
+              title: `Fim ${stage.name} - ${stage.project?.name || 'Projeto'}`,
               date: new Date(stage.end_date),
               type: 'deadline',
               projectId: stage.project_id,
