@@ -3,7 +3,7 @@ export interface ProjectHistory {
   id: string;
   project_id: string;
   stage_id?: string;
-  action_type: 'created' | 'updated' | 'status_changed' | 'stage_created' | 'stage_updated' | 'stage_status_changed';
+  action_type: string; // Changed from union type to string for flexibility
   field_changed?: string;
   old_value?: string;
   new_value?: string;
