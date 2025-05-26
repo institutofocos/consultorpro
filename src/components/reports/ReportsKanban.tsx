@@ -105,7 +105,8 @@ export default function ReportsKanban() {
         .from('projects')
         .select(`
           id, name, description, end_date,
-          main_consultant:consultants!projects_main_consultant_id_fkey(name),
+          main_consultant_id,
+          consultants!main_consultant_id(name),
           project_stages!inner(status)
         `);
         
@@ -150,7 +151,7 @@ export default function ReportsKanban() {
           description: project.description,
           status: projectStatus,
           endDate: new Date(project.end_date),
-          consultant: project.main_consultant?.name || 'N/A',
+          consultant: project.consultants?.name || 'N/A',
           tags: []
         };
       });
