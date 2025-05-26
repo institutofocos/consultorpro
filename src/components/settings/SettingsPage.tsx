@@ -10,8 +10,9 @@ import TimezoneSettings from './TimezoneSettings';
 import SystemLogs from './SystemLogs';
 import WebhookSettings from './WebhookSettings';
 import WhatsAppConnections from './WhatsAppConnections';
+import TagList from '@/components/tags/TagList';
 import { useAuth } from '@/contexts/AuthContext';
-import { Settings, Users, Clock, FileText, Zap, MessageSquare } from 'lucide-react';
+import { Settings, Users, Clock, FileText, Zap, MessageSquare, Tag } from 'lucide-react';
 
 const SettingsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("general");
@@ -30,6 +31,10 @@ const SettingsPage: React.FC = () => {
           <TabsTrigger value="general">
             <Settings className="h-4 w-4 mr-2" />
             Geral
+          </TabsTrigger>
+          <TabsTrigger value="tags">
+            <Tag className="h-4 w-4 mr-2" />
+            Tags
           </TabsTrigger>
           <TabsTrigger value="timezone">
             <Clock className="h-4 w-4 mr-2" />
@@ -72,6 +77,10 @@ const SettingsPage: React.FC = () => {
             
             <WebhookSettings />
           </div>
+        </TabsContent>
+
+        <TabsContent value="tags">
+          <TagList />
         </TabsContent>
 
         <TabsContent value="timezone">

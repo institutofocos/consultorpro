@@ -1,9 +1,8 @@
-
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   Users, Briefcase, BarChart2, LineChart, 
-  FileText, Settings, ChevronLeft, ChevronRight, Layers, Tag,
+  FileText, Settings, ChevronLeft, ChevronRight, Layers,
   Building, KanbanSquare, DollarSign,
   CheckSquare, MessageSquare, FileCheck, LogOut
 } from 'lucide-react';
@@ -65,7 +64,6 @@ export const Sidebar: React.FC = () => {
     { to: '/clients', icon: <Building size={20} />, label: 'Clientes' },
     { to: '/projects', icon: <Briefcase size={20} />, label: 'Projetos' },
     { to: '/services', icon: <Layers size={20} />, label: 'Serviços' },
-    { to: '/tags', icon: <Tag size={20} />, label: 'Tags' },
     { to: '/demands', icon: <FileCheck size={20} />, label: 'Demandas' },
     { to: '/financial', icon: <DollarSign size={20} />, label: 'Financeiro' },
     { to: '/notes', icon: <CheckSquare size={20} />, label: 'Tarefas' },
