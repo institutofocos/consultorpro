@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -358,12 +357,28 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     }
   };
 
-  // Calculate net value (subtract tax from total value)
+  // Calculate net value with correct sequence: gross - taxes - third party - main consultant - support consultant
   const calculateNetValue = () => {
     const totalValue = Number(formData.totalValue || 0);
     const taxPercent = Number(formData.taxPercent || 16);
+    const thirdPartyExpenses = Number(formData.thirdPartyExpenses || 0);
+    const consultantValue = Number(formData.consultantValue || 0);
+    const supportConsultantValue = Number(formData.supportConsultantValue || 0);
+    
+    // Step 1: Calculate tax amount and subtract from total
     const taxAmount = (totalValue * taxPercent) / 100;
-    return totalValue - taxAmount;
+    const afterTax = totalValue - taxAmount;
+    
+    // Step 2: Subtract third party expenses
+    const afterThirdParty = afterTax - thirdPartyExpenses;
+    
+    // Step 3: Subtract main consultant value
+    const afterMainConsultant = afterThirdParty - consultantValue;
+    
+    // Step 4: Subtract support consultant value
+    const netValue = afterMainConsultant - supportConsultantValue;
+    
+    return netValue;
   };
 
   return (
@@ -791,7 +806,43 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
                 }).format(formData.totalValue || 0)}
               </span>
             </div>
-            <div className="flex justify-between items-center font-medium text-green-600">
+            <div className="flex justify-between items-center text-sm text-muted-foreground">
+              <span>(-) Impostos ({formData.taxPercent}%):</span>
+              <span>
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL'
+                }).format((Number(formData.totalValue || 0) * Number(formData.taxPercent || 16)) / 100)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center text-sm text-muted-foreground">
+              <span>(-) Gastos com Terceiros:</span>
+              <span>
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL'
+                }).format(formData.thirdPartyExpenses || 0)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center text-sm text-muted-foreground">
+              <span>(-) Consultor Principal:</span>
+              <span>
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL'
+                }).format(formData.consultantValue || 0)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center text-sm text-muted-foreground">
+              <span>(-) Consultor de Apoio:</span>
+              <span>
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL'
+                }).format(formData.supportConsultantValue || 0)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center font-medium text-green-600 border-t pt-2">
               <span>Valor Líquido:</span>
               <span className="text-lg">
                 {new Intl.NumberFormat('pt-BR', {
