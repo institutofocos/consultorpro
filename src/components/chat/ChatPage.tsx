@@ -1,258 +1,262 @@
-
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useQuery } from '@tanstack/react-query';
-import { useLocation } from 'react-router-dom';
-import { fetchConsultants } from '@/integrations/supabase/consultants';
-import { fetchChatRooms, fetchChatMessages, sendChatMessage, ChatMessage, ChatRoom } from '@/integrations/supabase/chat';
-import { useToast } from "@/hooks/use-toast";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { MessageCircle, Plus, Users, Phone, Video, Settings } from 'lucide-react';
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from 'sonner';
 import ChatRoomsList from './ChatRoomsList';
-import ChatMessages from './ChatMessages';
-import ChatInput from './ChatInput';
-import { Users, MessageSquare, Loader2 } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
-import { supabase } from '@/integrations/supabase/client';
+import ChatRoom from './ChatRoom';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
-type LocationState = {
-  initialRoomId?: string;
-};
-
-// Create a valid temporary UUID for development
-const TEMP_USER_ID = "00000000-0000-0000-0000-000000000000";
-const TEMP_USER_NAME = "Usuário Teste";
-
-const ChatPage = () => {
-  const location = useLocation();
-  const locationState = location.state as LocationState;
-  const initialRoomId = locationState?.initialRoomId;
-  
-  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(initialRoomId || null);
-  const [showConsultants, setShowConsultants] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const { toast } = useToast();
-
-  // Buscar consultores
-  const { 
-    data: consultants,
-    isLoading: isLoadingConsultants 
-  } = useQuery({
-    queryKey: ['consultants'],
-    queryFn: fetchConsultants
-  });
-
-  // Buscar salas de chat
-  const { 
-    data: rooms = [],
-    isLoading: isLoadingRooms,
-    refetch: refetchRooms
-  } = useQuery({
-    queryKey: ['chat_rooms'],
-    queryFn: fetchChatRooms
-  });
-
-  // Verificar se initialRoomId existe nas salas carregadas
-  useEffect(() => {
-    if (initialRoomId && rooms.length > 0) {
-      if (!rooms.some(room => room.id === initialRoomId)) {
-        setSelectedRoomId(null);
-      }
-    }
-  }, [initialRoomId, rooms]);
-
-  // Buscar mensagens e configurar real-time quando uma sala é selecionada
-  useEffect(() => {
-    let subscription: any;
-    
-    const loadMessages = async () => {
-      if (selectedRoomId) {
-        try {
-          const chatMessages = await fetchChatMessages(selectedRoomId);
-          setMessages(chatMessages);
-          
-          // Configurar escuta em tempo real para novas mensagens
-          subscription = supabase
-            .channel(`room-${selectedRoomId}-messages`)
-            .on('postgres_changes', {
-              event: 'INSERT',
-              schema: 'public',
-              table: 'chat_messages',
-              filter: `room_id=eq.${selectedRoomId}`
-            }, (payload) => {
-              console.log('Nova mensagem recebida:', payload.new);
-              const newMessage = payload.new as ChatMessage;
-              setMessages(prev => [...prev, newMessage]);
-            })
-            .subscribe();
-
-          console.log('Subscription configurada para sala:', selectedRoomId);
-        } catch (error) {
-          console.error('Erro ao carregar mensagens:', error);
-          toast({
-            variant: "destructive",
-            title: "Erro",
-            description: "Não foi possível carregar as mensagens."
-          });
-        }
-      } else {
-        setMessages([]);
-      }
-    };
-    
-    loadMessages();
-    
-    return () => {
-      // Limpar subscription ao desmontar ou trocar de sala
-      if (subscription) {
-        console.log('Removendo subscription da sala:', selectedRoomId);
-        subscription.unsubscribe();
-      }
-    };
-  }, [selectedRoomId, toast]);
-
-  const selectedRoom = rooms.find(room => room.id === selectedRoomId);
-  
-  const handleRoomSelect = (roomId: string) => {
-    setSelectedRoomId(roomId);
+interface ChatRoom {
+  id: string;
+  name: string;
+  description?: string;
+  level: number;
+  parent_id?: string;
+  project_id?: string;
+  created_at: string;
+  updated_at: string;
+  projects?: {
+    status: string;
   };
+}
 
-  const handleSendMessage = async (messageContent: string) => {
-    if (selectedRoomId) {
-      try {
-        console.log('Enviando mensagem:', messageContent);
-        await sendChatMessage(selectedRoomId, TEMP_USER_ID, TEMP_USER_NAME, messageContent);
-        console.log('Mensagem enviada com sucesso');
-        // A mensagem aparecerá automaticamente através do subscription
-      } catch (error) {
-        console.error('Erro ao enviar mensagem:', error);
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Não foi possível enviar a mensagem."
-        });
+interface Project {
+  id: string;
+  name: string;
+  status: string;
+}
+
+const ChatPage: React.FC = () => {
+  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
+  const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [newRoomName, setNewRoomName] = useState('');
+  const [newRoomDescription, setNewRoomDescription] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    fetchChatRooms();
+    fetchProjects();
+  }, []);
+
+  const fetchChatRooms = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('chat_rooms')
+        .select(`
+          *,
+          projects:project_id(status)
+        `)
+        .order('updated_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching chat rooms:', error);
+        toast.error('Erro ao carregar salas de chat');
+        return;
       }
+
+      // Transform the data to handle the join properly
+      const transformedData = data?.map(room => ({
+        ...room,
+        projects: room.projects ? { status: room.projects.status } : undefined
+      })) || [];
+
+      setChatRooms(transformedData);
+    } catch (error) {
+      console.error('Error in fetchChatRooms:', error);
+      toast.error('Erro ao carregar salas de chat');
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  const fetchProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name, status')
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching projects:', error);
+        return;
+      }
+
+      setProjects(data || []);
+    } catch (error) {
+      console.error('Error in fetchProjects:', error);
+    }
+  };
+
+  const handleRoomSelect = (room: ChatRoom) => {
+    setSelectedRoom(room);
+  };
+
+  const handleCreateRoom = async () => {
+    setIsDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setNewRoomName('');
+    setNewRoomDescription('');
+    setSelectedProjectId('');
+  };
+
+  const handleSaveRoom = async () => {
+    if (!newRoomName) {
+      toast.error('Nome da sala é obrigatório');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('chat_rooms')
+        .insert({
+          name: newRoomName,
+          description: newRoomDescription,
+          project_id: selectedProjectId || null,
+          level: 1
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating chat room:', error);
+        toast.error('Erro ao criar sala de chat');
+        return;
+      }
+
+      fetchChatRooms();
+      handleCloseDialog();
+      toast.success('Sala de chat criada com sucesso!');
+    } catch (error) {
+      console.error('Error in handleSaveRoom:', error);
+      toast.error('Erro ao criar sala de chat');
+    }
+  };
+
+  const filteredChatRooms = chatRooms.filter(room =>
+    room.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-bold">Chat</h1>
-        <p className="text-muted-foreground">Comunique-se com outros consultores em tempo real</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 h-[calc(100vh-240px)]">
-        {/* Painel Lateral - Salas e Consultores */}
-        <Card className="md:col-span-1 shadow-card h-full">
-          <CardHeader className="px-4 py-3">
-            <div className="flex justify-between items-center">
-              <CardTitle className="text-base">
-                {showConsultants ? (
-                  <div className="flex items-center">
-                    <Users className="h-4 w-4 mr-2" />
-                    <span>Consultores</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center">
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    <span>Salas</span>
-                  </div>
-                )}
-              </CardTitle>
-              
-              <div className="flex space-x-1">
-                <button 
-                  onClick={() => setShowConsultants(false)}
-                  className={`p-1 rounded ${!showConsultants ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}
-                >
-                  <MessageSquare size={18} />
-                </button>
-                <button 
-                  onClick={() => setShowConsultants(true)}
-                  className={`p-1 rounded ${showConsultants ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}
-                >
-                  <Users size={18} />
-                </button>
+    <div className="flex h-screen">
+      {/* Chat Rooms List */}
+      <div className="w-80 border-r bg-gray-50">
+        <Card className="h-full rounded-none shadow-none">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xl">
+              <div className="flex items-center">
+                <MessageCircle className="h-5 w-5 mr-2" />
+                <span>Salas de Chat</span>
               </div>
-            </div>
+            </CardTitle>
+            <Button variant="outline" size="sm" onClick={handleCreateRoom}>
+              <Plus className="h-4 w-4 mr-2" />
+              Criar Sala
+            </Button>
           </CardHeader>
-          <Separator />
-          <CardContent className="p-0 overflow-y-auto h-[calc(100%-56px)]">
-            {showConsultants ? (
-              <div className="p-4 space-y-2">
-                {isLoadingConsultants ? (
-                  <div className="flex justify-center items-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : consultants?.length ? (
-                  consultants?.map(consultant => (
-                    <div 
-                      key={consultant.id}
-                      className="flex items-center p-2 rounded-md hover:bg-muted cursor-pointer"
-                    >
-                      <div className="h-8 w-8 bg-primary/20 rounded-full flex items-center justify-center mr-3">
-                        <span className="text-sm font-medium">
-                          {consultant.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                        </span>
-                      </div>
-                      <span className="text-sm font-medium">{consultant.name}</span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-center py-8 text-muted-foreground">
-                    Nenhum consultor encontrado
-                  </p>
-                )}
-              </div>
+          <CardContent className="p-4">
+            <Input
+              type="text"
+              placeholder="Buscar sala..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="mb-4"
+            />
+            {isLoading ? (
+              <div className="text-center py-4">Carregando salas...</div>
             ) : (
-              <ChatRoomsList 
-                rooms={rooms}
-                selectedRoomId={selectedRoomId}
+              <ChatRoomsList
+                chatRooms={filteredChatRooms}
                 onRoomSelect={handleRoomSelect}
-                isLoading={isLoadingRooms}
-                onRoomCreated={refetchRooms}
               />
             )}
           </CardContent>
         </Card>
-
-        {/* Área de Chat */}
-        <Card className="md:col-span-3 shadow-card h-full flex flex-col">
-          {selectedRoomId && selectedRoom ? (
-            <>
-              <CardHeader className="px-6 py-3">
-                <CardTitle className="text-lg">
-                  {selectedRoom?.name}
-                  {selectedRoom?.description && (
-                    <span className="text-sm font-normal ml-2 text-muted-foreground">
-                      {selectedRoom.description}
-                    </span>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <Separator />
-              <CardContent className="p-6 flex-grow overflow-y-auto">
-                <ChatMessages messages={messages} />
-              </CardContent>
-              <div className="p-4 border-t">
-                <ChatInput 
-                  onSendMessage={handleSendMessage} 
-                  roomId={selectedRoomId}
-                />
-              </div>
-            </>
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center p-8">
-                <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-medium mb-2">Selecione uma sala</h3>
-                <p className="text-muted-foreground">
-                  Escolha uma sala no painel lateral para começar a conversar
-                </p>
-              </div>
-            </div>
-          )}
-        </Card>
       </div>
+
+      {/* Chat Room */}
+      <div className="flex-1">
+        {selectedRoom ? (
+          <ChatRoom room={selectedRoom} />
+        ) : (
+          <Card className="h-full rounded-none shadow-none">
+            <CardContent className="flex items-center justify-center h-full">
+              <div className="text-center text-muted-foreground">
+                Selecione uma sala para começar a conversar.
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Create Room Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Nova Sala de Chat</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="name" className="text-right">
+                Nome
+              </label>
+              <Input
+                type="text"
+                id="name"
+                value={newRoomName}
+                onChange={(e) => setNewRoomName(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="description" className="text-right">
+                Descrição
+              </label>
+              <Textarea
+                id="description"
+                value={newRoomDescription}
+                onChange={(e) => setNewRoomDescription(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="project" className="text-right">
+                Projeto
+              </label>
+              <select
+                id="project"
+                value={selectedProjectId}
+                onChange={(e) => setSelectedProjectId(e.target.value)}
+                className="col-span-3 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+              >
+                <option value="">Nenhum projeto</option>
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name} ({project.status})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button variant="secondary" onClick={handleCloseDialog}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveRoom}>Criar Sala</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

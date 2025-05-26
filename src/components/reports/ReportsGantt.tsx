@@ -22,7 +22,7 @@ export default function ReportsGantt() {
         .from('projects')
         .select(`
           id, name, description, start_date, end_date, status,
-          main_consultant:consultants!main_consultant_id(name)
+          main_consultant:main_consultant_id(name)
         `);
       
       if (projectsError) throw projectsError;
@@ -52,7 +52,7 @@ export default function ReportsGantt() {
           name: project.name,
           start: new Date(project.start_date),
           end: new Date(project.end_date),
-          consultant: project.main_consultant?.name,
+          consultant: project.main_consultant?.name || 'N/A',
           progress: totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0,
           color
         };
