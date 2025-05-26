@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -100,28 +99,12 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
     return statusSetting?.is_completion_status || false;
   };
 
-  // Função para ordenar etapas mantendo a ordem original fixa
+  // Função para manter ordem original das etapas - NUNCA reordenar
   const getSortedStages = (stages: any[]) => {
     if (!stages || stages.length === 0) return [];
     
-    // Ordenar por stage_order se existir, senão manter ordem original do array
-    return [...stages].sort((a, b) => {
-      // Se ambos têm stage_order, usar essa ordenação
-      if (a.stage_order !== undefined && b.stage_order !== undefined) {
-        return a.stage_order - b.stage_order;
-      }
-      
-      // Se apenas um tem stage_order, priorizar o que tem
-      if (a.stage_order !== undefined && b.stage_order === undefined) {
-        return -1;
-      }
-      if (a.stage_order === undefined && b.stage_order !== undefined) {
-        return 1;
-      }
-      
-      // Se nenhum tem stage_order, manter ordem original (não alterar)
-      return 0;
-    });
+    // Retorna sempre a ordem original do array sem qualquer alteração
+    return [...stages];
   };
 
   const formatCurrency = (value: number) => {
@@ -237,7 +220,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
               const statusDisplay = getStatusDisplay(project.status);
               const progress = calculateProjectProgress(project);
               
-              // Obter etapas ordenadas de forma fixa
+              // Obter etapas na ordem original (sem ordenação)
               const sortedStages = getSortedStages(project.stages || []);
               
               return (
@@ -384,7 +367,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                     </TableCell>
                   </TableRow>
 
-                  {/* Linhas das etapas expandidas - usando etapas ordenadas de forma fixa */}
+                  {/* Linhas das etapas expandidas - usando etapas na ordem original */}
                   {isExpanded && hasStages && sortedStages.map((stage, index) => {
                     const stageStatusDisplay = getStatusDisplay(stage.status);
                     const stageCompleted = isStageCompleted(stage.status);

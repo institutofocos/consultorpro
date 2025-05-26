@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -40,28 +39,12 @@ const ProjectStagesList: React.FC<ProjectStagesListProps> = ({
     }
   };
 
-  // Função para ordenar etapas mantendo a ordem original fixa
+  // Função para manter ordem original das etapas - NUNCA reordenar
   const getSortedStages = (stages: any[]) => {
     if (!stages || stages.length === 0) return [];
     
-    // Ordenar por stage_order se existir, senão manter ordem original do array
-    return [...stages].sort((a, b) => {
-      // Se ambos têm stage_order, usar essa ordenação
-      if (a.stage_order !== undefined && b.stage_order !== undefined) {
-        return a.stage_order - b.stage_order;
-      }
-      
-      // Se apenas um tem stage_order, priorizar o que tem
-      if (a.stage_order !== undefined && b.stage_order === undefined) {
-        return -1;
-      }
-      if (a.stage_order === undefined && b.stage_order !== undefined) {
-        return 1;
-      }
-      
-      // Se nenhum tem stage_order, manter ordem original (não alterar)
-      return 0;
-    });
+    // Retorna sempre a ordem original do array sem qualquer alteração
+    return [...stages];
   };
 
   const formatCurrency = (value: number) => {
@@ -108,7 +91,7 @@ const ProjectStagesList: React.FC<ProjectStagesListProps> = ({
     );
   }
 
-  // Obter etapas ordenadas de forma fixa
+  // Obter etapas na ordem original (sem ordenação)
   const sortedStages = getSortedStages(project.stages);
 
   return (
