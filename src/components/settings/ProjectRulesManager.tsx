@@ -13,6 +13,7 @@ import { z } from "zod";
 import { Plus, Edit, Trash2, GripVertical } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface ProjectStatus {
   id: string;
@@ -41,6 +42,7 @@ const ProjectRulesManager: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStatus, setEditingStatus] = useState<ProjectStatus | null>(null);
+  const queryClient = useQueryClient();
 
   const form = useForm<StatusFormData>({
     resolver: zodResolver(statusSchema),
@@ -75,10 +77,16 @@ const ProjectRulesManager: React.FC = () => {
     fetchStatuses();
   }, []);
 
+  const invalidateProjectStatusesCache = () => {
+    // Invalidate the project statuses cache to force refresh in other components
+    queryClient.invalidateQueries({ queryKey: ['project-statuses'] });
+    console.log('Invalidated project-statuses cache');
+  };
+
   const onSubmit = async (data: StatusFormData) => {
     try {
       if (editingStatus) {
-        // Atualizar status existente - ensure all required fields are present
+        // Atualizar status existente
         const updateData = {
           name: data.name,
           display_name: data.display_name,
@@ -120,6 +128,8 @@ const ProjectRulesManager: React.FC = () => {
       setEditingStatus(null);
       form.reset();
       fetchStatuses();
+      // Force refresh project statuses in other components
+      invalidateProjectStatusesCache();
     } catch (error) {
       console.error('Erro ao salvar status:', error);
       toast.error('Erro ao salvar status');
@@ -150,6 +160,8 @@ const ProjectRulesManager: React.FC = () => {
         if (error) throw error;
         toast.success('Status excluído com sucesso!');
         fetchStatuses();
+        // Force refresh project statuses in other components
+        invalidateProjectStatusesCache();
       } catch (error) {
         console.error('Erro ao excluir status:', error);
         toast.error('Erro ao excluir status');
@@ -167,6 +179,8 @@ const ProjectRulesManager: React.FC = () => {
       if (error) throw error;
       toast.success('Status atualizado com sucesso!');
       fetchStatuses();
+      // Force refresh project statuses in other components
+      invalidateProjectStatusesCache();
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
       toast.error('Erro ao atualizar status');

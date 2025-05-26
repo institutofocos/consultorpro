@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export interface ProjectStatusSetting {
   id: string;
@@ -14,26 +15,29 @@ export interface ProjectStatusSetting {
 }
 
 export const useProjectStatuses = () => {
-  const [statuses, setStatuses] = useState<ProjectStatusSetting[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchStatuses = async () => {
-    try {
-      setIsLoading(true);
+  const { data: statuses = [], isLoading, refetch } = useQuery({
+    queryKey: ['project-statuses'],
+    queryFn: async () => {
+      console.log('Fetching project statuses...');
       const { data, error } = await supabase
         .from('project_status_settings')
         .select('*')
         .eq('is_active', true)
         .order('order_index');
 
-      if (error) throw error;
-      setStatuses(data || []);
-    } catch (error) {
-      console.error('Erro ao buscar status dos projetos:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      if (error) {
+        console.error('Erro ao buscar status dos projetos:', error);
+        throw error;
+      }
+      
+      console.log('Active statuses fetched:', data);
+      return data || [];
+    },
+    staleTime: 0, // Always refetch to ensure fresh data
+    cacheTime: 0, // Don't cache to prevent stale data
+  });
 
   const getStatusDisplay = (statusName: string) => {
     const statusSetting = statuses.find(s => s.name === statusName);
@@ -83,15 +87,18 @@ export const useProjectStatuses = () => {
     return fallbackColorClasses[statusName] || 'bg-gray-100 text-gray-800';
   };
 
-  useEffect(() => {
-    fetchStatuses();
-  }, []);
+  // Function to invalidate and refetch statuses
+  const invalidateStatuses = () => {
+    console.log('Invalidating project statuses cache...');
+    queryClient.invalidateQueries({ queryKey: ['project-statuses'] });
+  };
 
   return {
     statuses,
     isLoading,
-    refetch: fetchStatuses,
+    refetch,
     getStatusDisplay,
-    getStatusColorClass
+    getStatusColorClass,
+    invalidateStatuses
   };
 };
