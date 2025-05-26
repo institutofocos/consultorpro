@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +7,7 @@ import { CheckCircle, Circle, Calendar, User, DollarSign, Zap } from 'lucide-rea
 import { Project } from './types';
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { useProjectHistory } from '@/hooks/useProjectHistory';
+import { useProjectStatuses } from '@/hooks/useProjectStatuses';
 import { toast } from 'sonner';
 import {
   DropdownMenu,
@@ -25,18 +27,7 @@ const ProjectStagesList: React.FC<ProjectStagesListProps> = ({
 }) => {
   const { updateStageStatus, isLoading } = useProjectActions();
   const { getStageStatusChangeDate } = useProjectHistory(project.id);
-
-  const statusOptions = [
-    { value: 'iniciar_projeto', label: 'Iniciar Projeto' },
-    { value: 'em_producao', label: 'Em Produção' },
-    { value: 'aguardando_assinatura', label: 'Aguardando Assinatura' },
-    { value: 'aguardando_aprovacao', label: 'Aguardando Aprovação' },
-    { value: 'aguardando_nota_fiscal', label: 'Aguardando Nota Fiscal' },
-    { value: 'aguardando_pagamento', label: 'Aguardando Pagamento' },
-    { value: 'aguardando_repasse', label: 'Aguardando Repasse' },
-    { value: 'concluido', label: 'Concluído' },
-    { value: 'cancelado', label: 'Cancelado' }
-  ];
+  const { statuses, getStatusDisplay, getStatusBadgeStyle } = useProjectStatuses();
 
   const handleStageStatusChange = async (stageId: string, newStatus: string) => {
     try {
@@ -49,24 +40,28 @@ const ProjectStagesList: React.FC<ProjectStagesListProps> = ({
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'iniciar_projeto':
-        return 'bg-gray-100 text-gray-800';
-      case 'em_producao':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'concluido':
-        return 'bg-green-100 text-green-800';
-      case 'cancelado':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-blue-100 text-blue-800';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    const option = statusOptions.find(opt => opt.value === status);
-    return option ? option.label : status;
+  // Função para ordenar etapas mantendo a ordem original fixa
+  const getSortedStages = (stages: any[]) => {
+    if (!stages || stages.length === 0) return [];
+    
+    // Ordenar por stage_order se existir, senão manter ordem original do array
+    return [...stages].sort((a, b) => {
+      // Se ambos têm stage_order, usar essa ordenação
+      if (a.stage_order !== undefined && b.stage_order !== undefined) {
+        return a.stage_order - b.stage_order;
+      }
+      
+      // Se apenas um tem stage_order, priorizar o que tem
+      if (a.stage_order !== undefined && b.stage_order === undefined) {
+        return -1;
+      }
+      if (a.stage_order === undefined && b.stage_order !== undefined) {
+        return 1;
+      }
+      
+      // Se nenhum tem stage_order, manter ordem original (não alterar)
+      return 0;
+    });
   };
 
   const formatCurrency = (value: number) => {
@@ -87,15 +82,15 @@ const ProjectStagesList: React.FC<ProjectStagesListProps> = ({
   };
 
   const formatStatusWithDate = (status: string, stageId: string) => {
-    const statusLabel = getStatusLabel(status);
+    const statusDisplay = getStatusDisplay(status);
     const changeDate = getStageStatusChangeDate(stageId, status);
     
     if (changeDate) {
       const formattedDate = formatDate(changeDate);
-      return `${statusLabel} EM ${formattedDate}`;
+      return `${statusDisplay.label} EM ${formattedDate}`;
     }
     
-    return statusLabel;
+    return statusDisplay.label;
   };
 
   if (!project.stages || project.stages.length === 0) {
@@ -113,104 +108,126 @@ const ProjectStagesList: React.FC<ProjectStagesListProps> = ({
     );
   }
 
+  // Obter etapas ordenadas de forma fixa
+  const sortedStages = getSortedStages(project.stages);
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">
-          Etapas do Projeto ({project.stages.length})
+          Etapas do Projeto ({sortedStages.length})
         </h3>
         <div className="text-sm text-muted-foreground">
-          {project.completedStages || 0} de {project.stages.length} concluídas
+          {project.completedStages || 0} de {sortedStages.length} concluídas
         </div>
       </div>
 
-      {project.stages.map((stage, index) => (
-        <Card key={stage.id}>
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 mt-1">
-                  {stage.completed ? (
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                  ) : (
-                    <Circle className="h-5 w-5 text-gray-400" />
-                  )}
+      {sortedStages.map((stage, index) => {
+        const statusDisplay = getStatusDisplay(stage.status);
+        const isCompleted = statuses.find(s => s.name === stage.status)?.is_completion_status || false;
+        
+        return (
+          <Card key={stage.id}>
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 mt-1">
+                    {isCompleted ? (
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-gray-400" />
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-lg mb-1">
+                      {stage.name}
+                    </h4>
+                    {stage.description && (
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {stage.description}
+                      </p>
+                    )}
+                    <Badge style={getStatusBadgeStyle(stage.status)} variant="secondary">
+                      {formatStatusWithDate(stage.status, stage.id)}
+                    </Badge>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-medium text-lg mb-1">
-                    {stage.name}
-                  </h4>
-                  {stage.description && (
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {stage.description}
-                    </p>
-                  )}
-                  <Badge className={getStatusColor(stage.status)} variant="secondary">
-                    {formatStatusWithDate(stage.status, stage.id)}
-                  </Badge>
-                </div>
-              </div>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={isLoading}
-                    title="Alterar status da etapa"
-                  >
-                    <Zap className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {statusOptions.map((option) => (
-                    <DropdownMenuItem
-                      key={option.value}
-                      onClick={() => handleStageStatusChange(stage.id, option.value)}
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={isLoading}
+                      title="Alterar status da etapa"
                     >
-                      {option.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                      <Zap className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="bg-white border shadow-lg z-50">
+                    {statuses.length === 0 ? (
+                      <DropdownMenuItem disabled className="text-muted-foreground">
+                        Nenhum status disponível
+                      </DropdownMenuItem>
+                    ) : (
+                      statuses.map((status) => (
+                        <DropdownMenuItem
+                          key={status.id}
+                          onClick={() => handleStageStatusChange(stage.id, status.name)}
+                          disabled={status.name === stage.status}
+                          className="cursor-pointer hover:bg-gray-100"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: status.color }}
+                            />
+                            {status.display_name}
+                          </div>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <div className="text-muted-foreground">Valor</div>
-                  <div className="font-medium">{formatCurrency(stage.value)}</div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <div className="text-muted-foreground">Valor</div>
+                    <div className="font-medium">{formatCurrency(stage.value)}</div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <div className="text-muted-foreground">Início</div>
+                    <div className="font-medium">{formatDate(stage.startDate || '')}</div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <div className="text-muted-foreground">Fim</div>
+                    <div className="font-medium">{formatDate(stage.endDate || '')}</div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <div className="text-muted-foreground">Duração</div>
+                    <div className="font-medium">{stage.days} dias / {stage.hours}h</div>
+                  </div>
                 </div>
               </div>
-              
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <div className="text-muted-foreground">Início</div>
-                  <div className="font-medium">{formatDate(stage.startDate || '')}</div>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <div className="text-muted-foreground">Fim</div>
-                  <div className="font-medium">{formatDate(stage.endDate || '')}</div>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <div className="text-muted-foreground">Duração</div>
-                  <div className="font-medium">{stage.days} dias / {stage.hours}h</div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };

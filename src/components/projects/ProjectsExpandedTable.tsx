@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -97,6 +98,30 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
   const isStageCompleted = (stageStatus: string) => {
     const statusSetting = statuses.find(s => s.name === stageStatus);
     return statusSetting?.is_completion_status || false;
+  };
+
+  // Função para ordenar etapas mantendo a ordem original fixa
+  const getSortedStages = (stages: any[]) => {
+    if (!stages || stages.length === 0) return [];
+    
+    // Ordenar por stage_order se existir, senão manter ordem original do array
+    return [...stages].sort((a, b) => {
+      // Se ambos têm stage_order, usar essa ordenação
+      if (a.stage_order !== undefined && b.stage_order !== undefined) {
+        return a.stage_order - b.stage_order;
+      }
+      
+      // Se apenas um tem stage_order, priorizar o que tem
+      if (a.stage_order !== undefined && b.stage_order === undefined) {
+        return -1;
+      }
+      if (a.stage_order === undefined && b.stage_order !== undefined) {
+        return 1;
+      }
+      
+      // Se nenhum tem stage_order, manter ordem original (não alterar)
+      return 0;
+    });
   };
 
   const formatCurrency = (value: number) => {
@@ -211,6 +236,9 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
               const hasStages = project.stages && project.stages.length > 0;
               const statusDisplay = getStatusDisplay(project.status);
               const progress = calculateProjectProgress(project);
+              
+              // Obter etapas ordenadas de forma fixa
+              const sortedStages = getSortedStages(project.stages || []);
               
               return (
                 <React.Fragment key={project.id}>
@@ -356,13 +384,13 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                     </TableCell>
                   </TableRow>
 
-                  {/* Linhas das etapas expandidas */}
-                  {isExpanded && hasStages && project.stages?.map((stage, index) => {
+                  {/* Linhas das etapas expandidas - usando etapas ordenadas de forma fixa */}
+                  {isExpanded && hasStages && sortedStages.map((stage, index) => {
                     const stageStatusDisplay = getStatusDisplay(stage.status);
                     const stageCompleted = isStageCompleted(stage.status);
                     
                     return (
-                      <TableRow key={`${project.id}-stage-${index}`} className="bg-muted/30">
+                      <TableRow key={`${project.id}-stage-${stage.id || index}`} className="bg-muted/30">
                         <TableCell className="pl-12">
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
