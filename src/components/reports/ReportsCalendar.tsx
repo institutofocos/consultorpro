@@ -32,7 +32,7 @@ export default function ReportsCalendar() {
         .from('projects')
         .select(`
           id, name, start_date, end_date,
-          main_consultant:main_consultant_id(name)
+          main_consultant:consultants!projects_main_consultant_id_fkey(name)
         `);
 
       if (projectsError) throw projectsError;
@@ -42,7 +42,7 @@ export default function ReportsCalendar() {
         .from('project_stages')
         .select(`
           id, name, start_date, end_date, project_id,
-          project:project_id(name)
+          project:projects!project_stages_project_id_fkey(name)
         `);
 
       if (stagesError) throw stagesError;

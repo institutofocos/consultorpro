@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -97,8 +96,11 @@ const ChatPage: React.FC = () => {
     }
   };
 
-  const handleRoomSelect = (room: ChatRoom) => {
-    setSelectedRoom(room);
+  const handleRoomSelect = (roomId: string) => {
+    const room = chatRooms.find(r => r.id === roomId);
+    if (room) {
+      setSelectedRoom(room);
+    }
   };
 
   const handleCreateRoom = async () => {
@@ -178,8 +180,11 @@ const ChatPage: React.FC = () => {
               <div className="text-center py-4">Carregando salas...</div>
             ) : (
               <ChatRoomsList
-                chatRooms={filteredChatRooms}
+                rooms={filteredChatRooms}
+                selectedRoomId={selectedRoom?.id || null}
                 onRoomSelect={handleRoomSelect}
+                isLoading={isLoading}
+                onRoomCreated={fetchChatRooms}
               />
             )}
           </CardContent>

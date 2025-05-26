@@ -21,7 +21,7 @@ export default function ReportsGantt() {
         .from('projects')
         .select(`
           id, name, description, start_date, end_date, status,
-          main_consultant:main_consultant_id(name)
+          main_consultant:consultants!projects_main_consultant_id_fkey(name)
         `);
       
       if (projectsError) throw projectsError;
