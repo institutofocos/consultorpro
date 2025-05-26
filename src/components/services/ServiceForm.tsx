@@ -190,7 +190,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
     fetchTags();
   }, []);
 
-  // Reset the stage form - update to include description
+  // Reset the stage form - updated to include description
   const resetStageForm = () => {
     setStageName("");
     setStageHours(0);
@@ -230,7 +230,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
               hours: stageHours, 
               days: stageDays, 
               value: calculatedValue,
-              description: stageDescription || stage.description 
+              description: stageDescription
             } 
           : stage
       ));
@@ -684,47 +684,59 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
               )}
               
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                  <div className="md:col-span-2">
-                    <FormLabel>Nome da Etapa</FormLabel>
-                    <Input
-                      placeholder="Nome da etapa"
-                      value={stageName}
-                      onChange={(e) => setStageName(e.target.value)}
-                    />
-                  </div>
-                  
-                  <div>
-                    <FormLabel>Horas</FormLabel>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      value={stageHours || ""}
-                      onChange={(e) => setStageHours(parseFloat(e.target.value) || 0)}
-                    />
-                    <FormDescription className="text-xs">
-                      Restante: {remainingHours.toFixed(1)}h
-                    </FormDescription>
-                  </div>
-
-                  <div>
-                    <FormLabel>Dias</FormLabel>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      value={stageDays || ""}
-                      onChange={(e) => setStageDays(parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
-
-                  <div>
-                    <FormLabel>Valor da Etapa</FormLabel>
-                    <div className="flex items-center h-10 px-3 rounded-md border bg-muted/50">
-                      R$ {(stageHours * (hourlyRate || 0)).toFixed(2)}
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div className="md:col-span-2">
+                      <FormLabel>Nome da Etapa</FormLabel>
+                      <Input
+                        placeholder="Nome da etapa"
+                        value={stageName}
+                        onChange={(e) => setStageName(e.target.value)}
+                      />
                     </div>
-                    <FormDescription className="text-xs">
-                      Calculado: Horas × Valor hora
-                    </FormDescription>
+                    
+                    <div>
+                      <FormLabel>Horas</FormLabel>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={stageHours || ""}
+                        onChange={(e) => setStageHours(parseFloat(e.target.value) || 0)}
+                      />
+                      <FormDescription className="text-xs">
+                        Restante: {remainingHours.toFixed(1)}h
+                      </FormDescription>
+                    </div>
+
+                    <div>
+                      <FormLabel>Dias</FormLabel>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={stageDays || ""}
+                        onChange={(e) => setStageDays(parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+
+                    <div>
+                      <FormLabel>Valor da Etapa</FormLabel>
+                      <div className="flex items-center h-10 px-3 rounded-md border bg-muted/50">
+                        R$ {(stageHours * (hourlyRate || 0)).toFixed(2)}
+                      </div>
+                      <FormDescription className="text-xs">
+                        Calculado: Horas × Valor hora
+                      </FormDescription>
+                    </div>
+                  </div>
+
+                  <div>
+                    <FormLabel>Descrição da Etapa</FormLabel>
+                    <Textarea
+                      placeholder="Descrição detalhada da etapa..."
+                      value={stageDescription}
+                      onChange={(e) => setStageDescription(e.target.value)}
+                      rows={3}
+                    />
                   </div>
                 </div>
                 
@@ -765,6 +777,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                       <thead>
                         <tr className="bg-muted">
                           <th className="px-4 py-2 text-left">Etapa</th>
+                          <th className="px-4 py-2 text-left">Descrição</th>
                           <th className="px-4 py-2 text-right">Horas</th>
                           <th className="px-4 py-2 text-right">Dias</th>
                           <th className="px-4 py-2 text-right">Valor (R$)</th>
@@ -774,7 +787,16 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                       <tbody>
                         {stages.map((stage, index) => (
                           <tr key={stage.id} className="border-t">
-                            <td className="px-4 py-3">{stage.name}</td>
+                            <td className="px-4 py-3 font-medium">{stage.name}</td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px]">
+                              {stage.description ? (
+                                <div className="truncate" title={stage.description}>
+                                  {stage.description}
+                                </div>
+                              ) : (
+                                <span className="italic text-red-500">Sem descrição</span>
+                              )}
+                            </td>
                             <td className="px-4 py-3 text-right">{stage.hours}h</td>
                             <td className="px-4 py-3 text-right">{stage.days} dias</td>
                             <td className="px-4 py-3 text-right">R${stage.value.toFixed(2)}</td>
@@ -845,6 +867,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                         ))}
                         <tr className="bg-muted/50 font-medium">
                           <td className="px-4 py-2">Total</td>
+                          <td className="px-4 py-2"></td>
                           <td className="px-4 py-2 text-right">{currentTotalStageHours}h / {totalHours}h</td>
                           <td className="px-4 py-2 text-right">{stages.reduce((sum, stage) => sum + (stage.days || 0), 0)} dias</td>
                           <td className="px-4 py-2 text-right">
