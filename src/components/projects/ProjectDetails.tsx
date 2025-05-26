@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,8 +9,8 @@ import { X, Edit, Calendar, User, DollarSign, Clock, FileText, Activity, Zap } f
 import { Project } from './types';
 import ProjectStagesList from './ProjectStagesList';
 import ProjectHistory from './ProjectHistory';
-import { supabase } from '@/integrations/supabase/client';
 import { useProjectActions } from '@/hooks/useProjectActions';
+import { useProjectStatuses } from '@/hooks/useProjectStatuses';
 import { toast } from 'sonner';
 
 interface ProjectDetailsProps {
@@ -18,42 +19,13 @@ interface ProjectDetailsProps {
   onProjectUpdated: () => void;
 }
 
-interface ProjectStatusSetting {
-  id: string;
-  name: string;
-  display_name: string;
-  color: string;
-  is_active: boolean;
-  is_completion_status: boolean;
-  is_cancellation_status: boolean;
-}
-
 const ProjectDetails: React.FC<ProjectDetailsProps> = ({
   project,
   onClose,
   onProjectUpdated
 }) => {
-  const [availableStatuses, setAvailableStatuses] = useState<ProjectStatusSetting[]>([]);
+  const { statuses, isLoading: statusesLoading, getStatusDisplay, getStatusColorClass } = useProjectStatuses();
   const { updateProjectStatus, isLoading } = useProjectActions();
-
-  useEffect(() => {
-    fetchAvailableStatuses();
-  }, []);
-
-  const fetchAvailableStatuses = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('project_status_settings')
-        .select('*')
-        .eq('is_active', true)
-        .order('order_index');
-
-      if (error) throw error;
-      setAvailableStatuses(data || []);
-    } catch (error) {
-      console.error('Erro ao buscar status disponíveis:', error);
-    }
-  };
 
   const handleStatusChange = async (newStatus: string) => {
     try {
@@ -83,62 +55,6 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
     }
   };
 
-  const getStatusDisplay = (statusName: string) => {
-    const statusSetting = availableStatuses.find(s => s.name === statusName);
-    if (statusSetting) {
-      return {
-        label: statusSetting.display_name,
-        color: statusSetting.color
-      };
-    }
-    
-    // Fallback para status antigos não configurados
-    switch (statusName) {
-      case 'em_planejamento':
-        return { label: 'Em Planejamento', color: '#3b82f6' };
-      case 'em_producao':
-        return { label: 'Em Produção', color: '#f59e0b' };
-      case 'concluido':
-        return { label: 'Concluído', color: '#10b981' };
-      case 'cancelado':
-        return { label: 'Cancelado', color: '#ef4444' };
-      default:
-        return { label: statusName, color: '#6b7280' };
-    }
-  };
-
-  const getStatusColor = (statusName: string) => {
-    const statusSetting = availableStatuses.find(s => s.name === statusName);
-    if (statusSetting) {
-      // Converter cor hex para classes Tailwind
-      const colorMap: { [key: string]: string } = {
-        '#3b82f6': 'bg-blue-100 text-blue-800',
-        '#f59e0b': 'bg-yellow-100 text-yellow-800', 
-        '#10b981': 'bg-green-100 text-green-800',
-        '#ef4444': 'bg-red-100 text-red-800',
-        '#8b5cf6': 'bg-purple-100 text-purple-800',
-        '#06b6d4': 'bg-cyan-100 text-cyan-800',
-        '#84cc16': 'bg-lime-100 text-lime-800',
-        '#f97316': 'bg-orange-100 text-orange-800',
-      };
-      return colorMap[statusSetting.color] || 'bg-gray-100 text-gray-800';
-    }
-
-    // Fallback para status antigos
-    switch (statusName) {
-      case 'em_planejamento':
-        return 'bg-blue-100 text-blue-800';
-      case 'em_producao':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'concluido':
-        return 'bg-green-100 text-green-800';
-      case 'cancelado':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const statusDisplay = getStatusDisplay(project.status);
 
   return (
@@ -148,7 +64,7 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
         <div>
           <div className="flex items-center gap-3 mb-2">
             <h2 className="text-2xl font-bold">{project.name}</h2>
-            <Badge className={getStatusColor(project.status)}>
+            <Badge className={getStatusColorClass(project.status)}>
               {statusDisplay.label}
             </Badge>
             {project.projectId && (
@@ -160,13 +76,13 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
             {/* Status Change Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" disabled={isLoading}>
+                <Button variant="outline" size="sm" disabled={isLoading || statusesLoading}>
                   <Zap className="h-4 w-4 mr-1" />
                   Alterar Status
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="bg-white border shadow-lg z-50">
-                {availableStatuses.map((status) => (
+                {statuses.map((status) => (
                   <DropdownMenuItem
                     key={status.id}
                     onClick={() => handleStatusChange(status.name)}
