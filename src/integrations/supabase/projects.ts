@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -11,7 +12,7 @@ export const fetchProjects = async () => {
         services:service_id(id, name),
         main_consultant:consultants!main_consultant_id(id, name),
         support_consultant:consultants!support_consultant_id(id, name),
-        project_stages(
+        project_stages!project_stages_project_id_fkey(
           id,
           name,
           description,
