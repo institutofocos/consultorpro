@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -228,7 +229,8 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
   const calculateTotals = () => {
     const stagesTotal = (formData.stages || []).reduce((sum, stage) => sum + Number(stage.value || 0), 0);
     const thirdPartyExpenses = Number(formData.thirdPartyExpenses || 0);
-    const totalValue = stagesTotal + thirdPartyExpenses;
+    // Fix: Subtract third party expenses instead of adding them
+    const totalValue = stagesTotal - thirdPartyExpenses;
     const totalHours = (formData.stages || []).reduce((sum, stage) => sum + Number(stage.hours || 0), 0);
     
     setFormData(prev => ({ ...prev, totalValue, totalHours }));
@@ -354,6 +356,14 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         }));
       }
     }
+  };
+
+  // Calculate net value (subtract tax from total value)
+  const calculateNetValue = () => {
+    const totalValue = Number(formData.totalValue || 0);
+    const taxPercent = Number(formData.taxPercent || 16);
+    const taxAmount = (totalValue * taxPercent) / 100;
+    return totalValue - taxAmount;
   };
 
   return (
@@ -503,53 +513,36 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
             </div>
           </div>
 
-          {/* Status e Tags */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as any }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="planned">Planejado</SelectItem>
-                  <SelectItem value="active">Ativo</SelectItem>
-                  <SelectItem value="completed">Concluído</SelectItem>
-                  <SelectItem value="cancelled">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="tags">Tags</Label>
-              <SearchableSelect
-                options={availableTags}
-                value=""
-                onValueChange={handleTagSelection}
-                placeholder="Adicionar tag"
-                searchPlaceholder="Pesquisar tags..."
-                emptyText="Nenhuma tag encontrada"
-              />
-              {formData.tags && formData.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.tags.map((tagName, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {tagName}
-                      <button
-                        type="button"
-                        onClick={() => setFormData(prev => ({
-                          ...prev,
-                          tags: prev.tags?.filter((_, i) => i !== index)
-                        }))}
-                        className="ml-1 text-muted-foreground hover:text-destructive"
-                      >
-                        ×
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
+          {/* Tags - Remove status field */}
+          <div>
+            <Label htmlFor="tags">Tags</Label>
+            <SearchableSelect
+              options={availableTags}
+              value=""
+              onValueChange={handleTagSelection}
+              placeholder="Adicionar tag"
+              searchPlaceholder="Pesquisar tags..."
+              emptyText="Nenhuma tag encontrada"
+            />
+            {formData.tags && formData.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {formData.tags.map((tagName, index) => (
+                  <Badge key={index} variant="secondary" className="text-xs">
+                    {tagName}
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({
+                        ...prev,
+                        tags: prev.tags?.filter((_, i) => i !== index)
+                      }))}
+                      className="ml-1 text-muted-foreground hover:text-destructive"
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -790,12 +783,21 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
               <span className="text-sm">{formData.totalHours || 0}h</span>
             </div>
             <div className="flex justify-between items-center font-medium">
-              <span>Valor Total do Projeto:</span>
+              <span>Valor Bruto:</span>
               <span className="text-lg">
                 {new Intl.NumberFormat('pt-BR', {
                   style: 'currency',
                   currency: 'BRL'
                 }).format(formData.totalValue || 0)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center font-medium text-green-600">
+              <span>Valor Líquido:</span>
+              <span className="text-lg">
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL'
+                }).format(calculateNetValue())}
               </span>
             </div>
           </div>
