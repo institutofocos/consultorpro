@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,9 +9,10 @@ import TimezoneSettings from './TimezoneSettings';
 import SystemLogs from './SystemLogs';
 import WebhookSettings from './WebhookSettings';
 import WhatsAppConnections from './WhatsAppConnections';
+import ProjectRulesManager from './ProjectRulesManager';
 import TagList from '@/components/tags/TagList';
 import { useAuth } from '@/contexts/AuthContext';
-import { Settings, Users, Clock, FileText, Zap, MessageSquare, Tag } from 'lucide-react';
+import { Settings, Users, Clock, FileText, Zap, MessageSquare, Tag, Rules } from 'lucide-react';
 
 const SettingsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("general");
@@ -31,6 +31,10 @@ const SettingsPage: React.FC = () => {
           <TabsTrigger value="general">
             <Settings className="h-4 w-4 mr-2" />
             Geral
+          </TabsTrigger>
+          <TabsTrigger value="project-rules">
+            <Rules className="h-4 w-4 mr-2" />
+            Regras de Projetos
           </TabsTrigger>
           <TabsTrigger value="tags">
             <Tag className="h-4 w-4 mr-2" />
@@ -77,6 +81,10 @@ const SettingsPage: React.FC = () => {
             
             <WebhookSettings />
           </div>
+        </TabsContent>
+
+        <TabsContent value="project-rules">
+          <ProjectRulesManager />
         </TabsContent>
 
         <TabsContent value="tags">

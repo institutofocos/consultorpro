@@ -1122,6 +1122,45 @@ export type Database = {
           },
         ]
       }
+      project_status_settings: {
+        Row: {
+          color: string
+          created_at: string
+          display_name: string
+          id: string
+          is_active: boolean
+          is_cancellation_status: boolean
+          is_completion_status: boolean
+          name: string
+          order_index: number
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          display_name: string
+          id?: string
+          is_active?: boolean
+          is_cancellation_status?: boolean
+          is_completion_status?: boolean
+          name: string
+          order_index?: number
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          is_cancellation_status?: boolean
+          is_completion_status?: boolean
+          name?: string
+          order_index?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       project_tag_relations: {
         Row: {
           created_at: string | null
