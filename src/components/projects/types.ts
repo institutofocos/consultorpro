@@ -57,6 +57,7 @@ export interface Project {
   status: 'planned' | 'active' | 'completed' | 'cancelled' | 'em_producao' | 'aguardando_assinatura' | 'aguardando_aprovacao' | 'aguardando_nota_fiscal' | 'aguardando_pagamento' | 'aguardando_repasse' | 'concluido' | 'cancelado' | string;
   tags?: string[]; // Changed from ProjectTag[] to string[]
   tagIds?: string[];
+  tagNames?: string[]; // Added this property to fix the TypeScript error
   stages?: Stage[];
   // Extended properties from joins
   mainConsultantName?: string;
