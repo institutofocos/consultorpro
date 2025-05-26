@@ -11,13 +11,11 @@ import { Check, Clock, FileText, User } from "lucide-react";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Project, Stage } from './types';
-import { updateStageStatus } from '@/integrations/supabase/projects';
 import { useToast } from "@/components/ui/use-toast";
 import { Link } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
 import { fetchChatRoomsByProject } from '@/integrations/supabase/chat';
 import { useQuery } from '@tanstack/react-query';
-import { fetchKanbanColumns } from '@/integrations/supabase/kanban-columns';
 import {
   Dialog,
   DialogContent,
@@ -26,15 +24,6 @@ import {
   DialogDescription,
   DialogClose,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -90,12 +79,6 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
   const [currentStageDescription, setCurrentStageDescription] = useState("");
   const [consultantNames, setConsultantNames] = useState<Record<string, string>>({});
   const { toast } = useToast();
-  
-  // Buscar colunas do Kanban para usar como opções de status
-  const { data: kanbanColumns = [] } = useQuery({
-    queryKey: ['kanban-columns'],
-    queryFn: fetchKanbanColumns,
-  });
 
   // Initialize stages from project
   useEffect(() => {
@@ -180,74 +163,6 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
 
   const dynamicStatus = calculateDynamicProjectStatus();
 
-  const handleStageStatusUpdate = async (stageId: string, newStatus: Stage['status']) => {
-    const stageToUpdate = stages.find(stage => stage.id === stageId);
-    if (!stageToUpdate) return;
-
-    const updatedStages = stages.map(stage => {
-      if (stage.id === stageId) {
-        const updatedStage = { ...stage, status: newStatus };
-        
-        // Auto-marcar como concluído se status for "finalizados"
-        if (newStatus === 'finalizados') {
-          updatedStage.completed = true;
-          updatedStage.managerApproved = true;
-          updatedStage.clientApproved = true;
-          updatedStage.invoiceIssued = true;
-          updatedStage.paymentReceived = true;
-          updatedStage.consultantsSettled = true;
-        }
-        
-        return updatedStage;
-      }
-      return stage;
-    });
-    
-    setStages(updatedStages);
-    
-    try {
-      const updates: Partial<Stage> = { status: newStatus };
-      
-      // Auto-marcar campos relacionados se status for "finalizados"
-      if (newStatus === 'finalizados') {
-        updates.completed = true;
-        updates.managerApproved = true;
-        updates.clientApproved = true;
-        updates.invoiceIssued = true;
-        updates.paymentReceived = true;
-        updates.consultantsSettled = true;
-      }
-      
-      // Passar informações do projeto e etapa para sincronização
-      await updateStageStatus(stageId, updates, project.name, stageToUpdate.name);
-      
-      // Sincronizar com o Kanban se a etapa foi marcada como concluída
-      if (newStatus === 'finalizados') {
-        const { syncStageToKanban } = await import('@/integrations/supabase/kanban-sync');
-        const { fetchKanbanColumns } = await import('@/integrations/supabase/kanban-columns');
-        
-        const kanbanColumns = await fetchKanbanColumns();
-        await syncStageToKanban(project.id, stageId, kanbanColumns);
-      }
-      
-      toast({
-        title: "Sucesso",
-        description: "Status da etapa atualizado com sucesso!"
-      });
-      
-      onProjectUpdated();
-    } catch (error: any) {
-      console.error('Error updating stage status:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: error.message || "Não foi possível atualizar o status da etapa."
-      });
-      
-      setStages(project.stages || []);
-    }
-  };
-
   const showStageDescription = (description: string) => {
     setCurrentStageDescription(description || "Sem descrição disponível");
     setShowDescriptionModal(true);
@@ -273,9 +188,6 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
   };
 
   const projectProgress = calculateProjectProgress();
-
-  // Ordenar colunas do Kanban pela ordem correta
-  const sortedKanbanColumns = [...kanbanColumns].sort((a, b) => a.order_index - b.order_index);
 
   return (
     <div className="max-h-[90vh] overflow-y-auto">
@@ -447,30 +359,6 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
                           {STATUS_LABELS[stage.status || 'iniciar_projeto']}
                         </Badge>
                       </div>
-                      
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm">Status</Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-56">
-                          <DropdownMenuLabel>Selecionar Status</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuGroup>
-                            {sortedKanbanColumns.map((column) => (
-                              <DropdownMenuItem 
-                                key={column.column_id}
-                                onClick={() => handleStageStatusUpdate(stage.id, column.column_id as Stage['status'])}
-                                className="flex items-center gap-2"
-                              >
-                                <Check className={`h-4 w-4 ${
-                                  stage.status === column.column_id ? 'text-green-600' : 'text-gray-400'
-                                }`} />
-                                <span>{column.title}</span>
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
                     </div>
                     
                     <div className={`text-sm text-muted-foreground grid grid-cols-2 gap-1 ${
