@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -199,6 +198,23 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
     return `${names[0]} ${names[1] || ''}`.trim();
   };
 
+  // Function to get consultant name for a stage
+  const getStageConsultantName = (stage: any, project: Project): string => {
+    if (stage.consultantId) {
+      // If stage has a specific consultant, we need to get their name
+      // For now, we'll show the main consultant name if consultantId matches
+      if (stage.consultantId === project.mainConsultantId) {
+        return getFirstAndSecondName(project.mainConsultantName);
+      }
+      if (stage.consultantId === project.supportConsultantId) {
+        return getFirstAndSecondName(project.supportConsultantName);
+      }
+      return 'Consultor Específico';
+    }
+    // If no specific consultant, use project's main consultant
+    return getFirstAndSecondName(project.mainConsultantName);
+  };
+
   if (!projects || projects.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -224,7 +240,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
               <TableHead>Data Fim</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Progresso</TableHead>
-              <TableHead>Ações</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -309,8 +325,8 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                         {project.completedStages || 0}/{project.stages?.length || 0}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
+                    <TableCell className="text-right">
+                      <div className="flex justify-end space-x-2">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -377,7 +393,9 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">-</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">-</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {getStageConsultantName(stage, project)}
+                      </TableCell>
                       <TableCell className="text-muted-foreground text-sm">-</TableCell>
                       <TableCell className="text-muted-foreground text-sm">-</TableCell>
                       <TableCell className="text-muted-foreground text-sm">
@@ -406,8 +424,8 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                       <TableCell className="text-muted-foreground text-sm">
                         {stage.completed ? '100%' : '0%'}
                       </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
+                      <TableCell className="text-right">
+                        <div className="flex justify-end space-x-2">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button

@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -77,6 +78,7 @@ export const fetchProjects = async () => {
         status: project.status,
         tags: project.project_tag_relations?.map(rel => rel.tag?.name).filter(Boolean) || [],
         tagIds: project.project_tag_relations?.map(rel => rel.tag?.id).filter(Boolean) || [],
+        tagNames: project.project_tag_relations?.map(rel => rel.tag?.name).filter(Boolean) || [],
         stages: project.project_stages?.map(stage => ({
           id: stage.id,
           projectId: project.id,
