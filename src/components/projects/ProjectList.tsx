@@ -368,9 +368,9 @@ const ProjectList: React.FC = () => {
           ) : (
             <ProjectsExpandedTable
               projects={filteredProjects}
-              onDelete={handleDeleteProject}
-              onEdit={handleEditProject}
-              onProjectUpdated={refetch}
+              onDeleteProject={handleDeleteProject}
+              onEditProject={handleEditProject}
+              onRefresh={refetch}
             />
           )}
         </CardContent>
