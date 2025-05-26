@@ -1072,6 +1072,63 @@ export type Database = {
           },
         ]
       }
+      project_tag_relations: {
+        Row: {
+          created_at: string | null
+          id: string
+          project_id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          project_id: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          project_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_tag_relations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_tag_relations_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "project_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_tags: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       projects: {
         Row: {
           client_id: string | null
@@ -1339,6 +1396,42 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      stage_tag_relations: {
+        Row: {
+          created_at: string | null
+          id: string
+          stage_id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          stage_id: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          stage_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stage_tag_relations_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "project_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stage_tag_relations_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "project_tags"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       system_logs: {
         Row: {

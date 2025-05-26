@@ -1,4 +1,5 @@
 
+
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -178,7 +179,7 @@ export const createProject = async (project: any) => {
       hourly_rate: project.hourlyRate || 0,
       main_consultant_commission: project.mainConsultantCommission || 0,
       support_consultant_commission: project.supportConsultantCommission || 0,
-      main_consultant_value: project.consultantValue || 0,
+      main_consultant_value: project.mainConsultantValue || 0,
       support_consultant_value: project.supportConsultantValue || 0,
       third_party_expenses: project.thirdPartyExpenses || 0,
       tax_percent: project.taxPercent || 16,
@@ -260,7 +261,7 @@ export const updateProject = async (project: any) => {
       hourly_rate: project.hourlyRate || 0,
       main_consultant_commission: project.mainConsultantCommission || 0,
       support_consultant_commission: project.supportConsultantCommission || 0,
-      main_consultant_value: project.consultantValue || 0,
+      main_consultant_value: project.mainConsultantValue || 0,
       support_consultant_value: project.supportConsultantValue || 0,
       third_party_expenses: project.thirdPartyExpenses || 0,
       tax_percent: project.taxPercent || 16,
@@ -331,3 +332,66 @@ export const updateProject = async (project: any) => {
     throw error;
   }
 };
+
+// New functions for project tags
+export const fetchProjectTags = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('project_tags')
+      .select('*')
+      .order('name');
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching project tags:', error);
+    return [];
+  }
+};
+
+export const createProjectTag = async (tag: { name: string; color?: string }) => {
+  try {
+    const { data, error } = await supabase
+      .from('project_tags')
+      .insert({
+        name: tag.name,
+        color: tag.color || '#3b82f6'
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error creating project tag:', error);
+    throw error;
+  }
+};
+
+export const linkProjectToTags = async (projectId: string, tagIds: string[]) => {
+  try {
+    // First, remove existing tag relations for this project
+    await supabase
+      .from('project_tag_relations')
+      .delete()
+      .eq('project_id', projectId);
+
+    // Then, create new relations
+    if (tagIds.length > 0) {
+      const relations = tagIds.map(tagId => ({
+        project_id: projectId,
+        tag_id: tagId
+      }));
+
+      const { error } = await supabase
+        .from('project_tag_relations')
+        .insert(relations);
+
+      if (error) throw error;
+    }
+  } catch (error) {
+    console.error('Error linking project to tags:', error);
+    throw error;
+  }
+};
+
