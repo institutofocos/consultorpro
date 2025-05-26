@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Droppable } from 'react-beautiful-dnd';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MoreVertical, Edit2, Trash2, Check, X, ChevronLeft, ChevronRight, Palette, Settings } from 'lucide-react';
+import { MoreVertical, Edit2, Trash2, Check, X, ChevronLeft, ChevronRight, Palette } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,20 +12,16 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Note } from '@/integrations/supabase/notes';
-import { KanbanColumn as KanbanColumnType } from '@/integrations/supabase/kanban-columns';
 import ColumnColorPicker from './ColumnColorPicker';
-import ColumnConfigDialog from './ColumnConfigDialog';
 
 interface KanbanColumnProps {
   id: string;
   title: string;
   bgColor: string;
   notes: Note[];
-  column: KanbanColumnType;
   onUpdateColumn: (id: string, title: string) => void;
   onDeleteColumn: (id: string) => void;
   onUpdateColumnColor: (id: string, color: string) => void;
-  onConfigureColumn: (id: string, updates: Partial<KanbanColumnType>) => void;
   onMoveColumn: (id: string, direction: 'left' | 'right') => void;
   children: React.ReactNode;
   isDragging?: boolean;
@@ -36,11 +32,9 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   title,
   bgColor,
   notes,
-  column,
   onUpdateColumn,
   onDeleteColumn,
   onUpdateColumnColor,
-  onConfigureColumn,
   onMoveColumn,
   children,
   isDragging = false,
@@ -48,7 +42,6 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(title);
   const [showColorPicker, setShowColorPicker] = useState(false);
-  const [showConfigDialog, setShowConfigDialog] = useState(false);
 
   const handleSaveTitle = () => {
     if (editTitle.trim() && editTitle.trim() !== title) {
@@ -65,10 +58,6 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   const handleColorChange = (color: string) => {
     onUpdateColumnColor(id, color);
     setShowColorPicker(false);
-  };
-
-  const handleConfigSave = (updates: Partial<KanbanColumnType>) => {
-    onConfigureColumn(id, updates);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -115,14 +104,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               </Button>
             </div>
           ) : (
-            <div className="flex items-center flex-1 gap-2">
-              <span className="text-sm font-medium text-gray-800 flex-1">{title}</span>
-              {column.is_completion_column && (
-                <span className="text-xs bg-white/50 text-gray-700 px-2 py-1 rounded">
-                  {column.column_type === 'completed' ? '✓ Final' : '✗ Cancel'}
-                </span>
-              )}
-            </div>
+            <span className="text-sm font-medium text-gray-800 flex-1">{title}</span>
           )}
         </div>
         
@@ -146,11 +128,6 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               <DropdownMenuItem onClick={() => setShowColorPicker(true)}>
                 <Palette className="h-3 w-3 mr-2" />
                 Alterar cor
-              </DropdownMenuItem>
-
-              <DropdownMenuItem onClick={() => setShowConfigDialog(true)}>
-                <Settings className="h-3 w-3 mr-2" />
-                Configurar coluna
               </DropdownMenuItem>
               
               <DropdownMenuSeparator />
@@ -202,13 +179,6 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
           onClose={() => setShowColorPicker(false)}
         />
       )}
-
-      <ColumnConfigDialog
-        open={showConfigDialog}
-        onOpenChange={setShowConfigDialog}
-        column={column}
-        onSave={handleConfigSave}
-      />
     </div>
   );
 };

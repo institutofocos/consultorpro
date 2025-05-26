@@ -537,10 +537,8 @@ export type Database = {
         Row: {
           bg_color: string
           column_id: string
-          column_type: string | null
           created_at: string | null
           id: string
-          is_completion_column: boolean | null
           is_default: boolean
           order_index: number
           title: string
@@ -549,10 +547,8 @@ export type Database = {
         Insert: {
           bg_color?: string
           column_id: string
-          column_type?: string | null
           created_at?: string | null
           id?: string
-          is_completion_column?: boolean | null
           is_default?: boolean
           order_index?: number
           title: string
@@ -561,10 +557,8 @@ export type Database = {
         Update: {
           bg_color?: string
           column_id?: string
-          column_type?: string | null
           created_at?: string | null
           id?: string
-          is_completion_column?: boolean | null
           is_default?: boolean
           order_index?: number
           title?: string
