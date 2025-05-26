@@ -1,4 +1,3 @@
-
 import { supabase } from './client';
 import { updateStageStatus } from './projects';
 import { Project, Stage } from '@/components/projects/types';
@@ -42,11 +41,9 @@ export const syncKanbanToStages = async (
   try {
     console.log('Sincronizando Kanban -> Etapas:', { projectId, newKanbanStatus });
 
-    // Verificar se a coluna de destino é marcada como finalizada ou cancelada
     const targetColumn = kanbanColumns.find(col => col.column_id === newKanbanStatus);
     
     if (targetColumn?.is_completion_column) {
-      // Verificar se todas as etapas estão concluídas antes de mover para finalizado
       const { data: stages, error: stagesError } = await supabase
         .from('project_stages')
         .select('completed')
@@ -62,7 +59,6 @@ export const syncKanbanToStages = async (
       }
     }
 
-    // Buscar as etapas do projeto
     const { data: stages, error } = await supabase
       .from('project_stages')
       .select('*')
@@ -76,7 +72,6 @@ export const syncKanbanToStages = async (
       return;
     }
 
-    // Encontrar o índice da coluna atual no Kanban
     const currentColumnIndex = kanbanColumns.findIndex(col => col.column_id === newKanbanStatus);
     
     if (currentColumnIndex === -1) {
@@ -84,7 +79,6 @@ export const syncKanbanToStages = async (
       return;
     }
 
-    // Buscar informações do projeto para logs
     const { data: project } = await supabase
       .from('projects')
       .select('name')
@@ -93,7 +87,6 @@ export const syncKanbanToStages = async (
 
     const projectName = project?.name || 'Projeto';
 
-    // Se a coluna é de finalização ou cancelamento, marcar todas as etapas adequadamente
     if (targetColumn?.is_completion_column) {
       const isFinalized = targetColumn.column_type === 'completed';
       const isCancelled = targetColumn.column_type === 'cancelled';
@@ -104,7 +97,6 @@ export const syncKanbanToStages = async (
           status: isFinalized ? 'finalizados' : (isCancelled ? 'cancelados' : stage.status) as Stage['status']
         };
 
-        // Se está finalizando, atualizar campos relacionados
         if (isFinalized) {
           updates.managerApproved = true;
           updates.clientApproved = true;
@@ -117,20 +109,17 @@ export const syncKanbanToStages = async (
         console.log(`Etapa ${stage.name} atualizada:`, updates);
       }
     } else {
-      // Lógica normal para outras colunas
       for (let i = 0; i < stages.length; i++) {
         const stage = stages[i];
         const shouldBeCompleted = i <= currentColumnIndex;
         const newStageStatus = shouldBeCompleted ? 'finalizados' : stage.status;
 
-        // Atualizar apenas se necessário
         if (stage.completed !== shouldBeCompleted || stage.status !== newStageStatus) {
           const updates: Partial<Stage> = {
             completed: shouldBeCompleted,
             status: newStageStatus as Stage['status']
           };
 
-          // Se está marcando como concluída, atualizar campos relacionados
           if (shouldBeCompleted) {
             updates.managerApproved = true;
             updates.clientApproved = true;
@@ -142,7 +131,6 @@ export const syncKanbanToStages = async (
       }
     }
 
-    // Sincronizar com a tarefa correspondente
     await syncProjectStageWithTask(projectId, projectName);
 
     console.log('Sincronização Kanban -> Etapas concluída');
@@ -164,7 +152,6 @@ export const syncStageToKanban = async (
   try {
     console.log('Sincronizando Etapa -> Kanban:', { projectId, completedStageId });
 
-    // Buscar todas as etapas do projeto
     const { data: stages, error } = await supabase
       .from('project_stages')
       .select('*')
@@ -175,18 +162,14 @@ export const syncStageToKanban = async (
 
     if (!stages || stages.length === 0) return null;
 
-    // Encontrar a etapa que foi concluída
     const completedStageIndex = stages.findIndex(stage => stage.id === completedStageId);
     
     if (completedStageIndex === -1) return null;
 
-    // Contar quantas etapas estão concluídas
     const completedStagesCount = stages.filter(stage => stage.completed).length;
     
-    // Determinar a coluna do Kanban baseada no número de etapas concluídas
     let targetColumnIndex = Math.min(completedStagesCount - 1, kanbanColumns.length - 1);
     
-    // Se todas as etapas estão concluídas, mover para a última coluna (geralmente "Finalizados")
     if (completedStagesCount === stages.length) {
       targetColumnIndex = kanbanColumns.length - 1;
     }
@@ -195,10 +178,8 @@ export const syncStageToKanban = async (
     
     if (!targetColumn) return null;
 
-    // Atualizar a tarefa correspondente no sistema de notas
     await updateProjectTaskStatus(projectId, targetColumn.column_id);
 
-    // Buscar o nome do projeto para sincronização
     const { data: project } = await supabase
       .from('projects')
       .select('name')
@@ -224,7 +205,6 @@ export const syncProjectStageWithTask = async (projectId: string, projectName: s
   try {
     console.log('Sincronizando progresso do projeto com tarefa:', { projectId, projectName });
 
-    // Buscar todas as etapas do projeto
     const { data: stages, error: stagesError } = await supabase
       .from('project_stages')
       .select('*')
@@ -236,7 +216,6 @@ export const syncProjectStageWithTask = async (projectId: string, projectName: s
       return;
     }
 
-    // Buscar a tarefa principal do projeto
     const { data: mainTask, error: taskError } = await supabase
       .from('notes')
       .select('id, title')
@@ -248,11 +227,9 @@ export const syncProjectStageWithTask = async (projectId: string, projectName: s
       return;
     }
 
-    // Contar etapas concluídas
     const completedStagesCount = stages.filter(stage => stage.completed).length;
     const totalStages = stages.length;
     
-    // Determinar status da tarefa baseado no progresso
     let taskStatus = 'a_fazer';
     if (completedStagesCount === 0) {
       taskStatus = 'a_fazer';
@@ -262,7 +239,6 @@ export const syncProjectStageWithTask = async (projectId: string, projectName: s
       taskStatus = 'em_producao';
     }
 
-    // Atualizar status da tarefa principal
     const { error: taskUpdateError } = await supabase
       .from('notes')
       .update({ 
@@ -277,7 +253,6 @@ export const syncProjectStageWithTask = async (projectId: string, projectName: s
       console.log(`Status da tarefa atualizado para: ${taskStatus}`);
     }
 
-    // Atualizar checklists da tarefa para refletir o status das etapas
     for (const stage of stages) {
       const { error: checklistError } = await supabase
         .from('note_checklists')
@@ -306,7 +281,6 @@ export const syncTaskStageToProject = async (taskId: string, stageTitle: string,
   try {
     console.log('Sincronizando etapa da tarefa com projeto:', { taskId, stageTitle, completed });
 
-    // Buscar a tarefa para obter o nome do projeto
     const { data: task, error: taskError } = await supabase
       .from('notes')
       .select('title')
@@ -318,7 +292,6 @@ export const syncTaskStageToProject = async (taskId: string, stageTitle: string,
       return;
     }
 
-    // Extrair nome do projeto do título da tarefa
     const projectNameMatch = task.title.match(/^Projeto: (.+)$/);
     if (!projectNameMatch) {
       console.log('Não é uma tarefa de projeto');
@@ -327,7 +300,6 @@ export const syncTaskStageToProject = async (taskId: string, stageTitle: string,
 
     const projectName = projectNameMatch[1];
 
-    // Buscar o projeto pelo nome
     const { data: project, error: projectError } = await supabase
       .from('projects')
       .select('id')
@@ -339,7 +311,6 @@ export const syncTaskStageToProject = async (taskId: string, stageTitle: string,
       return;
     }
 
-    // Buscar a etapa correspondente no projeto
     const { data: projectStage, error: stageError } = await supabase
       .from('project_stages')
       .select('id, completed')
@@ -352,14 +323,12 @@ export const syncTaskStageToProject = async (taskId: string, stageTitle: string,
       return;
     }
 
-    // Atualizar apenas se o status for diferente
     if (projectStage.completed !== completed) {
       const updates: Partial<Stage> = {
         completed: completed,
         status: completed ? 'finalizados' : 'em_producao'
       };
 
-      // Se está marcando como concluída, atualizar campos relacionados
       if (completed) {
         updates.managerApproved = true;
         updates.clientApproved = true;
@@ -379,7 +348,6 @@ export const syncTaskStageToProject = async (taskId: string, stageTitle: string,
  */
 const updateProjectTaskStatus = async (projectId: string, newStatus: string): Promise<void> => {
   try {
-    // Buscar o nome do projeto
     const { data: project } = await supabase
       .from('projects')
       .select('name')
@@ -388,7 +356,6 @@ const updateProjectTaskStatus = async (projectId: string, newStatus: string): Pr
 
     if (!project) return;
 
-    // Buscar a tarefa correspondente ao projeto
     const { data: task } = await supabase
       .from('notes')
       .select('id')
@@ -397,7 +364,6 @@ const updateProjectTaskStatus = async (projectId: string, newStatus: string): Pr
 
     if (!task) return;
 
-    // Mapear status do Kanban para status da tarefa
     const taskStatusMap: Record<string, string> = {
       'iniciar_projeto': 'a_fazer',
       'em_producao': 'em_producao',
@@ -412,7 +378,6 @@ const updateProjectTaskStatus = async (projectId: string, newStatus: string): Pr
 
     const taskStatus = taskStatusMap[newStatus] || 'a_fazer';
 
-    // Atualizar o status da tarefa
     const { error } = await supabase
       .from('notes')
       .update({ 

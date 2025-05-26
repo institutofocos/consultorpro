@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +41,6 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     thirdPartyExpenses: 0,
     consultantValue: 0,
     supportConsultantValue: 0,
-    // Novos campos
     managerName: '',
     managerEmail: '',
     managerPhone: '',
@@ -120,7 +118,6 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     
     const selectedService = services.find(s => s.id === serviceId);
     if (selectedService) {
-      // Preencher descrição do projeto com a descrição do serviço
       setFormData(prev => ({
         ...prev,
         description: selectedService.description || prev.description,
@@ -128,7 +125,6 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         hourlyRate: Number(selectedService.hourly_rate) || prev.hourlyRate
       }));
 
-      // Carregar etapas do serviço se existirem
       if (selectedService.stages) {
         const serviceStages = Array.isArray(selectedService.stages) 
           ? selectedService.stages 
@@ -154,7 +150,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
             attachment: '',
             stageOrder: index + 1,
             consultantId: '',
-            status: 'iniciar_projeto' // Add default status
+            status: 'iniciar_projeto'
           }));
           
           setFormData(prev => ({ ...prev, stages: newStages }));
@@ -183,7 +179,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       attachment: '',
       stageOrder: (formData.stages?.length || 0) + 1,
       consultantId: '',
-      status: 'iniciar_projeto' // Add default status
+      status: 'iniciar_projeto'
     };
     
     setFormData(prev => ({
@@ -216,7 +212,6 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       const stageEndDate = new Date(currentDate);
       stageEndDate.setDate(stageEndDate.getDate() + (stage.days || 1) - 1);
       
-      // Próxima etapa inicia no dia seguinte ao fim da atual
       currentDate = new Date(stageEndDate);
       currentDate.setDate(currentDate.getDate() + 1);
       
@@ -279,7 +274,6 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         thirdPartyExpenses: Number(formData.thirdPartyExpenses || 0),
         consultantValue: Number(formData.consultantValue || 0),
         supportConsultantValue: Number(formData.supportConsultantValue || 0),
-        // Novos campos
         managerName: formData.managerName,
         managerEmail: formData.managerEmail,
         managerPhone: formData.managerPhone,
@@ -290,7 +284,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         stages: formData.stages || []
       };
 
-      let savedProject: Project;
+      let savedProject: any;
       if (project?.id) {
         console.log('Atualizando projeto existente');
         savedProject = await updateProject(projectData);
@@ -301,8 +295,36 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         toast.success('Projeto criado com sucesso!');
       }
 
+      // Transform the saved project to match the Project interface
+      const transformedProject: Project = {
+        id: savedProject.id,
+        name: savedProject.name,
+        description: savedProject.description,
+        serviceId: savedProject.service_id,
+        clientId: savedProject.client_id,
+        mainConsultantId: savedProject.main_consultant_id,
+        mainConsultantCommission: savedProject.main_consultant_commission,
+        supportConsultantId: savedProject.support_consultant_id,
+        supportConsultantCommission: savedProject.support_consultant_commission,
+        startDate: savedProject.start_date,
+        endDate: savedProject.end_date,
+        totalValue: savedProject.total_value,
+        taxPercent: savedProject.tax_percent,
+        thirdPartyExpenses: savedProject.third_party_expenses,
+        consultantValue: savedProject.main_consultant_value,
+        supportConsultantValue: savedProject.support_consultant_value,
+        managerName: savedProject.manager_name,
+        managerEmail: savedProject.manager_email,
+        managerPhone: savedProject.manager_phone,
+        totalHours: savedProject.total_hours,
+        hourlyRate: savedProject.hourly_rate,
+        status: savedProject.status,
+        tags: savedProject.tags || [],
+        stages: formData.stages || []
+      };
+
       console.log('Projeto salvo com sucesso, chamando onProjectSaved');
-      onProjectSaved(savedProject);
+      onProjectSaved(transformedProject);
       console.log('=== SUBMISSÃO CONCLUÍDA ===');
     } catch (error) {
       console.error('Error saving project:', error);
