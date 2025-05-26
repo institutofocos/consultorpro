@@ -968,6 +968,63 @@ export type Database = {
           },
         ]
       }
+      project_history: {
+        Row: {
+          action_type: string
+          created_at: string
+          description: string
+          field_changed: string | null
+          id: string
+          new_value: string | null
+          old_value: string | null
+          project_id: string
+          stage_id: string | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          description: string
+          field_changed?: string | null
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          project_id: string
+          stage_id?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          description?: string
+          field_changed?: string | null
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          project_id?: string
+          stage_id?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_history_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "project_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_stages: {
         Row: {
           attachment: string | null
@@ -1799,6 +1856,19 @@ export type Database = {
       }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      insert_project_history: {
+        Args: {
+          p_project_id: string
+          p_action_type: string
+          p_description: string
+          p_stage_id?: string
+          p_field_changed?: string
+          p_old_value?: string
+          p_new_value?: string
+          p_user_name?: string
+        }
         Returns: string
       }
       insert_system_log: {

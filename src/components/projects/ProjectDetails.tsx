@@ -1,31 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  CardHeader, 
-  CardTitle, 
-  CardContent 
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Check, Clock, FileText, User } from "lucide-react";
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { Project, Stage } from './types';
-import { useToast } from "@/components/ui/use-toast";
-import { Link } from 'react-router-dom';
-import { MessageSquare } from 'lucide-react';
-import { fetchChatRoomsByProject } from '@/integrations/supabase/chat';
-import { useQuery } from '@tanstack/react-query';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogClose,
-} from "@/components/ui/dialog";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { supabase } from "@/integrations/supabase/client";
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { X, Edit, Calendar, User, DollarSign, Clock, FileText, Activity } from 'lucide-react';
+import { Project } from './types';
+import ProjectStagesList from './ProjectStagesList';
+import ProjectHistory from './ProjectHistory';
 
 interface ProjectDetailsProps {
   project: Project;
@@ -33,376 +15,219 @@ interface ProjectDetailsProps {
   onProjectUpdated: () => void;
 }
 
-const STATUS_LABELS = {
-  'em_planejamento': 'Em Planejamento',
-  'em_producao': 'Em Produção',
-  'concluido': 'Concluído',
-  'cancelado': 'Cancelado',
-  // Keep existing legacy statuses for backward compatibility
-  'iniciar_projeto': 'Iniciar Projeto',
-  'aguardando_assinatura': 'Aguardando Assinatura',
-  'aguardando_aprovacao': 'Aguardando Aprovação',
-  'aguardando_nota_fiscal': 'Aguardando Nota Fiscal',
-  'aguardando_pagamento': 'Aguardando Pagamento',
-  'aguardando_repasse': 'Aguardando Repasse',
-  'finalizados': 'Finalizados',
-  'cancelados': 'Cancelados',
-  'planned': 'Planejado',
-  'active': 'Ativo',
-  'completed': 'Concluído',
-  'cancelled': 'Cancelado'
-};
-
-const STATUS_COLORS = {
-  'em_planejamento': 'bg-blue-100 text-blue-800',
-  'em_producao': 'bg-yellow-100 text-yellow-800',
-  'concluido': 'bg-green-100 text-green-800',
-  'cancelado': 'bg-red-100 text-red-800',
-  // Keep existing legacy status colors for backward compatibility
-  'iniciar_projeto': 'bg-blue-100 text-blue-800',
-  'aguardando_assinatura': 'bg-orange-100 text-orange-800',
-  'aguardando_aprovacao': 'bg-purple-100 text-purple-800',
-  'aguardando_nota_fiscal': 'bg-indigo-100 text-indigo-800',
-  'aguardando_pagamento': 'bg-pink-100 text-pink-800',
-  'aguardando_repasse': 'bg-cyan-100 text-cyan-800',
-  'finalizados': 'bg-green-100 text-green-800',
-  'cancelados': 'bg-red-100 text-red-800',
-  'planned': 'bg-blue-100 text-blue-800',
-  'active': 'bg-green-100 text-green-800',
-  'completed': 'bg-gray-100 text-gray-800',
-  'cancelled': 'bg-red-100 text-red-800'
-};
-
-export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose, onProjectUpdated }) => {
-  const [stages, setStages] = useState<Stage[]>([]);
-  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
-  const [currentStageDescription, setCurrentStageDescription] = useState("");
-  const [consultantNames, setConsultantNames] = useState<Record<string, string>>({});
-  const { toast } = useToast();
-
-  // Initialize stages from project
-  useEffect(() => {
-    console.log('ProjectDetails - Loading project:', project);
-    console.log('ProjectDetails - project.stages:', project.stages);
-    
-    if (project.stages && Array.isArray(project.stages)) {
-      setStages(project.stages);
-      
-      // Fetch consultant names for stages that have consultant_id
-      const consultantIds = project.stages
-        .filter(stage => stage.consultantId)
-        .map(stage => stage.consultantId)
-        .filter((id, index, arr) => arr.indexOf(id) === index); // unique ids
-      
-      if (consultantIds.length > 0) {
-        fetchConsultantNames(consultantIds);
-      }
-    } else {
-      setStages([]);
-    }
-  }, [project]);
-
-  // Function to fetch consultant names
-  const fetchConsultantNames = async (consultantIds: string[]) => {
-    try {
-      const { data: consultants, error } = await supabase
-        .from('consultants')
-        .select('id, name')
-        .in('id', consultantIds);
-
-      if (error) {
-        console.error('Error fetching consultant names:', error);
-        return;
-      }
-
-      const namesMap: Record<string, string> = {};
-      consultants?.forEach(consultant => {
-        namesMap[consultant.id] = consultant.name;
-      });
-      setConsultantNames(namesMap);
-    } catch (error) {
-      console.error('Error fetching consultant names:', error);
-    }
-  };
-  
-  // Buscar salas de chat relacionadas a este projeto
-  const { data: projectChatRooms = [] } = useQuery({
-    queryKey: ['project_chat_rooms', project.id],
-    queryFn: () => fetchChatRoomsByProject(project.id)
-  });
-
-  // Calculate project progress based on manager-approved stages
-  const calculateProjectProgress = () => {
-    if (stages.length === 0) return 0;
-    const approvedStages = stages.filter(stage => stage.managerApproved).length;
-    return Math.round((approvedStages / stages.length) * 100);
-  };
-
-  // Calculate dynamic project status based on business rules
-  const calculateDynamicProjectStatus = () => {
-    // Rule 1: If no consultant assigned, status should be "Em Planejamento"
-    if (!project.mainConsultantId) {
-      return 'em_planejamento';
-    }
-    
-    // Rule 2: If consultant assigned but not all stages completed, status should be "Em Produção"
-    if (project.mainConsultantId && stages.length > 0) {
-      const completedStages = stages.filter(stage => stage.completed).length;
-      
-      // Rule 3: If all stages are completed, status should be "Concluído"
-      if (completedStages === stages.length) {
-        return 'concluido';
-      }
-      
-      return 'em_producao';
-    }
-    
-    // If consultant assigned but no stages, status should be "Em Produção"
-    return 'em_producao';
-  };
-
-  const dynamicStatus = calculateDynamicProjectStatus();
-
-  const showStageDescription = (description: string) => {
-    setCurrentStageDescription(description || "Sem descrição disponível");
-    setShowDescriptionModal(true);
+const ProjectDetails: React.FC<ProjectDetailsProps> = ({
+  project,
+  onClose,
+  onProjectUpdated
+}) => {
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value || 0);
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return '-';
     try {
-      const date = new Date(dateString);
-      return format(date, 'dd/MM/yyyy', { locale: ptBR });
+      return new Date(dateString).toLocaleDateString('pt-BR');
     } catch (error) {
-      console.error("Error formatting date:", error);
-      return 'Data inválida';
+      console.error('Error formatting date:', error);
+      return '-';
     }
   };
 
-  // Calculate net value (company revenue)
-  const calculateNetValue = () => {
-    const totalValue = project.totalValue || 0;
-    const consultantValue = project.consultantValue || 0;
-    const supportConsultantValue = project.supportConsultantValue || 0;
-    const thirdPartyExpenses = project.thirdPartyExpenses || 0;
-    return totalValue - consultantValue - supportConsultantValue - thirdPartyExpenses;
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'em_planejamento':
+        return 'bg-blue-100 text-blue-800';
+      case 'em_producao':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'concluido':
+        return 'bg-green-100 text-green-800';
+      case 'cancelado':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
   };
 
-  const projectProgress = calculateProjectProgress();
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'em_planejamento':
+        return 'Em Planejamento';
+      case 'em_producao':
+        return 'Em Produção';
+      case 'concluido':
+        return 'Concluído';
+      case 'cancelado':
+        return 'Cancelado';
+      default:
+        return status;
+    }
+  };
 
   return (
-    <div className="max-h-[90vh] overflow-y-auto">
-      <div className="space-y-6 p-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">{project.name}</h2>
-          <div className="space-x-2">
-            {projectChatRooms.length > 0 && (
-              <Link to="/chat" state={{ initialRoomId: projectChatRooms[0].id }}>
-                <Button variant="outline" className="gap-2">
-                  <MessageSquare size={16} />
-                  Sala de Chat
-                </Button>
-              </Link>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-start">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <h2 className="text-2xl font-bold">{project.name}</h2>
+            <Badge className={getStatusColor(project.status)}>
+              {getStatusLabel(project.status)}
+            </Badge>
+            {project.projectId && (
+              <Badge variant="outline">
+                ID: {project.projectId}
+              </Badge>
             )}
-            <Button variant="outline" onClick={onClose}>Voltar</Button>
           </div>
+          {project.description && (
+            <p className="text-muted-foreground max-w-3xl">
+              {project.description}
+            </p>
+          )}
         </div>
-
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>Detalhes do Projeto</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <div className="text-sm font-medium">Consultor Principal</div>
-                <div className="text-muted-foreground">{project.mainConsultantName}</div>
-                <div className="text-xs text-slate-500">Valor: {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL'
-                }).format(project.consultantValue || 0)}</div>
-                {project.mainConsultantPixKey && (
-                  <div className="text-xs text-slate-500">PIX: {project.mainConsultantPixKey}</div>
-                )}
-              </div>
-              
-              {project.supportConsultantName && (
-                <div>
-                  <div className="text-sm font-medium">Consultor de Apoio</div>
-                  <div className="text-muted-foreground">{project.supportConsultantName}</div>
-                  <div className="text-xs text-slate-500">Valor: {new Intl.NumberFormat('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL'
-                  }).format(project.supportConsultantValue || 0)}</div>
-                  {project.supportConsultantPixKey && (
-                    <div className="text-xs text-slate-500">PIX: {project.supportConsultantPixKey}</div>
-                  )}
-                </div>
-              )}
-              
-              <div>
-                <div className="text-sm font-medium">Data de Início</div>
-                <div className="text-muted-foreground">{formatDate(project.startDate)}</div>
-              </div>
-              
-              <div>
-                <div className="text-sm font-medium">Data de Término</div>
-                <div className="text-muted-foreground">{formatDate(project.endDate)}</div>
-              </div>
-              
-              <div>
-                <div className="text-sm font-medium">Valor Total</div>
-                <div className="text-muted-foreground">
-                  {new Intl.NumberFormat('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL'
-                  }).format(project.totalValue)}
-                </div>
-              </div>
-              
-              <div>
-                <div className="text-sm font-medium">Valor Líquido (Empresa)</div>
-                <div className="text-muted-foreground">
-                  {new Intl.NumberFormat('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL'
-                  }).format(calculateNetValue())}
-                </div>
-              </div>
-              
-              <div>
-                <div className="text-sm font-medium">Status do Projeto</div>
-                <div>
-                  <Badge className={STATUS_COLORS[dynamicStatus] || 'bg-gray-100 text-gray-800'}>
-                    {STATUS_LABELS[dynamicStatus] || dynamicStatus}
-                  </Badge>
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {!project.mainConsultantId && 'Aguardando atribuição de consultor'}
-                  {project.mainConsultantId && stages.length === 0 && 'Consultor atribuído, aguardando etapas'}
-                  {project.mainConsultantId && stages.length > 0 && dynamicStatus === 'em_producao' && 
-                    `${stages.filter(s => s.completed).length} de ${stages.length} etapas concluídas`}
-                  {dynamicStatus === 'concluido' && 'Todas as etapas foram concluídas'}
-                </div>
-              </div>
-              
-              <div>
-                <div className="text-sm font-medium">Progresso do Projeto</div>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                      style={{ width: `${projectProgress}%` }}
-                    ></div>
-                  </div>
-                  <span className="text-sm font-medium">{projectProgress}%</span>
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {stages.filter(s => s.managerApproved).length} de {stages.length} etapas aprovadas pelo gestor
-                </div>
-              </div>
-            </div>
-            
-            <div>
-              <div className="text-sm font-medium">Descrição</div>
-              <div className="text-muted-foreground">{project.description}</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>Etapas do Projeto</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {stages.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>Nenhuma etapa encontrada para este projeto.</p>
-                <p className="text-sm mt-2">As etapas são definidas durante a criação/edição do projeto.</p>
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                {stages.map((stage) => (
-                  <div key={stage.id} className="border rounded-md p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className={`font-medium ${stage.completed ? 'line-through text-muted-foreground' : ''}`}>
-                          {stage.name}
-                          {stage.completed && (
-                            <span className="ml-2 text-green-600 text-sm">✓ Concluída</span>
-                          )}
-                        </div>
-                        {stage.description && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  className="ml-2 p-0 h-6 w-6"
-                                  onClick={() => showStageDescription(stage.description || "")}
-                                >
-                                  <FileText className="h-4 w-4 text-blue-500" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Ver descrição da etapa</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                        
-                        {/* Badge do status atual */}
-                        <Badge 
-                          variant="outline"
-                          className={`ml-2 ${STATUS_COLORS[stage.status || 'iniciar_projeto']}`}
-                        >
-                          {STATUS_LABELS[stage.status || 'iniciar_projeto']}
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    <div className={`text-sm text-muted-foreground grid grid-cols-2 gap-1 ${
-                      stage.completed ? 'opacity-60' : ''
-                    }`}>
-                      <div>Data de Início: {stage.startDate ? formatDate(stage.startDate) : 'Não definida'}</div>
-                      <div>Data de Término: {stage.endDate ? formatDate(stage.endDate) : 'Não definida'}</div>
-                      <div>Valor: {new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(stage.value || 0)}</div>
-                      
-                      {stage.consultantId && (
-                        <div className="flex items-center gap-1">
-                          <User className="h-3 w-3 text-blue-500" />
-                          <span className="text-blue-600 font-medium">
-                            Consultor: {consultantNames[stage.consultantId] || 'Carregando...'}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Modal for displaying stage description */}
-        <Dialog open={showDescriptionModal} onOpenChange={setShowDescriptionModal}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Descrição da Etapa</DialogTitle>
-            </DialogHeader>
-            <DialogDescription>
-              <div className="mt-2 whitespace-pre-line">
-                {currentStageDescription}
-              </div>
-            </DialogDescription>
-            <div className="mt-4 flex justify-end">
-              <DialogClose asChild>
-                <Button variant="secondary">Fechar</Button>
-              </DialogClose>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button variant="outline" size="sm" onClick={onClose}>
+          <X className="h-4 w-4" />
+        </Button>
       </div>
+
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Visão Geral
+          </TabsTrigger>
+          <TabsTrigger value="stages" className="flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Etapas
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Histórico
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          {/* Basic Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Informações Gerais
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Cliente</label>
+                  <p className="text-sm">{project.clientName || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Serviço</label>
+                  <p className="text-sm">{project.serviceName || '-'}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Data Início</label>
+                    <p className="text-sm">{formatDate(project.startDate)}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Data Fim</label>
+                    <p className="text-sm">{formatDate(project.endDate)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Equipe
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Consultor Principal</label>
+                  <p className="text-sm">{project.mainConsultantName || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Consultor de Apoio</label>
+                  <p className="text-sm">{project.supportConsultantName || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Gestor</label>
+                  <p className="text-sm">{project.managerName || '-'}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Financial Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Informações Financeiras
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Valor Total</label>
+                  <p className="text-lg font-semibold">{formatCurrency(project.totalValue)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Total de Horas</label>
+                  <p className="text-lg font-semibold">{project.totalHours || 0}h</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Taxa por Hora</label>
+                  <p className="text-lg font-semibold">{formatCurrency(project.hourlyRate || 0)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Progresso</label>
+                  <p className="text-lg font-semibold">
+                    {project.completedStages || 0}/{project.stages?.length || 0}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Tags */}
+          {project.tagNames && project.tagNames.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Tags</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {project.tagNames.map((tagName, index) => (
+                    <Badge key={index} variant="secondary">
+                      {tagName}
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="stages">
+          <ProjectStagesList
+            project={project}
+            onProjectUpdated={onProjectUpdated}
+          />
+        </TabsContent>
+
+        <TabsContent value="history">
+          <ProjectHistory projectId={project.id} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
