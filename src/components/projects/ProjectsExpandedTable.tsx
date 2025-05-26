@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -97,15 +98,6 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
         return 'bg-green-100 text-green-800';
       case 'cancelado':
         return 'bg-red-100 text-red-800';
-      // Keep existing legacy statuses for backward compatibility
-      case 'planned':
-        return 'bg-blue-100 text-blue-800';
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'completed':
-        return 'bg-gray-100 text-gray-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
       case 'aguardando_assinatura':
         return 'bg-yellow-100 text-yellow-800';
       case 'aguardando_aprovacao':
@@ -116,8 +108,6 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
         return 'bg-pink-100 text-pink-800';
       case 'aguardando_repasse':
         return 'bg-indigo-100 text-indigo-800';
-      case 'finalizados':
-        return 'bg-green-100 text-green-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -133,15 +123,6 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
         return 'Concluído';
       case 'cancelado':
         return 'Cancelado';
-      // Keep existing legacy statuses for backward compatibility
-      case 'planned':
-        return 'Planejado';
-      case 'active':
-        return 'Ativo';
-      case 'completed':
-        return 'Concluído';
-      case 'cancelled':
-        return 'Cancelado';
       case 'aguardando_assinatura':
         return 'Aguardando Assinatura';
       case 'aguardando_aprovacao':
@@ -152,8 +133,6 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
         return 'Aguardando Pagamento';
       case 'aguardando_repasse':
         return 'Aguardando Repasse';
-      case 'finalizados':
-        return 'Concluído';
       default:
         return status;
     }
@@ -206,28 +185,6 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
     setSelectedStageForDescription(null);
   };
 
-  const calculateDynamicStatus = (project: Project) => {
-    // Rule 1: If no consultant assigned, status should be "Em Planejamento"
-    if (!project.mainConsultantId) {
-      return 'em_planejamento';
-    }
-    
-    // Rule 2: If consultant assigned but not all stages completed, status should be "Em Produção"
-    if (project.mainConsultantId && project.stages && project.stages.length > 0) {
-      const completedStages = project.stages.filter(stage => stage.completed).length;
-      
-      // Rule 3: If all stages are completed, status should be "Concluído"
-      if (completedStages === project.stages.length) {
-        return 'concluido';
-      }
-      
-      return 'em_producao';
-    }
-    
-    // If consultant assigned but no stages, status should be "Em Produção"
-    return 'em_producao';
-  };
-
   // Helper function to get first name only
   const getFirstName = (fullName: string | null | undefined): string => {
     if (!fullName) return '-';
@@ -272,7 +229,6 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
           </TableHeader>
           <TableBody>
             {projects.map((project) => {
-              const dynamicStatus = calculateDynamicStatus(project);
               const isExpanded = expandedProjects.has(project.id);
               const hasStages = project.stages && project.stages.length > 0;
               
@@ -309,8 +265,8 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(dynamicStatus)}>
-                        {getStatusLabel(dynamicStatus)}
+                      <Badge className={getStatusColor(project.status)}>
+                        {getStatusLabel(project.status)}
                       </Badge>
                     </TableCell>
                     <TableCell>{getFirstName(project.clientName)}</TableCell>
