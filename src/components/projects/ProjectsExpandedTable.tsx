@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -27,16 +26,22 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'em_planejamento':
+        return 'bg-blue-100 text-blue-800';
+      case 'em_producao':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'concluido':
+        return 'bg-green-100 text-green-800';
+      case 'cancelado':
+        return 'bg-red-100 text-red-800';
+      // Keep existing legacy statuses for backward compatibility
       case 'planned':
         return 'bg-blue-100 text-blue-800';
       case 'active':
-      case 'em_producao':
         return 'bg-green-100 text-green-800';
       case 'completed':
-      case 'concluido':
         return 'bg-gray-100 text-gray-800';
       case 'cancelled':
-      case 'cancelado':
         return 'bg-red-100 text-red-800';
       case 'aguardando_assinatura':
         return 'bg-yellow-100 text-yellow-800';
@@ -55,19 +60,22 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
 
   const getStatusLabel = (status: string) => {
     switch (status) {
+      case 'em_planejamento':
+        return 'Em Planejamento';
+      case 'em_producao':
+        return 'Em Produção';
+      case 'concluido':
+        return 'Concluído';
+      case 'cancelado':
+        return 'Cancelado';
+      // Keep existing legacy statuses for backward compatibility
       case 'planned':
         return 'Planejado';
       case 'active':
         return 'Ativo';
-      case 'em_producao':
-        return 'Em Produção';
       case 'completed':
         return 'Concluído';
-      case 'concluido':
-        return 'Concluído';
       case 'cancelled':
-        return 'Cancelado';
-      case 'cancelado':
         return 'Cancelado';
       case 'aguardando_assinatura':
         return 'Aguardando Assinatura';
@@ -115,6 +123,29 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
     await onRefresh();
   };
 
+  // Calculate dynamic status for each project
+  const calculateDynamicStatus = (project: Project) => {
+    // Rule 1: If no consultant assigned, status should be "Em Planejamento"
+    if (!project.mainConsultantId) {
+      return 'em_planejamento';
+    }
+    
+    // Rule 2: If consultant assigned but not all stages completed, status should be "Em Produção"
+    if (project.mainConsultantId && project.stages && project.stages.length > 0) {
+      const completedStages = project.stages.filter(stage => stage.completed).length;
+      
+      // Rule 3: If all stages are completed, status should be "Concluído"
+      if (completedStages === project.stages.length) {
+        return 'concluido';
+      }
+      
+      return 'em_producao';
+    }
+    
+    // If consultant assigned but no stages, status should be "Em Produção"
+    return 'em_producao';
+  };
+
   if (!projects || projects.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -144,88 +175,92 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {projects.map((project) => (
-              <TableRow key={project.id}>
-                <TableCell className="font-medium">
-                  <div>
-                    <div className="font-semibold">{project.name || 'Sem nome'}</div>
-                    {project.projectId && (
-                      <div className="text-sm text-muted-foreground">
-                        ID: {project.projectId}
-                      </div>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge className={getStatusColor(project.status)}>
-                    {getStatusLabel(project.status)}
-                  </Badge>
-                </TableCell>
-                <TableCell>{project.clientName || '-'}</TableCell>
-                <TableCell>{project.mainConsultantName || '-'}</TableCell>
-                <TableCell>
-                  {project.serviceName ? (
-                    <ServiceNameCell serviceName={project.serviceName} />
-                  ) : (
-                    '-'
-                  )}
-                </TableCell>
-                <TableCell>
-                  {project.tags && project.tags.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {project.tags.map((tagName, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
-                          {tagName}
-                        </Badge>
-                      ))}
+            {projects.map((project) => {
+              const dynamicStatus = calculateDynamicStatus(project);
+              
+              return (
+                <TableRow key={project.id}>
+                  <TableCell className="font-medium">
+                    <div>
+                      <div className="font-semibold">{project.name || 'Sem nome'}</div>
+                      {project.projectId && (
+                        <div className="text-sm text-muted-foreground">
+                          ID: {project.projectId}
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    '-'
-                  )}
-                </TableCell>
-                <TableCell>{formatCurrency(project.totalValue)}</TableCell>
-                <TableCell>{formatDate(project.startDate)}</TableCell>
-                <TableCell>{formatDate(project.endDate)}</TableCell>
-                <TableCell>
-                  <div className="max-w-xs truncate" title={project.description}>
-                    {project.description || '-'}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="text-sm">
-                    {project.completedStages || 0}/{project.stages?.length || 0}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewProject(project)}
-                      title="Ver detalhes e etapas"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onEditProject(project)}
-                      title="Editar projeto"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onDeleteProject(project.id)}
-                      title="Excluir projeto"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(dynamicStatus)}>
+                      {getStatusLabel(dynamicStatus)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{project.clientName || '-'}</TableCell>
+                  <TableCell>{project.mainConsultantName || '-'}</TableCell>
+                  <TableCell>
+                    {project.serviceName ? (
+                      <ServiceNameCell serviceName={project.serviceName} />
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {project.tags && project.tags.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {project.tags.map((tagName, index) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {tagName}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
+                  <TableCell>{formatCurrency(project.totalValue)}</TableCell>
+                  <TableCell>{formatDate(project.startDate)}</TableCell>
+                  <TableCell>{formatDate(project.endDate)}</TableCell>
+                  <TableCell>
+                    <div className="max-w-xs truncate" title={project.description}>
+                      {project.description || '-'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      {project.completedStages || 0}/{project.stages?.length || 0}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewProject(project)}
+                        title="Ver detalhes e etapas"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onEditProject(project)}
+                        title="Editar projeto"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onDeleteProject(project.id)}
+                        title="Excluir projeto"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>

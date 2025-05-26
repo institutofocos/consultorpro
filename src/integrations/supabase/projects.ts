@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -147,6 +146,71 @@ export const fetchDemandsWithoutConsultants = async () => {
   }
 };
 
+// Function to calculate project status based on business rules
+export const calculateProjectStatus = (project: any): string => {
+  // Rule 1: If no consultant assigned, status should be "em_planejamento"
+  if (!project.main_consultant_id) {
+    return 'em_planejamento';
+  }
+  
+  // Rule 2: If consultant assigned but not all stages completed, status should be "em_producao"
+  if (project.main_consultant_id && project.project_stages) {
+    const totalStages = project.project_stages.length;
+    const completedStages = project.project_stages.filter((stage: any) => stage.completed).length;
+    
+    // Rule 3: If all stages are completed, status should be "concluido"
+    if (totalStages > 0 && completedStages === totalStages) {
+      return 'concluido';
+    }
+    
+    return 'em_producao';
+  }
+  
+  // If consultant assigned but no stages, status should be "em_producao"
+  return 'em_producao';
+};
+
+// Function to update project status automatically
+export const updateProjectStatusAutomatically = async (projectId: string) => {
+  try {
+    // First, fetch the project with its stages
+    const { data: project, error: fetchError } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        project_stages(*)
+      `)
+      .eq('id', projectId)
+      .single();
+    
+    if (fetchError) {
+      console.error('Error fetching project for status update:', fetchError);
+      return;
+    }
+    
+    // Calculate the new status
+    const newStatus = calculateProjectStatus(project);
+    
+    // Update the project status if it's different
+    if (project.status !== newStatus) {
+      const { error: updateError } = await supabase
+        .from('projects')
+        .update({ status: newStatus })
+        .eq('id', projectId);
+      
+      if (updateError) {
+        console.error('Error updating project status:', updateError);
+      } else {
+        console.log(`Project ${projectId} status updated to: ${newStatus}`);
+      }
+    }
+    
+    return newStatus;
+  } catch (error) {
+    console.error('Error in updateProjectStatusAutomatically:', error);
+  }
+};
+
 export const assignConsultantsToDemand = async (
   projectId: string,
   mainConsultantId: string | null,
@@ -158,7 +222,7 @@ export const assignConsultantsToDemand = async (
     const updateData: any = {
       main_consultant_id: mainConsultantId,
       main_consultant_commission: mainConsultantCommission,
-      status: 'em_producao'
+      status: mainConsultantId ? 'em_producao' : 'em_planejamento' // Auto-set status based on consultant
     };
 
     if (supportConsultantId) {
@@ -174,6 +238,10 @@ export const assignConsultantsToDemand = async (
       .single();
     
     if (error) throw error;
+    
+    // Update status automatically after consultant assignment
+    await updateProjectStatusAutomatically(projectId);
+    
     return data;
   } catch (error) {
     console.error('Error assigning consultants:', error);
@@ -194,6 +262,18 @@ export const updateStageStatus = async (
       .eq('id', stageId);
 
     if (error) throw error;
+    
+    // Get the project ID from the stage to update project status
+    const { data: stage } = await supabase
+      .from('project_stages')
+      .select('project_id')
+      .eq('id', stageId)
+      .single();
+    
+    if (stage?.project_id) {
+      // Update project status automatically after stage update
+      await updateProjectStatusAutomatically(stage.project_id);
+    }
     
     if (projectName && stageName) {
       console.log(`Stage ${stageName} updated for project ${projectName}`);
@@ -250,7 +330,7 @@ export const createProject = async (project: any) => {
     const projectData = {
       name: project.name,
       description: project.description,
-      status: project.status || 'planned',
+      status: project.mainConsultantId ? 'em_producao' : 'em_planejamento', // Auto-set status based on consultant
       client_id: project.clientId || null,
       service_id: project.serviceId || null,
       main_consultant_id: project.mainConsultantId || null,
@@ -323,6 +403,9 @@ export const createProject = async (project: any) => {
       }
     }
 
+    // Update project status automatically after creation
+    await updateProjectStatusAutomatically(data.id);
+
     return data;
   } catch (error) {
     console.error('Error creating project:', error);
@@ -356,7 +439,7 @@ export const updateProject = async (project: any) => {
       manager_name: project.managerName,
       manager_email: project.managerEmail,
       manager_phone: project.managerPhone,
-      status: project.status,
+      // Don't include status here - it will be calculated automatically
       tags: project.tags || []
     };
 
@@ -418,6 +501,9 @@ export const updateProject = async (project: any) => {
         console.log('Etapas atualizadas com sucesso');
       }
     }
+
+    // Update project status automatically after update
+    await updateProjectStatusAutomatically(project.id);
 
     return data;
   } catch (error) {

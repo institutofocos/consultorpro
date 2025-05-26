@@ -45,8 +45,12 @@ interface ProjectDetailsProps {
 }
 
 const STATUS_LABELS = {
+  'em_planejamento': 'Em Planejamento',
+  'em_producao': 'Em Produção',
+  'concluido': 'Concluído',
+  'cancelado': 'Cancelado',
+  // Keep existing legacy statuses for backward compatibility
   'iniciar_projeto': 'Iniciar Projeto',
-  'em_producao': 'Em produção',
   'aguardando_assinatura': 'Aguardando Assinatura',
   'aguardando_aprovacao': 'Aguardando Aprovação',
   'aguardando_nota_fiscal': 'Aguardando Nota Fiscal',
@@ -54,11 +58,19 @@ const STATUS_LABELS = {
   'aguardando_repasse': 'Aguardando Repasse',
   'finalizados': 'Finalizados',
   'cancelados': 'Cancelados',
+  'planned': 'Planejado',
+  'active': 'Ativo',
+  'completed': 'Concluído',
+  'cancelled': 'Cancelado'
 };
 
 const STATUS_COLORS = {
-  'iniciar_projeto': 'bg-blue-100 text-blue-800',
+  'em_planejamento': 'bg-blue-100 text-blue-800',
   'em_producao': 'bg-yellow-100 text-yellow-800',
+  'concluido': 'bg-green-100 text-green-800',
+  'cancelado': 'bg-red-100 text-red-800',
+  // Keep existing legacy status colors for backward compatibility
+  'iniciar_projeto': 'bg-blue-100 text-blue-800',
   'aguardando_assinatura': 'bg-orange-100 text-orange-800',
   'aguardando_aprovacao': 'bg-purple-100 text-purple-800',
   'aguardando_nota_fiscal': 'bg-indigo-100 text-indigo-800',
@@ -66,6 +78,10 @@ const STATUS_COLORS = {
   'aguardando_repasse': 'bg-cyan-100 text-cyan-800',
   'finalizados': 'bg-green-100 text-green-800',
   'cancelados': 'bg-red-100 text-red-800',
+  'planned': 'bg-blue-100 text-blue-800',
+  'active': 'bg-green-100 text-green-800',
+  'completed': 'bg-gray-100 text-gray-800',
+  'cancelled': 'bg-red-100 text-red-800'
 };
 
 export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose, onProjectUpdated }) => {
@@ -138,6 +154,31 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
     const approvedStages = stages.filter(stage => stage.managerApproved).length;
     return Math.round((approvedStages / stages.length) * 100);
   };
+
+  // Calculate dynamic project status based on business rules
+  const calculateDynamicProjectStatus = () => {
+    // Rule 1: If no consultant assigned, status should be "Em Planejamento"
+    if (!project.mainConsultantId) {
+      return 'em_planejamento';
+    }
+    
+    // Rule 2: If consultant assigned but not all stages completed, status should be "Em Produção"
+    if (project.mainConsultantId && stages.length > 0) {
+      const completedStages = stages.filter(stage => stage.completed).length;
+      
+      // Rule 3: If all stages are completed, status should be "Concluído"
+      if (completedStages === stages.length) {
+        return 'concluido';
+      }
+      
+      return 'em_producao';
+    }
+    
+    // If consultant assigned but no stages, status should be "Em Produção"
+    return 'em_producao';
+  };
+
+  const dynamicStatus = calculateDynamicProjectStatus();
 
   const handleStageStatusUpdate = async (stageId: string, newStatus: Stage['status']) => {
     const stageToUpdate = stages.find(stage => stage.id === stageId);
@@ -317,25 +358,18 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, onClose
               </div>
               
               <div>
-                <div className="text-sm font-medium">Status</div>
+                <div className="text-sm font-medium">Status do Projeto</div>
                 <div>
-                  {project.status === 'active' && (
-                    <Badge className="bg-green-500">
-                      <Clock className="mr-1 h-3 w-3" />
-                      Em Andamento
-                    </Badge>
-                  )}
-                  {project.status === 'completed' && (
-                    <Badge className="bg-blue-500">
-                      <Check className="mr-1 h-3 w-3" />
-                      Concluído
-                    </Badge>
-                  )}
-                  {project.status === 'planned' && (
-                    <Badge variant="outline">
-                      Planejado
-                    </Badge>
-                  )}
+                  <Badge className={STATUS_COLORS[dynamicStatus] || 'bg-gray-100 text-gray-800'}>
+                    {STATUS_LABELS[dynamicStatus] || dynamicStatus}
+                  </Badge>
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {!project.mainConsultantId && 'Aguardando atribuição de consultor'}
+                  {project.mainConsultantId && stages.length === 0 && 'Consultor atribuído, aguardando etapas'}
+                  {project.mainConsultantId && stages.length > 0 && dynamicStatus === 'em_producao' && 
+                    `${stages.filter(s => s.completed).length} de ${stages.length} etapas concluídas`}
+                  {dynamicStatus === 'concluido' && 'Todas as etapas foram concluídas'}
                 </div>
               </div>
               
