@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -66,6 +67,7 @@ const ChatPage: React.FC = () => {
       // Transform the data to handle the join properly
       const transformedData = data?.map(room => ({
         ...room,
+        description: room.description || '', // Ensure description is always a string
         projects: room.projects ? { status: room.projects.status } : undefined
       })) || [];
 
