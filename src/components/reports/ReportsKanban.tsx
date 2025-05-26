@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { KanbanSquare, User, Calendar } from 'lucide-react';
@@ -5,13 +6,13 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from "@/integrations/supabase/client";
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { fetchKanbanColumns, KanbanColumn } from '@/integrations/supabase/kanban-columns';
+import { fetchKanbanColumns, type KanbanColumn } from '@/integrations/supabase/kanban-columns';
 import { syncKanbanToStages } from '@/integrations/supabase/kanban-sync';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 // Componentes de exemplo para o Kanban
-const KanbanColumn = ({ title, children, color, count }: { title: string, children: React.ReactNode, color: string, count: number }) => (
+const KanbanColumnComponent = ({ title, children, color, count }: { title: string, children: React.ReactNode, color: string, count: number }) => (
   <div className="flex flex-col h-full min-w-[250px] bg-muted/20 rounded-lg p-2">
     <div className="flex items-center mb-2 px-2 py-1">
       <div className={`w-3 h-3 rounded-full mr-2 ${color}`} />
@@ -245,7 +246,7 @@ export default function ReportsKanban() {
             <DragDropContext onDragEnd={handleDragEnd}>
               <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-300px)]">
                 {kanbanColumns.map((column) => (
-                  <KanbanColumn 
+                  <KanbanColumnComponent 
                     key={column.column_id}
                     title={column.title} 
                     color={column.bg_color}
@@ -292,7 +293,7 @@ export default function ReportsKanban() {
                         </div>
                       )}
                     </Droppable>
-                  </KanbanColumn>
+                  </KanbanColumnComponent>
                 ))}
               </div>
             </DragDropContext>

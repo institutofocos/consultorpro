@@ -88,8 +88,8 @@ export const syncKanbanToStages = async (
 
         // Se está marcando como concluída, atualizar campos relacionados
         if (shouldBeCompleted) {
-          updates.manager_approved = true;
-          updates.client_approved = true;
+          updates.managerApproved = true;
+          updates.clientApproved = true;
         }
 
         await updateStageStatus(stage.id, updates, projectName, stage.name);
