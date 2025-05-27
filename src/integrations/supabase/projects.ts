@@ -1,8 +1,9 @@
+
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
   try {
-    console.log('Fetching projects...');
+    console.log('Fetching projects with consultants only...');
     const { data, error } = await supabase
       .from('projects')
       .select(`
@@ -38,6 +39,7 @@ export const fetchProjects = async () => {
           tag:project_tags(id, name, color)
         )
       `)
+      .not('main_consultant_id', 'is', null) // Only fetch projects with main consultant
       .order('created_at', { ascending: false });
     
     if (error) {
@@ -45,7 +47,7 @@ export const fetchProjects = async () => {
       throw error;
     }
 
-    console.log('Raw projects data:', data);
+    console.log('Raw projects data (with consultants only):', data);
 
     // Transform the data to match the Project interface
     const transformedData = data?.map(project => {
@@ -112,7 +114,7 @@ export const fetchProjects = async () => {
       };
     }) || [];
 
-    console.log('Transformed projects data:', transformedData);
+    console.log('Transformed projects data (with consultants only):', transformedData);
     return transformedData;
   } catch (error) {
     console.error('Error fetching projects:', error);
@@ -122,6 +124,7 @@ export const fetchProjects = async () => {
 
 export const fetchDemandsWithoutConsultants = async () => {
   try {
+    console.log('Fetching demands (projects without consultants)...');
     const { data, error } = await supabase
       .from('projects')
       .select(`
@@ -134,12 +137,15 @@ export const fetchDemandsWithoutConsultants = async () => {
     
     if (error) throw error;
 
+    console.log('Raw demands data (without consultants):', data);
+
     const transformedData = data?.map(project => ({
       ...project,
       clientName: project.clients?.name,
       serviceName: project.services?.name
     })) || [];
 
+    console.log('Transformed demands data:', transformedData);
     return transformedData;
   } catch (error) {
     console.error('Error fetching demands:', error);

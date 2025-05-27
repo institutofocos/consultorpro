@@ -234,7 +234,7 @@ const ProjectList: React.FC = () => {
                 onClick={handleNewProject}
               >
                 <Plus className="h-4 w-4" />
-                <span>Novo</span>
+                <span>Novo Projeto</span>
               </Button>
             </DialogTrigger>
             <DialogContent size="full" className="max-h-[90vh] overflow-y-auto">
