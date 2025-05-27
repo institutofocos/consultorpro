@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { FileCheck, Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter } from 'lucide-react';
@@ -45,6 +46,7 @@ const DemandsList = () => {
   const [supportConsultantCommission, setSupportConsultantCommission] = useState<number>(0);
   const [mainConsultantInfo, setMainConsultantInfo] = useState<ConsultantInfo | null>(null);
   const [supportConsultantInfo, setSupportConsultantInfo] = useState<ConsultantInfo | null>(null);
+  const [filteredConsultants, setFilteredConsultants] = useState<{id: string, name: string}[]>([]);
   const { toast } = useToast();
   
   // Filter states
@@ -81,6 +83,46 @@ const DemandsList = () => {
     
     return () => clearInterval(interval);
   }, []);
+
+  // Filter consultants based on selected demand's service
+  useEffect(() => {
+    const filterConsultantsByService = async () => {
+      if (!selectedDemand || !selectedDemand.services?.id) {
+        setFilteredConsultants(consultants);
+        return;
+      }
+
+      try {
+        const { data: authorizedConsultants, error } = await supabase
+          .from('consultant_services')
+          .select(`
+            consultant_id,
+            consultants(id, name)
+          `)
+          .eq('service_id', selectedDemand.services.id);
+
+        if (error) {
+          console.error('Error fetching authorized consultants:', error);
+          setFilteredConsultants(consultants);
+          return;
+        }
+
+        const authorized = authorizedConsultants
+          ?.map(item => ({
+            id: item.consultants.id,
+            name: item.consultants.name
+          }))
+          .filter(Boolean) || [];
+
+        setFilteredConsultants(authorized);
+      } catch (error) {
+        console.error('Error filtering consultants by service:', error);
+        setFilteredConsultants(consultants);
+      }
+    };
+
+    filterConsultantsByService();
+  }, [selectedDemand, consultants]);
 
   // Function to load consultant detailed information
   const loadConsultantInfo = async (consultantId: string): Promise<ConsultantInfo | null> => {
@@ -351,10 +393,9 @@ const DemandsList = () => {
                             <p className="text-sm text-muted-foreground line-clamp-1">{demand.description || "Sem descrição"}</p>
                           </div>
                           <div className="flex items-center gap-2 ml-2">
-                            <Badge variant={demand.status === 'planned' ? 'outline' : demand.status === 'active' ? 'default' : demand.status === 'completed' ? 'secondary' : 'destructive'} className="text-xs">
+                            <Badge variant={demand.status === 'planned' ? 'outline' : demand.status === 'active' ? 'default' : 'secondary'} className="text-xs">
                               {demand.status === 'planned' ? 'Planejado' : 
-                               demand.status === 'active' ? 'Em Andamento' : 
-                               demand.status === 'completed' ? 'Concluído' : 'Cancelado'}
+                               demand.status === 'active' ? 'Em Andamento' : 'Concluído'}
                             </Badge>
                           </div>
                         </div>
@@ -454,17 +495,30 @@ const DemandsList = () => {
           </DialogHeader>
           
           <div className="grid gap-6 py-4">
+            {selectedDemand && selectedDemand.services && (
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2 text-sm">
+                  <FileCheck className="h-4 w-4 text-blue-600" />
+                  <span className="font-medium text-blue-900">Serviço:</span>
+                  <span className="text-blue-700">{selectedDemand.services.name}</span>
+                </div>
+                <p className="text-xs text-blue-600 mt-1">
+                  Apenas consultores habilitados para este serviço aparecerão nas opções abaixo.
+                </p>
+              </div>
+            )}
+            
             <div className="grid gap-2">
               <label htmlFor="main-consultant" className="text-sm font-medium">
                 Consultor Principal
               </label>
               <SearchableSelect
-                options={consultants}
+                options={filteredConsultants}
                 value={mainConsultantId}
                 onValueChange={handleMainConsultantChange}
                 placeholder="Selecione um consultor"
                 searchPlaceholder="Pesquisar consultores..."
-                emptyText="Nenhum consultor encontrado"
+                emptyText="Nenhum consultor autorizado encontrado"
               />
               <ConsultantInfoCard 
                 info={mainConsultantInfo} 
@@ -493,12 +547,12 @@ const DemandsList = () => {
                 Consultor de Apoio
               </label>
               <SearchableSelect
-                options={[{ id: '', name: 'Nenhum consultor' }, ...consultants]}
+                options={[{ id: '', name: 'Nenhum consultor' }, ...filteredConsultants]}
                 value={supportConsultantId}
                 onValueChange={handleSupportConsultantChange}
                 placeholder="Selecione um consultor (opcional)"
                 searchPlaceholder="Pesquisar consultores..."
-                emptyText="Nenhum consultor encontrado"
+                emptyText="Nenhum consultor autorizado encontrado"
               />
               <ConsultantInfoCard 
                 info={supportConsultantInfo} 
