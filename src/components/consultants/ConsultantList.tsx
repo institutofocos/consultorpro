@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -18,6 +17,7 @@ import {
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import ConsultantForm from './ConsultantForm';
+import ConsultantServicesModal from './ConsultantServicesModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
 import { Tables } from '@/integrations/supabase/types';
@@ -79,6 +79,15 @@ export const ConsultantList: React.FC = () => {
   const [availableHours, setAvailableHours] = useState<{[key: string]: number}>({});
   const [workedHours, setWorkedHours] = useState<{[key: string]: number}>({});
   const [activeProjects, setActiveProjects] = useState<{[key: string]: number}>({});
+  const [servicesModal, setServicesModal] = useState<{
+    isOpen: boolean;
+    consultantId: string;
+    consultantName: string;
+  }>({
+    isOpen: false,
+    consultantId: '',
+    consultantName: ''
+  });
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   
@@ -249,6 +258,22 @@ export const ConsultantList: React.FC = () => {
       });
     }
   };
+
+  const handleViewServices = (consultant: Consultant) => {
+    setServicesModal({
+      isOpen: true,
+      consultantId: consultant.id,
+      consultantName: consultant.name
+    });
+  };
+
+  const closeServicesModal = () => {
+    setServicesModal({
+      isOpen: false,
+      consultantId: '',
+      consultantName: ''
+    });
+  };
   
   return (
     <div className="space-y-8 animate-fade-in">
@@ -298,13 +323,14 @@ export const ConsultantList: React.FC = () => {
                     <TableHead>Horas Trabalhadas</TableHead>
                     <TableHead>Horas Livres</TableHead>
                     <TableHead>Projetos</TableHead>
+                    <TableHead>Serviços Habilitados</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         Carregando consultores...
                       </TableCell>
                     </TableRow>
@@ -317,6 +343,16 @@ export const ConsultantList: React.FC = () => {
                         <TableCell>{workedHours[consultant.id] || 0}h</TableCell>
                         <TableCell>{availableHours[consultant.id] || consultant.hoursPerMonth}h</TableCell>
                         <TableCell>{activeProjects[consultant.id] || 0}</TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleViewServices(consultant)}
+                            title="Ver serviços habilitados"
+                          >
+                            <Search className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="icon" onClick={() => handleEditConsultant(consultant)}>
                             <Edit className="h-4 w-4" />
@@ -329,7 +365,7 @@ export const ConsultantList: React.FC = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         Nenhum consultor encontrado
                       </TableCell>
                     </TableRow>
@@ -338,6 +374,13 @@ export const ConsultantList: React.FC = () => {
               </Table>
             </CardContent>
           </Card>
+
+          <ConsultantServicesModal
+            isOpen={servicesModal.isOpen}
+            onClose={closeServicesModal}
+            consultantId={servicesModal.consultantId}
+            consultantName={servicesModal.consultantName}
+          />
         </>
       )}
     </div>
