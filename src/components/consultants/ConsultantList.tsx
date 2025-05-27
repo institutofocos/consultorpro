@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -21,12 +22,6 @@ import ConsultantServicesModal from './ConsultantServicesModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
 import { Tables } from '@/integrations/supabase/types';
-import { 
-  fetchConsultants, 
-  calculateConsultantAvailableHours, 
-  calculateConsultantWorkedHours,
-  calculateConsultantActiveProjects
-} from "@/integrations/supabase/consultants";
 
 export type Consultant = {
   id: string;
@@ -69,6 +64,31 @@ const mapConsultantFromDB = (consultant: Tables<"consultants"> & { services?: st
     availableHours: 0,
     workedHours: 0,
   };
+};
+
+// Function to calculate consultant statistics directly from database
+const calculateConsultantStats = async (consultantId: string) => {
+  try {
+    // Get projects where consultant is main or support
+    const { data: projects, error: projectsError } = await supabase
+      .from('projects')
+      .select('id, total_hours, status')
+      .or(`main_consultant_id.eq.${consultantId},support_consultant_id.eq.${consultantId}`)
+      .in('status', ['active', 'planned']);
+
+    if (projectsError) {
+      console.error('Error fetching consultant projects:', projectsError);
+      return { workedHours: 0, activeProjects: 0 };
+    }
+
+    const activeProjects = projects?.length || 0;
+    const workedHours = projects?.reduce((total, project) => total + (project.total_hours || 0), 0) || 0;
+
+    return { workedHours, activeProjects };
+  } catch (error) {
+    console.error('Error calculating consultant stats:', error);
+    return { workedHours: 0, activeProjects: 0 };
+  }
 };
 
 export const ConsultantList: React.FC = () => {
@@ -135,16 +155,11 @@ export const ConsultantList: React.FC = () => {
         const activeProjectsMap: {[key: string]: number} = {};
         
         for (const consultant of mappedConsultants) {
-          const worked = await calculateConsultantWorkedHours(consultant.id);
-          const available = await calculateConsultantAvailableHours(
-            consultant.id, 
-            consultant.hoursPerMonth
-          );
-          const projects = await calculateConsultantActiveProjects(consultant.id);
+          const stats = await calculateConsultantStats(consultant.id);
           
-          workedHoursMap[consultant.id] = worked;
-          availableHoursMap[consultant.id] = available;
-          activeProjectsMap[consultant.id] = projects;
+          workedHoursMap[consultant.id] = stats.workedHours;
+          availableHoursMap[consultant.id] = Math.max(0, consultant.hoursPerMonth - stats.workedHours);
+          activeProjectsMap[consultant.id] = stats.activeProjects;
         }
         
         setWorkedHours(workedHoursMap);
@@ -203,16 +218,11 @@ export const ConsultantList: React.FC = () => {
         const activeProjectsMap: {[key: string]: number} = {};
         
         for (const consultant of mappedConsultants) {
-          const worked = await calculateConsultantWorkedHours(consultant.id);
-          const available = await calculateConsultantAvailableHours(
-            consultant.id, 
-            consultant.hoursPerMonth
-          );
-          const projects = await calculateConsultantActiveProjects(consultant.id);
+          const stats = await calculateConsultantStats(consultant.id);
           
-          workedHoursMap[consultant.id] = worked;
-          availableHoursMap[consultant.id] = available;
-          activeProjectsMap[consultant.id] = projects;
+          workedHoursMap[consultant.id] = stats.workedHours;
+          availableHoursMap[consultant.id] = Math.max(0, consultant.hoursPerMonth - stats.workedHours);
+          activeProjectsMap[consultant.id] = stats.activeProjects;
         }
         
         setWorkedHours(workedHoursMap);
@@ -310,9 +320,6 @@ export const ConsultantList: React.FC = () => {
           </div>
           
           <Card className="shadow-card">
-            <CardHeader className="pb-3">
-              <CardTitle>Lista de Consultores</CardTitle>
-            </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
