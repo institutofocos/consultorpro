@@ -54,6 +54,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
   const [clients, setClients] = useState([]);
   const [services, setServices] = useState([]);
   const [consultants, setConsultants] = useState([]);
+  const [filteredConsultants, setFilteredConsultants] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -71,6 +72,57 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       });
     }
   }, [project]);
+
+  // Filtrar consultores quando o serviço é selecionado
+  useEffect(() => {
+    if (formData.serviceId) {
+      fetchAuthorizedConsultants(formData.serviceId);
+    } else {
+      setFilteredConsultants([]);
+      // Limpar seleções de consultores quando não há serviço selecionado
+      setFormData(prev => ({
+        ...prev,
+        mainConsultantId: '',
+        supportConsultantId: ''
+      }));
+    }
+  }, [formData.serviceId]);
+
+  const fetchAuthorizedConsultants = async (serviceId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('consultant_services')
+        .select(`
+          consultant_id,
+          consultants(id, name)
+        `)
+        .eq('service_id', serviceId);
+
+      if (error) throw error;
+
+      const authorizedConsultants = data?.map(item => ({
+        id: item.consultants.id,
+        name: item.consultants.name
+      })) || [];
+
+      setFilteredConsultants(authorizedConsultants);
+
+      // Verificar se os consultores selecionados ainda são válidos
+      const validMainConsultant = authorizedConsultants.find(c => c.id === formData.mainConsultantId);
+      const validSupportConsultant = authorizedConsultants.find(c => c.id === formData.supportConsultantId);
+
+      if (!validMainConsultant || !validSupportConsultant) {
+        setFormData(prev => ({
+          ...prev,
+          mainConsultantId: validMainConsultant ? prev.mainConsultantId : '',
+          supportConsultantId: validSupportConsultant ? prev.supportConsultantId : ''
+        }));
+      }
+    } catch (error) {
+      console.error('Erro ao buscar consultores autorizados:', error);
+      setFilteredConsultants([]);
+    }
+  };
 
   const loadCurrentUserData = async () => {
     try {
@@ -114,7 +166,13 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
   };
 
   const handleServiceChange = (serviceId: string) => {
-    setFormData(prev => ({ ...prev, serviceId }));
+    setFormData(prev => ({ 
+      ...prev, 
+      serviceId,
+      // Limpar consultores ao trocar de serviço
+      mainConsultantId: '',
+      supportConsultantId: ''
+    }));
     
     const selectedService = services.find(s => s.id === serviceId);
     if (selectedService) {
@@ -437,7 +495,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
             </div>
 
             <div>
-              <Label htmlFor="service">Serviço</Label>
+              <Label htmlFor="service">Serviço *</Label>
               <SearchableSelect
                 options={services}
                 value={formData.serviceId || ''}
@@ -446,6 +504,9 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
                 searchPlaceholder="Pesquisar serviços..."
                 emptyText="Nenhum serviço encontrado"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Selecione um serviço primeiro para visualizar os consultores habilitados
+              </p>
             </div>
           </div>
 
@@ -483,25 +544,37 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
             <div>
               <Label htmlFor="mainConsultant">Consultor Principal</Label>
               <SearchableSelect
-                options={consultants}
+                options={filteredConsultants}
                 value={formData.mainConsultantId || ''}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, mainConsultantId: value as string }))}
-                placeholder="Selecione o consultor principal"
+                placeholder={formData.serviceId ? "Selecione o consultor principal" : "Selecione um serviço primeiro"}
                 searchPlaceholder="Pesquisar consultores..."
-                emptyText="Nenhum consultor encontrado"
+                emptyText={formData.serviceId ? "Nenhum consultor habilitado para este serviço" : "Selecione um serviço primeiro"}
+                disabled={!formData.serviceId}
               />
+              {!formData.serviceId && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Apenas consultores habilitados para o serviço selecionado aparecerão aqui
+                </p>
+              )}
             </div>
 
             <div>
               <Label htmlFor="supportConsultant">Consultor de Apoio</Label>
               <SearchableSelect
-                options={[{ id: '', name: 'Nenhum' }, ...consultants]}
+                options={[{ id: '', name: 'Nenhum' }, ...filteredConsultants]}
                 value={formData.supportConsultantId || ''}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, supportConsultantId: value as string }))}
-                placeholder="Selecione o consultor de apoio"
+                placeholder={formData.serviceId ? "Selecione o consultor de apoio" : "Selecione um serviço primeiro"}
                 searchPlaceholder="Pesquisar consultores..."
-                emptyText="Nenhum consultor encontrado"
+                emptyText={formData.serviceId ? "Nenhum consultor habilitado para este serviço" : "Selecione um serviço primeiro"}
+                disabled={!formData.serviceId}
               />
+              {!formData.serviceId && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Apenas consultores habilitados para o serviço selecionado aparecerão aqui
+                </p>
+              )}
             </div>
           </div>
 
@@ -710,12 +783,13 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
                   <div>
                     <Label>Consultor Responsável</Label>
                     <SearchableSelect
-                      options={[{ id: '', name: 'Nenhum' }, ...consultants]}
+                      options={[{ id: '', name: 'Nenhum' }, ...filteredConsultants]}
                       value={stage.consultantId || ''}
                       onValueChange={(value) => updateStage(index, 'consultantId', value as string)}
-                      placeholder="Selecione um consultor"
+                      placeholder={formData.serviceId ? "Selecione um consultor" : "Selecione um serviço primeiro"}
                       searchPlaceholder="Pesquisar consultores..."
-                      emptyText="Nenhum consultor encontrado"
+                      emptyText={formData.serviceId ? "Nenhum consultor habilitado para este serviço" : "Selecione um serviço primeiro"}
+                      disabled={!formData.serviceId}
                     />
                   </div>
                 </div>
