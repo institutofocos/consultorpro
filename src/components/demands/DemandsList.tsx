@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { FileCheck, Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter } from 'lucide-react';
+import { FileCheck, Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter, Plus } from 'lucide-react';
 import { fetchDemandsWithoutConsultants, assignConsultantsToDemand } from '@/integrations/supabase/projects';
 import { 
   fetchConsultants, 
@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -21,6 +21,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ptBR } from 'date-fns/locale';
 import SearchableSelect from "@/components/ui/searchable-select";
+import DemandForm from './DemandForm';
 
 interface ConsultantInfo {
   id: string;
@@ -46,6 +47,7 @@ const DemandsList = () => {
   const [mainConsultantInfo, setMainConsultantInfo] = useState<ConsultantInfo | null>(null);
   const [supportConsultantInfo, setSupportConsultantInfo] = useState<ConsultantInfo | null>(null);
   const [filteredConsultants, setFilteredConsultants] = useState<{id: string, name: string}[]>([]);
+  const [isDemandDialogOpen, setIsDemandDialogOpen] = useState(false);
   const { toast } = useToast();
   
   // Filter states
@@ -301,9 +303,36 @@ const DemandsList = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-bold">Demandas</h1>
-        <p className="text-muted-foreground">Gerencie todas as demandas de clientes</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Demandas</h1>
+          <p className="text-muted-foreground">Gerencie todas as demandas de clientes</p>
+        </div>
+        <Dialog open={isDemandDialogOpen} onOpenChange={setIsDemandDialogOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" variant="outline" className="gap-1">
+              <Plus className="h-4 w-4" />
+              <span>Nova Demanda</span>
+            </Button>
+          </DialogTrigger>
+          <DialogContent size="full" className="max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Nova Demanda</DialogTitle>
+            </DialogHeader>
+            <DemandForm
+              onDemandSaved={() => {
+                setIsDemandDialogOpen(false);
+                // Refresh the demands list
+                const fetchData = async () => {
+                  const demandsData = await fetchDemandsWithoutConsultants();
+                  setDemands(demandsData);
+                };
+                fetchData();
+              }}
+              onCancel={() => setIsDemandDialogOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
       
       {/* Filters */}
