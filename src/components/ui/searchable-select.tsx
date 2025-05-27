@@ -21,6 +21,7 @@ interface SearchableSelectProps {
   searchPlaceholder?: string;
   emptyText?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -31,7 +32,8 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   multiple = false,
   searchPlaceholder = "Pesquisar...",
   emptyText = "Nenhum resultado encontrado.",
-  className
+  className,
+  disabled = false
 }) => {
   const [open, setOpen] = useState(false);
 
@@ -39,6 +41,8 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const selectedValue = !multiple ? (typeof value === 'string' ? value : '') : '';
 
   const handleSelect = (optionId: string) => {
+    if (disabled) return;
+    
     if (multiple) {
       const newValues = selectedValues.includes(optionId)
         ? selectedValues.filter(v => v !== optionId)
@@ -51,6 +55,8 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   };
 
   const removeValue = (valueToRemove: string) => {
+    if (disabled) return;
+    
     if (multiple) {
       onValueChange(selectedValues.filter(v => v !== valueToRemove));
     }
@@ -72,13 +78,17 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
   return (
     <div className={cn("space-y-2", className)}>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open && !disabled} onOpenChange={disabled ? undefined : setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between"
+            className={cn(
+              "w-full justify-between",
+              disabled && "opacity-50 cursor-not-allowed"
+            )}
+            disabled={disabled}
           >
             {getDisplayText()}
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -126,6 +136,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   type="button"
                   className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                   onClick={() => removeValue(valueId)}
+                  disabled={disabled}
                 >
                   <X className="h-3 w-3" />
                 </button>
