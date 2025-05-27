@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { FileCheck, Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter } from 'lucide-react';
@@ -391,12 +390,6 @@ const DemandsList = () => {
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-base truncate">{demand.name}</h3>
                             <p className="text-sm text-muted-foreground line-clamp-1">{demand.description || "Sem descrição"}</p>
-                          </div>
-                          <div className="flex items-center gap-2 ml-2">
-                            <Badge variant={demand.status === 'planned' ? 'outline' : demand.status === 'active' ? 'default' : 'secondary'} className="text-xs">
-                              {demand.status === 'planned' ? 'Planejado' : 
-                               demand.status === 'active' ? 'Em Andamento' : 'Concluído'}
-                            </Badge>
                           </div>
                         </div>
                         
