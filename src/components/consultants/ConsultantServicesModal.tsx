@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 
@@ -87,20 +88,22 @@ export default function ConsultantServicesModal({
               <p className="text-sm text-muted-foreground">
                 Este consultor está autorizado a executar os seguintes serviços:
               </p>
-              <div className="space-y-2">
-                {services.map((service) => (
-                  <div key={service.id} className="border rounded-lg p-3">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary">{service.name}</Badge>
+              <ScrollArea className="h-[400px] w-full">
+                <div className="space-y-2 pr-4">
+                  {services.map((service) => (
+                    <div key={service.id} className="border rounded-lg p-3">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">{service.name}</Badge>
+                      </div>
+                      {service.description && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          {service.description}
+                        </p>
+                      )}
                     </div>
-                    {service.description && (
-                      <p className="text-sm text-muted-foreground mt-2">
-                        {service.description}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </ScrollArea>
             </div>
           ) : (
             <div className="text-center py-8">
