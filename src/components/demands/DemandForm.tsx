@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -127,7 +126,7 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
       // Handle tags if any
       if (values.tags && values.tags.length > 0) {
         const { error: tagsError } = await supabase
-          .from('project_tags')
+          .from('project_tag_relations')
           .insert(
             values.tags.map(tagId => ({
               project_id: demandData.id,
