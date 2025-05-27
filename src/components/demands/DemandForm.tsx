@@ -124,31 +124,63 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
   const fetchSelectOptions = async () => {
     try {
       console.log('Carregando opções do formulário...');
-      const [clientsRes, servicesRes, tagsRes] = await Promise.all([
-        supabase.from('clients').select('id, name').order('name'),
-        supabase.from('services').select('id, name, description, stages, total_hours, hourly_rate').order('name'),
-        supabase.from('project_tags').select('id, name').order('name')
-      ]);
+      
+      // Buscar clientes
+      const { data: clientsData, error: clientsError } = await supabase
+        .from('clients')
+        .select('id, name')
+        .order('name');
 
-      if (clientsRes.error) {
-        console.error('Erro ao carregar clientes:', clientsRes.error);
-        throw clientsRes.error;
-      }
-      if (servicesRes.error) {
-        console.error('Erro ao carregar serviços:', servicesRes.error);
-        throw servicesRes.error;
-      }
-      if (tagsRes.error) {
-        console.error('Erro ao carregar tags:', tagsRes.error);
-        throw tagsRes.error;
+      if (clientsError) {
+        console.error('Erro ao carregar clientes:', clientsError);
+        throw clientsError;
       }
 
-      if (clientsRes.data) setClients(clientsRes.data);
-      if (servicesRes.data) setServices(servicesRes.data);
-      if (tagsRes.data) setAvailableTags(tagsRes.data);
+      // Buscar serviços
+      const { data: servicesData, error: servicesError } = await supabase
+        .from('services')
+        .select('id, name, description, stages, total_hours, hourly_rate')
+        .order('name');
+
+      if (servicesError) {
+        console.error('Erro ao carregar serviços:', servicesError);
+        throw servicesError;
+      }
+
+      // Primeiro, tentar buscar das tags principais (tabela 'tags')
+      let tagsData = [];
+      const { data: mainTagsData, error: mainTagsError } = await supabase
+        .from('tags')
+        .select('id, name')
+        .order('name');
+
+      if (mainTagsError) {
+        console.error('Erro ao carregar tags principais:', mainTagsError);
+        // Se falhar, tentar buscar da tabela project_tags
+        const { data: projectTagsData, error: projectTagsError } = await supabase
+          .from('project_tags')
+          .select('id, name')
+          .order('name');
+
+        if (projectTagsError) {
+          console.error('Erro ao carregar project tags:', projectTagsError);
+          tagsData = [];
+        } else {
+          tagsData = projectTagsData || [];
+          console.log('Tags carregadas da tabela project_tags:', tagsData);
+        }
+      } else {
+        tagsData = mainTagsData || [];
+        console.log('Tags carregadas da tabela tags:', tagsData);
+      }
+
+      // Atualizar estados
+      if (clientsData) setClients(clientsData);
+      if (servicesData) setServices(servicesData);
+      setAvailableTags(tagsData);
       
       console.log('Opções carregadas com sucesso');
-      console.log('Tags disponíveis:', tagsRes.data);
+      console.log('Total de tags disponíveis:', tagsData.length);
     } catch (error) {
       console.error('Error fetching select options:', error);
       toast.error('Erro ao carregar opções do formulário');
@@ -286,11 +318,18 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
   }, [form.watch('startDate')]);
 
   const handleTagSelection = (value: string) => {
+    console.log('Tag selecionada:', value);
+    console.log('Tags disponíveis para matching:', availableTags);
+    
     if (value) {
       const tag = availableTags.find(t => t.id === value);
+      console.log('Tag encontrada:', tag);
+      
       const currentTags = form.getValues('tags') || [];
       if (tag && !currentTags.includes(tag.name)) {
-        form.setValue('tags', [...currentTags, tag.name]);
+        const newTags = [...currentTags, tag.name];
+        form.setValue('tags', newTags);
+        console.log('Tags atualizadas:', newTags);
       }
     }
   };
@@ -614,11 +653,16 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
                       options={availableTags}
                       value=""
                       onValueChange={handleTagSelection}
-                      placeholder="Adicionar tag"
+                      placeholder={availableTags.length > 0 ? "Selecionar tag" : "Nenhuma tag disponível"}
                       searchPlaceholder="Pesquisar tags..."
                       emptyText="Nenhuma tag encontrada"
                     />
                   </FormControl>
+                  {availableTags.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Nenhuma tag cadastrada. Acesse Configurações → Tags para criar novas tags.
+                    </p>
+                  )}
                   {field.value && field.value.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2">
                       {field.value.map((tagName, index) => (
