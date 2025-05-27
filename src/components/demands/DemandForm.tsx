@@ -127,7 +127,7 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
       const [clientsRes, servicesRes, tagsRes] = await Promise.all([
         supabase.from('clients').select('id, name').order('name'),
         supabase.from('services').select('id, name, description, stages, total_hours, hourly_rate').order('name'),
-        supabase.from('tags').select('id, name').order('name')
+        supabase.from('project_tags').select('id, name').order('name')
       ]);
 
       if (clientsRes.error) {
@@ -148,6 +148,7 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
       if (tagsRes.data) setAvailableTags(tagsRes.data);
       
       console.log('Opções carregadas com sucesso');
+      console.log('Tags disponíveis:', tagsRes.data);
     } catch (error) {
       console.error('Error fetching select options:', error);
       toast.error('Erro ao carregar opções do formulário');
@@ -390,17 +391,25 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
       // Criar relações de tags se houver
       if (values.tags && values.tags.length > 0) {
         console.log('Criando relações de tags:', values.tags);
+        console.log('Tags disponíveis para matching:', availableTags);
         
-        const tagIds = values.tags.map(tagName => {
+        // Filtrar apenas os IDs de tags que existem
+        const validTagIds = values.tags.map(tagName => {
           const tag = availableTags.find(t => t.name === tagName);
-          return tag?.id;
+          if (!tag) {
+            console.warn(`Tag não encontrada: ${tagName}`);
+            return null;
+          }
+          return tag.id;
         }).filter(Boolean);
 
-        if (tagIds.length > 0) {
+        console.log('IDs de tags válidos:', validTagIds);
+
+        if (validTagIds.length > 0) {
           const { error: tagsError } = await supabase
             .from('project_tag_relations')
             .insert(
-              tagIds.map(tagId => ({
+              validTagIds.map(tagId => ({
                 project_id: createdDemand.id,
                 tag_id: tagId,
               }))
@@ -412,6 +421,8 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
           }
           
           console.log('Relações de tags criadas com sucesso');
+        } else {
+          console.log('Nenhuma tag válida encontrada para criar relações');
         }
       }
 
