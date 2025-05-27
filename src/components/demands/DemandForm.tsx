@@ -123,15 +123,31 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
 
   const fetchSelectOptions = async () => {
     try {
+      console.log('Carregando opções do formulário...');
       const [clientsRes, servicesRes, tagsRes] = await Promise.all([
         supabase.from('clients').select('id, name').order('name'),
         supabase.from('services').select('id, name, description, stages, total_hours, hourly_rate').order('name'),
         supabase.from('tags').select('id, name').order('name')
       ]);
 
+      if (clientsRes.error) {
+        console.error('Erro ao carregar clientes:', clientsRes.error);
+        throw clientsRes.error;
+      }
+      if (servicesRes.error) {
+        console.error('Erro ao carregar serviços:', servicesRes.error);
+        throw servicesRes.error;
+      }
+      if (tagsRes.error) {
+        console.error('Erro ao carregar tags:', tagsRes.error);
+        throw tagsRes.error;
+      }
+
       if (clientsRes.data) setClients(clientsRes.data);
       if (servicesRes.data) setServices(servicesRes.data);
       if (tagsRes.data) setAvailableTags(tagsRes.data);
+      
+      console.log('Opções carregadas com sucesso');
     } catch (error) {
       console.error('Error fetching select options:', error);
       toast.error('Erro ao carregar opções do formulário');
@@ -293,47 +309,62 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
   const onSubmit = async (values: DemandFormValues) => {
     try {
       setIsSubmitting(true);
+      console.log('Iniciando criação de demanda com valores:', values);
       
-      // Create the demand (using projects table but with demand context)
-      const { data: demandData, error: demandError } = await supabase
+      // Criar a demanda (usando a tabela projects, mas com status 'planned' e sem consultores)
+      const demandData = {
+        name: values.name,
+        description: values.description || '',
+        client_id: values.clientId,
+        service_id: values.serviceId,
+        start_date: values.startDate,
+        end_date: values.endDate,
+        total_value: values.totalValue || 0,
+        total_hours: values.totalHours || 0,
+        hourly_rate: values.hourlyRate || 0,
+        third_party_expenses: values.thirdPartyExpenses || 0,
+        tax_percent: values.taxPercent || 16,
+        manager_name: values.managerName || '',
+        manager_email: values.managerEmail || '',
+        manager_phone: values.managerPhone || '',
+        status: 'planned', // Status inicial para demandas
+        main_consultant_id: null, // Sem consultor inicial
+        support_consultant_id: null, // Sem consultor inicial
+        main_consultant_commission: 0,
+        support_consultant_commission: 0,
+        main_consultant_value: 0,
+        support_consultant_value: 0,
+        tags: values.tags || []
+      };
+
+      console.log('Dados da demanda para inserção:', demandData);
+
+      const { data: createdDemand, error: demandError } = await supabase
         .from('projects')
-        .insert({
-          name: values.name,
-          description: values.description,
-          client_id: values.clientId,
-          service_id: values.serviceId,
-          start_date: values.startDate,
-          end_date: values.endDate,
-          total_value: values.totalValue,
-          total_hours: values.totalHours || 0,
-          hourly_rate: values.hourlyRate || 0,
-          third_party_expenses: values.thirdPartyExpenses || 0,
-          tax_percent: values.taxPercent || 16,
-          manager_name: values.managerName,
-          manager_email: values.managerEmail,
-          manager_phone: values.managerPhone,
-          status: 'planned',
-          main_consultant_id: null,
-          support_consultant_id: null,
-          main_consultant_commission: 0,
-          support_consultant_commission: 0,
-        })
+        .insert(demandData)
         .select()
         .single();
 
-      if (demandError) throw demandError;
+      if (demandError) {
+        console.error('Erro ao criar demanda:', demandError);
+        throw demandError;
+      }
 
-      // Create stages if any
+      console.log('Demanda criada com sucesso:', createdDemand);
+
+      // Criar etapas se houver
       if (formData.stages && formData.stages.length > 0) {
+        console.log('Criando etapas:', formData.stages);
+        
         const stagesToInsert = formData.stages.map(stage => ({
-          project_id: demandData.id,
+          project_id: createdDemand.id,
           name: stage.name,
           description: stage.description || '',
           days: stage.days,
           hours: stage.hours,
           value: stage.value,
-          start_date: stage.startDate,
-          end_date: stage.endDate,
+          start_date: stage.startDate || null,
+          end_date: stage.endDate || null,
           stage_order: stage.stageOrder,
           status: stage.status,
           completed: false,
@@ -348,11 +379,18 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
           .from('project_stages')
           .insert(stagesToInsert);
 
-        if (stagesError) throw stagesError;
+        if (stagesError) {
+          console.error('Erro ao criar etapas:', stagesError);
+          throw stagesError;
+        }
+        
+        console.log('Etapas criadas com sucesso');
       }
 
-      // Handle tags if any
+      // Criar relações de tags se houver
       if (values.tags && values.tags.length > 0) {
+        console.log('Criando relações de tags:', values.tags);
+        
         const tagIds = values.tags.map(tagName => {
           const tag = availableTags.find(t => t.name === tagName);
           return tag?.id;
@@ -363,12 +401,17 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
             .from('project_tag_relations')
             .insert(
               tagIds.map(tagId => ({
-                project_id: demandData.id,
+                project_id: createdDemand.id,
                 tag_id: tagId,
               }))
             );
 
-          if (tagsError) throw tagsError;
+          if (tagsError) {
+            console.error('Erro ao criar relações de tags:', tagsError);
+            throw tagsError;
+          }
+          
+          console.log('Relações de tags criadas com sucesso');
         }
       }
 
@@ -377,7 +420,7 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
       onDemandSaved?.();
     } catch (error) {
       console.error('Error creating demand:', error);
-      toast.error('Erro ao criar demanda');
+      toast.error('Erro ao criar demanda: ' + (error as any).message);
     } finally {
       setIsSubmitting(false);
     }
