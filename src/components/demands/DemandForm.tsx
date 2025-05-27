@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -388,486 +387,488 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
   };
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Nova Demanda</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Nome da Demanda */}
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nome do Projeto *</FormLabel>
-                <FormControl>
-                  <Input placeholder="Digite o nome do projeto" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Descrição */}
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Descrição</FormLabel>
-                <FormControl>
-                  <Textarea placeholder="Descreva o projeto" rows={3} {...field} />
-                </FormControl>
-                <p className="text-xs text-muted-foreground mt-1">
-                  A descrição será preenchida automaticamente ao selecionar um serviço
-                </p>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Cliente e Serviço */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Nova Demanda</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Nome da Demanda */}
             <FormField
               control={form.control}
-              name="clientId"
+              name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cliente</FormLabel>
+                  <FormLabel>Nome do Projeto *</FormLabel>
                   <FormControl>
-                    <SearchableSelect
-                      options={clients}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      placeholder="Selecione um cliente"
-                      searchPlaceholder="Pesquisar clientes..."
-                      emptyText="Nenhum cliente encontrado"
-                    />
+                    <Input placeholder="Digite o nome do projeto" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            {/* Descrição */}
             <FormField
               control={form.control}
-              name="serviceId"
+              name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Serviço *</FormLabel>
+                  <FormLabel>Descrição</FormLabel>
                   <FormControl>
-                    <SearchableSelect
-                      options={services}
-                      value={field.value}
-                      onValueChange={handleServiceChange}
-                      placeholder="Selecione um serviço"
-                      searchPlaceholder="Pesquisar serviços..."
-                      emptyText="Nenhum serviço encontrado"
-                    />
+                    <Textarea placeholder="Descreva o projeto" rows={3} {...field} />
                   </FormControl>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Selecione um serviço primeiro para visualizar os consultores habilitados
-                  </p>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* Horas e Valor */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="totalHours"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Total de Horas</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                    />
-                  </FormControl>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Será calculado automaticamente com base nas etapas
+                    A descrição será preenchida automaticamente ao selecionar um serviço
                   </p>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="hourlyRate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Valor da Hora (R$)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* Datas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="startDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Data de Início *</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="endDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Data de Término *</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* Tags */}
-          <FormField
-            control={form.control}
-            name="tags"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tags</FormLabel>
-                <FormControl>
-                  <SearchableSelect
-                    options={availableTags}
-                    value=""
-                    onValueChange={handleTagSelection}
-                    placeholder="Adicionar tag"
-                    searchPlaceholder="Pesquisar tags..."
-                    emptyText="Nenhuma tag encontrada"
-                  />
-                </FormControl>
-                {field.value && field.value.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {field.value.map((tagName, index) => (
-                      <Badge key={index} variant="secondary" className="text-xs">
-                        {tagName}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newTags = field.value?.filter((_, i) => i !== index);
-                            field.onChange(newTags);
-                          }}
-                          className="ml-1 text-muted-foreground hover:text-destructive"
-                        >
-                          ×
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </CardContent>
-      </Card>
-
-      {/* Informações do Gestor */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <InfoIcon className="h-5 w-5" />
-            Informações do Gestor
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <FormField
-              control={form.control}
-              name="managerName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nome do Gestor</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Nome do gestor" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="managerEmail"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>E-mail do Gestor</FormLabel>
-                  <FormControl>
-                    <Input type="email" placeholder="email@exemplo.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="managerPhone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Telefone do Gestor</FormLabel>
-                  <FormControl>
-                    <Input placeholder="(11) 99999-9999" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Os dados são preenchidos automaticamente com as informações do usuário logado
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Etapas do Projeto */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle>Etapas do Projeto</CardTitle>
-          <Button type="button" variant="outline" size="sm" onClick={addStage}>
-            <PlusIcon className="h-4 w-4 mr-2" />
-            Adicionar Etapa
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {formData.stages && formData.stages.length > 0 ? (
-            <div className="space-y-4">
-              {formData.stages.map((stage, index) => (
-                <div key={stage.id} className="border rounded-lg p-4 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <h4 className="font-medium">Etapa {index + 1}</h4>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeStage(index)}
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Nome da Etapa</Label>
-                      <Input
-                        value={stage.name}
-                        onChange={(e) => updateStage(index, 'name', e.target.value)}
-                        placeholder="Nome da etapa"
+            {/* Cliente e Serviço */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="clientId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cliente</FormLabel>
+                    <FormControl>
+                      <SearchableSelect
+                        options={clients}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        placeholder="Selecione um cliente"
+                        searchPlaceholder="Pesquisar clientes..."
+                        emptyText="Nenhum cliente encontrado"
                       />
-                    </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                    <div>
-                      <Label>Valor (R$)</Label>
+              <FormField
+                control={form.control}
+                name="serviceId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Serviço *</FormLabel>
+                    <FormControl>
+                      <SearchableSelect
+                        options={services}
+                        value={field.value}
+                        onValueChange={handleServiceChange}
+                        placeholder="Selecione um serviço"
+                        searchPlaceholder="Pesquisar serviços..."
+                        emptyText="Nenhum serviço encontrado"
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Selecione um serviço primeiro para visualizar os consultores habilitados
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Horas e Valor */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="totalHours"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Total de Horas</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        {...field}
+                        onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Será calculado automaticamente com base nas etapas
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="hourlyRate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Valor da Hora (R$)</FormLabel>
+                    <FormControl>
                       <Input
                         type="number"
                         step="0.01"
-                        value={stage.value}
-                        onChange={(e) => updateStage(index, 'value', Number(e.target.value))}
                         placeholder="0.00"
+                        {...field}
+                        onChange={(e) => field.onChange(Number(e.target.value) || 0)}
                       />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Descrição</Label>
-                    <Textarea
-                      value={stage.description}
-                      onChange={(e) => updateStage(index, 'description', e.target.value)}
-                      placeholder="Descrição da etapa"
-                      rows={2}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div>
-                      <Label>Dias</Label>
-                      <Input
-                        type="number"
-                        value={stage.days}
-                        onChange={(e) => updateStage(index, 'days', Number(e.target.value))}
-                        min="1"
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Horas</Label>
-                      <Input
-                        type="number"
-                        value={stage.hours}
-                        onChange={(e) => updateStage(index, 'hours', Number(e.target.value))}
-                        min="1"
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Data de Início</Label>
-                      <Input
-                        type="date"
-                        value={stage.startDate}
-                        onChange={(e) => updateStage(index, 'startDate', e.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Data de Término</Label>
-                      <Input
-                        type="date"
-                        value={stage.endDate}
-                        onChange={(e) => updateStage(index, 'endDate', e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-8">
-              Nenhuma etapa adicionada. Clique em "Adicionar Etapa" para começar.
-            </p>
-          )}
-          {form.watch('startDate') && (
-            <p className="text-xs text-muted-foreground mt-4">
-              As datas das etapas são calculadas automaticamente com base na data de início do projeto
-            </p>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Valores Financeiros */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Valores Financeiros</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Datas */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="startDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data de Início *</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="endDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data de Término *</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Tags */}
             <FormField
               control={form.control}
-              name="thirdPartyExpenses"
+              name="tags"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Gastos com Terceiros (R$)</FormLabel>
+                  <FormLabel>Tags</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                    <SearchableSelect
+                      options={availableTags}
+                      value=""
+                      onValueChange={handleTagSelection}
+                      placeholder="Adicionar tag"
+                      searchPlaceholder="Pesquisar tags..."
+                      emptyText="Nenhuma tag encontrada"
                     />
                   </FormControl>
+                  {field.value && field.value.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {field.value.map((tagName, index) => (
+                        <Badge key={index} variant="secondary" className="text-xs">
+                          {tagName}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newTags = field.value?.filter((_, i) => i !== index);
+                              field.onChange(newTags);
+                            }}
+                            className="ml-1 text-muted-foreground hover:text-destructive"
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
             />
+          </CardContent>
+        </Card>
 
-            <FormField
-              control={form.control}
-              name="taxPercent"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Taxa de Impostos (%)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="16"
-                      {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+        {/* Informações do Gestor */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <InfoIcon className="h-5 w-5" />
+              Informações do Gestor
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FormField
+                control={form.control}
+                name="managerName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome do Gestor</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nome do gestor" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <div className="border-t pt-4 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Total de Horas:</span>
-              <span className="text-sm">{form.watch('totalHours') || 0}h</span>
-            </div>
-            <div className="flex justify-between items-center font-medium">
-              <span>Valor Bruto:</span>
-              <span className="text-lg">
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL'
-                }).format(form.watch('totalValue') || 0)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center text-sm text-muted-foreground">
-              <span>(-) Impostos ({form.watch('taxPercent')}%):</span>
-              <span>
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL'
-                }).format((Number(form.watch('totalValue') || 0) * Number(form.watch('taxPercent') || 16)) / 100)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center text-sm text-muted-foreground">
-              <span>(-) Gastos com Terceiros:</span>
-              <span>
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL'
-                }).format(form.watch('thirdPartyExpenses') || 0)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center font-medium text-green-600 border-t pt-2">
-              <span>Valor Líquido:</span>
-              <span className="text-lg">
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL'
-                }).format(calculateNetValue())}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+              <FormField
+                control={form.control}
+                name="managerEmail"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-mail do Gestor</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="email@exemplo.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-      {/* Botões */}
-      <div className="flex justify-end space-x-4">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Criando...' : 'Criar Demanda'}
-        </Button>
-      </div>
-    </form>
+              <FormField
+                control={form.control}
+                name="managerPhone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefone do Gestor</FormLabel>
+                    <FormControl>
+                      <Input placeholder="(11) 99999-9999" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Os dados são preenchidos automaticamente com as informações do usuário logado
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Etapas do Projeto */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle>Etapas do Projeto</CardTitle>
+            <Button type="button" variant="outline" size="sm" onClick={addStage}>
+              <PlusIcon className="h-4 w-4 mr-2" />
+              Adicionar Etapa
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {formData.stages && formData.stages.length > 0 ? (
+              <div className="space-y-4">
+                {formData.stages.map((stage, index) => (
+                  <div key={stage.id} className="border rounded-lg p-4 space-y-4">
+                    <div className="flex justify-between items-start">
+                      <h4 className="font-medium">Etapa {index + 1}</h4>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeStage(index)}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Nome da Etapa</Label>
+                        <Input
+                          value={stage.name}
+                          onChange={(e) => updateStage(index, 'name', e.target.value)}
+                          placeholder="Nome da etapa"
+                        />
+                      </div>
+
+                      <div>
+                        <Label>Valor (R$)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={stage.value}
+                          onChange={(e) => updateStage(index, 'value', Number(e.target.value))}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>Descrição</Label>
+                      <Textarea
+                        value={stage.description}
+                        onChange={(e) => updateStage(index, 'description', e.target.value)}
+                        placeholder="Descrição da etapa"
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div>
+                        <Label>Dias</Label>
+                        <Input
+                          type="number"
+                          value={stage.days}
+                          onChange={(e) => updateStage(index, 'days', Number(e.target.value))}
+                          min="1"
+                        />
+                      </div>
+
+                      <div>
+                        <Label>Horas</Label>
+                        <Input
+                          type="number"
+                          value={stage.hours}
+                          onChange={(e) => updateStage(index, 'hours', Number(e.target.value))}
+                          min="1"
+                        />
+                      </div>
+
+                      <div>
+                        <Label>Data de Início</Label>
+                        <Input
+                          type="date"
+                          value={stage.startDate}
+                          onChange={(e) => updateStage(index, 'startDate', e.target.value)}
+                        />
+                      </div>
+
+                      <div>
+                        <Label>Data de Término</Label>
+                        <Input
+                          type="date"
+                          value={stage.endDate}
+                          onChange={(e) => updateStage(index, 'endDate', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-8">
+                Nenhuma etapa adicionada. Clique em "Adicionar Etapa" para começar.
+              </p>
+            )}
+            {form.watch('startDate') && (
+              <p className="text-xs text-muted-foreground mt-4">
+                As datas das etapas são calculadas automaticamente com base na data de início do projeto
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Valores Financeiros */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Valores Financeiros</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="thirdPartyExpenses"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Gastos com Terceiros (R$)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        {...field}
+                        onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="taxPercent"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Taxa de Impostos (%)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="16"
+                        {...field}
+                        onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="border-t pt-4 space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Total de Horas:</span>
+                <span className="text-sm">{form.watch('totalHours') || 0}h</span>
+              </div>
+              <div className="flex justify-between items-center font-medium">
+                <span>Valor Bruto:</span>
+                <span className="text-lg">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                  }).format(form.watch('totalValue') || 0)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm text-muted-foreground">
+                <span>(-) Impostos ({form.watch('taxPercent')}%):</span>
+                <span>
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                  }).format((Number(form.watch('totalValue') || 0) * Number(form.watch('taxPercent') || 16)) / 100)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm text-muted-foreground">
+                <span>(-) Gastos com Terceiros:</span>
+                <span>
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                  }).format(form.watch('thirdPartyExpenses') || 0)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center font-medium text-green-600 border-t pt-2">
+                <span>Valor Líquido:</span>
+                <span className="text-lg">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                  }).format(calculateNetValue())}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Botões */}
+        <div className="flex justify-end space-x-4">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Criando...' : 'Criar Demanda'}
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 };
 
