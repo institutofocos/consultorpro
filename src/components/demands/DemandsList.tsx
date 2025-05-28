@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { FileCheck, Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter, Plus } from 'lucide-react';
+import { FileCheck, Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter, Plus, X } from 'lucide-react';
 import { fetchDemandsWithoutConsultants, assignConsultantsToDemand } from '@/integrations/supabase/projects';
 import { 
   fetchConsultants, 
@@ -238,6 +238,33 @@ const DemandsList = () => {
         variant: "destructive",
         title: "Erro",
         description: "Não foi possível atribuir os consultores.",
+      });
+    }
+  };
+
+  // Function to handle demand cancellation
+  const handleCancelDemand = async (demandId: string) => {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', demandId);
+
+      if (error) throw error;
+
+      // Remove the cancelled demand from the list
+      setDemands(demands.filter(d => d.id !== demandId));
+      
+      toast({
+        title: "Sucesso",
+        description: "Demanda cancelada com sucesso.",
+      });
+    } catch (error) {
+      console.error('Error canceling demand:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível cancelar a demanda.",
       });
     }
   };
@@ -486,8 +513,8 @@ const DemandsList = () => {
                         </div>
                       </div>
                       
-                      {/* Right section - Action button */}
-                      <div className="flex items-center justify-end lg:justify-center">
+                      {/* Right section - Action buttons */}
+                      <div className="flex flex-col items-end justify-center gap-2">
                         <Button 
                           size="sm" 
                           onClick={() => handleOpenAssignmentDialog(demand)}
@@ -495,6 +522,15 @@ const DemandsList = () => {
                         >
                           <UserCheck className="h-4 w-4 mr-1" />
                           Atribuir Consultores
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          onClick={() => handleCancelDemand(demand.id)}
+                          className="whitespace-nowrap"
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Cancelar Demanda
                         </Button>
                       </div>
                     </div>
