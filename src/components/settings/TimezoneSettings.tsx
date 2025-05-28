@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
+import { useToast } from "@/components/ui/use-toast";
 import { Clock, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -30,6 +30,7 @@ const TimezoneSettings: React.FC = () => {
     full_format: 'DD/MM/YYYY HH:mm'
   });
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const timezones = [
     { value: 'America/Sao_Paulo', label: 'Horário de Brasília (UTC-3)' },
@@ -77,7 +78,11 @@ const TimezoneSettings: React.FC = () => {
       });
     } catch (error) {
       console.error('Error loading timezone settings:', error);
-      toast.error("Erro ao carregar configurações de horário");
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Erro ao carregar configurações de horário"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -140,15 +145,20 @@ const TimezoneSettings: React.FC = () => {
         p_details: { timezone: timezoneData, datetime_format: formatData }
       });
 
-      toast.success("Configurações de horário salvas com sucesso");
+      toast({
+        title: "Sucesso",
+        description: "Configurações de horário salvas com sucesso"
+      });
       
       // Recarregar as configurações para confirmar
       await loadSettings();
       
     } catch (error) {
       console.error('Error saving timezone settings:', error);
-      toast.error("Erro ao salvar configurações de horário", {
-        description: error instanceof Error ? error.message : "Erro desconhecido"
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao salvar configurações de horário"
       });
     } finally {
       setIsLoading(false);

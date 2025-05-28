@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -116,7 +117,7 @@ const ServiceList = () => {
               Adicionar Serviço
             </Button>
           </DialogTrigger>
-          <DialogContent size="lg">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingService ? 'Editar Serviço' : 'Novo Serviço'}
@@ -253,7 +254,7 @@ const ServiceList = () => {
 
       {/* Service Details Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent size="lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalhes do Serviço</DialogTitle>
           </DialogHeader>
