@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export type Service = {
@@ -52,6 +51,23 @@ export const fetchServiceById = async (id: string): Promise<Service | null> => {
   } catch (error) {
     console.error('Error in fetchServiceById:', error);
     return null;
+  }
+};
+
+export const deleteService = async (id: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('services')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting service:', error);
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error in deleteService:', error);
+    throw error;
   }
 };
 

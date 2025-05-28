@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, Edit, Trash2, Plus, Eye, Clock, DollarSign } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import ServiceForm from './ServiceForm';
-import { Service } from './types';
-import { fetchServices, deleteService } from '@/integrations/supabase/services';
+import { ServiceForm } from './ServiceForm';
+import { Service } from '@/integrations/supabase/services';
+import { fetchServices } from '@/integrations/supabase/services';
 import { useToast } from "@/components/ui/use-toast";
 
 const ServiceList = () => {
@@ -51,7 +51,15 @@ const ServiceList = () => {
   const handleDeleteService = async (serviceId: string) => {
     if (window.confirm('Tem certeza que deseja excluir este serviço?')) {
       try {
-        await deleteService(serviceId);
+        // For now, we'll implement a simple delete using supabase directly
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { error } = await supabase
+          .from('services')
+          .delete()
+          .eq('id', serviceId);
+          
+        if (error) throw error;
+        
         toast({
           title: "Sucesso",
           description: "Serviço excluído com sucesso.",
