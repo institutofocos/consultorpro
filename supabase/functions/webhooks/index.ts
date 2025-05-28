@@ -152,10 +152,15 @@ serve(async (req) => {
             name: 'Projeto de Teste',
             status: 'active'
           },
-          stage: {
-            id: 'test-stage-id',
-            name: 'Etapa de Teste',
-            completed: false
+          client: {
+            id: 'test-client-id',
+            name: 'Cliente de Teste',
+            email: 'cliente@teste.com'
+          },
+          consultant: {
+            id: 'test-consultant-id',
+            name: 'Consultor de Teste',
+            email: 'consultor@teste.com'
           }
         }
       };
@@ -300,27 +305,23 @@ serve(async (req) => {
         try {
           console.log(`Processing webhook log ${log.id} for ${log.webhooks.url}`);
           
-          // Prepare enhanced payload with context
-          const enhancedPayload = {
-            event_type: log.event_type,
-            table_name: log.table_name,
-            timestamp: log.created_at,
-            webhook_id: log.webhook_id,
-            attempt: log.attempt_count + 1,
-            data: log.payload
-          };
+          // Enrich payload with additional context for better webhook data
+          const enrichedPayload = await enrichWebhookPayload(log, supabaseClient);
           
           const response = await fetch(log.webhooks.url, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'User-Agent': 'Supabase-Webhook/1.0',
+              'X-Webhook-Event': log.event_type,
+              'X-Webhook-Table': log.table_name,
+              'X-Webhook-Timestamp': log.created_at,
               ...(log.webhooks.secret_key && {
                 'Authorization': `Bearer ${log.webhooks.secret_key}`,
                 'X-Webhook-Secret': log.webhooks.secret_key
               })
             },
-            body: JSON.stringify(enhancedPayload)
+            body: JSON.stringify(enrichedPayload)
           });
 
           const success = response.ok;
@@ -370,15 +371,36 @@ serve(async (req) => {
     }
 
     if (action === "trigger_test") {
-      console.log('Triggering test webhook events');
+      console.log('Triggering comprehensive test webhook events');
       
-      // Create a test project event
+      // Create comprehensive test data
+      const testClientData = {
+        id: crypto.randomUUID(),
+        name: 'Cliente de Teste Webhook',
+        contact_name: 'João Silva',
+        email: 'joao@clienteteste.com',
+        phone: '(11) 99999-9999',
+        created_at: new Date().toISOString()
+      };
+
+      const testConsultantData = {
+        id: crypto.randomUUID(),
+        name: 'Consultor de Teste Webhook',
+        email: 'consultor@teste.com',
+        phone: '(11) 88888-8888',
+        commission_percentage: 15,
+        hours_per_month: 160,
+        created_at: new Date().toISOString()
+      };
+
       const testProjectData = {
         id: crypto.randomUUID(),
         name: 'Projeto de Teste Webhook',
         description: 'Este é um projeto criado para testar webhooks',
         status: 'planned',
         total_value: 5000,
+        client_id: testClientData.id,
+        main_consultant_id: testConsultantData.id,
         created_at: new Date().toISOString()
       };
 
@@ -411,37 +433,36 @@ serve(async (req) => {
         );
       }
 
-      // Create webhook logs for testing
-      for (const webhook of webhooks) {
-        // Test project INSERT
-        if (webhook.tables.includes('projects') && webhook.events.includes('INSERT')) {
-          await supabaseClient
-            .from('webhook_logs')
-            .insert({
-              webhook_id: webhook.id,
-              event_type: 'INSERT',
-              table_name: 'projects',
-              payload: testProjectData
-            });
-        }
+      // Create webhook logs for all entity types
+      const testEntities = [
+        { table: 'clients', data: testClientData },
+        { table: 'consultants', data: testConsultantData },
+        { table: 'projects', data: testProjectData },
+        { table: 'project_stages', data: testStageData }
+      ];
 
-        // Test stage INSERT
-        if (webhook.tables.includes('project_stages') && webhook.events.includes('INSERT')) {
-          await supabaseClient
-            .from('webhook_logs')
-            .insert({
-              webhook_id: webhook.id,
-              event_type: 'INSERT',
-              table_name: 'project_stages',
-              payload: testStageData
-            });
+      let logsCreated = 0;
+
+      for (const webhook of webhooks) {
+        for (const entity of testEntities) {
+          if (webhook.tables.includes(entity.table) && webhook.events.includes('INSERT')) {
+            await supabaseClient
+              .from('webhook_logs')
+              .insert({
+                webhook_id: webhook.id,
+                event_type: 'INSERT',
+                table_name: entity.table,
+                payload: entity.data
+              });
+            logsCreated++;
+          }
         }
       }
 
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: `Eventos de teste criados para ${webhooks.length} webhook(s)` 
+          message: `${logsCreated} eventos de teste criados para ${webhooks.length} webhook(s) ativos` 
         }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -451,7 +472,7 @@ serve(async (req) => {
     }
 
     if (action === "verify_triggers") {
-      console.log('Verifying and creating webhook triggers');
+      console.log('Verifying and creating comprehensive webhook triggers');
       
       const tablesToMonitor = [
         'projects',
@@ -460,50 +481,50 @@ serve(async (req) => {
         'clients',
         'services',
         'notes',
-        'financial_transactions'
+        'financial_transactions',
+        'chat_messages',
+        'chat_rooms'
       ];
 
       let results = [];
 
       for (const tableName of tablesToMonitor) {
         try {
-          // Check if trigger exists
-          const { data: existingTriggers } = await supabaseClient
-            .rpc('check_trigger_exists', { 
-              trigger_name: `webhook_trigger_${tableName}`,
-              table_name: tableName 
-            })
-            .maybeSingle();
+          // Drop existing trigger if it exists
+          const dropTriggerSQL = `
+            DROP TRIGGER IF EXISTS webhook_trigger_${tableName} ON public.${tableName};
+          `;
+          
+          await supabaseClient.rpc('execute_sql', { query: dropTriggerSQL });
 
-          if (!existingTriggers) {
-            // Create trigger
-            const { error: triggerError } = await supabaseClient
-              .rpc('create_webhook_trigger', { table_name: tableName });
+          // Create comprehensive trigger function
+          const createTriggerSQL = `
+            CREATE OR REPLACE TRIGGER webhook_trigger_${tableName}
+            AFTER INSERT OR UPDATE OR DELETE ON public.${tableName}
+            FOR EACH ROW EXECUTE FUNCTION public.trigger_webhooks();
+          `;
+          
+          const { error: triggerError } = await supabaseClient.rpc('execute_sql', { 
+            query: createTriggerSQL 
+          });
 
-            if (triggerError) {
-              console.error(`Error creating trigger for ${tableName}:`, triggerError);
-              results.push({
-                table: tableName,
-                status: 'error',
-                message: triggerError.message
-              });
-            } else {
-              console.log(`Trigger created for ${tableName}`);
-              results.push({
-                table: tableName,
-                status: 'created',
-                message: 'Trigger created successfully'
-              });
-            }
-          } else {
+          if (triggerError) {
+            console.error(`Error creating trigger for ${tableName}:`, triggerError);
             results.push({
               table: tableName,
-              status: 'exists',
-              message: 'Trigger already exists'
+              status: 'error',
+              message: triggerError.message
+            });
+          } else {
+            console.log(`Trigger created for ${tableName}`);
+            results.push({
+              table: tableName,
+              status: 'created',
+              message: 'Trigger created successfully'
             });
           }
         } catch (error) {
-          console.error(`Error checking/creating trigger for ${tableName}:`, error);
+          console.error(`Error creating trigger for ${tableName}:`, error);
           results.push({
             table: tableName,
             status: 'error',
@@ -551,3 +572,107 @@ serve(async (req) => {
     );
   }
 })
+
+// Function to enrich webhook payload with related data
+async function enrichWebhookPayload(log: any, supabaseClient: any) {
+  const basePayload = {
+    event_type: log.event_type,
+    table_name: log.table_name,
+    timestamp: log.created_at,
+    webhook_id: log.webhook_id,
+    attempt: log.attempt_count + 1,
+    data: log.payload
+  };
+
+  try {
+    // Enrich based on table type
+    switch (log.table_name) {
+      case 'projects':
+        if (log.payload?.client_id) {
+          const { data: client } = await supabaseClient
+            .from('clients')
+            .select('*')
+            .eq('id', log.payload.client_id)
+            .single();
+          
+          if (client) {
+            basePayload.data.client_details = client;
+          }
+        }
+
+        if (log.payload?.main_consultant_id) {
+          const { data: consultant } = await supabaseClient
+            .from('consultants')
+            .select('*')
+            .eq('id', log.payload.main_consultant_id)
+            .single();
+          
+          if (consultant) {
+            basePayload.data.main_consultant_details = consultant;
+          }
+        }
+
+        if (log.payload?.service_id) {
+          const { data: service } = await supabaseClient
+            .from('services')
+            .select('*')
+            .eq('id', log.payload.service_id)
+            .single();
+          
+          if (service) {
+            basePayload.data.service_details = service;
+          }
+        }
+        break;
+
+      case 'project_stages':
+        if (log.payload?.project_id) {
+          const { data: project } = await supabaseClient
+            .from('projects')
+            .select(`
+              *,
+              clients(*),
+              services(*)
+            `)
+            .eq('id', log.payload.project_id)
+            .single();
+          
+          if (project) {
+            basePayload.data.project_details = project;
+          }
+        }
+        break;
+
+      case 'clients':
+        // For new clients, include count of their projects
+        if (log.event_type === 'INSERT') {
+          const { count } = await supabaseClient
+            .from('projects')
+            .select('*', { count: 'exact', head: true })
+            .eq('client_id', log.payload.id);
+          
+          basePayload.data.project_count = count || 0;
+        }
+        break;
+
+      case 'consultants':
+        // For consultants, include their active projects and stats
+        if (log.payload?.id) {
+          const { data: projects } = await supabaseClient
+            .from('projects')
+            .select('*')
+            .or(`main_consultant_id.eq.${log.payload.id},support_consultant_id.eq.${log.payload.id}`)
+            .eq('status', 'active');
+          
+          basePayload.data.active_projects = projects || [];
+          basePayload.data.active_projects_count = projects?.length || 0;
+        }
+        break;
+    }
+
+    return basePayload;
+  } catch (error) {
+    console.error('Error enriching webhook payload:', error);
+    return basePayload; // Return base payload if enrichment fails
+  }
+}

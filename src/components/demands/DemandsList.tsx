@@ -421,7 +421,7 @@ const DemandsList = () => {
           <CardTitle className="text-xl">
             <div className="flex items-center">
               <FileCheck className="h-5 w-5 mr-2" />
-              <span>Lista de Demandas</span>
+              <span>Demandas Pendentes</span>
             </div>
           </CardTitle>
         </CardHeader>

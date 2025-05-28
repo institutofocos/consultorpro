@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -11,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { AlertCircle, CheckCircle2, X, RefreshCw, TestTube, Settings } from "lucide-react";
+import { AlertCircle, CheckCircle2, X, RefreshCw, TestTube, Settings, Zap, Database } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Webhook {
@@ -33,7 +34,7 @@ const WebhookManager: React.FC = () => {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isTesting, setIsTesting] = useState<string>('');
-  const [webhookConfig, setWebhookConfig] = useState<WebhookConfig>({ interval_seconds: 10, enabled: true });
+  const [webhookConfig, setWebhookConfig] = useState<WebhookConfig>({ interval_seconds: 5, enabled: true });
   const [selectedEvents, setSelectedEvents] = useState<Record<string, boolean>>({
     INSERT: true,
     UPDATE: true,
@@ -46,7 +47,9 @@ const WebhookManager: React.FC = () => {
     clients: true,
     notes: true,
     project_stages: true,
-    financial_transactions: true
+    financial_transactions: true,
+    chat_messages: true,
+    chat_rooms: true
   });
 
   // Load existing webhooks and settings on component mount
@@ -178,10 +181,10 @@ const WebhookManager: React.FC = () => {
   const verifyTriggers = async () => {
     try {
       setIsLoading(true);
-      console.log('Verificando triggers de webhook...');
+      console.log('Verificando e configurando triggers de webhook...');
       
-      toast.info("Verificando triggers", {
-        description: "Verificando se todos os triggers de webhook estão ativos"
+      toast.info("Configurando sistema", {
+        description: "Criando triggers para capturar todas as interações do sistema"
       });
       
       const result = await callWebhookFunction('verify_triggers');
@@ -193,8 +196,8 @@ const WebhookManager: React.FC = () => {
         const errorTriggers = result.results.filter(r => r.status === 'error');
         
         if (createdTriggers.length > 0) {
-          toast.success("Triggers criados", {
-            description: `${createdTriggers.length} trigger(s) foram criados com sucesso`,
+          toast.success("Sistema configurado", {
+            description: `${createdTriggers.length} trigger(s) criados. Webhooks irão capturar todas as interações!`,
             icon: <CheckCircle2 className="h-5 w-5 text-success" />
           });
         } else if (errorTriggers.length > 0) {
@@ -203,22 +206,22 @@ const WebhookManager: React.FC = () => {
             icon: <AlertCircle className="h-5 w-5 text-destructive" />
           });
         } else {
-          toast.success("Triggers verificados", {
-            description: "Todos os triggers estão funcionando corretamente",
+          toast.success("Sistema já configurado", {
+            description: "Todos os triggers estão ativos e capturando interações",
             icon: <CheckCircle2 className="h-5 w-5 text-success" />
           });
         }
       } else {
-        toast.error("Falha na verificação", {
-          description: result.message || "Erro ao verificar triggers",
+        toast.error("Falha na configuração", {
+          description: result.message || "Erro ao configurar triggers",
           icon: <AlertCircle className="h-5 w-5 text-destructive" />
         });
       }
       
     } catch (error) {
       console.error("Error verifying triggers:", error);
-      toast.error("Erro na verificação", {
-        description: error instanceof Error ? error.message : "Falha ao verificar triggers",
+      toast.error("Erro na configuração", {
+        description: error instanceof Error ? error.message : "Falha ao configurar sistema",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
     } finally {
@@ -276,7 +279,7 @@ const WebhookManager: React.FC = () => {
       });
 
       toast.success("Webhook registrado", {
-        description: "Seu webhook foi registrado com sucesso e será disparado automaticamente",
+        description: "Webhook configurado! Irá receber todas as interações automaticamente",
         icon: <CheckCircle2 className="h-5 w-5 text-success" />
       });
 
@@ -320,7 +323,7 @@ const WebhookManager: React.FC = () => {
       console.log('Testing webhook:', url);
       
       toast.info("Testando webhook", {
-        description: "Enviando payload de teste para " + url
+        description: "Enviando dados completos de teste..."
       });
       
       const result = await callWebhookFunction('test', { url });
@@ -351,17 +354,17 @@ const WebhookManager: React.FC = () => {
   const triggerTestEvents = async () => {
     try {
       setIsLoading(true);
-      console.log('Triggering test events for projects and stages');
+      console.log('Triggering comprehensive test events');
       
-      toast.info("Criando eventos de teste", {
-        description: "Gerando eventos de teste para projetos e etapas"
+      toast.info("Gerando eventos de teste", {
+        description: "Criando eventos completos para clientes, consultores, projetos e etapas"
       });
       
       const result = await callWebhookFunction('trigger_test');
       
       if (result.success) {
         toast.success("Eventos de teste criados", {
-          description: result.message + " - Serão processados automaticamente",
+          description: result.message + " - Processamento automático em andamento",
           icon: <CheckCircle2 className="h-5 w-5 text-success" />
         });
       } else {
@@ -385,35 +388,35 @@ const WebhookManager: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-3xl font-bold">Webhooks</h1>
-        <p className="text-muted-foreground">Configure webhooks para receber notificações automáticas quando os dados mudarem</p>
+        <h1 className="text-3xl font-bold">Sistema de Webhooks</h1>
+        <p className="text-muted-foreground">Configure webhooks para receber notificações de todas as interações do sistema</p>
       </div>
 
-      {/* Verificação de Sistema */}
-      <Card className="shadow-card border-amber-200 bg-amber-50">
+      {/* System Configuration */}
+      <Card className="shadow-card border-green-200 bg-green-50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
-            Verificação do Sistema
+            <Database className="h-5 w-5" />
+            Configuração do Sistema
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
-            Certifique-se de que todos os triggers de webhook estejam funcionando corretamente no banco de dados.
-            Os webhooks são disparados automaticamente a cada {webhookConfig.interval_seconds} segundos.
+            Configure o sistema para capturar TODAS as interações: novos clientes, consultores, projetos, demandas, etapas e muito mais.
+            O processamento automático acontece a cada {webhookConfig.interval_seconds} segundos.
           </p>
           <Button 
             onClick={verifyTriggers}
             disabled={isLoading}
-            variant="outline"
-            className="w-full"
+            variant="default"
+            className="w-full bg-green-600 hover:bg-green-700"
           >
             {isLoading ? (
               <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
             ) : (
-              <Settings className="h-4 w-4 mr-2" />
+              <Zap className="h-4 w-4 mr-2" />
             )}
-            Verificar e Corrigir Triggers
+            Configurar Sistema Completo
           </Button>
         </CardContent>
       </Card>
@@ -436,7 +439,7 @@ const WebhookManager: React.FC = () => {
           </div>
           
           <div className="space-y-2">
-            <h3 className="text-sm font-medium">Eventos</h3>
+            <h3 className="text-sm font-medium">Eventos a Capturar</h3>
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center space-x-2">
                 <Checkbox 
@@ -450,7 +453,7 @@ const WebhookManager: React.FC = () => {
                   htmlFor="event-insert" 
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  Insert
+                  Criação (INSERT)
                 </label>
               </div>
               <div className="flex items-center space-x-2">
@@ -465,7 +468,7 @@ const WebhookManager: React.FC = () => {
                   htmlFor="event-update" 
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  Update
+                  Atualização (UPDATE)
                 </label>
               </div>
               <div className="flex items-center space-x-2">
@@ -480,23 +483,25 @@ const WebhookManager: React.FC = () => {
                   htmlFor="event-delete" 
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  Delete
+                  Exclusão (DELETE)
                 </label>
               </div>
             </div>
           </div>
           
           <div className="space-y-2">
-            <h3 className="text-sm font-medium">Tabelas</h3>
-            <div className="flex flex-wrap gap-4">
+            <h3 className="text-sm font-medium">Entidades do Sistema</h3>
+            <div className="grid grid-cols-2 gap-4">
               {Object.entries({
                 consultants: 'Consultores',
-                projects: 'Projetos', 
-                services: 'Serviços',
                 clients: 'Clientes',
-                notes: 'Notas',
-                project_stages: 'Etapas do Projeto',
-                financial_transactions: 'Transações Financeiras'
+                projects: 'Projetos/Demandas', 
+                project_stages: 'Etapas de Projetos',
+                services: 'Serviços',
+                notes: 'Notas e Tarefas',
+                financial_transactions: 'Transações Financeiras',
+                chat_messages: 'Mensagens do Chat',
+                chat_rooms: 'Salas de Chat'
               }).map(([key, label]) => (
                 <div key={key} className="flex items-center space-x-2">
                   <Checkbox 
@@ -521,16 +526,17 @@ const WebhookManager: React.FC = () => {
           <Button 
             onClick={handleRegisterWebhook} 
             disabled={isLoading}
+            className="w-full"
           >
             {isLoading && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-            Registrar Webhook
+            Registrar Webhook Completo
           </Button>
         </CardFooter>
       </Card>
 
       <Card className="shadow-card">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle>Webhooks Registrados</CardTitle>
+          <CardTitle>Webhooks Ativos</CardTitle>
           <div className="flex gap-2">
             <Button 
               size="sm" 
@@ -543,7 +549,7 @@ const WebhookManager: React.FC = () => {
               ) : (
                 <TestTube className="h-4 w-4 mr-2" />
               )}
-              Gerar Teste
+              Testar Sistema
             </Button>
             <Button 
               size="sm" 
@@ -567,32 +573,35 @@ const WebhookManager: React.FC = () => {
               Carregando webhooks...
             </div>
           ) : webhooks.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">Nenhum webhook registrado ainda</p>
+            <div className="text-center text-muted-foreground py-8">
+              <p className="text-lg mb-2">Nenhum webhook registrado</p>
+              <p className="text-sm">Configure um webhook acima para receber todas as interações do sistema</p>
+            </div>
           ) : (
             <div className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-green-800">
-                  ✅ Processamento automático {webhookConfig.enabled ? 'ativo' : 'inativo'} - 
-                  Webhooks são disparados automaticamente a cada {webhookConfig.interval_seconds} segundos
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-blue-800 flex items-center gap-2">
+                  <Zap className="h-4 w-4" />
+                  Sistema ativo - Capturando todas as interações a cada {webhookConfig.interval_seconds} segundos
                 </p>
               </div>
               {webhooks.map((webhook) => (
-                <div key={webhook.id} className="flex items-center justify-between p-4 bg-secondary/20 rounded-lg">
-                  <div className="space-y-1">
+                <div key={webhook.id} className="flex items-center justify-between p-4 bg-secondary/20 rounded-lg border">
+                  <div className="space-y-1 flex-1">
                     <p className="font-medium break-all">{webhook.url}</p>
-                    <div className="flex flex-wrap gap-2">
-                      <p className="text-xs text-muted-foreground">
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">
                         Eventos: {webhook.events.join(', ')}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Tabelas: {webhook.tables.join(', ')}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Status: {webhook.is_active ? `Ativo (Auto ${webhookConfig.interval_seconds}s)` : 'Inativo'}
-                      </p>
+                      </span>
+                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded">
+                        Entidades: {webhook.tables.length}
+                      </span>
+                      <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                        {webhook.is_active ? `Ativo (${webhookConfig.interval_seconds}s)` : 'Inativo'}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 ml-4">
                     <Button 
                       size="sm" 
                       variant="outline"
