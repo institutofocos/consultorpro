@@ -1,326 +1,318 @@
+
 import React, { useState, useEffect } from 'react';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Search, 
-  Plus,
-  Edit, 
-  Trash,
-  Clock,
-  DollarSign,
-  Tag
-} from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ServiceForm } from './ServiceForm';
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import { Service, ServiceTag } from './types';
+import { Search, Edit, Trash2, Plus, Eye, Clock, DollarSign } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import ServiceForm from './ServiceForm';
+import { Service } from './types';
+import { fetchServices, deleteService } from '@/integrations/supabase/services';
+import { useToast } from "@/components/ui/use-toast";
 
-// Mock data - will be replaced with database data
-const mockServices: Service[] = [
-  { 
-    id: "1", 
-    name: 'Consultoria Estratégica', 
-    totalHours: 120, 
-    hourlyRate: 125, 
-    totalValue: 15000, 
-    taxRate: 16, 
-    extraCosts: 500, 
-    netValue: 12100,
-    stages: [
-      { id: 1, name: 'Diagnóstico Inicial', hours: 40, value: 5000, days: 5 },
-      { id: 2, name: 'Desenvolvimento de Estratégia', hours: 60, value: 7500, days: 7 },
-      { id: 3, name: 'Implementação e Monitoramento', hours: 20, value: 2500, days: 3 }
-    ],
-    tags: [] // Added empty tags array to comply with Service type
-  },
-  { 
-    id: "2", 
-    name: 'Gestão de Projetos', 
-    totalHours: 160, 
-    hourlyRate: 112.50, 
-    totalValue: 18000, 
-    taxRate: 16, 
-    extraCosts: 800, 
-    netValue: 14320,
-    stages: [
-      { id: 1, name: 'Planejamento', hours: 40, value: 4500, days: 5 },
-      { id: 2, name: 'Execução', hours: 100, value: 11250, days: 12 },
-      { id: 3, name: 'Encerramento', hours: 20, value: 2250, days: 3 }
-    ],
-    tags: [] // Added empty tags array to comply with Service type
-  },
-  { 
-    id: "3", 
-    name: 'Análise de Dados', 
-    totalHours: 80, 
-    hourlyRate: 150, 
-    totalValue: 12000, 
-    taxRate: 16, 
-    extraCosts: 300, 
-    netValue: 9780,
-    stages: [
-      { id: 1, name: 'Coleta de Dados', hours: 20, value: 3000, days: 3 },
-      { id: 2, name: 'Processamento e Análise', hours: 40, value: 6000, days: 5 },
-      { id: 3, name: 'Elaboração de Relatórios', hours: 20, value: 3000, days: 2 }
-    ],
-    tags: [] // Added empty tags array to comply with Service type
-  }
-];
-
-export const ServiceList: React.FC = () => {
+const ServiceList = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showForm, setShowForm] = useState(false);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
-  const fetchServices = async () => {
-    setIsLoading(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const { toast } = useToast();
+
+  const loadServices = async () => {
     try {
-      // Fetch services
-      const { data: servicesData, error } = await supabase
-        .from('services')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      console.log('Services data:', servicesData);
-      
-      // Fetch tags for each service
-      const servicesWithTags = await Promise.all(
-        (servicesData || []).map(async (service: any) => {
-          // Get service tags
-          const { data: serviceTags, error: tagError } = await supabase
-            .from('service_tags')
-            .select('tag_id, tags(id, name)')
-            .eq('service_id', service.id);
-            
-          if (tagError) console.error('Error fetching tags for service:', tagError);
-          
-          const tags = (serviceTags || []).map((st: any) => ({
-            id: st.tags.id,
-            name: st.tags.name
-          }));
-          
-          // Parse stages from JSON
-          let stages = [];
-          try {
-            if (typeof service.stages === 'string') {
-              stages = JSON.parse(service.stages);
-            } else if (service.stages) {
-              stages = service.stages;
-            }
-          } catch (e) {
-            console.error('Error parsing stages JSON:', e);
-          }
-          
-          return { 
-            ...service,
-            // Map database column names to our component property names for consistency
-            id: service.id,
-            name: service.name,
-            description: service.description,
-            totalHours: service.total_hours,
-            hourlyRate: service.hourly_rate,
-            totalValue: service.total_value,
-            taxRate: service.tax_rate,
-            extraCosts: service.extra_costs,
-            netValue: service.net_value,
-            tags,
-            stages
-          };
-        })
-      );
-      
-      console.log('Services with tags:', servicesWithTags);
-      setServices(servicesWithTags || []);
-    } catch (error: any) {
-      console.error('Error fetching services:', error);
-      toast.error(`Erro ao carregar serviços: ${error.message}`);
-      setServices([]);
+      setIsLoading(true);
+      const servicesData = await fetchServices();
+      setServices(servicesData);
+    } catch (error) {
+      console.error('Error loading services:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível carregar os serviços.",
+      });
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   useEffect(() => {
-    fetchServices();
+    loadServices();
   }, []);
-  
-  const filteredServices = services.filter(service => 
-    service.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  
-  const handleAddService = async (service: any) => {
-    setShowForm(false);
-    fetchServices(); // Refresh the list
+
+  const handleServiceSaved = () => {
+    loadServices();
+    setDialogOpen(false);
+    setEditingService(null);
   };
-  
-  const handleEditService = (service: Service) => {
-    console.log('Editing service:', service);
-    setEditingService(service);
-    setShowForm(true);
-  };
-  
-  const handleDeleteService = async (id: string) => {
-    try {
-      // First delete related tags
-      await supabase
-        .from('service_tags')
-        .delete()
-        .eq('service_id', id);
-        
-      // Then delete the service
-      const { error } = await supabase
-        .from('services')
-        .delete()
-        .eq('id', id);
-        
-      if (error) throw error;
-      
-      toast.success('Serviço excluído com sucesso!');
-      fetchServices();
-    } catch (error: any) {
-      console.error('Error deleting service:', error);
-      toast.error(`Erro ao excluir serviço: ${error.message}`);
+
+  const handleDeleteService = async (serviceId: string) => {
+    if (window.confirm('Tem certeza que deseja excluir este serviço?')) {
+      try {
+        await deleteService(serviceId);
+        toast({
+          title: "Sucesso",
+          description: "Serviço excluído com sucesso.",
+        });
+        loadServices();
+      } catch (error) {
+        console.error('Error deleting service:', error);
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não foi possível excluir o serviço.",
+        });
+      }
     }
   };
-  
-  return (
-    <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-bold">Serviços</h1>
-        <p className="text-muted-foreground">Gerenciamento de serviços oferecidos</p>
+
+  const formatCurrency = (value: number | null) => {
+    if (value === null || value === undefined) return 'N/A';
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
+  const filteredServices = services.filter(service =>
+    service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    service.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div>
+          <h1 className="text-3xl font-bold">Serviços</h1>
+          <p className="text-muted-foreground">Gerenciamento de serviços oferecidos</p>
+        </div>
+        <div className="flex items-center justify-center h-32">
+          <p className="text-muted-foreground">Carregando serviços...</p>
+        </div>
       </div>
-      
-      {showForm ? (
-        <ServiceForm 
-          service={editingService} 
-          onSave={handleAddService} 
-          onCancel={() => {
-            setShowForm(false);
-            setEditingService(null);
-          }} 
-        />
-      ) : (
-        <>
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="relative w-full md:w-[300px]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input 
-                placeholder="Buscar serviços..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Button onClick={() => setShowForm(true)} className="w-full md:w-auto">
-              <Plus className="mr-2 h-4 w-4" />
+    );
+  }
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Serviços</h1>
+          <p className="text-muted-foreground">Gerenciamento de serviços oferecidos</p>
+        </div>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => setEditingService(null)}>
+              <Plus className="h-4 w-4 mr-2" />
               Adicionar Serviço
             </Button>
+          </DialogTrigger>
+          <DialogContent size="lg">
+            <DialogHeader>
+              <DialogTitle>
+                {editingService ? 'Editar Serviço' : 'Novo Serviço'}
+              </DialogTitle>
+            </DialogHeader>
+            <ServiceForm
+              service={editingService}
+              onSaved={handleServiceSaved}
+              onCancel={() => setDialogOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder="Buscar serviços..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      </div>
+
+      <Card className="shadow-card">
+        <CardHeader>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b text-left">
+                  <th className="pb-3 font-medium">Nome</th>
+                  <th className="pb-3 font-medium">Etapas</th>
+                  <th className="pb-3 font-medium">Carga Horária</th>
+                  <th className="pb-3 font-medium">Valor Total</th>
+                  <th className="pb-3 font-medium">Valor Líquido</th>
+                  <th className="pb-3 font-medium">Tags</th>
+                  <th className="pb-3 font-medium">Ações</th>
+                </tr>
+              </thead>
+            </table>
           </div>
-          
-          <Card className="shadow-card">
-            <CardHeader className="pb-3">
-              <CardTitle>Lista de Serviços</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Etapas</TableHead>
-                    <TableHead>Carga Horária</TableHead>
-                    <TableHead>Valor Total</TableHead>
-                    <TableHead>Valor Líquido</TableHead>
-                    <TableHead>Tags</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8">
-                        Carregando...
-                      </TableCell>
-                    </TableRow>
-                  ) : filteredServices.length > 0 ? (
-                    filteredServices.map((service) => (
-                      <TableRow key={service.id}>
-                        <TableCell className="font-medium">{service.name}</TableCell>
-                        <TableCell>{service.stages?.length || 0} etapas</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-blue-500" />
-                            {service.totalHours}h
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="h-4 w-4 text-green-500" />
-                            R$ {service.totalValue?.toLocaleString('pt-BR', { 
-                              minimumFractionDigits: 2, 
-                              maximumFractionDigits: 2 
-                            })}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="h-4 w-4 text-emerald-600" />
-                            R$ {service.netValue?.toLocaleString('pt-BR', { 
-                              minimumFractionDigits: 2, 
-                              maximumFractionDigits: 2 
-                            })}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {service.tags && service.tags.length > 0 ? (
-                              service.tags.map((tag: ServiceTag) => (
-                                <Badge key={tag.id} variant="outline" className="text-xs">
-                                  <Tag className="h-3 w-3 mr-1" />
-                                  {tag.name}
-                                </Badge>
-                              ))
-                            ) : (
-                              <span className="text-muted-foreground text-xs">Nenhuma</span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditService(service)}>
+        </CardHeader>
+        <CardContent className="p-0">
+          {filteredServices.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>Nenhum serviço encontrado.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <tbody>
+                  {filteredServices.map((service) => (
+                    <tr key={service.id} className="border-b hover:bg-gray-50">
+                      <td className="p-4">
+                        <div>
+                          <p className="font-medium">{service.name}</p>
+                          {service.description && (
+                            <p className="text-sm text-muted-foreground line-clamp-1">
+                              {service.description}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span className="text-sm">
+                          {service.stages ? `${Array.isArray(service.stages) ? service.stages.length : Object.keys(service.stages).length} etapas` : '0 etapas'}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-1 text-sm">
+                          <Clock className="h-3 w-3" />
+                          {service.total_hours ? `${service.total_hours}h` : 'N/A'}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-1 text-sm font-medium text-green-600">
+                          <DollarSign className="h-3 w-3" />
+                          {formatCurrency(service.total_value)}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-1 text-sm">
+                          <DollarSign className="h-3 w-3" />
+                          {formatCurrency(service.net_value)}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex flex-wrap gap-1">
+                          {/* Tags will be shown here when implemented */}
+                          <Badge variant="outline">SEBRAE DF</Badge>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedService(service);
+                              setViewDialogOpen(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditingService(service);
+                              setDialogOpen(true);
+                            }}
+                          >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteService(service.id)}>
-                            <Trash className="h-4 w-4" />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteService(service.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                        Nenhum serviço encontrado
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </>
-      )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Service Details Dialog */}
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent size="lg">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Serviço</DialogTitle>
+          </DialogHeader>
+          {selectedService && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-medium">{selectedService.name}</h3>
+                {selectedService.description && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {selectedService.description}
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium">Horas Totais</p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedService.total_hours || 'N/A'}h
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Taxa por Hora</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formatCurrency(selectedService.hourly_rate)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Valor Total</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formatCurrency(selectedService.total_value)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Valor Líquido</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formatCurrency(selectedService.net_value)}
+                  </p>
+                </div>
+              </div>
+
+              {selectedService.stages && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Etapas do Serviço</p>
+                  <div className="space-y-2">
+                    {Array.isArray(selectedService.stages)
+                      ? selectedService.stages.map((stage: any, index: number) => (
+                          <div key={index} className="p-2 bg-gray-50 rounded text-sm">
+                            <p className="font-medium">{stage.name}</p>
+                            <p className="text-muted-foreground">{stage.description}</p>
+                          </div>
+                        ))
+                      : Object.entries(selectedService.stages).map(([key, stage]: [string, any]) => (
+                          <div key={key} className="p-2 bg-gray-50 rounded text-sm">
+                            <p className="font-medium">{stage.name}</p>
+                            <p className="text-muted-foreground">{stage.description}</p>
+                          </div>
+                        ))
+                    }
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

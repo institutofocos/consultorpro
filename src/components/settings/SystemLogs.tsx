@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,14 @@ const SystemLogs: React.FC = () => {
 
       if (error) {
         console.error('Supabase error:', error);
+        
+        // Se o erro é de RLS, tentar inserir um log de teste e recarregar
+        if (error.code === '42501' || error.message?.includes('infinite recursion') || error.message?.includes('permission')) {
+          console.log('RLS error detected, trying to insert test log and reload...');
+          await insertTestLog();
+          return; // Sair da função, o insertTestLog irá recarregar
+        }
+        
         throw error;
       }
 
@@ -64,12 +73,6 @@ const SystemLogs: React.FC = () => {
     } catch (error: any) {
       console.error('Error loading system logs:', error);
       toast.error(`Erro ao carregar logs do sistema: ${error.message || 'Erro desconhecido'}`);
-      
-      // Se há erro de permissão, tentar inserir um log de teste
-      if (error.code === '42501' || error.message?.includes('permission')) {
-        console.log('Trying to insert test log...');
-        await insertTestLog();
-      }
     } finally {
       setIsLoading(false);
     }
@@ -77,22 +80,48 @@ const SystemLogs: React.FC = () => {
 
   const insertTestLog = async () => {
     try {
-      const { error } = await supabase.rpc('insert_system_log', {
-        p_log_type: 'info',
-        p_category: 'system',
-        p_message: 'Log de teste inserido automaticamente',
-        p_details: { timestamp: new Date().toISOString() }
-      });
+      console.log('Inserting test log...');
+      
+      // Usar inserção direta na tabela em vez da função RPC que pode ter problemas de RLS
+      const { error } = await supabase
+        .from('system_logs')
+        .insert({
+          log_type: 'info',
+          category: 'system',
+          message: 'Log de teste inserido automaticamente',
+          details: { 
+            timestamp: new Date().toISOString(),
+            reason: 'Sistema iniciado ou erro de RLS resolvido'
+          }
+        });
 
       if (error) {
         console.error('Error inserting test log:', error);
-      } else {
-        console.log('Test log inserted successfully');
-        // Recarregar logs após inserir
-        setTimeout(loadLogs, 1000);
+        
+        // Se ainda há erro, tentar com a função RPC
+        const { error: rpcError } = await supabase.rpc('insert_system_log', {
+          p_log_type: 'info',
+          p_category: 'system',
+          p_message: 'Log de teste inserido via RPC',
+          p_details: { timestamp: new Date().toISOString() }
+        });
+        
+        if (rpcError) {
+          console.error('Error inserting test log via RPC:', rpcError);
+          throw rpcError;
+        }
       }
+
+      console.log('Test log inserted successfully');
+      
+      // Aguardar um pouco e recarregar
+      setTimeout(() => {
+        loadLogs();
+      }, 1000);
+      
     } catch (error) {
       console.error('Error in insertTestLog:', error);
+      toast.error("Erro ao inserir log de teste");
     }
   };
 

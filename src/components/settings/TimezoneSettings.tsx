@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -86,7 +87,7 @@ const TimezoneSettings: React.FC = () => {
     try {
       setIsLoading(true);
 
-      // Converter para JSON antes de salvar
+      // Preparar dados das configurações
       const timezoneData = {
         timezone: timezoneConfig.timezone,
         name: timezoneConfig.name
@@ -98,25 +99,38 @@ const TimezoneSettings: React.FC = () => {
         full_format: dateTimeFormat.full_format
       };
 
-      // Atualizar configuração de timezone
+      console.log('Saving timezone data:', timezoneData);
+      console.log('Saving format data:', formatData);
+
+      // Salvar configurações de timezone
       const { error: timezoneError } = await supabase
         .from('system_settings')
         .upsert({
           setting_key: 'timezone',
           setting_value: timezoneData
+        }, {
+          onConflict: 'setting_key'
         });
 
-      if (timezoneError) throw timezoneError;
+      if (timezoneError) {
+        console.error('Timezone save error:', timezoneError);
+        throw timezoneError;
+      }
 
-      // Atualizar configuração de formato de data/hora
+      // Salvar configurações de formato de data/hora
       const { error: formatError } = await supabase
         .from('system_settings')
         .upsert({
           setting_key: 'datetime_format',
           setting_value: formatData
+        }, {
+          onConflict: 'setting_key'
         });
 
-      if (formatError) throw formatError;
+      if (formatError) {
+        console.error('Format save error:', formatError);
+        throw formatError;
+      }
 
       // Log da alteração
       await supabase.rpc('insert_system_log', {
@@ -127,9 +141,15 @@ const TimezoneSettings: React.FC = () => {
       });
 
       toast.success("Configurações de horário salvas com sucesso");
+      
+      // Recarregar as configurações para confirmar
+      await loadSettings();
+      
     } catch (error) {
       console.error('Error saving timezone settings:', error);
-      toast.error("Erro ao salvar configurações de horário");
+      toast.error("Erro ao salvar configurações de horário", {
+        description: error instanceof Error ? error.message : "Erro desconhecido"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -159,6 +179,22 @@ const TimezoneSettings: React.FC = () => {
       time_format: value,
       full_format: `${prev.date_format} ${value}`
     }));
+  };
+
+  const getCurrentTime = () => {
+    try {
+      return new Date().toLocaleString('pt-BR', {
+        timeZone: timezoneConfig.timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return new Date().toLocaleString('pt-BR');
+    }
   };
 
   return (
@@ -227,14 +263,7 @@ const TimezoneSettings: React.FC = () => {
           <div className="p-4 bg-muted rounded-lg">
             <Label className="text-sm font-medium">Pré-visualização:</Label>
             <p className="text-sm text-muted-foreground mt-1">
-              {new Date().toLocaleString('pt-BR', {
-                timeZone: timezoneConfig.timezone,
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
+              {getCurrentTime()}
             </p>
           </div>
 
