@@ -15,6 +15,10 @@ export const formatDateBR = (date: string | Date | null | undefined): string => 
   
   try {
     const dateObj = typeof date === 'string' ? parseISO(date) : date;
+    
+    // Check if date is valid
+    if (isNaN(dateObj.getTime())) return '-';
+    
     return format(dateObj, BR_DATE_FORMAT, { locale: ptBR });
   } catch (error) {
     console.error('Error formatting date:', error);
@@ -30,6 +34,10 @@ export const formatDateTimeBR = (date: string | Date | null | undefined): string
   
   try {
     const dateObj = typeof date === 'string' ? parseISO(date) : date;
+    
+    // Check if date is valid
+    if (isNaN(dateObj.getTime())) return '-';
+    
     return format(dateObj, BR_DATETIME_FORMAT, { locale: ptBR });
   } catch (error) {
     console.error('Error formatting datetime:', error);
@@ -45,6 +53,10 @@ export const formatTimeBR = (date: string | Date | null | undefined): string => 
   
   try {
     const dateObj = typeof date === 'string' ? parseISO(date) : date;
+    
+    // Check if date is valid
+    if (isNaN(dateObj.getTime())) return '-';
+    
     return format(dateObj, BR_TIME_FORMAT, { locale: ptBR });
   } catch (error) {
     console.error('Error formatting time:', error);
@@ -71,5 +83,55 @@ export const parseBRDate = (dateString: string): Date | null => {
   } catch (error) {
     console.error('Error parsing Brazilian date:', error);
     return null;
+  }
+};
+
+/**
+ * Simple Deno-compatible date formatting for edge functions
+ */
+export const formatDateBRSimple = (date: string | Date | null | undefined): string => {
+  if (!date) return '-';
+  
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    
+    // Check if date is valid
+    if (isNaN(dateObj.getTime())) return '-';
+    
+    // Format to Brazilian date format DD/MM/YYYY
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const year = dateObj.getFullYear();
+    
+    return `${day}/${month}/${year}`;
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return '-';
+  }
+};
+
+/**
+ * Simple Deno-compatible datetime formatting for edge functions
+ */
+export const formatDateTimeBRSimple = (date: string | Date | null | undefined): string => {
+  if (!date) return '-';
+  
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    
+    // Check if date is valid
+    if (isNaN(dateObj.getTime())) return '-';
+    
+    // Format to Brazilian datetime format DD/MM/YYYY HH:mm
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const year = dateObj.getFullYear();
+    const hours = String(dateObj.getHours()).padStart(2, '0');
+    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+    
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  } catch (error) {
+    console.error('Error formatting datetime:', error);
+    return '-';
   }
 };

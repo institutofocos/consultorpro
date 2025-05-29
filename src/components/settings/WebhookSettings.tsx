@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Settings, Save, Zap } from "lucide-react";
+import { Settings, Save, Zap, CheckCircle2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface WebhookConfig {
@@ -16,13 +16,15 @@ interface WebhookConfig {
 
 const WebhookSettings: React.FC = () => {
   const [webhookConfig, setWebhookConfig] = useState<WebhookConfig>({
-    interval_seconds: 10,
+    interval_seconds: 5,
     enabled: true
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [systemStatus, setSystemStatus] = useState<'loading' | 'active' | 'inactive'>('loading');
 
   useEffect(() => {
     loadWebhookSettings();
+    checkSystemStatus();
   }, []);
 
   const loadWebhookSettings = async () => {
@@ -48,6 +50,21 @@ const WebhookSettings: React.FC = () => {
     }
   };
 
+  const checkSystemStatus = async () => {
+    try {
+      // Check if there are active webhooks
+      const { data: webhooks } = await supabase
+        .from('webhooks')
+        .select('*')
+        .eq('is_active', true);
+
+      setSystemStatus(webhooks && webhooks.length > 0 ? 'active' : 'inactive');
+    } catch (error) {
+      console.error('Error checking system status:', error);
+      setSystemStatus('inactive');
+    }
+  };
+
   const saveWebhookSettings = async () => {
     try {
       setIsLoading(true);
@@ -69,10 +86,14 @@ const WebhookSettings: React.FC = () => {
         p_details: webhookConfig as any
       });
 
-      toast.success("Configurações de webhook salvas com sucesso");
+      toast.success("Configurações de webhook salvas com sucesso", {
+        icon: <CheckCircle2 className="h-5 w-5 text-green-600" />
+      });
     } catch (error) {
       console.error('Error saving webhook settings:', error);
-      toast.error("Erro ao salvar configurações de webhook");
+      toast.error("Erro ao salvar configurações de webhook", {
+        icon: <AlertCircle className="h-5 w-5 text-red-600" />
+      });
     } finally {
       setIsLoading(false);
     }
@@ -96,11 +117,21 @@ const WebhookSettings: React.FC = () => {
   };
 
   return (
-    <Card>
+    <Card className="shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Zap className="h-5 w-5" />
           Configurações de Webhook
+          {systemStatus === 'active' && (
+            <span className="ml-auto bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+              Sistema Ativo
+            </span>
+          )}
+          {systemStatus === 'inactive' && (
+            <span className="ml-auto bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">
+              Sistema Inativo
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -128,7 +159,7 @@ const WebhookSettings: React.FC = () => {
               max="3600"
               value={webhookConfig.interval_seconds}
               onChange={(e) => handleIntervalChange(e.target.value)}
-              placeholder="10"
+              placeholder="5"
             />
             <p className="text-sm text-muted-foreground">
               Intervalo em segundos entre cada processamento automático (1-3600 segundos)
@@ -142,7 +173,12 @@ const WebhookSettings: React.FC = () => {
                 {webhookConfig.enabled ? 'Ativado' : 'Desativado'}
               </span></p>
               <p>• Intervalo: {webhookConfig.interval_seconds} segundos</p>
-              <p>• Próximo processamento: ~{webhookConfig.interval_seconds}s</p>
+              <p>• Sistema: <span className={systemStatus === 'active' ? 'text-green-600' : 'text-orange-600'}>
+                {systemStatus === 'active' ? 'Webhooks ativos configurados' : 'Nenhum webhook ativo'}
+              </span></p>
+              {systemStatus === 'active' && (
+                <p>• Próximo processamento: ~{webhookConfig.interval_seconds}s</p>
+              )}
             </div>
           </div>
 
