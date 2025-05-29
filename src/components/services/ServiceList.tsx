@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, Edit, Trash2, Plus, Eye, Clock, DollarSign, ExternalLink } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ServiceForm } from './ServiceForm';
 import { Service } from '@/integrations/supabase/services';
 import { fetchServices } from '@/integrations/supabase/services';
@@ -154,104 +154,96 @@ const ServiceList = () => {
       </div>
 
       <Card className="shadow-card">
-        <CardHeader>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b text-left">
-                  <th className="pb-3 font-medium">Nome</th>
-                  <th className="pb-3 font-medium text-center align-middle">Carga Horária</th>
-                  <th className="pb-3 font-medium text-center">Valor Total</th>
-                  <th className="pb-3 font-medium text-center">URL</th>
-                  <th className="pb-3 font-medium">Tags</th>
-                  <th className="pb-3 font-medium">Ações</th>
-                </tr>
-              </thead>
-            </table>
-          </div>
-        </CardHeader>
         <CardContent className="p-0">
           {filteredServices.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <p>Nenhum serviço encontrado.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <tbody>
-                  {filteredServices.map((service) => (
-                    <tr key={service.id} className="border-b hover:bg-gray-50">
-                      <td className="p-4">
-                        <p className="font-medium">{service.name}</p>
-                      </td>
-                      <td className="p-4 text-center align-middle">
-                        <div className="flex items-center justify-center gap-1 text-sm">
-                          <Clock className="h-3 w-3" />
-                          {service.total_hours ? `${service.total_hours}h` : 'N/A'}
-                        </div>
-                      </td>
-                      <td className="p-4 text-center">
-                        <div className="flex items-center justify-center gap-1 text-sm font-medium text-green-600">
-                          <DollarSign className="h-3 w-3" />
-                          {formatCurrency(service.total_value)}
-                        </div>
-                      </td>
-                      <td className="p-4 text-center">
-                        {service.url ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleUrlClick(service.url)}
-                            className="h-8 w-8 p-0"
-                            title={service.url}
-                          >
-                            <ExternalLink className="h-4 w-4 text-blue-600" />
-                          </Button>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">-</span>
-                        )}
-                      </td>
-                      <td className="p-4">
-                        <div className="flex flex-wrap gap-1">
-                          <Badge variant="outline">SEBRAE DF</Badge>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedService(service);
-                              setViewDialogOpen(true);
-                            }}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setEditingService(service);
-                              setDialogOpen(true);
-                            }}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteService(service.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead className="text-center">Carga Horária</TableHead>
+                  <TableHead className="text-center">Valor Total</TableHead>
+                  <TableHead className="text-center">URL</TableHead>
+                  <TableHead>Tags</TableHead>
+                  <TableHead>Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredServices.map((service) => (
+                  <TableRow key={service.id}>
+                    <TableCell>
+                      <p className="font-medium">{service.name}</p>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-1 text-sm">
+                        <Clock className="h-3 w-3" />
+                        {service.total_hours ? `${service.total_hours}h` : 'N/A'}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-1 text-sm font-medium text-green-600">
+                        <DollarSign className="h-3 w-3" />
+                        {formatCurrency(service.total_value)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {service.url ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleUrlClick(service.url)}
+                          className="h-8 w-8 p-0"
+                          title={service.url}
+                        >
+                          <ExternalLink className="h-4 w-4 text-blue-600" />
+                        </Button>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline">SEBRAE DF</Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedService(service);
+                            setViewDialogOpen(true);
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditingService(service);
+                            setDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteService(service.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
