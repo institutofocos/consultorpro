@@ -573,7 +573,7 @@ const DemandsList = () => {
             {selectedDemand && selectedDemand.services && (
               <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <div className="flex items-center gap-2 text-sm">
-                  <FileCheck className="h-4 w-4 text-blue-600" />
+                  <Users className="h-4 w-4 text-blue-600" />
                   <span className="font-medium text-blue-900">Serviço:</span>
                   <span className="text-blue-700">{selectedDemand.services.name}</span>
                 </div>
