@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -202,6 +201,8 @@ const TimezoneSettings: React.FC = () => {
     }
   };
 
+  const currentDateTime = getCurrentTime();
+
   return (
     <div className="space-y-6">
       <div>
@@ -268,7 +269,7 @@ const TimezoneSettings: React.FC = () => {
           <div className="p-4 bg-muted rounded-lg">
             <Label className="text-sm font-medium">Pré-visualização:</Label>
             <p className="text-sm text-muted-foreground mt-1">
-              {getCurrentTime()}
+              {currentDateTime.date} {currentDateTime.time}
             </p>
           </div>
 
