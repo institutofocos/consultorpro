@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
-  Calendar, Tag, UserCircle, Building, Layers, MessageCircle, 
+  Calendar, Tag, UserCircle, Building, Layers,
   Clock, CheckSquare, Edit3, Trash2, Check, FileText, Link as LinkIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -183,12 +183,6 @@ const NoteCard: React.FC<NoteCardProps> = ({
         <div className="flex justify-between items-start">
           <h3 className="font-medium text-lg leading-tight">{note.title}</h3>
           <div className="flex gap-2 ml-2">
-            {note.has_internal_chat && (
-              <Badge variant="outline" className="bg-purple-50 text-purple-700">
-                <MessageCircle className="h-3 w-3 mr-1" />
-                Chat
-              </Badge>
-            )}
             {note.linked_task_id && (
               <Badge variant="outline" className="bg-indigo-50 text-indigo-700">
                 <LinkIcon className="h-3 w-3 mr-1" />
