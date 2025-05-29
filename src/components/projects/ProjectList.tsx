@@ -91,7 +91,21 @@ const ProjectList: React.FC = () => {
       project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesStatus = statusFilter === '' || project.status === statusFilter;
+    // Modificar a lógica do filtro de status para incluir etapas
+    let matchesStatus = false;
+    if (statusFilter === '') {
+      matchesStatus = true; // Se não há filtro, incluir todos
+    } else {
+      // Verificar se o status do projeto corresponde
+      const projectMatches = project.status === statusFilter;
+      
+      // Verificar se alguma etapa tem o status filtrado
+      const stageMatches = project.stages && project.stages.some(stage => stage.status === statusFilter);
+      
+      // O projeto deve aparecer se ele próprio ou alguma de suas etapas tiver o status filtrado
+      matchesStatus = projectMatches || stageMatches;
+    }
+    
     const matchesClient = clientFilter === '' || project.clientId === clientFilter;
     const matchesService = serviceFilter === '' || project.serviceId === serviceFilter;
     const matchesConsultant = consultantFilter === '' || 
