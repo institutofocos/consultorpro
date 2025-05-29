@@ -99,7 +99,14 @@ export const formatDateTimeFromSeparate = (date: string | null | undefined, time
  * Returns object with separate date and time strings
  */
 export const getCurrentDateTimeBR = (): { date: string; time: string } => {
-  return formatDateTimeBR(new Date());
+  // Use o fuso horário do Brasil (UTC-3)
+  const now = new Date();
+  const brazilTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+  
+  return {
+    date: format(brazilTime, BR_DATE_FORMAT, { locale: ptBR }),
+    time: format(brazilTime, BR_TIME_FORMAT, { locale: ptBR })
+  };
 };
 
 /**
@@ -155,6 +162,42 @@ export const formatTimeForDB = (time: string | null | undefined): string | null 
     console.error('Error formatting time for DB:', error);
     return null;
   }
+};
+
+/**
+ * Parse time string in HH:mm format to proper time value
+ */
+export const parseTimeForDB = (timeString: string | null | undefined): string | null => {
+  if (!timeString) return null;
+  
+  try {
+    // Se já está no formato correto HH:mm
+    if (timeString.match(/^\d{2}:\d{2}$/)) {
+      return timeString;
+    }
+    
+    // Se está no formato HH:mm:ss, remover os segundos
+    if (timeString.match(/^\d{2}:\d{2}:\d{2}$/)) {
+      return timeString.substring(0, 5);
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error parsing time for DB:', error);
+    return null;
+  }
+};
+
+/**
+ * Get current timestamp formatted for Brazilian timezone
+ */
+export const getCurrentTimestampBR = (): string => {
+  // Criar timestamp no fuso horário do Brasil
+  const now = new Date();
+  const brazilTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+  
+  // Retornar no formato ISO mas ajustado para o Brasil
+  return brazilTime.toISOString();
 };
 
 /**

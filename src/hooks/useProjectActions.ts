@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { getCurrentTimestampBR } from '@/utils/dateUtils';
 
 export const useProjectActions = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -12,7 +13,10 @@ export const useProjectActions = () => {
       console.log('Atualizando status do projeto:', projectId, 'para:', status);
       const { error } = await supabase
         .from('projects')
-        .update({ status })
+        .update({ 
+          status,
+          updated_at: getCurrentTimestampBR()
+        })
         .eq('id', projectId);
 
       if (error) {
@@ -34,7 +38,10 @@ export const useProjectActions = () => {
       console.log('Atualizando status da etapa:', stageId, 'para:', status);
       const { error } = await supabase
         .from('project_stages')
-        .update({ status })
+        .update({ 
+          status,
+          updated_at: getCurrentTimestampBR()
+        })
         .eq('id', stageId);
 
       if (error) {
@@ -56,7 +63,10 @@ export const useProjectActions = () => {
       console.log('Concluindo projeto:', projectId);
       const { error } = await supabase
         .from('projects')
-        .update({ status: 'concluido' })
+        .update({ 
+          status: 'concluido',
+          updated_at: getCurrentTimestampBR()
+        })
         .eq('id', projectId);
 
       if (error) {
@@ -81,7 +91,8 @@ export const useProjectActions = () => {
         .update({ 
           completed: true, 
           status: 'concluido',
-          completed_at: new Date().toISOString()
+          completed_at: getCurrentTimestampBR(),
+          updated_at: getCurrentTimestampBR()
         })
         .eq('id', stageId);
 
@@ -107,7 +118,8 @@ export const useProjectActions = () => {
         .update({ 
           completed: false, 
           status: 'em_producao',
-          completed_at: null
+          completed_at: null,
+          updated_at: getCurrentTimestampBR()
         })
         .eq('id', stageId);
 
@@ -130,7 +142,10 @@ export const useProjectActions = () => {
       console.log('Cancelando projeto:', projectId);
       const { error } = await supabase
         .from('projects')
-        .update({ status: 'cancelado' })
+        .update({ 
+          status: 'cancelado',
+          updated_at: getCurrentTimestampBR()
+        })
         .eq('id', projectId);
 
       if (error) {

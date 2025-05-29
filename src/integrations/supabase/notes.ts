@@ -1,702 +1,393 @@
 
 import { supabase } from "./client";
+import { parseTimeForDB, getCurrentTimestampBR } from "@/utils/dateUtils";
 
-export type Note = {
+export interface Note {
   id: string;
   title: string;
   content?: string;
   status: 'iniciar_projeto' | 'em_producao' | 'aguardando_assinatura' | 'aguardando_aprovacao' | 'aguardando_nota_fiscal' | 'aguardando_pagamento' | 'aguardando_repasse' | 'finalizados' | 'cancelados';
   color?: string;
-  due_date?: string;
-  due_time?: string;
   start_date?: string;
   start_time?: string;
+  due_date?: string;
+  due_time?: string;
   end_date?: string;
   end_time?: string;
-  consultant_ids?: string[];
   client_id?: string;
   service_id?: string;
-  tag_ids?: string[];
+  consultant_id?: string;
+  linked_task_id?: string;
   created_at?: string;
   updated_at?: string;
-  consultant_names?: string[];
+  // Extended properties from joins
   client_name?: string;
   service_name?: string;
+  consultant_names?: string[];
   tag_names?: string[];
   checklists?: NoteChecklist[];
-  custom_fields?: NoteCustomField[];
-  linked_task_id?: string | null;
-  linked_task?: Note | null;
-};
+  linked_task?: Note;
+}
 
-export type NoteCustomField = {
-  id: string;
-  note_id: string;
-  field_name: string;
-  field_value?: string;
-  created_at?: string;
-};
-
-export type NoteChecklist = {
+export interface NoteChecklist {
   id: string;
   note_id: string;
   title: string;
   description?: string;
+  completed: boolean;
   due_date?: string;
   due_time?: string;
-  responsible_consultant_id?: string;
-  responsible_consultant_name?: string;
-  completed: boolean;
   completed_at?: string;
+  responsible_consultant_id?: string;
   created_at?: string;
   updated_at?: string;
-};
+}
 
-export type NoteConsultant = {
-  id: string;
-  note_id: string;
-  consultant_id: string;
-  consultant_name?: string;
-  created_at?: string;
-};
-
-export type NoteTag = {
-  id: string;
-  note_id: string;
-  tag_id: string;
-  tag_name?: string;
-  created_at?: string;
-};
-
-export const fetchNotes = async (): Promise<Note[]> => {
+export const fetchNotes = async () => {
   try {
-    const { data: notes, error } = await supabase
+    console.log('Fetching notes...');
+    const { data, error } = await supabase
       .from('notes')
       .select(`
         *,
-        client:client_id(name),
-        service:service_id(name),
-        consultants:note_consultants(consultant:consultant_id(name)),
-        tags:note_tag_relations(tag:tag_id(name)),
-        checklists:note_checklists(
-          id, 
-          note_id, 
-          title, 
-          description, 
-          completed, 
-          completed_at, 
-          due_date,
-          due_time, 
-          created_at, 
-          updated_at,
-          responsible_consultant:responsible_consultant_id(name)
-        ),
-        custom_fields:note_custom_fields(
-          id,
-          note_id,
-          field_name,
-          field_value,
-          created_at
-        ),
-        linked_task:linked_task_id(id, title, status)
+        clients:client_id(id, name),
+        services:service_id(id, name),
+        note_consultants(consultant:consultants(id, name)),
+        note_tag_relations(tag:note_tags(id, name)),
+        checklists:note_checklists(*),
+        linked_task:notes!linked_task_id(id, title, status)
       `)
       .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching notes:', error);
+      throw error;
+    }
 
-    if (error) throw error;
+    console.log('Raw notes data:', data);
 
-    const transformedNotes: Note[] = (notes || []).map(note => {
-      const consultantNames = note.consultants
-        ? note.consultants
-            .filter(c => c.consultant && c.consultant.name)
-            .map(c => c.consultant.name)
-        : [];
+    const transformedData = data?.map(note => ({
+      id: note.id,
+      title: note.title,
+      content: note.content,
+      status: note.status,
+      color: note.color,
+      start_date: note.start_date,
+      start_time: note.start_time,
+      due_date: note.due_date,
+      due_time: note.due_time,
+      end_date: note.end_date,
+      end_time: note.end_time,
+      client_id: note.client_id,
+      service_id: note.service_id,
+      consultant_id: note.consultant_id,
+      linked_task_id: note.linked_task_id,
+      created_at: note.created_at,
+      updated_at: note.updated_at,
+      client_name: note.clients?.name,
+      service_name: note.services?.name,
+      consultant_names: note.note_consultants?.map((nc: any) => nc.consultant?.name).filter(Boolean) || [],
+      tag_names: note.note_tag_relations?.map((tr: any) => tr.tag?.name).filter(Boolean) || [],
+      checklists: note.checklists || [],
+      linked_task: note.linked_task
+    })) || [];
 
-      const tagNames = note.tags
-        ? note.tags
-            .filter(t => t.tag && t.tag.name)
-            .map(t => t.tag.name)
-        : [];
-
-      const checklists = note.checklists
-        ? note.checklists.map(checklist => ({
-            ...checklist,
-            responsible_consultant_name: checklist.responsible_consultant ? checklist.responsible_consultant.name : null
-          }))
-        : [];
-
-      const customFields = note.custom_fields || [];
-
-      let linkedTask = null;
-      if (note.linked_task && note.linked_task.id) {
-        linkedTask = note.linked_task;
-      }
-
-      return {
-        ...note,
-        status: note.status as Note['status'],
-        client_name: note.client ? note.client.name : null,
-        service_name: note.service ? note.service.name : null,
-        consultant_names: consultantNames,
-        tag_names: tagNames,
-        checklists: checklists,
-        custom_fields: customFields,
-        linked_task: linkedTask
-      } as Note;
-    });
-
-    return transformedNotes;
+    console.log('Transformed notes data:', transformedData);
+    return transformedData;
   } catch (error) {
     console.error('Error fetching notes:', error);
     return [];
   }
 };
 
-export const fetchNoteById = async (id: string): Promise<Note | null> => {
+export const createNote = async (note: Partial<Note>) => {
   try {
+    console.log('Creating note with data:', note);
+    
+    // Preparar dados para inserção com timestamp brasileiro
+    const noteData = {
+      title: note.title,
+      content: note.content || null,
+      status: note.status || 'iniciar_projeto',
+      color: note.color || null,
+      start_date: note.start_date || null,
+      start_time: parseTimeForDB(note.start_time),
+      due_date: note.due_date || null,
+      due_time: parseTimeForDB(note.due_time),
+      end_date: note.end_date || null,
+      end_time: parseTimeForDB(note.end_time),
+      client_id: note.client_id || null,
+      service_id: note.service_id || null,
+      consultant_id: note.consultant_id || null,
+      linked_task_id: note.linked_task_id || null,
+      created_at: getCurrentTimestampBR(),
+      updated_at: getCurrentTimestampBR()
+    };
+    
+    console.log('Processed note data for insertion:', noteData);
+
     const { data, error } = await supabase
       .from('notes')
-      .select('*')
-      .eq('id', id)
+      .insert(noteData)
+      .select()
       .single();
-
+    
     if (error) {
-      console.error('Error fetching note:', error);
+      console.error('Error creating note:', error);
       throw error;
     }
 
-    let consultantNames: string[] = [];
-    let clientName: string | null = null;
-    let serviceName: string | null = null;
-    let tagNames: string[] = [];
-    let checklists: NoteChecklist[] = [];
-    let customFields: NoteCustomField[] = [];
-
-    const { data: noteConsultants } = await supabase
-      .from('note_consultants')
-      .select(`
-        consultant_id,
-        consultants (name)
-      `)
-      .eq('note_id', data.id);
-    
-    if (noteConsultants) {
-      consultantNames = noteConsultants.map(nc => (nc.consultants as any)?.name).filter(Boolean);
-    }
-    
-    if (consultantNames.length === 0 && data.consultant_id) {
-      const { data: consultant } = await supabase
-        .from('consultants')
-        .select('name')
-        .eq('id', data.consultant_id)
-        .single();
-        
-      if (consultant) {
-        consultantNames.push(consultant.name);
-      }
-    }
-    
-    if (data.client_id) {
-      const { data: client } = await supabase
-        .from('clients')
-        .select('name')
-        .eq('id', data.client_id)
-        .single();
-        
-      clientName = client?.name || null;
-    }
-    
-    if (data.service_id) {
-      const { data: service } = await supabase
-        .from('services')
-        .select('name')
-        .eq('id', data.service_id)
-        .single();
-        
-      serviceName = service?.name || null;
-    }
-
-    const { data: checklistData } = await supabase
-      .from('note_checklists')
-      .select(`
-        *,
-        consultants (name)
-      `)
-      .eq('note_id', data.id)
-      .order('created_at', { ascending: true });
-
-    if (checklistData) {
-      checklists = checklistData.map(checklist => ({
-        ...checklist,
-        responsible_consultant_name: (checklist.consultants as any)?.name || null
-      }));
-    }
-
-    const { data: customFieldsData } = await supabase
-      .from('note_custom_fields')
-      .select('*')
-      .eq('note_id', data.id)
-      .order('created_at', { ascending: true });
-
-    if (customFieldsData) {
-      customFields = customFieldsData;
-    }
-
-    const { data: noteTags } = await supabase
-      .from('note_tag_relations')
-      .select(`
-        tag_id,
-        tags (name)
-      `)
-      .eq('note_id', data.id);
-    
-    if (noteTags) {
-      tagNames = noteTags.map(nt => (nt.tags as any)?.name).filter(Boolean);
-    }
-
-    return {
-      ...data,
-      consultant_names: consultantNames,
-      client_name: clientName,
-      service_name: serviceName,
-      tag_names: tagNames,
-      checklists: checklists,
-      custom_fields: customFields,
-      status: data.status as Note['status']
-    } as Note;
+    console.log('Note created successfully:', data);
+    return data;
   } catch (error) {
-    console.error('Error in fetchNoteById:', error);
-    return null;
+    console.error('Error creating note:', error);
+    throw error;
   }
 };
 
-export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'updated_at'>): Promise<Note | null> => {
+export const updateNote = async (id: string, note: Partial<Note>) => {
   try {
-    const { consultant_ids, tag_ids, checklists, custom_fields, ...noteFields } = noteData;
+    console.log('Updating note with data:', note);
     
-    const dbFields = {
-      title: noteFields.title,
-      content: noteFields.content,
-      status: noteFields.status,
-      color: noteFields.color,
-      due_date: noteFields.due_date,
-      due_time: noteFields.due_time,
-      start_date: noteFields.start_date,
-      start_time: noteFields.start_time,
-      end_date: noteFields.end_date,
-      end_time: noteFields.end_time,
-      client_id: noteFields.client_id,
-      service_id: noteFields.service_id,
-      consultant_id: consultant_ids?.[0] || null,
+    // Preparar dados para atualização com timestamp brasileiro
+    const noteData = {
+      title: note.title,
+      content: note.content,
+      status: note.status,
+      color: note.color,
+      start_date: note.start_date,
+      start_time: parseTimeForDB(note.start_time),
+      due_date: note.due_date,
+      due_time: parseTimeForDB(note.due_time),
+      end_date: note.end_date,
+      end_time: parseTimeForDB(note.end_time),
+      client_id: note.client_id,
+      service_id: note.service_id,
+      consultant_id: note.consultant_id,
+      linked_task_id: note.linked_task_id,
+      updated_at: getCurrentTimestampBR()
     };
+    
+    console.log('Processed note data for update:', noteData);
 
-    const { data: noteResult, error } = await supabase
+    const { data, error } = await supabase
       .from('notes')
-      .insert(dbFields)
+      .update(noteData)
+      .eq('id', id)
       .select()
       .single();
-
-    if (error) throw error;
-
-    if (consultant_ids && consultant_ids.length > 0) {
-      const consultantRelations = consultant_ids.map(consultantId => ({
-        note_id: noteResult.id,
-        consultant_id: consultantId
-      }));
-      
-      await supabase
-        .from('note_consultants')
-        .insert(consultantRelations);
+    
+    if (error) {
+      console.error('Error updating note:', error);
+      throw error;
     }
 
-    if (tag_ids && tag_ids.length > 0) {
-      const tagRelations = tag_ids.map(tagId => ({
-        note_id: noteResult.id,
-        tag_id: tagId
-      }));
-      
-      await supabase
-        .from('note_tag_relations')
-        .insert(tagRelations);
-    }
-
-    if (checklists && checklists.length > 0) {
-      const checklistData = checklists.map(checklist => ({
-        note_id: noteResult.id,
-        title: checklist.title,
-        description: checklist.description,
-        due_date: checklist.due_date,
-        due_time: checklist.due_time,
-        responsible_consultant_id: checklist.responsible_consultant_id
-      }));
-      
-      await supabase
-        .from('note_checklists')
-        .insert(checklistData);
-    }
-
-    if (custom_fields && custom_fields.length > 0) {
-      const customFieldsData = custom_fields.map(customField => ({
-        note_id: noteResult.id,
-        field_name: customField.field_name,
-        field_value: customField.field_value,
-        created_at: new Date().toISOString()
-      }));
-      
-      await supabase
-        .from('note_custom_fields')
-        .insert(customFieldsData);
-    }
-
-    return await fetchNoteById(noteResult.id);
+    console.log('Note updated successfully:', data);
+    return data;
   } catch (error) {
-    console.error('Error in createNote:', error);
-    return null;
+    console.error('Error updating note:', error);
+    throw error;
   }
 };
 
-export const updateNote = async (id: string, noteData: Partial<Note>): Promise<Note | null> => {
+export const updateNoteStatus = async (id: string, status: Note['status']) => {
   try {
-    const { consultant_ids, tag_ids, checklists, consultant_names, client_name, service_name, tag_names, custom_fields, ...noteFields } = noteData;
-
-    if (noteFields.status === 'finalizados') {
-      const note = await fetchNoteById(id);
-      if (note && note.checklists && note.checklists.length > 0) {
-        const hasIncompleteChecklists = note.checklists.some(checklist => !checklist.completed);
-        if (hasIncompleteChecklists) {
-          throw new Error('Não é possível finalizar a anotação. Todas as checklists devem estar concluídas primeiro.');
+    console.log('Updating note status:', id, status);
+    
+    // Check if there are incomplete checklists when trying to finalize
+    if (status === 'finalizados') {
+      const { data: note } = await supabase
+        .from('notes')
+        .select('*, checklists:note_checklists(*)')
+        .eq('id', id)
+        .single();
+      
+      if (note?.checklists && note.checklists.length > 0) {
+        const incompleteChecklists = note.checklists.filter((c: any) => !c.completed);
+        if (incompleteChecklists.length > 0) {
+          throw new Error('Não é possível finalizar. Existem checklists pendentes.');
         }
       }
     }
 
-    const dbFields = {
-      title: noteFields.title,
-      content: noteFields.content,
-      status: noteFields.status,
-      color: noteFields.color,
-      due_date: noteFields.due_date,
-      due_time: noteFields.due_time,
-      start_date: noteFields.start_date,
-      start_time: noteFields.start_time,
-      end_date: noteFields.end_date,
-      end_time: noteFields.end_time,
-      client_id: noteFields.client_id,
-      service_id: noteFields.service_id,
-      consultant_id: consultant_ids?.[0] || undefined,
+    const updateData = {
+      status,
+      updated_at: getCurrentTimestampBR()
     };
 
-    Object.keys(dbFields).forEach(key => {
-      if (dbFields[key as keyof typeof dbFields] === undefined) {
-        delete dbFields[key as keyof typeof dbFields];
-      }
-    });
+    // Se estiver finalizando, adicionar data/hora de fim
+    if (status === 'finalizados') {
+      const now = new Date();
+      const brazilTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+      
+      updateData.end_date = brazilTime.toISOString().split('T')[0]; // YYYY-MM-DD
+      updateData.end_time = `${String(brazilTime.getHours()).padStart(2, '0')}:${String(brazilTime.getMinutes()).padStart(2, '0')}`;
+    }
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('notes')
-      .update(dbFields)
-      .eq('id', id);
-
-    if (error) throw error;
-
-    if (consultant_ids !== undefined) {
-      await supabase
-        .from('note_consultants')
-        .delete()
-        .eq('note_id', id);
-      
-      if (consultant_ids.length > 0) {
-        const consultantRelations = consultant_ids.map(consultantId => ({
-          note_id: id,
-          consultant_id: consultantId
-        }));
-        
-        await supabase
-          .from('note_consultants')
-          .insert(consultantRelations);
-      }
-    }
-
-    if (tag_ids !== undefined) {
-      await supabase
-        .from('note_tag_relations')
-        .delete()
-        .eq('note_id', id);
-      
-      if (tag_ids.length > 0) {
-        const tagRelations = tag_ids.map(tagId => ({
-          note_id: id,
-          tag_id: tagId
-        }));
-        
-        await supabase
-          .from('note_tag_relations')
-          .insert(tagRelations);
-      }
-    }
-
-    if (checklists !== undefined) {
-      await supabase
-        .from('note_checklists')
-        .delete()
-        .eq('note_id', id);
-      
-      if (checklists.length > 0) {
-        const checklistData = checklists.map(checklist => ({
-          note_id: id,
-          title: checklist.title,
-          description: checklist.description,
-          due_date: checklist.due_date,
-          due_time: checklist.due_time,
-          responsible_consultant_id: checklist.responsible_consultant_id,
-          completed: checklist.completed || false,
-          completed_at: checklist.completed_at
-        }));
-        
-        await supabase
-          .from('note_checklists')
-          .insert(checklistData);
-      }
-    }
-
-    if (custom_fields !== undefined) {
-      await supabase
-        .from('note_custom_fields')
-        .delete()
-        .eq('note_id', id);
-      
-      if (custom_fields.length > 0) {
-        const customFieldsData = custom_fields.map(customField => ({
-          note_id: id,
-          field_name: customField.field_name,
-          field_value: customField.field_value,
-          created_at: new Date().toISOString()
-        }));
-        
-        await supabase
-          .from('note_custom_fields')
-          .insert(customFieldsData);
-      }
-    }
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
     
-    return await fetchNoteById(id);
+    if (error) {
+      console.error('Error updating note status:', error);
+      throw error;
+    }
+
+    console.log('Note status updated successfully:', data);
+    return data;
   } catch (error) {
-    console.error('Error in updateNote:', error);
+    console.error('Error updating note status:', error);
     throw error;
   }
 };
 
-export const deleteNote = async (id: string): Promise<boolean> => {
+export const deleteNote = async (id: string) => {
   try {
+    console.log('Deleting note:', id);
+    
+    // Delete related checklists first
+    const { error: checklistError } = await supabase
+      .from('note_checklists')
+      .delete()
+      .eq('note_id', id);
+    
+    if (checklistError) {
+      console.error('Error deleting note checklists:', checklistError);
+    }
+
+    // Delete consultant relations
+    const { error: consultantError } = await supabase
+      .from('note_consultants')
+      .delete()
+      .eq('note_id', id);
+    
+    if (consultantError) {
+      console.error('Error deleting note consultants:', consultantError);
+    }
+
+    // Delete tag relations
+    const { error: tagError } = await supabase
+      .from('note_tag_relations')
+      .delete()
+      .eq('note_id', id);
+    
+    if (tagError) {
+      console.error('Error deleting note tags:', tagError);
+    }
+
+    // Delete the note
     const { error } = await supabase
       .from('notes')
       .delete()
       .eq('id', id);
+    
+    if (error) {
+      console.error('Error deleting note:', error);
+      throw error;
+    }
 
-    if (error) throw error;
+    console.log('Note deleted successfully');
     return true;
   } catch (error) {
-    console.error('Error in deleteNote:', error);
-    return false;
+    console.error('Error deleting note:', error);
+    throw error;
   }
 };
 
-export const updateNoteStatus = async (id: string, status: Note['status']): Promise<Note | null> => {
-  return updateNote(id, { status });
-};
-
-export const createChecklist = async (checklist: Omit<NoteChecklist, 'id' | 'created_at' | 'updated_at'>): Promise<NoteChecklist | null> => {
+export const updateChecklist = async (checklistId: string, updates: Partial<NoteChecklist>) => {
   try {
-    const { data, error } = await supabase
-      .from('note_checklists')
-      .insert(checklist)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error('Error creating checklist:', error);
-    return null;
-  }
-};
-
-export const updateChecklist = async (id: string, updates: Partial<NoteChecklist>): Promise<boolean> => {
-  try {
+    console.log('Updating checklist:', checklistId, updates);
+    
     const updateData = {
       ...updates,
-      completed_at: updates.completed ? new Date().toISOString() : null
+      updated_at: getCurrentTimestampBR()
     };
+    
+    // Se estiver marcando como concluído, adicionar timestamp de conclusão
+    if (updates.completed) {
+      updateData.completed_at = getCurrentTimestampBR();
+    } else if (updates.completed === false) {
+      updateData.completed_at = null;
+    }
 
     const { error } = await supabase
       .from('note_checklists')
       .update(updateData)
-      .eq('id', id);
+      .eq('id', checklistId);
+    
+    if (error) {
+      console.error('Error updating checklist:', error);
+      throw error;
+    }
 
-    if (error) throw error;
+    console.log('Checklist updated successfully');
     return true;
   } catch (error) {
     console.error('Error updating checklist:', error);
-    return false;
-  }
-};
-
-export const deleteChecklist = async (id: string): Promise<boolean> => {
-  try {
-    const { error } = await supabase
-      .from('note_checklists')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
-    return true;
-  } catch (error) {
-    console.error('Error deleting checklist:', error);
-    return false;
-  }
-};
-
-async function fetchConsultantName(consultantId: string): Promise<string | null> {
-  const { data } = await supabase
-    .from('consultants')
-    .select('name')
-    .eq('id', consultantId)
-    .single();
-  
-  return data?.name || null;
-}
-
-async function fetchClientName(clientId: string): Promise<string | null> {
-  const { data } = await supabase
-    .from('clients')
-    .select('name')
-    .eq('id', clientId)
-    .single();
-  
-  return data?.name || null;
-}
-
-async function fetchServiceName(serviceId: string): Promise<string | null> {
-  const { data } = await supabase
-    .from('services')
-    .select('name')
-    .eq('id', serviceId)
-    .single();
-  
-  return data?.name || null;
-}
-
-// Função para sincronizar checklist com etapas do projeto
-export const syncChecklistWithProjectStage = async (noteId: string, checklistId: string, completed: boolean) => {
-  try {
-    console.log('Sincronizando checklist com etapa do projeto:', { noteId, checklistId, completed });
-    
-    // Buscar a nota principal e o checklist
-    const { data: note, error: noteError } = await supabase
-      .from('notes')
-      .select('title')
-      .eq('id', noteId)
-      .single();
-
-    if (noteError || !note) {
-      console.log('Nota não encontrada para sincronização');
-      return;
-    }
-
-    const { data: checklist, error: checklistError } = await supabase
-      .from('note_checklists')
-      .select('title')
-      .eq('id', checklistId)
-      .single();
-
-    if (checklistError || !checklist) {
-      console.log('Checklist não encontrado para sincronização');
-      return;
-    }
-
-    // Verificar se é uma tarefa de projeto
-    if (!note.title.startsWith('Projeto: ')) {
-      return; // Não é uma tarefa de projeto, não sincronizar
-    }
-
-    // Extrair nome do projeto
-    const projectName = note.title.replace('Projeto: ', '');
-    
-    // Buscar o projeto
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select('id')
-      .eq('name', projectName)
-      .single();
-
-    if (projectError || !project) {
-      console.log('Projeto não encontrado para sincronização');
-      return;
-    }
-
-    // Buscar a etapa correspondente
-    const { data: stage, error: stageError } = await supabase
-      .from('project_stages')
-      .select('id, status')
-      .eq('project_id', project.id)
-      .eq('name', checklist.title)
-      .single();
-
-    if (stageError || !stage) {
-      console.log('Etapa não encontrada para sincronização');
-      return;
-    }
-
-    // Determinar o novo status baseado no completed
-    const newStatus = completed ? 'finalizados' : 'em_producao';
-    
-    // Atualizar apenas se o status for diferente
-    if (stage.status !== newStatus) {
-      const updates: any = { status: newStatus };
-      
-      // Se marcando como finalizado, atualizar outros campos
-      if (completed) {
-        updates.completed = true;
-        updates.manager_approved = true;
-        updates.client_approved = true;
-        updates.invoice_issued = true;
-        updates.payment_received = true;
-        updates.consultants_settled = true;
-      }
-
-      const { error: updateError } = await supabase
-        .from('project_stages')
-        .update(updates)
-        .eq('id', stage.id);
-
-      if (updateError) {
-        console.error('Erro ao atualizar etapa do projeto:', updateError);
-      } else {
-        console.log('Etapa do projeto sincronizada com sucesso');
-      }
-    }
-  } catch (error) {
-    console.error('Erro na sincronização checklist-etapa:', error);
-  }
-};
-
-// Função para atualizar status de checklist com sincronização
-export const updateChecklistStatus = async (checklistId: string, completed: boolean, noteId: string) => {
-  try {
-    const { error } = await supabase
-      .from('note_checklists')
-      .update({ 
-        completed: completed,
-        completed_at: completed ? new Date().toISOString() : null
-      })
-      .eq('id', checklistId);
-
-    if (error) throw error;
-
-    // Sincronizar com etapa do projeto
-    await syncChecklistWithProjectStage(noteId, checklistId, completed);
-    
-    return true;
-  } catch (error) {
-    console.error('Error updating checklist status:', error);
     throw error;
+  }
+};
+
+// Additional utility functions for notes
+export const fetchClients = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('id, name')
+      .order('name');
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching clients:', error);
+    return [];
+  }
+};
+
+export const fetchServices = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('services')
+      .select('id, name')
+      .order('name');
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching services:', error);
+    return [];
+  }
+};
+
+export const fetchConsultants = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('consultants')
+      .select('id, name')
+      .order('name');
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching consultants:', error);
+    return [];
+  }
+};
+
+export const fetchNoteTags = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('note_tags')
+      .select('*')
+      .order('name');
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching note tags:', error);
+    return [];
   }
 };
