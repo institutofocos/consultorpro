@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, User, BarChart3, Plus, Eye } from 'lucide-react';
+import { Calendar, Clock, User, BarChart3, Plus, Eye, RefreshCw } from 'lucide-react';
 import { format, differenceInDays, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -40,6 +40,10 @@ interface Project {
   id: string;
   name: string;
   status: string;
+  start_date: string;
+  end_date: string;
+  description: string;
+  main_consultant_id: string;
 }
 
 const statusColors = {
@@ -57,6 +61,21 @@ const priorityColors = {
   critical: 'bg-red-100 text-red-800'
 };
 
+const statusLabels = {
+  not_started: 'Não iniciado',
+  in_progress: 'Em andamento',
+  completed: 'Concluído',
+  on_hold: 'Em espera',
+  cancelled: 'Cancelado'
+};
+
+const priorityLabels = {
+  low: 'Baixa',
+  medium: 'Média',
+  high: 'Alta',
+  critical: 'Crítica'
+};
+
 export default function ReportsGantt() {
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'week' | 'month'>('month');
@@ -68,7 +87,7 @@ export default function ReportsGantt() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('id, name, status')
+        .select('id, name, status, start_date, end_date, description, main_consultant_id')
         .order('name');
       
       if (error) {
@@ -108,35 +127,125 @@ export default function ReportsGantt() {
     }
   });
 
-  const populateGanttFromProject = async (projectId: string) => {
-    try {
-      const { error } = await supabase.rpc('populate_gantt_from_project', {
-        p_project_id: projectId
-      });
+  // Auto-populate gantt on component mount if empty
+  useEffect(() => {
+    if (projects.length > 0 && ganttTasks.length === 0) {
+      populateAllProjects();
+    }
+  }, [projects, ganttTasks]);
 
-      if (error) {
-        console.error('Error populating gantt:', error);
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Erro ao popular dados do Gantt"
-        });
-        return;
+  const populateAllProjects = async () => {
+    try {
+      // Limpar tarefas existentes
+      await supabase.from('gantt_tasks').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+      // Popular com todos os projetos
+      for (const project of projects) {
+        await populateGanttFromProject(project.id, false);
       }
 
       toast({
         title: "Sucesso",
-        description: "Dados do Gantt populados com sucesso"
+        description: `Gantt populado com ${projects.length} projetos`
       });
       
       refetch();
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error populating all projects:', error);
       toast({
         variant: "destructive",
         title: "Erro",
         description: "Erro ao popular dados do Gantt"
       });
+    }
+  };
+
+  const populateGanttFromProject = async (projectId: string, showToast = true) => {
+    try {
+      // Buscar dados do projeto com suas etapas
+      const { data: projectData, error: projectError } = await supabase
+        .from('projects')
+        .select(`
+          *,
+          project_stages (*)
+        `)
+        .eq('id', projectId)
+        .single();
+
+      if (projectError) {
+        console.error('Error fetching project:', projectError);
+        throw projectError;
+      }
+
+      if (!projectData) {
+        if (showToast) {
+          toast({
+            variant: "destructive",
+            title: "Erro",
+            description: "Projeto não encontrado"
+          });
+        }
+        return;
+      }
+
+      // Inserir tarefa principal do projeto
+      const { error: insertError } = await supabase
+        .from('gantt_tasks')
+        .insert({
+          project_id: projectId,
+          task_name: projectData.name,
+          task_description: projectData.description || 'Projeto principal',
+          start_date: projectData.start_date,
+          end_date: projectData.end_date,
+          duration_days: differenceInDays(new Date(projectData.end_date), new Date(projectData.start_date)) + 1,
+          assigned_consultant_id: projectData.main_consultant_id,
+          status: projectData.status === 'completed' ? 'completed' : 
+                  projectData.status === 'active' ? 'in_progress' : 'not_started',
+          priority: 'medium',
+          progress_percentage: projectData.status === 'completed' ? 100 : 0
+        });
+
+      if (insertError) {
+        console.error('Error inserting main task:', insertError);
+      }
+
+      // Inserir tarefas baseadas nas etapas do projeto
+      if (projectData.project_stages && projectData.project_stages.length > 0) {
+        for (const stage of projectData.project_stages) {
+          await supabase
+            .from('gantt_tasks')
+            .insert({
+              project_id: projectId,
+              task_name: stage.name,
+              task_description: stage.description || '',
+              start_date: stage.start_date || projectData.start_date,
+              end_date: stage.end_date || projectData.end_date,
+              duration_days: stage.days || 1,
+              progress_percentage: stage.completed ? 100 : 0,
+              assigned_consultant_id: stage.consultant_id || projectData.main_consultant_id,
+              status: stage.completed ? 'completed' : 
+                      stage.status === 'em_producao' ? 'in_progress' : 'not_started',
+              priority: 'medium'
+            });
+        }
+      }
+
+      if (showToast) {
+        toast({
+          title: "Sucesso",
+          description: "Dados do Gantt populados com sucesso"
+        });
+        refetch();
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      if (showToast) {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Erro ao popular dados do Gantt"
+        });
+      }
     }
   };
 
@@ -216,6 +325,15 @@ export default function ReportsGantt() {
             </SelectContent>
           </Select>
 
+          <Button
+            onClick={populateAllProjects}
+            variant="outline"
+            size="sm"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Atualizar Gantt
+          </Button>
+
           {selectedProject !== 'all' && (
             <Button
               onClick={() => populateGanttFromProject(selectedProject)}
@@ -223,7 +341,7 @@ export default function ReportsGantt() {
               size="sm"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Popular Dados
+              Popular Projeto
             </Button>
           )}
         </div>
@@ -237,14 +355,14 @@ export default function ReportsGantt() {
               Nenhuma tarefa encontrada
             </h3>
             <p className="text-gray-500 text-center mb-4">
-              {selectedProject === 'all' 
-                ? 'Não há tarefas cadastradas. Selecione um projeto e clique em "Popular Dados".'
-                : 'Nenhuma tarefa encontrada para este projeto. Clique em "Popular Dados" para gerar automaticamente.'}
+              {projects.length === 0 
+                ? 'Nenhum projeto cadastrado. Crie alguns projetos primeiro.'
+                : 'Clique em "Atualizar Gantt" para popular com todos os projetos ou selecione um projeto específico.'}
             </p>
-            {selectedProject !== 'all' && (
-              <Button onClick={() => populateGanttFromProject(selectedProject)}>
+            {projects.length > 0 && (
+              <Button onClick={populateAllProjects}>
                 <Plus className="w-4 h-4 mr-2" />
-                Popular Dados do Projeto
+                Popular Gantt com Todos os Projetos
               </Button>
             )}
           </CardContent>
@@ -303,13 +421,13 @@ export default function ReportsGantt() {
                               variant="secondary" 
                               className={cn("text-xs", statusColors[task.status])}
                             >
-                              {task.status.replace('_', ' ')}
+                              {statusLabels[task.status]}
                             </Badge>
                             <Badge 
                               variant="outline" 
                               className={cn("text-xs", priorityColors[task.priority])}
                             >
-                              {task.priority}
+                              {priorityLabels[task.priority]}
                             </Badge>
                           </div>
 
