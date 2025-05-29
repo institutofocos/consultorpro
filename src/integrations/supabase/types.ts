@@ -187,30 +187,36 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
+          is_protected: boolean | null
           level: number | null
           name: string
           parent_id: string | null
           project_id: string | null
+          protection_reason: string | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           description?: string | null
           id?: string
+          is_protected?: boolean | null
           level?: number | null
           name: string
           parent_id?: string | null
           project_id?: string | null
+          protection_reason?: string | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           description?: string | null
           id?: string
+          is_protected?: boolean | null
           level?: number | null
           name?: string
           parent_id?: string | null
           project_id?: string | null
+          protection_reason?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -1894,6 +1900,10 @@ export type Database = {
         Args: { project_start_date: string; stages: Json }
         Returns: Json
       }
+      create_project_chat_rooms: {
+        Args: { p_project_id: string; p_project_name: string }
+        Returns: string
+      }
       delete_project_stage: {
         Args: { stage_id: string }
         Returns: boolean
@@ -1936,6 +1946,14 @@ export type Database = {
           p_user_id?: string
         }
         Returns: string
+      }
+      is_project_fully_completed: {
+        Args: { p_project_id: string }
+        Returns: boolean
+      }
+      update_chat_room_protection: {
+        Args: { p_project_id: string }
+        Returns: undefined
       }
     }
     Enums: {

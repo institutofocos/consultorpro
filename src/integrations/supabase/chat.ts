@@ -1,3 +1,4 @@
+
 import { supabase } from './client';
 import type { Database } from './types';
 
@@ -260,6 +261,22 @@ export const subscribeToChatMessages = (roomId: string, callback: (message: Chat
     .subscribe();
 };
 
+// Verificar se uma sala de chat está protegida
+export const isChatRoomProtected = async (roomId: string): Promise<boolean> => {
+  const { data, error } = await supabase
+    .from('chat_rooms')
+    .select('is_protected')
+    .eq('id', roomId)
+    .single();
+  
+  if (error || !data) {
+    console.error('Erro ao verificar proteção da sala:', error);
+    return false;
+  }
+  
+  return data.is_protected || false;
+};
+
 // Criar sala de chat automaticamente para um projeto
 export const ensureProjectChatRoom = async (projectId: string, projectName: string) => {
   // Verificar se já existe uma sala para o projeto
@@ -280,31 +297,34 @@ export const ensureProjectChatRoom = async (projectId: string, projectName: stri
     return existingRooms;
   }
   
-  // Caso contrário, crie uma nova sala para o projeto
-  const { data, error } = await supabase
-    .from('chat_rooms')
-    .insert({
-      name: `Chat: ${projectName}`,
-      description: `Sala de chat para o projeto ${projectName}`,
-      level: 1,
-      project_id: projectId
-    })
-    .select();
+  // Caso contrário, usar a função do banco para criar salas automaticamente
+  console.log('Criando salas de chat para o projeto:', projectName);
+  const { data, error } = await supabase.rpc('create_project_chat_rooms', {
+    p_project_id: projectId,
+    p_project_name: projectName
+  });
   
   if (error) {
-    console.error('Erro ao criar sala de chat para o projeto:', error);
+    console.error('Erro ao criar salas de chat para o projeto:', error);
     throw error;
   }
   
-  console.log('Nova sala de chat criada para o projeto:', projectName);
-  return data[0];
+  console.log('Salas de chat criadas para o projeto:', projectName);
+  return data;
 };
 
-// Update chat room
+// Update chat room (verificar proteção)
 export const updateChatRoom = async (
   id: string, 
   updates: { name?: string; description?: string }
 ): Promise<ChatRoom> => {
+  // Verificar se a sala está protegida
+  const isProtected = await isChatRoomProtected(id);
+  
+  if (isProtected) {
+    throw new Error('Esta sala de chat está protegida e não pode ser editada até que o projeto seja concluído.');
+  }
+  
   const { data, error } = await supabase
     .from('chat_rooms')
     .update(updates)
@@ -320,8 +340,15 @@ export const updateChatRoom = async (
   return data;
 };
 
-// Delete chat room
+// Delete chat room (verificar proteção)
 export const deleteChatRoom = async (id: string): Promise<void> => {
+  // Verificar se a sala está protegida
+  const isProtected = await isChatRoomProtected(id);
+  
+  if (isProtected) {
+    throw new Error('Esta sala de chat está protegida e não pode ser removida até que o projeto seja concluído.');
+  }
+  
   try {
     // Delete all participants
     const { error: participantsError } = await supabase

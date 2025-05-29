@@ -478,6 +478,9 @@ export const createProject = async (project: any) => {
     // Update project status automatically after creation
     await updateProjectStatusAutomatically(data.id);
 
+    // NOVO: As salas de chat serão criadas automaticamente pelo trigger
+    console.log('Salas de chat serão criadas automaticamente pelo trigger do banco');
+
     return data;
   } catch (error) {
     console.error('Error creating project:', error);
