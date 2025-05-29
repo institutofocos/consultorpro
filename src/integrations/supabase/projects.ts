@@ -52,6 +52,10 @@ export const fetchProjects = async () => {
     const transformedData = data?.map(project => {
       console.log('Transforming project:', project);
       
+      // Extract tags from the relation table
+      const projectTags = project.project_tag_relations?.map(rel => rel.tag).filter(Boolean) || [];
+      console.log('Project tags for', project.name, ':', projectTags);
+      
       return {
         id: project.id,
         projectId: project.project_id,
@@ -77,9 +81,9 @@ export const fetchProjects = async () => {
         hourlyRate: project.hourly_rate || 0,
         url: project.url || '',
         status: project.status,
-        tags: project.project_tag_relations?.map(rel => rel.tag?.name).filter(Boolean) || [],
-        tagIds: project.project_tag_relations?.map(rel => rel.tag?.id).filter(Boolean) || [],
-        tagNames: project.project_tag_relations?.map(rel => rel.tag?.name).filter(Boolean) || [],
+        tags: projectTags.map(tag => tag.name),
+        tagIds: projectTags.map(tag => tag.id),
+        tagNames: projectTags.map(tag => tag.name),
         stages: project.project_stages?.map(stage => ({
           id: stage.id,
           projectId: project.id,
