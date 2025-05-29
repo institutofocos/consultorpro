@@ -22,7 +22,7 @@ export interface Project {
   managerPhone?: string;
   totalHours?: number;
   hourlyRate?: number;
-  status: 'planned' | 'active' | 'completed' | 'cancelled';
+  status: string; // Changed from union type to string to support dynamic statuses
   tags?: string[];
   tagIds?: string[];
   tagNames?: string[];
