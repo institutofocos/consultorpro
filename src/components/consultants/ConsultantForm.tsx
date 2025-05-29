@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +26,7 @@ interface Consultant {
   username?: string;
   password?: string;
   profile_photo?: string;
+  url?: string;
   services?: string[];
 }
 
@@ -53,6 +53,7 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
     username: '',
     password: '',
     profile_photo: '',
+    url: '',
     services: []
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -122,6 +123,7 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
         commission_percentage: Number(formData.commission_percentage) || 0,
         hours_per_month: Number(formData.hours_per_month) || 160,
         pix_key: formData.pix_key || null,
+        url: formData.url || null,
       };
 
       let savedConsultant;
@@ -244,7 +246,7 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="phone">Telefone</Label>
               <Input
@@ -262,6 +264,17 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
                 value={formData.profile_photo}
                 onChange={(e) => setFormData(prev => ({ ...prev, profile_photo: e.target.value }))}
                 placeholder="https://exemplo.com/foto.jpg"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="url">Website/Portfolio</Label>
+              <Input
+                id="url"
+                type="url"
+                value={formData.url}
+                onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
+                placeholder="https://exemplo.com"
               />
             </div>
           </div>

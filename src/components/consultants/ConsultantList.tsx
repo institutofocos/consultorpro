@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -14,7 +13,8 @@ import {
   Search, 
   UserPlus, 
   Edit, 
-  Trash
+  Trash,
+  ExternalLink
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import ConsultantForm from './ConsultantForm';
@@ -39,6 +39,7 @@ export type Consultant = {
   state?: string;
   zipCode?: string;
   education?: string;
+  url?: string;
   services: string[];
   activeProjects?: number;
 };
@@ -59,6 +60,7 @@ const mapConsultantFromDB = (consultant: Tables<"consultants"> & { services?: st
     state: consultant.state || '',
     zipCode: consultant.zip_code || '',
     education: consultant.education || '',
+    url: consultant.url || '',
     services: consultant.services || [],
     activeProjects: 0,
     availableHours: 0,
@@ -330,6 +332,7 @@ export const ConsultantList: React.FC = () => {
                     <TableHead>Horas Trabalhadas</TableHead>
                     <TableHead>Horas Livres</TableHead>
                     <TableHead>Projetos</TableHead>
+                    <TableHead>Website</TableHead>
                     <TableHead>Serviços Habilitados</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -337,7 +340,7 @@ export const ConsultantList: React.FC = () => {
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                         Carregando consultores...
                       </TableCell>
                     </TableRow>
@@ -350,6 +353,20 @@ export const ConsultantList: React.FC = () => {
                         <TableCell>{workedHours[consultant.id] || 0}h</TableCell>
                         <TableCell>{availableHours[consultant.id] || consultant.hoursPerMonth}h</TableCell>
                         <TableCell>{activeProjects[consultant.id] || 0}</TableCell>
+                        <TableCell>
+                          {consultant.url ? (
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => window.open(consultant.url, '_blank')}
+                              title="Visitar website"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           <Button 
                             variant="ghost" 
@@ -372,7 +389,7 @@ export const ConsultantList: React.FC = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                         Nenhum consultor encontrado
                       </TableCell>
                     </TableRow>
