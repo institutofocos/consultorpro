@@ -130,3 +130,42 @@ export const downloadServiceFile = async (filePath: string): Promise<Blob | null
     return null;
   }
 };
+
+// Function to create or update a service
+export const createOrUpdateService = async (serviceData: any, isUpdate: boolean = false, serviceId?: string): Promise<any> => {
+  try {
+    console.log('Creating/updating service with data:', serviceData);
+    
+    if (isUpdate && serviceId) {
+      const { data, error } = await supabase
+        .from('services')
+        .update(serviceData)
+        .eq('id', serviceId)
+        .select('id')
+        .single();
+        
+      if (error) {
+        console.error('Error updating service:', error);
+        throw error;
+      }
+      
+      return data;
+    } else {
+      const { data, error } = await supabase
+        .from('services')
+        .insert([serviceData])
+        .select('id')
+        .single();
+        
+      if (error) {
+        console.error('Error creating service:', error);
+        throw error;
+      }
+      
+      return data;
+    }
+  } catch (error) {
+    console.error('Error in createOrUpdateService:', error);
+    throw error;
+  }
+};

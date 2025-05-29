@@ -36,7 +36,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { uploadServiceFile, downloadServiceFile } from "@/integrations/supabase/services";
+import { uploadServiceFile, downloadServiceFile, createOrUpdateService } from "@/integrations/supabase/services";
 
 const serviceSchema = z.object({
   name: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }),
@@ -367,7 +367,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
       const serviceData = {
         name: data.name,
         description: data.description,
-        url: data.url || null,
+        url: data.url && data.url.trim() !== '' ? data.url : null, // Handle empty URL properly
         total_hours: data.totalHours,
         hourly_rate: data.hourlyRate || finalTotalValue / data.totalHours,
         total_value: finalTotalValue,
@@ -379,31 +379,9 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
       
       console.log('Saving service data:', serviceData);
       
-      // For new service
-      let savedServiceId;
-      
-      if (service) {
-        // Update existing service
-        const { data: updatedService, error } = await supabase
-          .from('services')
-          .update(serviceData)
-          .eq('id', service.id)
-          .select('id')
-          .single();
-          
-        if (error) throw error;
-        savedServiceId = updatedService.id;
-      } else {
-        // Insert new service
-        const { data: newService, error } = await supabase
-          .from('services')
-          .insert([serviceData])
-          .select('id')
-          .single();
-          
-        if (error) throw error;
-        savedServiceId = newService.id;
-      }
+      // Use the new service function
+      const savedService = await createOrUpdateService(serviceData, !!service, service?.id);
+      const savedServiceId = savedService.id;
       
       // If we have tags, save the service-tag relationships
       if (selectedTags.length > 0) {

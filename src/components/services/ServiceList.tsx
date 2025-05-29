@@ -160,7 +160,7 @@ const ServiceList = () => {
               <thead>
                 <tr className="border-b text-left">
                   <th className="pb-3 font-medium">Nome</th>
-                  <th className="pb-3 font-medium text-center">Carga Horária</th>
+                  <th className="pb-3 font-medium text-center align-middle">Carga Horária</th>
                   <th className="pb-3 font-medium text-center">Valor Total</th>
                   <th className="pb-3 font-medium text-center">URL</th>
                   <th className="pb-3 font-medium">Tags</th>
@@ -184,7 +184,7 @@ const ServiceList = () => {
                       <td className="p-4">
                         <p className="font-medium">{service.name}</p>
                       </td>
-                      <td className="p-4 text-center">
+                      <td className="p-4 text-center align-middle">
                         <div className="flex items-center justify-center gap-1 text-sm">
                           <Clock className="h-3 w-3" />
                           {service.total_hours ? `${service.total_hours}h` : 'N/A'}
