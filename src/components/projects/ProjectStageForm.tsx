@@ -66,27 +66,50 @@ const ProjectStageForm: React.FC<ProjectStageFormProps> = ({ stages, onStagesCha
   };
 
   const handleTagSelection = (stageIndex: number, value: string | string[]) => {
-    if (typeof value === 'string') {
+    if (typeof value === 'string' && value) {
+      console.log('Tag selected:', value);
+      console.log('Available tags:', availableTags);
+      
       const tag = availableTags.find(t => t.id === value);
-      if (tag && !stages[stageIndex].tags?.includes(tag.name)) {
+      console.log('Found tag:', tag);
+      
+      if (tag) {
         const updatedStages = [...stages];
-        updatedStages[stageIndex] = {
-          ...updatedStages[stageIndex],
-          tags: [...(updatedStages[stageIndex].tags || []), tag.name],
-          tagIds: [...(updatedStages[stageIndex].tagIds || []), tag.id]
-        };
-        onStagesChange(updatedStages);
+        const currentStage = updatedStages[stageIndex];
+        
+        // Initialize arrays if they don't exist
+        const currentTags = currentStage.tags || [];
+        const currentTagIds = currentStage.tagIds || [];
+        
+        // Check if tag is already added
+        if (!currentTagIds.includes(tag.id)) {
+          updatedStages[stageIndex] = {
+            ...currentStage,
+            tags: [...currentTags, tag.name],
+            tagIds: [...currentTagIds, tag.id]
+          };
+          
+          console.log('Updated stage:', updatedStages[stageIndex]);
+          onStagesChange(updatedStages);
+        } else {
+          console.log('Tag already exists in stage');
+        }
+      } else {
+        console.log('Tag not found in available tags');
       }
     }
   };
 
   const removeTag = (stageIndex: number, tagIndex: number) => {
     const updatedStages = [...stages];
+    const currentStage = updatedStages[stageIndex];
+    
     updatedStages[stageIndex] = {
-      ...updatedStages[stageIndex],
-      tags: updatedStages[stageIndex].tags?.filter((_, i) => i !== tagIndex),
-      tagIds: updatedStages[stageIndex].tagIds?.filter((_, i) => i !== tagIndex)
+      ...currentStage,
+      tags: currentStage.tags?.filter((_, i) => i !== tagIndex) || [],
+      tagIds: currentStage.tagIds?.filter((_, i) => i !== tagIndex) || []
     };
+    
     onStagesChange(updatedStages);
   };
 
