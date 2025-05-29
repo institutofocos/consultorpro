@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -481,8 +482,24 @@ export const createProject = async (project: any) => {
 
 export const updateProject = async (project: any) => {
   try {
+    console.log('=== INICIANDO ATUALIZAÇÃO DO PROJETO ===');
     console.log('Dados recebidos para atualização:', project);
     
+    if (!project.id) {
+      throw new Error('ID do projeto é obrigatório para atualização');
+    }
+
+    // Verificar se o projeto existe antes de atualizar
+    const { data: existingProject, error: checkError } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('id', project.id)
+      .single();
+
+    if (checkError || !existingProject) {
+      throw new Error(`Projeto com ID ${project.id} não encontrado`);
+    }
+
     // Mapear propriedades da interface para colunas do banco
     const projectData = {
       name: project.name,
@@ -506,12 +523,12 @@ export const updateProject = async (project: any) => {
       manager_email: project.managerEmail,
       manager_phone: project.managerPhone,
       url: project.url || null,
-      // Don't include status here - it will be calculated automatically
       tags: project.tags || []
     };
 
-    console.log('Dados mapeados para atualização:', projectData);
+    console.log('Dados mapeados para atualização no banco:', projectData);
 
+    // Atualizar projeto principal
     const { data, error } = await supabase
       .from('projects')
       .update(projectData)
@@ -521,59 +538,96 @@ export const updateProject = async (project: any) => {
     
     if (error) {
       console.error('Erro ao atualizar projeto:', error);
-      throw error;
+      throw new Error(`Erro ao atualizar projeto: ${error.message}`);
     }
 
     console.log('Projeto atualizado com sucesso:', data);
 
-    // Update project tags if they exist
-    if (project.tagIds) {
-      await linkProjectToTags(project.id, project.tagIds);
-    }
-
-    // Update stages if they exist
-    if (project.stages && project.stages.length > 0) {
-      console.log('Atualizando etapas do projeto');
-      
-      // Delete existing stages
-      await supabase
-        .from('project_stages')
-        .delete()
-        .eq('project_id', project.id);
-
-      // Insert new stages
-      const stagesData = project.stages.map((stage: any) => ({
-        project_id: project.id,
-        name: stage.name,
-        description: stage.description || '',
-        days: stage.days || 1,
-        hours: stage.hours || 8,
-        value: stage.value || 0,
-        start_date: stage.startDate,
-        end_date: stage.endDate,
-        stage_order: stage.stageOrder || 1,
-        consultant_id: stage.consultantId || null,
-        status: stage.status || 'iniciar_projeto'
-      }));
-
-      console.log('Dados das etapas para atualização:', stagesData);
-
-      const { error: stagesError } = await supabase
-        .from('project_stages')
-        .insert(stagesData);
-
-      if (stagesError) {
-        console.error('Error updating stages:', stagesError);
-      } else {
-        console.log('Etapas atualizadas com sucesso');
+    // Atualizar tags do projeto
+    if (project.tagIds !== undefined) {
+      console.log('Atualizando tags do projeto:', project.tagIds);
+      try {
+        await linkProjectToTags(project.id, project.tagIds);
+        console.log('Tags atualizadas com sucesso');
+      } catch (tagError) {
+        console.error('Erro ao atualizar tags:', tagError);
+        // Não falhar a atualização por causa das tags
       }
     }
 
-    // Update project status automatically after update
-    await updateProjectStatusAutomatically(project.id);
+    // Atualizar etapas se elas existem
+    if (project.stages && Array.isArray(project.stages)) {
+      console.log('Atualizando etapas do projeto, total:', project.stages.length);
+      
+      try {
+        // Buscar etapas existentes
+        const { data: existingStages } = await supabase
+          .from('project_stages')
+          .select('id')
+          .eq('project_id', project.id);
 
+        console.log('Etapas existentes encontradas:', existingStages?.length || 0);
+
+        // Deletar etapas existentes
+        if (existingStages && existingStages.length > 0) {
+          const { error: deleteError } = await supabase
+            .from('project_stages')
+            .delete()
+            .eq('project_id', project.id);
+
+          if (deleteError) {
+            console.error('Erro ao deletar etapas existentes:', deleteError);
+            throw deleteError;
+          }
+          console.log('Etapas existentes removidas com sucesso');
+        }
+
+        // Inserir novas etapas apenas se existirem
+        if (project.stages.length > 0) {
+          const stagesData = project.stages.map((stage: any, index: number) => ({
+            project_id: project.id,
+            name: stage.name || `Etapa ${index + 1}`,
+            description: stage.description || '',
+            days: Number(stage.days) || 1,
+            hours: Number(stage.hours) || 8,
+            value: Number(stage.value) || 0,
+            start_date: stage.startDate || null,
+            end_date: stage.endDate || null,
+            stage_order: stage.stageOrder || (index + 1),
+            consultant_id: stage.consultantId || null,
+            status: stage.status || 'iniciar_projeto'
+          }));
+
+          console.log('Inserindo novas etapas:', stagesData);
+
+          const { error: stagesError } = await supabase
+            .from('project_stages')
+            .insert(stagesData);
+
+          if (stagesError) {
+            console.error('Erro ao inserir novas etapas:', stagesError);
+            throw stagesError;
+          }
+          console.log('Novas etapas inseridas com sucesso');
+        }
+      } catch (stageError) {
+        console.error('Erro ao atualizar etapas:', stageError);
+        throw new Error(`Erro ao atualizar etapas: ${stageError.message}`);
+      }
+    }
+
+    // Update project status automatically after update (but don't fail if it errors)
+    try {
+      await updateProjectStatusAutomatically(project.id);
+      console.log('Status do projeto atualizado automaticamente');
+    } catch (statusError) {
+      console.error('Erro ao atualizar status automaticamente (não crítico):', statusError);
+    }
+
+    console.log('=== ATUALIZAÇÃO DO PROJETO CONCLUÍDA COM SUCESSO ===');
     return data;
   } catch (error) {
+    console.error('=== ERRO NA ATUALIZAÇÃO DO PROJETO ===');
     console.error('Error updating project:', error);
     throw error;
   }
