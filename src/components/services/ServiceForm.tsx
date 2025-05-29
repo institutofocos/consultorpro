@@ -41,6 +41,7 @@ import { uploadServiceFile, downloadServiceFile } from "@/integrations/supabase/
 const serviceSchema = z.object({
   name: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }),
   description: z.string().min(10, { message: 'Descrição deve ter pelo menos 10 caracteres' }),
+  url: z.string().url({ message: 'URL deve ser válida' }).optional().or(z.literal('')),
   totalHours: z.coerce.number().positive({ message: 'Horas devem ser maior que 0' }),
   hourlyRate: z.coerce.number().positive({ message: 'Valor hora deve ser maior que 0' }).optional(),
   totalValue: z.coerce.number().positive({ message: 'Valor total deve ser maior que 0' }).optional(),
@@ -111,6 +112,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
     defaultValues: service ? {
       name: service.name,
       description: service.description || '',
+      url: service.url || '',
       totalHours: service.total_hours || service.totalHours || 0,
       hourlyRate: service.hourly_rate || service.hourlyRate || 0,
       totalValue: service.total_value || service.totalValue || 0,
@@ -119,6 +121,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
     } : {
       name: '',
       description: '',
+      url: '',
       totalHours: 0,
       hourlyRate: 0,
       totalValue: 0,
@@ -364,6 +367,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
       const serviceData = {
         name: data.name,
         description: data.description,
+        url: data.url || null,
         total_hours: data.totalHours,
         hourly_rate: data.hourlyRate || finalTotalValue / data.totalHours,
         total_value: finalTotalValue,
@@ -507,6 +511,26 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                         {...field} 
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="https://exemplo.com" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      URL relacionada ao serviço (opcional)
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

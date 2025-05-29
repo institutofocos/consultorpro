@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Edit, Trash2, Plus, Eye, Clock, DollarSign } from 'lucide-react';
+import { Search, Edit, Trash2, Plus, Eye, Clock, DollarSign, ExternalLink } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ServiceForm } from './ServiceForm';
 import { Service } from '@/integrations/supabase/services';
@@ -85,6 +85,14 @@ const ServiceList = () => {
     }).format(value);
   };
 
+  const handleUrlClick = (url: string) => {
+    if (url) {
+      // Ensure URL has protocol
+      const finalUrl = url.startsWith('http') ? url : `https://${url}`;
+      window.open(finalUrl, '_blank');
+    }
+  };
+
   const filteredServices = services.filter(service =>
     service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     service.description?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -152,8 +160,9 @@ const ServiceList = () => {
               <thead>
                 <tr className="border-b text-left">
                   <th className="pb-3 font-medium">Nome</th>
-                  <th className="pb-3 font-medium">Carga Horária</th>
-                  <th className="pb-3 font-medium">Valor Total</th>
+                  <th className="pb-3 font-medium text-center">Carga Horária</th>
+                  <th className="pb-3 font-medium text-center">Valor Total</th>
+                  <th className="pb-3 font-medium text-center">URL</th>
                   <th className="pb-3 font-medium">Tags</th>
                   <th className="pb-3 font-medium">Ações</th>
                 </tr>
@@ -175,17 +184,32 @@ const ServiceList = () => {
                       <td className="p-4">
                         <p className="font-medium">{service.name}</p>
                       </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-1 text-sm">
+                      <td className="p-4 text-center">
+                        <div className="flex items-center justify-center gap-1 text-sm">
                           <Clock className="h-3 w-3" />
                           {service.total_hours ? `${service.total_hours}h` : 'N/A'}
                         </div>
                       </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-1 text-sm font-medium text-green-600">
+                      <td className="p-4 text-center">
+                        <div className="flex items-center justify-center gap-1 text-sm font-medium text-green-600">
                           <DollarSign className="h-3 w-3" />
                           {formatCurrency(service.total_value)}
                         </div>
+                      </td>
+                      <td className="p-4 text-center">
+                        {service.url ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleUrlClick(service.url)}
+                            className="h-8 w-8 p-0"
+                            title={service.url}
+                          >
+                            <ExternalLink className="h-4 w-4 text-blue-600" />
+                          </Button>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        )}
                       </td>
                       <td className="p-4">
                         <div className="flex flex-wrap gap-1">
@@ -244,9 +268,22 @@ const ServiceList = () => {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="text-lg font-semibold mb-2">{selectedService.name}</h3>
                 {selectedService.description && (
-                  <p className="text-muted-foreground">
+                  <p className="text-muted-foreground mb-2">
                     {selectedService.description}
                   </p>
+                )}
+                {selectedService.url && (
+                  <div className="flex items-center gap-2">
+                    <ExternalLink className="h-4 w-4 text-blue-600" />
+                    <a 
+                      href={selectedService.url.startsWith('http') ? selectedService.url : `https://${selectedService.url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      {selectedService.url}
+                    </a>
+                  </div>
                 )}
               </div>
 

@@ -1,9 +1,11 @@
+
 import { supabase } from "./client";
 
 export type Service = {
   id: string;
   name: string;
   description?: string;
+  url?: string;
   tax_rate: number;
   total_hours: number;
   hourly_rate?: number;
