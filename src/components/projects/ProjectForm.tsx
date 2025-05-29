@@ -67,47 +67,73 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
 
   useEffect(() => {
     if (project) {
-      console.log('Loading project data for editing:', project);
+      console.log('=== CARREGANDO DADOS DO PROJETO PARA EDIÇÃO ===');
+      console.log('Projeto completo:', project);
       
-      // Carregar dados do projeto no formulário
-      setFormData({
-        ...project,
+      // Definir os dados do formulário com os valores do projeto
+      const projectFormData = {
+        name: project.name || '',
+        description: project.description || '',
         serviceId: project.serviceId || '',
         clientId: project.clientId || '',
         mainConsultantId: project.mainConsultantId || '',
+        mainConsultantCommission: project.mainConsultantCommission || 0,
         supportConsultantId: project.supportConsultantId || '',
-        stages: project.stages || [],
-        url: project.url || '',
+        supportConsultantCommission: project.supportConsultantCommission || 0,
+        startDate: project.startDate || '',
+        endDate: project.endDate || '',
+        totalValue: project.totalValue || 0,
+        taxPercent: project.taxPercent || 16,
+        thirdPartyExpenses: project.thirdPartyExpenses || 0,
+        consultantValue: project.consultantValue || 0,
+        supportConsultantValue: project.supportConsultantValue || 0,
+        managerName: project.managerName || '',
+        managerEmail: project.managerEmail || '',
+        managerPhone: project.managerPhone || '',
+        totalHours: project.totalHours || 0,
+        hourlyRate: project.hourlyRate || 0,
+        status: project.status || 'planned',
         tags: project.tags || [],
         tagIds: project.tagIds || [],
-        consultantValue: project.consultantValue || 0,
-        supportConsultantValue: project.supportConsultantValue || 0
-      });
+        stages: project.stages || [],
+        url: project.url || ''
+      };
 
-      // Se há um serviceId, carregar os consultores autorizados
+      console.log('Dados do formulário sendo definidos:', projectFormData);
+      console.log('Main Consultant ID:', projectFormData.mainConsultantId);
+      console.log('Support Consultant ID:', projectFormData.supportConsultantId);
+      console.log('Consultant Value:', projectFormData.consultantValue);
+      console.log('Support Consultant Value:', projectFormData.supportConsultantValue);
+
+      setFormData(projectFormData);
+
+      // Se há um serviceId, carregar os consultores autorizados APÓS definir os dados do formulário
       if (project.serviceId) {
+        console.log('Carregando consultores autorizados para o serviço:', project.serviceId);
         fetchAuthorizedConsultants(project.serviceId);
       }
     }
   }, [project]);
 
-  // Filtrar consultores quando o serviço é selecionado
+  // Filtrar consultores quando o serviço é selecionado (mas não em edição)
   useEffect(() => {
-    if (formData.serviceId) {
+    if (formData.serviceId && !project) {
       fetchAuthorizedConsultants(formData.serviceId);
-    } else {
+    } else if (!formData.serviceId && !project) {
       setFilteredConsultants([]);
-      // Limpar seleções de consultores quando não há serviço selecionado
+      // Limpar seleções de consultores apenas quando não há serviço e não é edição
       setFormData(prev => ({
         ...prev,
         mainConsultantId: '',
         supportConsultantId: ''
       }));
     }
-  }, [formData.serviceId]);
+  }, [formData.serviceId, project]);
 
   const fetchAuthorizedConsultants = async (serviceId: string) => {
     try {
+      console.log('Buscando consultores autorizados para o serviço:', serviceId);
+      
       const { data, error } = await supabase
         .from('consultant_services')
         .select(`
@@ -126,16 +152,16 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       console.log('Consultores autorizados encontrados:', authorizedConsultants);
       setFilteredConsultants(authorizedConsultants);
 
-      // Ao editar um projeto, manter os consultores selecionados se ainda forem válidos
+      // Verificar se os consultores selecionados ainda são válidos
       if (project) {
         const validMainConsultant = authorizedConsultants.find(c => c.id === project.mainConsultantId);
         const validSupportConsultant = authorizedConsultants.find(c => c.id === project.supportConsultantId);
 
         if (!validMainConsultant && project.mainConsultantId) {
-          console.log('Main consultant not authorized for this service, keeping selection but showing warning');
+          console.log('Consultor principal não está autorizado para este serviço, mas mantendo seleção');
         }
         if (!validSupportConsultant && project.supportConsultantId) {
-          console.log('Support consultant not authorized for this service, keeping selection but showing warning');
+          console.log('Consultor de apoio não está autorizado para este serviço, mas mantendo seleção');
         }
       }
     } catch (error) {
@@ -155,12 +181,15 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         .eq('id', user.id)
         .single();
 
-      setFormData(prev => ({
-        ...prev,
-        managerName: profile?.full_name || user.email?.split('@')[0] || '',
-        managerEmail: user.email || '',
-        managerPhone: user.phone || ''
-      }));
+      // Só preencher dados do usuário se não for edição de projeto
+      if (!project) {
+        setFormData(prev => ({
+          ...prev,
+          managerName: profile?.full_name || user.email?.split('@')[0] || '',
+          managerEmail: user.email || '',
+          managerPhone: user.phone || ''
+        }));
+      }
     } catch (error) {
       console.error('Erro ao carregar dados do usuário:', error);
     }
@@ -181,7 +210,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         setConsultants(consultantsRes.data);
       }
 
-      // Carregar tags do projeto corretamente
+      // Carregar tags do projeto
       const tagsData = await fetchProjectTags();
       console.log('Tags carregadas:', tagsData);
       setAvailableTags(tagsData);
@@ -195,7 +224,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     setFormData(prev => ({ 
       ...prev, 
       serviceId,
-      // Só limpar consultores se não estiver editando um projeto existente
+      // Limpar consultores apenas se não estiver editando um projeto existente
       mainConsultantId: project ? prev.mainConsultantId : '',
       supportConsultantId: project ? prev.supportConsultantId : ''
     }));
@@ -312,7 +341,6 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
   const calculateTotals = () => {
     const stagesTotal = (formData.stages || []).reduce((sum, stage) => sum + Number(stage.value || 0), 0);
     const thirdPartyExpenses = Number(formData.thirdPartyExpenses || 0);
-    // Fix: Subtract third party expenses instead of adding them
     const totalValue = stagesTotal - thirdPartyExpenses;
     const totalHours = (formData.stages || []).reduce((sum, stage) => sum + Number(stage.hours || 0), 0);
     
@@ -478,18 +506,20 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     return netValue;
   };
 
-  // Preparar opções de consultores com base no filtro e se está editando
+  // Preparar opções de consultores - sempre mostrar todos quando editando
   const getConsultantOptions = () => {
-    // Se estiver editando e não há filtro de serviço, mostrar todos os consultores
-    if (project && filteredConsultants.length === 0) {
+    // Se estiver editando um projeto, sempre mostrar todos os consultores
+    if (project) {
       console.log('Projeto em edição, mostrando todos os consultores:', consultants);
       return consultants;
     }
+    
     // Se há consultores filtrados, usar eles
     if (filteredConsultants.length > 0) {
       console.log('Usando consultores filtrados:', filteredConsultants);
       return filteredConsultants;
     }
+    
     // Senão, usar todos os consultores
     console.log('Usando todos os consultores como fallback:', consultants);
     return consultants;
@@ -578,9 +608,11 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
                 searchPlaceholder="Pesquisar serviços..."
                 emptyText="Nenhum serviço encontrado"
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Selecione um serviço primeiro para visualizar os consultores habilitados
-              </p>
+              {!project && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Selecione um serviço primeiro para visualizar os consultores habilitados
+                </p>
+              )}
             </div>
           </div>
 
@@ -613,19 +645,22 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
             </div>
           </div>
 
-          {/* Consultores - CORRIGIDO */}
+          {/* Consultores */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="mainConsultant">Consultor Principal</Label>
               <SearchableSelect
                 options={getConsultantOptions()}
                 value={formData.mainConsultantId || ''}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, mainConsultantId: value as string }))}
+                onValueChange={(value) => {
+                  console.log('Mudando consultor principal para:', value);
+                  setFormData(prev => ({ ...prev, mainConsultantId: value as string }));
+                }}
                 placeholder="Selecione o consultor principal"
                 searchPlaceholder="Pesquisar consultores..."
                 emptyText="Nenhum consultor encontrado"
               />
-              {!formData.serviceId && !project && (
+              {!project && !formData.serviceId && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Apenas consultores habilitados para o serviço selecionado aparecerão aqui
                 </p>
@@ -637,12 +672,15 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
               <SearchableSelect
                 options={[{ id: '', name: 'Nenhum' }, ...getConsultantOptions()]}
                 value={formData.supportConsultantId || ''}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, supportConsultantId: value as string }))}
+                onValueChange={(value) => {
+                  console.log('Mudando consultor de apoio para:', value);
+                  setFormData(prev => ({ ...prev, supportConsultantId: value as string }));
+                }}
                 placeholder="Selecione o consultor de apoio"
                 searchPlaceholder="Pesquisar consultores..."
                 emptyText="Nenhum consultor encontrado"
               />
-              {!formData.serviceId && !project && (
+              {!project && !formData.serviceId && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Apenas consultores habilitados para o serviço selecionado aparecerão aqui
                 </p>
