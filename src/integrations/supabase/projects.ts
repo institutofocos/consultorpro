@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -357,7 +356,37 @@ export const updateStageStatus = async (
 
 export const deleteProject = async (id: string) => {
   try {
-    // First delete all related project stages
+    // First, check if the project has "cancelado" status
+    const { data: project, error: fetchError } = await supabase
+      .from('projects')
+      .select('status, name')
+      .eq('id', id)
+      .single();
+    
+    if (fetchError) {
+      console.error('Error fetching project for deletion:', fetchError);
+      throw fetchError;
+    }
+
+    // Allow deletion only for projects with "cancelado" status
+    if (project.status !== 'cancelado') {
+      throw new Error('Apenas projetos com status "cancelado" podem ser removidos. Altere o status do projeto para "cancelado" antes de excluí-lo.');
+    }
+
+    console.log(`Deleting project "${project.name}" with cancelado status...`);
+
+    // Delete chat rooms and related data first
+    const { error: chatRoomsError } = await supabase
+      .from('chat_rooms')
+      .delete()
+      .eq('project_id', id);
+    
+    if (chatRoomsError) {
+      console.error('Error deleting chat rooms:', chatRoomsError);
+      // Don't throw error here, continue with deletion
+    }
+
+    // Delete all related project stages
     const { error: stagesError } = await supabase
       .from('project_stages')
       .delete()
@@ -379,13 +408,40 @@ export const deleteProject = async (id: string) => {
       throw tagsError;
     }
 
+    // Delete financial transactions related to the project
+    const { error: transactionsError } = await supabase
+      .from('financial_transactions')
+      .delete()
+      .eq('project_id', id);
+    
+    if (transactionsError) {
+      console.error('Error deleting financial transactions:', transactionsError);
+      // Don't throw error here, continue with deletion
+    }
+
+    // Delete project history
+    const { error: historyError } = await supabase
+      .from('project_history')
+      .delete()
+      .eq('project_id', id);
+    
+    if (historyError) {
+      console.error('Error deleting project history:', historyError);
+      // Don't throw error here, continue with deletion
+    }
+
     // Finally delete the project
     const { error } = await supabase
       .from('projects')
       .delete()
       .eq('id', id);
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error deleting project:', error);
+      throw error;
+    }
+
+    console.log(`Project "${project.name}" deleted successfully`);
     return true;
   } catch (error) {
     console.error('Error deleting project:', error);

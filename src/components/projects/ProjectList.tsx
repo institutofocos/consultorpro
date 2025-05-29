@@ -151,14 +151,30 @@ const ProjectList: React.FC = () => {
   });
 
   const handleDeleteProject = async (id: string) => {
-    if (window.confirm("Tem certeza que deseja excluir este projeto?")) {
+    // Find the project to check its status
+    const project = projects.find(p => p.id === id);
+    
+    if (!project) {
+      toast.error("Projeto não encontrado.");
+      return;
+    }
+
+    // Check if project status is "cancelado"
+    if (project.status !== 'cancelado') {
+      toast.error("Apenas projetos com status 'cancelado' podem ser removidos. Altere o status do projeto para 'cancelado' antes de excluí-lo.");
+      return;
+    }
+
+    const confirmMessage = `Tem certeza que deseja excluir o projeto "${project.name}"? Esta ação não pode ser desfeita.`;
+    
+    if (window.confirm(confirmMessage)) {
       try {
         await deleteProject(id);
         await refetch();
         toast.success("Projeto excluído com sucesso!");
-      } catch (error) {
+      } catch (error: any) {
         console.error("Erro ao excluir projeto:", error);
-        toast.error("Erro ao excluir projeto.");
+        toast.error(error.message || "Erro ao excluir projeto.");
       }
     }
   };
