@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -15,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { PlusCircle, X, AlertCircle, Edit2, Tag, FileUp, AlignLeft, Eye } from "lucide-react";
+import { PlusCircle, X, AlertCircle, Edit2, Tag, Search } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { 
@@ -36,7 +37,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { uploadServiceFile, downloadServiceFile, createOrUpdateService } from "@/integrations/supabase/services";
+import { createOrUpdateService } from "@/integrations/supabase/services";
 
 const serviceSchema = z.object({
   name: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }),
@@ -88,16 +89,11 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
   const [tags, setTags] = useState<any[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState<string>("");
-  const [fileUploading, setFileUploading] = useState(false);
   
   // Dialog state for description editing
   const [descriptionDialogOpen, setDescriptionDialogOpen] = useState(false);
   const [currentEditingIndex, setCurrentEditingIndex] = useState<number | null>(null);
   const [currentDescription, setCurrentDescription] = useState("");
-  
-  // Dialog for file preview
-  const [filePreviewDialogOpen, setFilePreviewDialogOpen] = useState(false);
-  const [currentFilePreview, setCurrentFilePreview] = useState<{url: string, name: string, path: string} | null>(null);
 
   // Set initial selected tags from service
   useEffect(() => {
@@ -286,36 +282,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
     }
   };
   
-  // Handle file upload
-  const handleFileUpload = async (index: number, files: FileList | null) => {
-    if (!files || !files[0]) return;
-    
-    const file = files[0];
-    setFileUploading(true);
-    
-    try {
-      // Use the service to upload the file to Supabase Storage
-      const filePath = await uploadServiceFile(file, form.getValues('name') || 'unnamed-service');
-      
-      if (filePath) {
-        const updatedStages = [...stages];
-        updatedStages[index].attachment = filePath;
-        // Store just the filename for display purposes
-        updatedStages[index].attachmentName = file.name;
-        setStages(updatedStages);
-        
-        toast.success("Arquivo anexado com sucesso!");
-      } else {
-        toast.error("Não foi possível anexar o arquivo.");
-      }
-    } catch (error) {
-      console.error('Error with file:', error);
-      toast.error("Não foi possível anexar o arquivo.");
-    } finally {
-      setFileUploading(false);
-    }
-  };
-  
   const handleRemoveStage = (id: number) => {
     setStages(stages.filter((stage) => stage.id !== id));
     if (editingStage?.id === id) {
@@ -424,32 +390,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
     } catch (error: any) {
       console.error('Error saving service:', error);
       toast.error(`Erro ao cadastrar serviço: ${error.message}`);
-    }
-  };
-  
-  // Handle opening the file preview dialog
-  const handleOpenFilePreview = async (filePath: string, fileName: string) => {
-    try {
-      setFileUploading(true);
-      const fileBlob = await downloadServiceFile(filePath);
-      
-      if (fileBlob) {
-        // Create an object URL for the downloaded file
-        const fileUrl = URL.createObjectURL(fileBlob);
-        setCurrentFilePreview({
-          url: fileUrl,
-          name: fileName,
-          path: filePath
-        });
-        setFilePreviewDialogOpen(true);
-      } else {
-        toast.error("Não foi possível baixar o arquivo.");
-      }
-    } catch (error) {
-      console.error('Error previewing file:', error);
-      toast.error("Erro ao visualizar o arquivo.");
-    } finally {
-      setFileUploading(false);
     }
   };
 
@@ -791,13 +731,18 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                           <tr key={stage.id} className="border-t">
                             <td className="px-4 py-3 font-medium">{stage.name}</td>
                             <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px]">
-                              {stage.description ? (
-                                <div className="truncate" title={stage.description}>
-                                  {stage.description}
-                                </div>
-                              ) : (
-                                <span className="italic text-red-500">Sem descrição</span>
-                              )}
+                              <div className="flex items-center justify-center">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleOpenDescriptionDialog(index)}
+                                  className="h-8 w-8 p-0"
+                                  title="Ver/editar descrição"
+                                >
+                                  <Search className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </td>
                             <td className="px-4 py-3 text-right">{stage.hours}h</td>
                             <td className="px-4 py-3 text-right">{stage.days} dias</td>
@@ -813,47 +758,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                                 >
                                   <Edit2 className="h-4 w-4" />
                                 </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleOpenDescriptionDialog(index)}
-                                  title={stage.description ? "Editar descrição" : "Adicionar descrição"}
-                                >
-                                  <AlignLeft 
-                                    className={`h-4 w-4 ${stage.description ? 'text-green-500' : 'text-red-500'}`} 
-                                  />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  title="Anexar arquivo"
-                                >
-                                  <label htmlFor={`file-upload-${index}`} className="cursor-pointer">
-                                    <FileUp 
-                                      className={`h-4 w-4 ${stage.attachment ? 'text-green-500' : 'text-red-500'}`} 
-                                    />
-                                    <input
-                                      id={`file-upload-${index}`}
-                                      type="file"
-                                      className="hidden"
-                                      onChange={(e) => handleFileUpload(index, e.target.files)}
-                                      disabled={fileUploading}
-                                    />
-                                  </label>
-                                </Button>
-                                {stage.attachment && (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleOpenFilePreview(stage.attachment, stage.attachmentName || 'arquivo')}
-                                    title="Visualizar anexo"
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                )}
                                 <Button
                                   type="button"
                                   variant="ghost"
@@ -900,7 +804,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
           <DialogHeader>
             <DialogTitle>Descrição da Etapa</DialogTitle>
             <DialogDescription>
-              Adicione ou edite a descrição detalhada desta etapa.
+              Visualize ou edite a descrição detalhada desta etapa.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -917,66 +821,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
             </Button>
             <Button type="button" onClick={handleSaveDescription}>
               Salvar Descrição
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* File Preview Dialog */}
-      <Dialog open={filePreviewDialogOpen} onOpenChange={setFilePreviewDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Visualização do Arquivo</DialogTitle>
-            <DialogDescription>
-              {currentFilePreview?.name}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="border rounded p-4 text-center">
-              {currentFilePreview && (
-                <div className="max-h-[500px] overflow-auto">
-                  {currentFilePreview.url && (
-                    /* Handle different file types */
-                    currentFilePreview.name.toLowerCase().endsWith('.pdf') ? (
-                      <iframe 
-                        src={currentFilePreview.url} 
-                        className="w-full h-[400px]" 
-                        title={currentFilePreview.name}
-                      />
-                    ) : currentFilePreview.name.toLowerCase().match(/\.(jpg|jpeg|png|gif)$/) ? (
-                      <img 
-                        src={currentFilePreview.url} 
-                        alt={currentFilePreview.name}
-                        className="max-w-full" 
-                      />
-                    ) : (
-                      <div className="text-center p-4">
-                        <p>Visualização não disponível para este tipo de arquivo</p>
-                        <Button 
-                          type="button" 
-                          onClick={() => {
-                            // Create a download link for the file
-                            const link = document.createElement('a');
-                            link.href = currentFilePreview.url;
-                            link.download = currentFilePreview.name;
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                          }}
-                          className="mt-2"
-                        >
-                          Download
-                        </Button>
-                      </div>
-                    )
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" onClick={() => setFilePreviewDialogOpen(false)}>
-              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>
