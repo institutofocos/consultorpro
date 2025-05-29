@@ -374,17 +374,22 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
       const savedService = await createOrUpdateService(serviceData, !!service, service?.id);
       const savedServiceId = savedService.id;
       
-      // If we have tags, save the service-tag relationships
-      if (selectedTags.length > 0) {
-        // First delete existing tags if updating
-        if (service) {
-          console.log(`Removendo tags existentes do serviço ${savedServiceId}...`);
-          await supabase
-            .from('service_tags')
-            .delete()
-            .eq('service_id', savedServiceId);
-        }
+      // Handle tags properly for both create and update
+      console.log(`Gerenciando tags para serviço ${savedServiceId}...`);
+      
+      // Always remove existing tags first (this is safe for both create and update)
+      const { error: deleteError } = await supabase
+        .from('service_tags')
+        .delete()
+        .eq('service_id', savedServiceId);
         
+      if (deleteError) {
+        console.error('Erro ao remover tags existentes:', deleteError);
+        // Don't throw here, just log the error and continue
+      }
+      
+      // If we have tags, insert them
+      if (selectedTags.length > 0) {
         // Create unique tag entries to avoid duplicate constraint violations
         const uniqueTagIds = [...new Set(selectedTags)];
         
@@ -393,28 +398,21 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
           tag_id: tagId
         }));
         
-        if (serviceTags.length > 0) {
-          console.log('Inserindo tags do serviço:', serviceTags);
-          const { error: tagError } = await supabase
-            .from('service_tags')
-            .insert(serviceTags);
-            
-          if (tagError) {
-            console.error('Erro ao inserir tags do serviço:', tagError);
-            throw tagError;
-          }
+        console.log('Inserindo tags do serviço:', serviceTags);
+        const { error: tagError } = await supabase
+          .from('service_tags')
+          .insert(serviceTags);
+          
+        if (tagError) {
+          console.error('Erro ao inserir tags do serviço:', tagError);
+          // Don't throw here either, just warn the user
+          toast.error('Serviço salvo, mas houve erro ao salvar as tags');
+        } else {
           console.log('Tags do serviço inseridas com sucesso');
         }
-      } else if (service) {
-        // If no tags selected but updating an existing service, remove existing tags
-        console.log(`Removendo todas as tags do serviço ${savedServiceId}...`);
-        await supabase
-          .from('service_tags')
-          .delete()
-          .eq('service_id', savedServiceId);
       }
       
-      toast.success('Serviço cadastrado com sucesso!');
+      toast.success('Serviço salvo com sucesso!');
       
       // Pass the data to the parent component
       onSave({
@@ -427,7 +425,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
       
     } catch (error: any) {
       console.error('Error saving service:', error);
-      toast.error(`Erro ao cadastrar serviço: ${error.message}`);
+      toast.error(`Erro ao salvar serviço: ${error.message}`);
     }
   };
 
