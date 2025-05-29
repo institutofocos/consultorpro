@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export type Note = {
@@ -7,8 +8,11 @@ export type Note = {
   status: 'iniciar_projeto' | 'em_producao' | 'aguardando_assinatura' | 'aguardando_aprovacao' | 'aguardando_nota_fiscal' | 'aguardando_pagamento' | 'aguardando_repasse' | 'finalizados' | 'cancelados';
   color?: string;
   due_date?: string;
+  due_time?: string;
   start_date?: string;
+  start_time?: string;
   end_date?: string;
+  end_time?: string;
   consultant_ids?: string[];
   client_id?: string;
   service_id?: string;
@@ -39,6 +43,7 @@ export type NoteChecklist = {
   title: string;
   description?: string;
   due_date?: string;
+  due_time?: string;
   responsible_consultant_id?: string;
   responsible_consultant_name?: string;
   completed: boolean;
@@ -80,7 +85,8 @@ export const fetchNotes = async (): Promise<Note[]> => {
           description, 
           completed, 
           completed_at, 
-          due_date, 
+          due_date,
+          due_time, 
           created_at, 
           updated_at,
           responsible_consultant:responsible_consultant_id(name)
@@ -273,8 +279,11 @@ export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'upd
       status: noteFields.status,
       color: noteFields.color,
       due_date: noteFields.due_date,
+      due_time: noteFields.due_time,
       start_date: noteFields.start_date,
+      start_time: noteFields.start_time,
       end_date: noteFields.end_date,
+      end_time: noteFields.end_time,
       client_id: noteFields.client_id,
       service_id: noteFields.service_id,
       consultant_id: consultant_ids?.[0] || null,
@@ -316,6 +325,7 @@ export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'upd
         title: checklist.title,
         description: checklist.description,
         due_date: checklist.due_date,
+        due_time: checklist.due_time,
         responsible_consultant_id: checklist.responsible_consultant_id
       }));
       
@@ -364,8 +374,11 @@ export const updateNote = async (id: string, noteData: Partial<Note>): Promise<N
       status: noteFields.status,
       color: noteFields.color,
       due_date: noteFields.due_date,
+      due_time: noteFields.due_time,
       start_date: noteFields.start_date,
+      start_time: noteFields.start_time,
       end_date: noteFields.end_date,
+      end_time: noteFields.end_time,
       client_id: noteFields.client_id,
       service_id: noteFields.service_id,
       consultant_id: consultant_ids?.[0] || undefined,
@@ -432,6 +445,7 @@ export const updateNote = async (id: string, noteData: Partial<Note>): Promise<N
           title: checklist.title,
           description: checklist.description,
           due_date: checklist.due_date,
+          due_time: checklist.due_time,
           responsible_consultant_id: checklist.responsible_consultant_id,
           completed: checklist.completed || false,
           completed_at: checklist.completed_at

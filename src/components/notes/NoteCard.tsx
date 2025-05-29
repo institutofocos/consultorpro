@@ -1,7 +1,4 @@
-
 import React, { useState } from 'react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { 
   Calendar, Tag, UserCircle, Building, Layers,
   Clock, CheckSquare, Edit3, Trash2, Check, FileText, Link as LinkIcon
@@ -17,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import NoteForm from './NoteForm';
 import { toast } from 'sonner';
+import { formatDateBR, formatTimeBR, formatDateTimeFromSeparate } from '@/utils/dateUtils';
 import {
   Dialog,
   DialogContent,
@@ -254,24 +252,24 @@ const NoteCard: React.FC<NoteCardProps> = ({
           )}
         </div>
 
-        {/* Datas */}
+        {/* Datas com novo formato */}
         <div className="grid grid-cols-1 gap-1 text-xs text-gray-500">
           {note.start_date && (
             <div className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              <span>Início: {format(new Date(note.start_date), "dd/MM/yyyy", { locale: ptBR })}</span>
+              <span>Início: {formatDateTimeFromSeparate(note.start_date, note.start_time)}</span>
             </div>
           )}
           {note.due_date && (
             <div className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
-              <span>Vencimento: {format(new Date(note.due_date), "dd/MM/yyyy", { locale: ptBR })}</span>
+              <span>Vencimento: {formatDateTimeFromSeparate(note.due_date, note.due_time)}</span>
             </div>
           )}
           {note.end_date && (
             <div className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
-              <span>Conclusão: {format(new Date(note.end_date), "dd/MM/yyyy", { locale: ptBR })}</span>
+              <span>Conclusão: {formatDateTimeFromSeparate(note.end_date, note.end_time)}</span>
             </div>
           )}
         </div>
@@ -354,7 +352,7 @@ const NoteCard: React.FC<NoteCardProps> = ({
                   </span>
                   {checklist.due_date && (
                     <span className="text-xs text-muted-foreground">
-                      {format(new Date(checklist.due_date), "dd/MM")}
+                      {formatDateTimeFromSeparate(checklist.due_date, checklist.due_time)}
                     </span>
                   )}
                 </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -14,7 +13,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarIcon, Plus, Trash2, MessageCircle } from 'lucide-react';
+import { CalendarIcon, Plus, Trash2, MessageCircle, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { fetchConsultants } from '@/integrations/supabase/consultants';
@@ -27,6 +26,7 @@ import NoteFormSelect from './NoteFormSelect';
 import ChecklistItem from './ChecklistItem';
 import { createChecklist, NoteChecklist } from '@/integrations/supabase/notes';
 import { toast } from 'sonner';
+import { formatDateForDB, formatTimeForDB } from '@/utils/dateUtils';
 
 export interface NoteFormProps {
   onSave: (data: any) => void;
@@ -41,8 +41,11 @@ const formSchema = z.object({
   status: z.string().default("a_fazer"),
   color: z.string().optional(),
   start_date: z.string().optional(),
+  start_time: z.string().optional(),
   end_date: z.string().optional(),
+  end_time: z.string().optional(),
   due_date: z.string().optional(),
+  due_time: z.string().optional(),
   client_id: z.string().optional(),
   service_id: z.string().optional(),
   consultant_ids: z.array(z.string()).optional(),
@@ -52,6 +55,7 @@ const formSchema = z.object({
     title: z.string(),
     description: z.string().optional(),
     due_date: z.string().optional(),
+    due_time: z.string().optional(),
     responsible_consultant_id: z.string().optional(),
     completed: z.boolean().default(false)
   })).optional()
@@ -59,7 +63,13 @@ const formSchema = z.object({
 
 const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onClose }) => {
   const [open, setOpen] = useState(false);
-  const [newChecklist, setNewChecklist] = useState({ title: '', description: '', due_date: '', responsible_consultant_id: '' });
+  const [newChecklist, setNewChecklist] = useState({ 
+    title: '', 
+    description: '', 
+    due_date: '', 
+    due_time: '',
+    responsible_consultant_id: '' 
+  });
   const [checklistsData, setChecklistsData] = useState<NoteChecklist[]>([]);
   
   const form = useForm({
@@ -70,8 +80,11 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
       status: "a_fazer",
       color: "#ffffff",
       start_date: "",
+      start_time: "",
       end_date: "",
+      end_time: "",
       due_date: "",
+      due_time: "",
       client_id: "",
       service_id: "",
       consultant_ids: [],
@@ -111,8 +124,11 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
       form.reset({
         ...initialData,
         start_date: initialData.start_date || "",
+        start_time: initialData.start_time || "",
         end_date: initialData.end_date || "",
+        end_time: initialData.end_time || "",
         due_date: initialData.due_date || "",
+        due_time: initialData.due_time || "",
         consultant_ids: initialData.consultant_ids || [],
         tag_ids: initialData.tag_ids || [],
         checklists: initialData.checklists || []
@@ -123,12 +139,15 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
 
   const handleSubmit = async (data: any) => {
     try {
-      // Converter datas se fornecidas
+      // Converter datas e horas para formato do banco
       const formattedData = {
         ...data,
-        start_date: data.start_date ? format(new Date(data.start_date), 'yyyy-MM-dd') : undefined,
-        end_date: data.end_date ? format(new Date(data.end_date), 'yyyy-MM-dd') : undefined,
-        due_date: data.due_date ? format(new Date(data.due_date), 'yyyy-MM-dd') : undefined,
+        start_date: formatDateForDB(data.start_date),
+        start_time: formatTimeForDB(data.start_time),
+        end_date: formatDateForDB(data.end_date),
+        end_time: formatTimeForDB(data.end_time),
+        due_date: formatDateForDB(data.due_date),
+        due_time: formatTimeForDB(data.due_time),
         checklists: checklistsData
       };
       
@@ -154,6 +173,8 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
         const checklistData = {
           ...newChecklist,
           note_id: initialData.id,
+          due_date: formatDateForDB(newChecklist.due_date),
+          due_time: formatTimeForDB(newChecklist.due_time),
           completed: false
         };
         
@@ -171,13 +192,14 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
           title: newChecklist.title,
           description: newChecklist.description,
           due_date: newChecklist.due_date,
+          due_time: newChecklist.due_time,
           responsible_consultant_id: newChecklist.responsible_consultant_id,
           completed: false
         };
         setChecklistsData(prev => [...prev, newChecklistItem]);
       }
       
-      setNewChecklist({ title: '', description: '', due_date: '', responsible_consultant_id: '' });
+      setNewChecklist({ title: '', description: '', due_date: '', due_time: '', responsible_consultant_id: '' });
     }
   };
 
@@ -310,127 +332,201 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
               )}
             />
 
-            {/* Datas */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FormField
-                control={form.control}
-                name="start_date"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Data de Início</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(new Date(field.value), "dd/MM/yyyy")
-                            ) : (
-                              <span>Selecione uma data</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value ? new Date(field.value) : undefined}
-                          onSelect={(date) => field.onChange(date?.toISOString())}
-                          disabled={(date) => date < new Date("1900-01-01")}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            {/* Datas e Horas separadas */}
+            <div className="space-y-4">
+              <FormLabel className="text-base font-semibold">Datas e Horários</FormLabel>
+              
+              {/* Data e Hora de Início */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="start_date"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Data de Início</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(new Date(field.value), "dd/MM/yyyy")
+                              ) : (
+                                <span>Selecione uma data</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value ? new Date(field.value) : undefined}
+                            onSelect={(date) => field.onChange(date?.toISOString())}
+                            disabled={(date) => date < new Date("1900-01-01")}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="due_date"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Data de Vencimento</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(new Date(field.value), "dd/MM/yyyy")
-                            ) : (
-                              <span>Selecione uma data</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value ? new Date(field.value) : undefined}
-                          onSelect={(date) => field.onChange(date?.toISOString())}
-                          disabled={(date) => date < new Date("1900-01-01")}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="start_time"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hora de Início</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type="time"
+                            placeholder="HH:MM"
+                            {...field}
+                          />
+                          <Clock className="absolute right-3 top-2.5 h-4 w-4 opacity-50" />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-              <FormField
-                control={form.control}
-                name="end_date"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Data de Conclusão</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(new Date(field.value), "dd/MM/yyyy")
-                            ) : (
-                              <span>Selecione uma data</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value ? new Date(field.value) : undefined}
-                          onSelect={(date) => field.onChange(date?.toISOString())}
-                          disabled={(date) => date < new Date("1900-01-01")}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Data e Hora de Vencimento */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="due_date"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Data de Vencimento</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(new Date(field.value), "dd/MM/yyyy")
+                              ) : (
+                                <span>Selecione uma data</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value ? new Date(field.value) : undefined}
+                            onSelect={(date) => field.onChange(date?.toISOString())}
+                            disabled={(date) => date < new Date("1900-01-01")}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="due_time"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hora de Vencimento</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type="time"
+                            placeholder="HH:MM"
+                            {...field}
+                          />
+                          <Clock className="absolute right-3 top-2.5 h-4 w-4 opacity-50" />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Data e Hora de Conclusão */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="end_date"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Data de Conclusão</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(new Date(field.value), "dd/MM/yyyy")
+                              ) : (
+                                <span>Selecione uma data</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value ? new Date(field.value) : undefined}
+                            onSelect={(date) => field.onChange(date?.toISOString())}
+                            disabled={(date) => date < new Date("1900-01-01")}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="end_time"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hora de Conclusão</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type="time"
+                            placeholder="HH:MM"
+                            {...field}
+                          />
+                          <Clock className="absolute right-3 top-2.5 h-4 w-4 opacity-50" />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
             {/* Vínculos com searchable selects */}
@@ -584,12 +680,18 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
                     onChange={(e) => setNewChecklist({ ...newChecklist, description: e.target.value })}
                   />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                   <Input
                     type="date"
                     placeholder="Data de vencimento"
                     value={newChecklist.due_date}
                     onChange={(e) => setNewChecklist({ ...newChecklist, due_date: e.target.value })}
+                  />
+                  <Input
+                    type="time"
+                    placeholder="Hora de vencimento"
+                    value={newChecklist.due_time}
+                    onChange={(e) => setNewChecklist({ ...newChecklist, due_time: e.target.value })}
                   />
                   <Select
                     value={newChecklist.responsible_consultant_id}

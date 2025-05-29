@@ -48,13 +48,17 @@ export const formatDateTimeBR = (date: string | Date | null | undefined): string
 /**
  * Format time only to Brazilian format (HH:mm)
  */
-export const formatTimeBR = (date: string | Date | null | undefined): string => {
-  if (!date) return '-';
+export const formatTimeBR = (time: string | null | undefined): string => {
+  if (!time) return '-';
   
   try {
-    const dateObj = typeof date === 'string' ? parseISO(date) : date;
+    // Se o time vem como string no formato HH:mm
+    if (typeof time === 'string' && time.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
+      return time.substring(0, 5); // Pegar apenas HH:mm
+    }
     
-    // Check if date is valid
+    // Se for uma data completa, extrair apenas a hora
+    const dateObj = parseISO(time);
     if (isNaN(dateObj.getTime())) return '-';
     
     return format(dateObj, BR_TIME_FORMAT, { locale: ptBR });
@@ -62,6 +66,19 @@ export const formatTimeBR = (date: string | Date | null | undefined): string => 
     console.error('Error formatting time:', error);
     return '-';
   }
+};
+
+/**
+ * Combine date and time into a single Brazilian formatted string
+ */
+export const formatDateTimeFromSeparate = (date: string | null | undefined, time: string | null | undefined): string => {
+  const formattedDate = formatDateBR(date);
+  const formattedTime = formatTimeBR(time);
+  
+  if (formattedDate === '-') return '-';
+  if (formattedTime === '-') return formattedDate;
+  
+  return `${formattedDate} ${formattedTime}`;
 };
 
 /**
@@ -82,6 +99,46 @@ export const parseBRDate = (dateString: string): Date | null => {
     return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
   } catch (error) {
     console.error('Error parsing Brazilian date:', error);
+    return null;
+  }
+};
+
+/**
+ * Convert Date object to YYYY-MM-DD format for database storage
+ */
+export const formatDateForDB = (date: Date | string | null | undefined): string | null => {
+  if (!date) return null;
+  
+  try {
+    const dateObj = typeof date === 'string' ? parseISO(date) : date;
+    if (isNaN(dateObj.getTime())) return null;
+    
+    return format(dateObj, 'yyyy-MM-dd');
+  } catch (error) {
+    console.error('Error formatting date for DB:', error);
+    return null;
+  }
+};
+
+/**
+ * Convert time string to HH:mm format for database storage
+ */
+export const formatTimeForDB = (time: string | null | undefined): string | null => {
+  if (!time) return null;
+  
+  try {
+    // Se já está no formato HH:mm ou HH:mm:ss
+    if (time.match(/^\d{2}:\d{2}(:\d{2})?$/)) {
+      return time.substring(0, 5); // Garantir formato HH:mm
+    }
+    
+    // Se for uma data completa, extrair apenas a hora
+    const dateObj = parseISO(time);
+    if (isNaN(dateObj.getTime())) return null;
+    
+    return format(dateObj, 'HH:mm');
+  } catch (error) {
+    console.error('Error formatting time for DB:', error);
     return null;
   }
 };

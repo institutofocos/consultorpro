@@ -575,6 +575,7 @@ export type Database = {
           created_at: string
           description: string | null
           due_date: string | null
+          due_time: string | null
           id: string
           note_id: string
           responsible_consultant_id: string | null
@@ -587,6 +588,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           due_date?: string | null
+          due_time?: string | null
           id?: string
           note_id: string
           responsible_consultant_id?: string | null
@@ -599,6 +601,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           due_date?: string | null
+          due_time?: string | null
           id?: string
           note_id?: string
           responsible_consultant_id?: string | null
@@ -766,11 +769,14 @@ export type Database = {
           content: string | null
           created_at: string | null
           due_date: string | null
+          due_time: string | null
           end_date: string | null
+          end_time: string | null
           id: string
           linked_task_id: string | null
           service_id: string | null
           start_date: string | null
+          start_time: string | null
           status: string
           title: string
           updated_at: string | null
@@ -782,11 +788,14 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           due_date?: string | null
+          due_time?: string | null
           end_date?: string | null
+          end_time?: string | null
           id?: string
           linked_task_id?: string | null
           service_id?: string | null
           start_date?: string | null
+          start_time?: string | null
           status?: string
           title: string
           updated_at?: string | null
@@ -798,11 +807,14 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           due_date?: string | null
+          due_time?: string | null
           end_date?: string | null
+          end_time?: string | null
           id?: string
           linked_task_id?: string | null
           service_id?: string | null
           start_date?: string | null
+          start_time?: string | null
           status?: string
           title?: string
           updated_at?: string | null
@@ -907,6 +919,7 @@ export type Database = {
           days: number
           description: string | null
           end_date: string | null
+          end_time: string | null
           hours: number
           id: string
           invoice_issued: boolean | null
@@ -916,6 +929,7 @@ export type Database = {
           project_id: string
           stage_order: number
           start_date: string | null
+          start_time: string | null
           status: string | null
           updated_at: string | null
           value: number
@@ -931,6 +945,7 @@ export type Database = {
           days?: number
           description?: string | null
           end_date?: string | null
+          end_time?: string | null
           hours?: number
           id?: string
           invoice_issued?: boolean | null
@@ -940,6 +955,7 @@ export type Database = {
           project_id: string
           stage_order?: number
           start_date?: string | null
+          start_time?: string | null
           status?: string | null
           updated_at?: string | null
           value?: number
@@ -955,6 +971,7 @@ export type Database = {
           days?: number
           description?: string | null
           end_date?: string | null
+          end_time?: string | null
           hours?: number
           id?: string
           invoice_issued?: boolean | null
@@ -964,6 +981,7 @@ export type Database = {
           project_id?: string
           stage_order?: number
           start_date?: string | null
+          start_time?: string | null
           status?: string | null
           updated_at?: string | null
           value?: number
@@ -1642,8 +1660,20 @@ export type Database = {
         Args: { input_date: string }
         Returns: string
       }
+      format_date_only_br: {
+        Args: { input_date: string }
+        Returns: string
+      }
+      format_date_time_br: {
+        Args: { input_date: string; input_time: string }
+        Returns: string
+      }
       format_datetime_br: {
         Args: { input_datetime: string }
+        Returns: Json
+      }
+      format_time_only_br: {
+        Args: { input_time: string }
         Returns: string
       }
       generate_project_id: {
