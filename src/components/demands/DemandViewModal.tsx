@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, DollarSign, Users, Clock, Clock3, FileCheck, Download, User, Mail, Phone } from 'lucide-react';
@@ -261,8 +262,12 @@ const DemandViewModal: React.FC<DemandViewModalProps> = ({ demand, isOpen, onClo
                   <FileCheck className="h-4 w-4" />
                   Descrição do Projeto
                 </h3>
-                <div className="bg-white p-4 rounded border text-sm text-gray-700 leading-relaxed">
-                  {demand.description}
+                <div className="bg-white border rounded-lg">
+                  <ScrollArea className="h-32 w-full">
+                    <div className="p-4 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words">
+                      {demand.description}
+                    </div>
+                  </ScrollArea>
                 </div>
               </div>
             )}
@@ -287,7 +292,13 @@ const DemandViewModal: React.FC<DemandViewModalProps> = ({ demand, isOpen, onClo
                       </div>
                       
                       {stage.description && (
-                        <p className="text-sm text-gray-600 mb-3 bg-gray-50 p-3 rounded border">{stage.description}</p>
+                        <div className="mb-3">
+                          <ScrollArea className="h-20 w-full">
+                            <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded border whitespace-pre-wrap break-words">
+                              {stage.description}
+                            </p>
+                          </ScrollArea>
+                        </div>
                       )}
                       
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
