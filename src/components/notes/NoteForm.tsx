@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -9,12 +8,11 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarIcon, Plus, Trash2, MessageCircle, Clock } from 'lucide-react';
+import { CalendarIcon, Plus, Trash2, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { fetchConsultants } from '@/integrations/supabase/consultants';
@@ -51,7 +49,6 @@ const formSchema = z.object({
   service_id: z.string().optional(),
   consultant_ids: z.array(z.string()).optional(),
   tag_ids: z.array(z.string()).optional(),
-  has_internal_chat: z.boolean().default(false),
   checklists: z.array(z.object({
     title: z.string(),
     description: z.string().optional(),
@@ -90,7 +87,6 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
       service_id: "",
       consultant_ids: [],
       tag_ids: [],
-      has_internal_chat: false,
       checklists: [],
       ...initialData
     }
@@ -618,32 +614,6 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
                     />
                   </FormControl>
                   <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Chat interno */}
-            <FormField
-              control={form.control}
-              name="has_internal_chat"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel className="flex items-center gap-2">
-                      <MessageCircle className="h-4 w-4" />
-                      Criar chat interno
-                    </FormLabel>
-                    <p className="text-sm text-muted-foreground">
-                      Comunique-se com outros consultores em tempo real vinculado a esta anotação.
-                      Os consultores selecionados serão automaticamente adicionados ao chat.
-                    </p>
-                  </div>
                 </FormItem>
               )}
             />
