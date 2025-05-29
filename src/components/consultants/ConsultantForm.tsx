@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -268,7 +269,7 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
             </div>
 
             <div>
-              <Label htmlFor="url">Website/Portfolio</Label>
+              <Label htmlFor="url">URL</Label>
               <Input
                 id="url"
                 type="url"

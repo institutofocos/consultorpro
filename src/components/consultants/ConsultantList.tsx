@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -332,7 +333,7 @@ export const ConsultantList: React.FC = () => {
                     <TableHead>Horas Trabalhadas</TableHead>
                     <TableHead>Horas Livres</TableHead>
                     <TableHead>Projetos</TableHead>
-                    <TableHead>Website</TableHead>
+                    <TableHead>URL</TableHead>
                     <TableHead>Serviços Habilitados</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -359,7 +360,7 @@ export const ConsultantList: React.FC = () => {
                               variant="ghost" 
                               size="icon"
                               onClick={() => window.open(consultant.url, '_blank')}
-                              title="Visitar website"
+                              title="Visitar URL"
                             >
                               <ExternalLink className="h-4 w-4" />
                             </Button>
