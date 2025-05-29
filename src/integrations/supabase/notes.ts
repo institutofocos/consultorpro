@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export type Note = {
@@ -561,7 +560,7 @@ async function fetchClientName(clientId: string): Promise<string | null> {
   return data?.name || null;
 }
 
-async function fetchServiceName(serviceId: string): Promise<string | null> => {
+async function fetchServiceName(serviceId: string): Promise<string | null> {
   const { data } = await supabase
     .from('services')
     .select('name')
