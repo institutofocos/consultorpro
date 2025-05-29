@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -151,10 +152,8 @@ const ServiceList = () => {
               <thead>
                 <tr className="border-b text-left">
                   <th className="pb-3 font-medium">Nome</th>
-                  <th className="pb-3 font-medium">Etapas</th>
                   <th className="pb-3 font-medium">Carga Horária</th>
                   <th className="pb-3 font-medium">Valor Total</th>
-                  <th className="pb-3 font-medium">Valor Líquido</th>
                   <th className="pb-3 font-medium">Tags</th>
                   <th className="pb-3 font-medium">Ações</th>
                 </tr>
@@ -177,11 +176,6 @@ const ServiceList = () => {
                         <p className="font-medium">{service.name}</p>
                       </td>
                       <td className="p-4">
-                        <span className="text-sm">
-                          {service.stages ? `${Array.isArray(service.stages) ? service.stages.length : Object.keys(service.stages).length} etapas` : '0 etapas'}
-                        </span>
-                      </td>
-                      <td className="p-4">
                         <div className="flex items-center gap-1 text-sm">
                           <Clock className="h-3 w-3" />
                           {service.total_hours ? `${service.total_hours}h` : 'N/A'}
@@ -191,12 +185,6 @@ const ServiceList = () => {
                         <div className="flex items-center gap-1 text-sm font-medium text-green-600">
                           <DollarSign className="h-3 w-3" />
                           {formatCurrency(service.total_value)}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-1 text-sm">
-                          <DollarSign className="h-3 w-3" />
-                          {formatCurrency(service.net_value)}
                         </div>
                       </td>
                       <td className="p-4">
@@ -244,7 +232,7 @@ const ServiceList = () => {
         </CardContent>
       </Card>
 
-      {/* Service Details Dialog - Now wider and with complete information */}
+      {/* Service Details Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -290,95 +278,100 @@ const ServiceList = () => {
                 </div>
               </div>
 
-              {/* Service Stages */}
+              {/* Service Stages - Only show stages for this specific service */}
               {selectedService.stages && (
                 <div>
                   <h4 className="text-lg font-semibold mb-4">Etapas do Serviço</h4>
                   <div className="space-y-3">
-                    {Array.isArray(selectedService.stages)
-                      ? selectedService.stages.map((stage: any, index: number) => (
-                          <div key={index} className="border border-gray-200 rounded-lg p-4 bg-white">
-                            <div className="flex justify-between items-start mb-3">
-                              <div className="flex-1">
-                                <h5 className="font-medium text-gray-900">
-                                  Etapa {index + 1}: {stage.name}
-                                </h5>
-                                {stage.description && (
-                                  <p className="text-sm text-gray-600 mt-1">
-                                    {stage.description}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                              {stage.days && (
-                                <div>
-                                  <span className="font-medium text-gray-700">Dias:</span>
-                                  <span className="ml-1 text-gray-600">{stage.days}</span>
-                                </div>
-                              )}
-                              <div>
-                                <span className="font-medium text-gray-700">Horas:</span>
-                                <span className="ml-1 text-gray-600">{stage.hours || 0}h</span>
-                              </div>
-                              <div>
-                                <span className="font-medium text-gray-700">Valor:</span>
-                                <span className="ml-1 text-gray-600">{formatCurrency(stage.value || 0)}</span>
-                              </div>
-                              {stage.attachment && (
-                                <div>
-                                  <span className="font-medium text-gray-700">Anexo:</span>
-                                  <span className="ml-1 text-blue-600 underline cursor-pointer">
-                                    {stage.attachmentName || 'Ver arquivo'}
-                                  </span>
-                                </div>
+                    {Array.isArray(selectedService.stages) && selectedService.stages.length > 0 ? (
+                      selectedService.stages.map((stage: any, index: number) => (
+                        <div key={index} className="border border-gray-200 rounded-lg p-4 bg-white">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1">
+                              <h5 className="font-medium text-gray-900">
+                                Etapa {index + 1}: {stage.name || 'Sem nome'}
+                              </h5>
+                              {stage.description && (
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {stage.description}
+                                </p>
                               )}
                             </div>
                           </div>
-                        ))
-                      : Object.entries(selectedService.stages).map(([key, stage]: [string, any]) => (
-                          <div key={key} className="border border-gray-200 rounded-lg p-4 bg-white">
-                            <div className="flex justify-between items-start mb-3">
-                              <div className="flex-1">
-                                <h5 className="font-medium text-gray-900">
-                                  {stage.name}
-                                </h5>
-                                {stage.description && (
-                                  <p className="text-sm text-gray-600 mt-1">
-                                    {stage.description}
-                                  </p>
-                                )}
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            {stage.days && (
+                              <div>
+                                <span className="font-medium text-gray-700">Dias:</span>
+                                <span className="ml-1 text-gray-600">{stage.days}</span>
                               </div>
+                            )}
+                            <div>
+                              <span className="font-medium text-gray-700">Horas:</span>
+                              <span className="ml-1 text-gray-600">{stage.hours || 0}h</span>
                             </div>
-                            
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                              {stage.days && (
-                                <div>
-                                  <span className="font-medium text-gray-700">Dias:</span>
-                                  <span className="ml-1 text-gray-600">{stage.days}</span>
-                                </div>
-                              )}
+                            <div>
+                              <span className="font-medium text-gray-700">Valor:</span>
+                              <span className="ml-1 text-gray-600">{formatCurrency(stage.value || 0)}</span>
+                            </div>
+                            {stage.attachment && (
                               <div>
-                                <span className="font-medium text-gray-700">Horas:</span>
-                                <span className="ml-1 text-gray-600">{stage.hours || 0}h</span>
+                                <span className="font-medium text-gray-700">Anexo:</span>
+                                <span className="ml-1 text-blue-600 underline cursor-pointer">
+                                  {stage.attachmentName || 'Ver arquivo'}
+                                </span>
                               </div>
-                              <div>
-                                <span className="font-medium text-gray-700">Valor:</span>
-                                <span className="ml-1 text-gray-600">{formatCurrency(stage.value || 0)}</span>
-                              </div>
-                              {stage.attachment && (
-                                <div>
-                                  <span className="font-medium text-gray-700">Anexo:</span>
-                                  <span className="ml-1 text-blue-600 underline cursor-pointer">
-                                    {stage.attachmentName || 'Ver arquivo'}
-                                  </span>
-                                </div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : selectedService.stages && typeof selectedService.stages === 'object' && Object.keys(selectedService.stages).length > 0 ? (
+                      Object.entries(selectedService.stages).map(([key, stage]: [string, any]) => (
+                        <div key={key} className="border border-gray-200 rounded-lg p-4 bg-white">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1">
+                              <h5 className="font-medium text-gray-900">
+                                {stage.name || 'Sem nome'}
+                              </h5>
+                              {stage.description && (
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {stage.description}
+                                </p>
                               )}
                             </div>
                           </div>
-                        ))
-                    }
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            {stage.days && (
+                              <div>
+                                <span className="font-medium text-gray-700">Dias:</span>
+                                <span className="ml-1 text-gray-600">{stage.days}</span>
+                              </div>
+                            )}
+                            <div>
+                              <span className="font-medium text-gray-700">Horas:</span>
+                              <span className="ml-1 text-gray-600">{stage.hours || 0}h</span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-700">Valor:</span>
+                              <span className="ml-1 text-gray-600">{formatCurrency(stage.value || 0)}</span>
+                            </div>
+                            {stage.attachment && (
+                              <div>
+                                <span className="font-medium text-gray-700">Anexo:</span>
+                                <span className="ml-1 text-blue-600 underline cursor-pointer">
+                                  {stage.attachmentName || 'Ver arquivo'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4 text-muted-foreground">
+                        <p>Nenhuma etapa cadastrada para este serviço.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
