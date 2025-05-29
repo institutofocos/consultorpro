@@ -1889,6 +1889,14 @@ export type Database = {
         Args: { stage_id: string }
         Returns: boolean
       }
+      format_date_br: {
+        Args: { input_date: string }
+        Returns: string
+      }
+      format_datetime_br: {
+        Args: { input_datetime: string }
+        Returns: string
+      }
       generate_project_id: {
         Args: Record<PropertyKey, never>
         Returns: string

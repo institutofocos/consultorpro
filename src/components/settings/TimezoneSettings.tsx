@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { Clock, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDateTimeBR, getCurrentDateTimeBR } from "@/utils/dateUtils";
 
 interface TimezoneConfig {
   timezone: string;
@@ -193,17 +194,11 @@ const TimezoneSettings: React.FC = () => {
 
   const getCurrentTime = () => {
     try {
-      return new Date().toLocaleString('pt-BR', {
-        timeZone: timezoneConfig.timezone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+      // Use the Brazilian formatting utility
+      return getCurrentDateTimeBR();
     } catch (error) {
       console.error('Error formatting date:', error);
-      return new Date().toLocaleString('pt-BR');
+      return formatDateTimeBR(new Date());
     }
   };
 

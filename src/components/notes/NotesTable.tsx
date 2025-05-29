@@ -1,7 +1,5 @@
 
 import React from 'react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { Note } from '@/integrations/supabase/notes';
 import {
   Table,
@@ -16,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Edit3, Trash2, Calendar } from 'lucide-react';
 import NoteForm from './NoteForm';
 import { cn } from '@/lib/utils';
+import { formatDateBR } from '@/utils/dateUtils';
 
 interface NotesTableProps {
   notes: Note[];
@@ -91,7 +90,7 @@ const NotesTable: React.FC<NotesTableProps> = ({
                   {note.due_date ? (
                     <div className="flex items-center gap-1 text-xs">
                       <Calendar className="h-3 w-3" />
-                      {format(new Date(note.due_date), "dd/MM/yyyy", { locale: ptBR })}
+                      {formatDateBR(note.due_date)}
                     </div>
                   ) : (
                     '-'

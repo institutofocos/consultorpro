@@ -12,6 +12,7 @@ import ProjectHistory from './ProjectHistory';
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
 import { toast } from 'sonner';
+import { formatDateBR } from '@/utils/dateUtils';
 
 interface ProjectDetailsProps {
   project: Project;
@@ -48,7 +49,7 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
     try {
-      return new Date(dateString).toLocaleDateString('pt-BR');
+      return formatDateBR(dateString);
     } catch (error) {
       console.error('Error formatting date:', error);
       return '-';

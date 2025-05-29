@@ -1,11 +1,11 @@
 
 import React from 'react';
-import { format, addDays, differenceInDays, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { addDays, differenceInDays, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 import { Note } from '@/integrations/supabase/notes';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, ChevronRight } from 'lucide-react';
+import { formatDateBR } from '@/utils/dateUtils';
 
 interface NotesGanttProps {
   notes: Note[];
@@ -58,8 +58,8 @@ const NotesGantt: React.FC<NotesGanttProps> = ({ notes }) => {
   const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
   
   // Extend range by a week on each side for better visualization
-  const startDate = startOfWeek(addDays(minDate, -7), { locale: ptBR });
-  const endDate = endOfWeek(addDays(maxDate, 7), { locale: ptBR });
+  const startDate = startOfWeek(addDays(minDate, -7));
+  const endDate = endOfWeek(addDays(maxDate, 7));
   
   const totalDays = differenceInDays(endDate, startDate) + 1;
   const dateRange = eachDayOfInterval({ start: startDate, end: endDate });
@@ -132,7 +132,7 @@ const NotesGantt: React.FC<NotesGanttProps> = ({ notes }) => {
               <div className="grid grid-cols-7 gap-1 text-xs">
                 {dateRange.filter((_, index) => index % Math.ceil(dateRange.length / 7) === 0).map(date => (
                   <div key={date.toISOString()} className="text-center font-medium">
-                    {format(date, 'dd/MM', { locale: ptBR })}
+                    {formatDateBR(date)}
                   </div>
                 ))}
               </div>
@@ -155,8 +155,7 @@ const NotesGantt: React.FC<NotesGanttProps> = ({ notes }) => {
                       </p>
                       <div className="flex gap-1 mt-1">
                         <Badge variant="outline" className="text-xs">
-                          {format(new Date(item.startDate), 'dd/MM', { locale: ptBR })} - 
-                          {format(new Date(item.endDate), 'dd/MM', { locale: ptBR })}
+                          {formatDateBR(item.startDate)} - {formatDateBR(item.endDate)}
                         </Badge>
                       </div>
                     </div>
