@@ -9,20 +9,7 @@ import ChatRoomsList from './ChatRoomsList';
 import ChatRoom from './ChatRoom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-
-interface ChatRoom {
-  id: string;
-  name: string;
-  description: string;
-  level: number;
-  parent_id: string; // Make this required to match the expected type
-  project_id: string; // Make this required to match the expected type
-  created_at: string;
-  updated_at: string;
-  projects?: {
-    status: string;
-  };
-}
+import { ChatRoom as ChatRoomType } from "@/integrations/supabase/chat";
 
 interface Project {
   id: string;
@@ -31,8 +18,8 @@ interface Project {
 }
 
 const ChatPage: React.FC = () => {
-  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
-  const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
+  const [chatRooms, setChatRooms] = useState<ChatRoomType[]>([]);
+  const [selectedRoom, setSelectedRoom] = useState<ChatRoomType | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [newRoomName, setNewRoomName] = useState('');
@@ -63,12 +50,14 @@ const ChatPage: React.FC = () => {
         return;
       }
 
-      // Transform the data to handle the join properly and ensure required fields
+      // Transform the data to handle the join properly and ensure all required fields
       const transformedData = data?.map(room => ({
         ...room,
         description: room.description || '', // Ensure description is always a string
         parent_id: room.parent_id || '', // Ensure parent_id is always a string
         project_id: room.project_id || '', // Ensure project_id is always a string
+        is_protected: room.is_protected || false, // Ensure is_protected is always a boolean
+        protection_reason: room.protection_reason || '', // Ensure protection_reason is always a string
         projects: room.projects ? { status: room.projects.status } : undefined
       })) || [];
 
@@ -198,16 +187,7 @@ const ChatPage: React.FC = () => {
       <div className="flex-1">
         {selectedRoom ? (
           <ChatRoom 
-            room={{
-              id: selectedRoom.id,
-              name: selectedRoom.name,
-              description: selectedRoom.description,
-              level: selectedRoom.level,
-              parent_id: selectedRoom.parent_id,
-              project_id: selectedRoom.project_id,
-              created_at: selectedRoom.created_at,
-              updated_at: selectedRoom.updated_at
-            }}
+            room={selectedRoom}
             currentUser={{
               id: 'current-user-id',
               name: 'Current User',
