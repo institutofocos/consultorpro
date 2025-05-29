@@ -10,6 +10,7 @@ import { ServiceForm } from './ServiceForm';
 import { Service } from '@/integrations/supabase/services';
 import { fetchServices } from '@/integrations/supabase/services';
 import { useToast } from "@/components/ui/use-toast";
+import { formatDateBR } from '@/utils/dateUtils';
 
 const ServiceList = () => {
   const [services, setServices] = useState<Service[]>([]);
@@ -208,7 +209,6 @@ const ServiceList = () => {
                       </td>
                       <td className="p-4">
                         <div className="flex flex-wrap gap-1">
-                          {/* Tags will be shown here when implemented */}
                           <Badge variant="outline">SEBRAE DF</Badge>
                         </div>
                       </td>
@@ -252,71 +252,171 @@ const ServiceList = () => {
         </CardContent>
       </Card>
 
-      {/* Service Details Dialog */}
+      {/* Service Details Dialog - Now wider and with complete information */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Detalhes do Serviço</DialogTitle>
+            <DialogTitle className="text-xl font-bold">Detalhes do Serviço</DialogTitle>
           </DialogHeader>
           {selectedService && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-medium">{selectedService.name}</h3>
+            <div className="space-y-6">
+              {/* Service Basic Information */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold mb-2">{selectedService.name}</h3>
                 {selectedService.description && (
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-muted-foreground">
                     {selectedService.description}
                   </p>
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium">Horas Totais</p>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedService.total_hours || 'N/A'}h
+              {/* Financial Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-sm font-medium text-blue-700">Horas Totais</p>
+                  <p className="text-lg font-semibold text-blue-900">
+                    {selectedService.total_hours || 0}h
                   </p>
                 </div>
-                <div>
-                  <p className="text-sm font-medium">Taxa por Hora</p>
-                  <p className="text-sm text-muted-foreground">
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <p className="text-sm font-medium text-green-700">Taxa por Hora</p>
+                  <p className="text-lg font-semibold text-green-900">
                     {formatCurrency(selectedService.hourly_rate)}
                   </p>
                 </div>
-                <div>
-                  <p className="text-sm font-medium">Valor Total</p>
-                  <p className="text-sm text-muted-foreground">
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <p className="text-sm font-medium text-purple-700">Valor Total</p>
+                  <p className="text-lg font-semibold text-purple-900">
                     {formatCurrency(selectedService.total_value)}
                   </p>
                 </div>
-                <div>
-                  <p className="text-sm font-medium">Valor Líquido</p>
-                  <p className="text-sm text-muted-foreground">
+                <div className="bg-orange-50 p-4 rounded-lg">
+                  <p className="text-sm font-medium text-orange-700">Valor Líquido</p>
+                  <p className="text-lg font-semibold text-orange-900">
                     {formatCurrency(selectedService.net_value)}
                   </p>
                 </div>
               </div>
 
+              {/* Service Stages */}
               {selectedService.stages && (
                 <div>
-                  <p className="text-sm font-medium mb-2">Etapas do Serviço</p>
-                  <div className="space-y-2">
+                  <h4 className="text-lg font-semibold mb-4">Etapas do Serviço</h4>
+                  <div className="space-y-3">
                     {Array.isArray(selectedService.stages)
                       ? selectedService.stages.map((stage: any, index: number) => (
-                          <div key={index} className="p-2 bg-gray-50 rounded text-sm">
-                            <p className="font-medium">{stage.name}</p>
-                            <p className="text-muted-foreground">{stage.description}</p>
+                          <div key={index} className="border border-gray-200 rounded-lg p-4 bg-white">
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex-1">
+                                <h5 className="font-medium text-gray-900">
+                                  Etapa {index + 1}: {stage.name}
+                                </h5>
+                                {stage.description && (
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    {stage.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              {stage.days && (
+                                <div>
+                                  <span className="font-medium text-gray-700">Dias:</span>
+                                  <span className="ml-1 text-gray-600">{stage.days}</span>
+                                </div>
+                              )}
+                              <div>
+                                <span className="font-medium text-gray-700">Horas:</span>
+                                <span className="ml-1 text-gray-600">{stage.hours || 0}h</span>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-700">Valor:</span>
+                                <span className="ml-1 text-gray-600">{formatCurrency(stage.value || 0)}</span>
+                              </div>
+                              {stage.attachment && (
+                                <div>
+                                  <span className="font-medium text-gray-700">Anexo:</span>
+                                  <span className="ml-1 text-blue-600 underline cursor-pointer">
+                                    {stage.attachmentName || 'Ver arquivo'}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         ))
                       : Object.entries(selectedService.stages).map(([key, stage]: [string, any]) => (
-                          <div key={key} className="p-2 bg-gray-50 rounded text-sm">
-                            <p className="font-medium">{stage.name}</p>
-                            <p className="text-muted-foreground">{stage.description}</p>
+                          <div key={key} className="border border-gray-200 rounded-lg p-4 bg-white">
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex-1">
+                                <h5 className="font-medium text-gray-900">
+                                  {stage.name}
+                                </h5>
+                                {stage.description && (
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    {stage.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              {stage.days && (
+                                <div>
+                                  <span className="font-medium text-gray-700">Dias:</span>
+                                  <span className="ml-1 text-gray-600">{stage.days}</span>
+                                </div>
+                              )}
+                              <div>
+                                <span className="font-medium text-gray-700">Horas:</span>
+                                <span className="ml-1 text-gray-600">{stage.hours || 0}h</span>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-700">Valor:</span>
+                                <span className="ml-1 text-gray-600">{formatCurrency(stage.value || 0)}</span>
+                              </div>
+                              {stage.attachment && (
+                                <div>
+                                  <span className="font-medium text-gray-700">Anexo:</span>
+                                  <span className="ml-1 text-blue-600 underline cursor-pointer">
+                                    {stage.attachmentName || 'Ver arquivo'}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         ))
                     }
                   </div>
                 </div>
               )}
+
+              {/* Additional Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {selectedService.created_at && (
+                  <div className="bg-gray-50 p-3 rounded">
+                    <p className="text-sm font-medium text-gray-700">Data de Criação</p>
+                    <p className="text-sm text-gray-600">
+                      {formatDateBR(selectedService.created_at)}
+                    </p>
+                  </div>
+                )}
+                {selectedService.updated_at && (
+                  <div className="bg-gray-50 p-3 rounded">
+                    <p className="text-sm font-medium text-gray-700">Última Atualização</p>
+                    <p className="text-sm text-gray-600">
+                      {formatDateBR(selectedService.updated_at)}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Close Button */}
+              <div className="flex justify-end pt-4 border-t">
+                <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+                  Fechar
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
