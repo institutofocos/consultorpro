@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, ChevronDown, Plus, Loader2, UserPlus, Users, Edit, Trash } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, Loader2, UserPlus, Users, Edit, Trash, UsersIcon } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import AddParticipantsModal from './AddParticipantsModal';
 
 interface ChatRoomsListProps {
   rooms: ChatRoom[];
@@ -72,6 +73,11 @@ const ChatRoomsList: React.FC<ChatRoomsListProps> = ({
   const [directChatDialogOpen, setDirectChatDialogOpen] = useState(false);
   const [selectedUser1Id, setSelectedUser1Id] = useState('');
   const [selectedUser2Id, setSelectedUser2Id] = useState('');
+  
+  // Estado para o modal de múltiplos participantes
+  const [addParticipantsModalOpen, setAddParticipantsModalOpen] = useState(false);
+  const [selectedRoomForMultipleParticipants, setSelectedRoomForMultipleParticipants] = useState<string | null>(null);
+  const [selectedRoomNameForParticipants, setSelectedRoomNameForParticipants] = useState<string>('');
   
   // Buscar consultores
   const [consultants, setConsultants] = useState<any[]>([]);
@@ -169,6 +175,12 @@ const ChatRoomsList: React.FC<ChatRoomsListProps> = ({
     setSelectedParticipantId('');
     setSelectedParticipantRole('consultor');
     setParticipantDialogOpen(true);
+  };
+
+  const handleAddMultipleParticipants = (roomId: string, roomName: string) => {
+    setSelectedRoomForMultipleParticipants(roomId);
+    setSelectedRoomNameForParticipants(roomName);
+    setAddParticipantsModalOpen(true);
   };
   
   const handleSubmitAddParticipant = async (event: React.FormEvent) => {
@@ -440,6 +452,17 @@ const ChatRoomsList: React.FC<ChatRoomsListProps> = ({
               title="Adicionar participante"
             >
               <UserPlus size={14} />
+            </button>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAddMultipleParticipants(room.id, room.name);
+              }}
+              className="p-1 hover:bg-muted rounded mr-1"
+              title="Adicionar múltiplos participantes"
+            >
+              <UsersIcon size={14} />
             </button>
             
             {isModifiable && (
@@ -817,6 +840,15 @@ const ChatRoomsList: React.FC<ChatRoomsListProps> = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add Participants Modal */}
+      <AddParticipantsModal
+        isOpen={addParticipantsModalOpen}
+        onClose={() => setAddParticipantsModalOpen(false)}
+        roomId={selectedRoomForMultipleParticipants}
+        roomName={selectedRoomNameForParticipants}
+        onParticipantsAdded={onRoomCreated}
+      />
     </div>
   );
 };
