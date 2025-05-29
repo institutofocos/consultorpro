@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -443,101 +442,35 @@ export const createProject = async (project: any) => {
     console.log('=== INICIANDO CRIAÇÃO DE PROJETO ===');
     console.log('Dados recebidos para criação:', project);
     
-    // VERIFICAÇÃO CRÍTICA: Garantir que NENHUM user_id seja incluído
-    const allowedFields = [
-      'name', 'description', 'status', 'client_id', 'service_id',
-      'main_consultant_id', 'support_consultant_id', 'start_date', 'end_date',
-      'total_value', 'total_hours', 'hourly_rate', 'main_consultant_commission',
-      'support_consultant_commission', 'main_consultant_value', 'support_consultant_value',
-      'third_party_expenses', 'tax_percent', 'manager_name', 'manager_email',
-      'manager_phone', 'url', 'tags'
-    ];
-    
-    // Criar objeto limpo apenas com campos permitidos
-    const projectData = {};
-    allowedFields.forEach(field => {
-      switch(field) {
-        case 'name':
-          projectData[field] = project.name;
-          break;
-        case 'description':
-          projectData[field] = project.description || '';
-          break;
-        case 'status':
-          projectData[field] = project.mainConsultantId ? 'em_producao' : 'em_planejamento';
-          break;
-        case 'client_id':
-          projectData[field] = project.clientId || null;
-          break;
-        case 'service_id':
-          projectData[field] = project.serviceId || null;
-          break;
-        case 'main_consultant_id':
-          projectData[field] = project.mainConsultantId || null;
-          break;
-        case 'support_consultant_id':
-          projectData[field] = project.supportConsultantId || null;
-          break;
-        case 'start_date':
-          projectData[field] = project.startDate;
-          break;
-        case 'end_date':
-          projectData[field] = project.endDate;
-          break;
-        case 'total_value':
-          projectData[field] = Number(project.totalValue || 0);
-          break;
-        case 'total_hours':
-          projectData[field] = Number(project.totalHours || 0);
-          break;
-        case 'hourly_rate':
-          projectData[field] = Number(project.hourlyRate || 0);
-          break;
-        case 'main_consultant_commission':
-          projectData[field] = Number(project.mainConsultantCommission || 0);
-          break;
-        case 'support_consultant_commission':
-          projectData[field] = Number(project.supportConsultantCommission || 0);
-          break;
-        case 'main_consultant_value':
-          projectData[field] = Number(project.consultantValue || 0);
-          break;
-        case 'support_consultant_value':
-          projectData[field] = Number(project.supportConsultantValue || 0);
-          break;
-        case 'third_party_expenses':
-          projectData[field] = Number(project.thirdPartyExpenses || 0);
-          break;
-        case 'tax_percent':
-          projectData[field] = Number(project.taxPercent || 16);
-          break;
-        case 'manager_name':
-          projectData[field] = project.managerName || '';
-          break;
-        case 'manager_email':
-          projectData[field] = project.managerEmail || '';
-          break;
-        case 'manager_phone':
-          projectData[field] = project.managerPhone || '';
-          break;
-        case 'url':
-          projectData[field] = project.url || null;
-          break;
-        case 'tags':
-          projectData[field] = project.tags || [];
-          break;
-      }
-    });
+    // Create a clean object with only the fields that exist in the projects table
+    const projectData = {
+      name: project.name,
+      description: project.description || '',
+      status: project.mainConsultantId ? 'em_producao' : 'em_planejamento',
+      client_id: project.clientId || null,
+      service_id: project.serviceId || null,
+      main_consultant_id: project.mainConsultantId || null,
+      support_consultant_id: project.supportConsultantId || null,
+      start_date: project.startDate,
+      end_date: project.endDate,
+      total_value: Number(project.totalValue || 0),
+      total_hours: Number(project.totalHours || 0),
+      hourly_rate: Number(project.hourlyRate || 0),
+      main_consultant_commission: Number(project.mainConsultantCommission || 0),
+      support_consultant_commission: Number(project.supportConsultantCommission || 0),
+      main_consultant_value: Number(project.consultantValue || 0),
+      support_consultant_value: Number(project.supportConsultantValue || 0),
+      third_party_expenses: Number(project.thirdPartyExpenses || 0),
+      tax_percent: Number(project.taxPercent || 16),
+      manager_name: project.managerName || '',
+      manager_email: project.managerEmail || '',
+      manager_phone: project.managerPhone || '',
+      url: project.url || null,
+      tags: project.tags || []
+    };
 
     console.log('Dados LIMPOS para inserção (sem user_id):', projectData);
     
-    // Verificação final - garantir que não há user_id
-    if ('user_id' in projectData) {
-      console.error('ERRO: user_id detectado nos dados!');
-      delete projectData.user_id;
-      console.log('user_id removido dos dados');
-    }
-
     const { data, error } = await supabase
       .from('projects')
       .insert(projectData)
