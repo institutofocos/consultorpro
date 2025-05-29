@@ -73,9 +73,22 @@ const NotesPage: React.FC = () => {
   } = useQuery({
     queryKey: ['notes'],
     queryFn: fetchNotes,
+    refetchOnWindowFocus: true,
+    refetchInterval: 5000, // Refetch a cada 5 segundos para garantir dados atualizados
   });
 
+  console.log('=== NOTES PAGE STATE ===');
+  console.log('Notes count:', notes.length);
+  console.log('Notes data:', notes);
+  console.log('Search term:', searchTerm);
+  console.log('Status filter:', statusFilter);
+  console.log('Is loading:', isLoading);
+  console.log('Is error:', isError);
+
   const filteredNotes = notes.filter(note => {
+    console.log('=== FILTERING NOTE ===');
+    console.log('Note:', note);
+    
     const matchesSearch = searchTerm === '' || 
       note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (note.content && note.content.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -131,14 +144,34 @@ const NotesPage: React.FC = () => {
       }
     }
     
-    return matchesSearch && matchesStatus && matchesConsultant && matchesService && matchesClient && matchesDate;
+    const passes = matchesSearch && matchesStatus && matchesConsultant && matchesService && matchesClient && matchesDate;
+    console.log('Filter results:', {
+      matchesSearch,
+      matchesStatus,
+      matchesConsultant,
+      matchesService,
+      matchesClient,
+      matchesDate,
+      passes
+    });
+    
+    return passes;
   });
+
+  console.log('=== FILTERED NOTES ===');
+  console.log('Filtered count:', filteredNotes.length);
+  console.log('Filtered notes:', filteredNotes);
 
   const handleCreateNote = async (noteData: any) => {
     try {
+      console.log('=== CREATING NOTE ===');
+      console.log('Note data:', noteData);
+      
       await createNote(noteData);
-      refetch();
+      await refetch(); // Force refetch to get updated data
       toast.success("Tarefa criada com sucesso!");
+      
+      console.log('=== NOTE CREATED SUCCESSFULLY ===');
     } catch (error) {
       console.error("Erro ao criar tarefa:", error);
       toast.error("Erro ao criar tarefa.");
@@ -148,7 +181,7 @@ const NotesPage: React.FC = () => {
   const handleUpdateNote = async (noteData: any) => {
     try {
       await updateNote(noteData.id, noteData);
-      refetch();
+      await refetch(); // Force refetch to get updated data
       toast.success("Tarefa atualizada com sucesso!");
     } catch (error) {
       console.error("Erro ao atualizar tarefa:", error);
@@ -160,7 +193,7 @@ const NotesPage: React.FC = () => {
     if (window.confirm("Tem certeza que deseja excluir esta tarefa?")) {
       try {
         await deleteNote(id);
-        refetch();
+        await refetch(); // Force refetch to get updated data
         toast.success("Tarefa excluída com sucesso!");
       } catch (error) {
         console.error("Erro ao excluir tarefa:", error);
@@ -196,6 +229,22 @@ const NotesPage: React.FC = () => {
     setClientFilter(Array.isArray(value) ? value[0] || '' : value);
   };
 
+  // Status options - combinar status dinâmicos com status fixos das tarefas
+  const taskStatusOptions = [
+    { id: 'a_fazer', name: 'A Fazer' },
+    { id: 'em_andamento', name: 'Em Andamento' },
+    { id: 'concluido', name: 'Concluído' },
+    { id: 'iniciar_projeto', name: 'Iniciar Projeto' },
+    { id: 'em_producao', name: 'Em Produção' },
+    { id: 'aguardando_assinatura', name: 'Aguardando Assinatura' },
+    { id: 'aguardando_aprovacao', name: 'Aguardando Aprovação' },
+    { id: 'aguardando_nota_fiscal', name: 'Aguardando Nota Fiscal' },
+    { id: 'aguardando_pagamento', name: 'Aguardando Pagamento' },
+    { id: 'aguardando_repasse', name: 'Aguardando Repasse' },
+    { id: 'finalizados', name: 'Finalizados' },
+    { id: 'cancelados', name: 'Cancelados' }
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -225,9 +274,9 @@ const NotesPage: React.FC = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">Todos os status</SelectItem>
-                {projectStatuses.map((status) => (
-                  <SelectItem key={status.id} value={status.name}>
-                    {status.display_name}
+                {taskStatusOptions.map((status) => (
+                  <SelectItem key={status.id} value={status.id}>
+                    {status.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -310,7 +359,7 @@ const NotesPage: React.FC = () => {
 
           <div className="flex justify-between items-center mt-4">
             <div className="text-sm text-muted-foreground">
-              {filteredNotes.length} tarefa(s) encontrada(s)
+              {filteredNotes.length} tarefa(s) encontrada(s) {notes.length > 0 && `de ${notes.length} total`}
             </div>
             <Button variant="outline" size="sm" onClick={clearFilters}>
               <Filter className="h-4 w-4 mr-2" />
@@ -353,36 +402,54 @@ const NotesPage: React.FC = () => {
             </div>
           ) : (
             <>
-              {viewMode === 'cards' && (
-                <NotesGrid
-                  notes={filteredNotes}
-                  onUpdateNote={handleUpdateNote}
-                  onDeleteNote={handleDeleteNote}
-                />
-              )}
-              {viewMode === 'lista' && (
-                <NotesExpandedTable
-                  notes={filteredNotes}
-                  onUpdateNote={handleUpdateNote}
-                  onDeleteNote={handleDeleteNote}
-                />
-              )}
-              {viewMode === 'kanban' && (
-                <div className="h-[calc(100vh-350px)]">
-                  <NotesKanban
-                    notes={notes}
-                    onUpdateNote={handleUpdateNote}
-                    onDeleteNote={handleDeleteNote}
-                    onStatusChanged={handleNoteStatusChanged}
-                  />
+              {notes.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <p className="mb-2">Nenhuma tarefa foi criada ainda.</p>
+                  <p className="text-sm">Clique em "Nova" para criar sua primeira tarefa.</p>
                 </div>
               )}
-              {viewMode === 'gantt' && (
-                <NotesGantt
-                  notes={filteredNotes}
-                  onUpdateNote={handleUpdateNote}
-                  onDeleteNote={handleDeleteNote}
-                />
+              
+              {notes.length > 0 && filteredNotes.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <p className="mb-2">Nenhuma tarefa encontrada com os filtros aplicados.</p>
+                  <p className="text-sm">Experimente limpar os filtros ou ajustar os critérios de busca.</p>
+                </div>
+              )}
+
+              {filteredNotes.length > 0 && (
+                <>
+                  {viewMode === 'cards' && (
+                    <NotesGrid
+                      notes={filteredNotes}
+                      onUpdateNote={handleUpdateNote}
+                      onDeleteNote={handleDeleteNote}
+                    />
+                  )}
+                  {viewMode === 'lista' && (
+                    <NotesExpandedTable
+                      notes={filteredNotes}
+                      onUpdateNote={handleUpdateNote}
+                      onDeleteNote={handleDeleteNote}
+                    />
+                  )}
+                  {viewMode === 'kanban' && (
+                    <div className="h-[calc(100vh-350px)]">
+                      <NotesKanban
+                        notes={notes}
+                        onUpdateNote={handleUpdateNote}
+                        onDeleteNote={handleDeleteNote}
+                        onStatusChanged={handleNoteStatusChanged}
+                      />
+                    </div>
+                  )}
+                  {viewMode === 'gantt' && (
+                    <NotesGantt
+                      notes={filteredNotes}
+                      onUpdateNote={handleUpdateNote}
+                      onDeleteNote={handleDeleteNote}
+                    />
+                  )}
+                </>
               )}
             </>
           )}

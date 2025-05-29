@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 import { parseTimeForDB, getCurrentTimestampBR, formatDateForDB, formatTimeForDB, separateDateAndTime } from "@/utils/dateUtils";
 
@@ -48,7 +47,7 @@ export interface NoteChecklist {
 
 export const fetchNotes = async () => {
   try {
-    console.log('Fetching notes...');
+    console.log('=== FETCHNOTES: Buscando todas as tarefas ===');
     const { data, error } = await supabase
       .from('notes')
       .select(`
@@ -63,11 +62,12 @@ export const fetchNotes = async () => {
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error('Error fetching notes:', error);
+      console.error('FETCHNOTES ERROR:', error);
       throw error;
     }
 
-    console.log('Raw notes data:', data);
+    console.log('FETCHNOTES RAW DATA:', data);
+    console.log('FETCHNOTES COUNT:', data?.length || 0);
 
     const transformedData = data?.map(note => {
       // Separar data e hora dos campos end_date se necessário
@@ -81,7 +81,7 @@ export const fetchNotes = async () => {
         endTime = separated.time;
       }
 
-      return {
+      const transformedNote = {
         id: note.id,
         title: note.title,
         content: note.content,
@@ -109,25 +109,29 @@ export const fetchNotes = async () => {
           status: note.linked_task.status as Note['status']
         } : undefined
       };
+
+      console.log('FETCHNOTES TRANSFORMED NOTE:', transformedNote);
+      return transformedNote;
     }) || [];
 
-    console.log('Transformed notes data:', transformedData);
+    console.log('FETCHNOTES FINAL TRANSFORMED DATA:', transformedData);
     return transformedData;
   } catch (error) {
-    console.error('Error fetching notes:', error);
+    console.error('FETCHNOTES CATCH ERROR:', error);
     return [];
   }
 };
 
 export const createNote = async (note: Partial<Note>) => {
   try {
-    console.log('Creating note with data:', note);
+    console.log('=== CREATENOTE: Criando nova tarefa ===');
+    console.log('CREATENOTE INPUT:', note);
     
-    // Preparar dados para inserção
+    // Preparar dados para inserção - usar status padrão se não fornecido
     const noteData = {
       title: note.title || '',
       content: note.content || null,
-      status: note.status || 'iniciar_projeto',
+      status: note.status || 'a_fazer', // Usar status padrão mais comum
       color: note.color || null,
       start_date: formatDateForDB(note.start_date),
       start_time: parseTimeForDB(note.start_time),
@@ -143,7 +147,7 @@ export const createNote = async (note: Partial<Note>) => {
       updated_at: getCurrentTimestampBR()
     };
     
-    console.log('Processed note data for insertion:', noteData);
+    console.log('CREATENOTE PROCESSED DATA:', noteData);
 
     const { data, error } = await supabase
       .from('notes')
@@ -152,12 +156,15 @@ export const createNote = async (note: Partial<Note>) => {
       .single();
     
     if (error) {
-      console.error('Error creating note:', error);
+      console.error('CREATENOTE ERROR:', error);
       throw error;
     }
 
+    console.log('CREATENOTE SUCCESS - CREATED NOTE:', data);
+
     // Se há consultores para associar, adicionar relações
     if (note.consultant_ids && note.consultant_ids.length > 0) {
+      console.log('CREATENOTE: Associando consultores:', note.consultant_ids);
       const consultantRelations = note.consultant_ids.map(consultantId => ({
         note_id: data.id,
         consultant_id: consultantId
@@ -168,12 +175,15 @@ export const createNote = async (note: Partial<Note>) => {
         .insert(consultantRelations);
       
       if (consultantError) {
-        console.error('Error creating consultant relations:', consultantError);
+        console.error('CREATENOTE CONSULTANT ERROR:', consultantError);
+      } else {
+        console.log('CREATENOTE: Consultores associados com sucesso');
       }
     }
 
     // Se há tags para associar, adicionar relações
     if (note.tag_ids && note.tag_ids.length > 0) {
+      console.log('CREATENOTE: Associando tags:', note.tag_ids);
       const tagRelations = note.tag_ids.map(tagId => ({
         note_id: data.id,
         tag_id: tagId
@@ -184,12 +194,15 @@ export const createNote = async (note: Partial<Note>) => {
         .insert(tagRelations);
       
       if (tagError) {
-        console.error('Error creating tag relations:', tagError);
+        console.error('CREATENOTE TAG ERROR:', tagError);
+      } else {
+        console.log('CREATENOTE: Tags associadas com sucesso');
       }
     }
 
     // Se há checklists, criar elas
     if (note.checklists && note.checklists.length > 0) {
+      console.log('CREATENOTE: Criando checklists:', note.checklists);
       const checklistsToCreate = note.checklists.map(checklist => ({
         note_id: data.id,
         title: checklist.title,
@@ -207,14 +220,16 @@ export const createNote = async (note: Partial<Note>) => {
         .insert(checklistsToCreate);
       
       if (checklistError) {
-        console.error('Error creating checklists:', checklistError);
+        console.error('CREATENOTE CHECKLIST ERROR:', checklistError);
+      } else {
+        console.log('CREATENOTE: Checklists criadas com sucesso');
       }
     }
 
-    console.log('Note created successfully:', data);
+    console.log('CREATENOTE: Tarefa criada com sucesso - ID:', data.id);
     return data;
   } catch (error) {
-    console.error('Error creating note:', error);
+    console.error('CREATENOTE CATCH ERROR:', error);
     throw error;
   }
 };
