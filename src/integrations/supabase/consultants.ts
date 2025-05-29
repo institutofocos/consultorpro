@@ -24,9 +24,34 @@ export const fetchConsultants = async () => {
 
 export const createConsultant = async (consultant: any) => {
   try {
+    // Remover campos que não existem na tabela
+    const {
+      username,
+      password,
+      profile_photo,
+      services,
+      activeProjects,
+      availableHours,
+      workedHours,
+      hoursPerMonth,
+      commissionPercentage,
+      pixKey,
+      zipCode,
+      ...cleanConsultant
+    } = consultant;
+
+    // Mapear campos corretamente
+    const consultantData = {
+      ...cleanConsultant,
+      commission_percentage: commissionPercentage || consultant.commission_percentage,
+      pix_key: pixKey || consultant.pix_key,
+      zip_code: zipCode || consultant.zip_code,
+      hours_per_month: hoursPerMonth || consultant.hours_per_month || 160,
+    };
+
     const { data, error } = await supabase
       .from('consultants')
-      .insert(consultant)
+      .insert(consultantData)
       .select()
       .single();
     
@@ -40,9 +65,34 @@ export const createConsultant = async (consultant: any) => {
 
 export const updateConsultant = async (id: string, consultant: any) => {
   try {
+    // Remover campos que não existem na tabela
+    const {
+      username,
+      password,
+      profile_photo,
+      services,
+      activeProjects,
+      availableHours,
+      workedHours,
+      hoursPerMonth,
+      commissionPercentage,
+      pixKey,
+      zipCode,
+      ...cleanConsultant
+    } = consultant;
+
+    // Mapear campos corretamente
+    const consultantData = {
+      ...cleanConsultant,
+      commission_percentage: commissionPercentage || consultant.commission_percentage,
+      pix_key: pixKey || consultant.pix_key,
+      zip_code: zipCode || consultant.zip_code,
+      hours_per_month: hoursPerMonth || consultant.hours_per_month || 160,
+    };
+
     const { data, error } = await supabase
       .from('consultants')
-      .update(consultant)
+      .update(consultantData)
       .eq('id', id)
       .select()
       .single();
@@ -141,7 +191,6 @@ export const calculateConsultantWorkedHours = async (consultantId: string): Prom
   try {
     console.log(`=== CALCULANDO HORAS TRABALHADAS PARA CONSULTOR: ${consultantId} ===`);
     
-    // Primeiro, vamos buscar o nome do consultor para logs
     const { data: consultantData, error: consultantError } = await supabase
       .from('consultants')
       .select('name')
@@ -151,7 +200,6 @@ export const calculateConsultantWorkedHours = async (consultantId: string): Prom
     const consultantName = consultantData?.name || 'Desconhecido';
     console.log(`Nome do consultor: ${consultantName}`);
     
-    // Buscar todas as etapas onde o consultor está diretamente alocado
     const { data: stageHours, error: stageError } = await supabase
       .from('project_stages')
       .select('hours, project_id, name, consultant_id')
@@ -174,7 +222,6 @@ export const calculateConsultantWorkedHours = async (consultantId: string): Prom
       console.log(`Nenhuma etapa encontrada para ${consultantName}`);
     }
 
-    // Buscar projetos onde o consultor é principal
     const { data: mainConsultantProjects, error: mainProjectError } = await supabase
       .from('projects')
       .select('total_hours, id, name, main_consultant_id')
@@ -186,7 +233,6 @@ export const calculateConsultantWorkedHours = async (consultantId: string): Prom
       console.log(`Projetos como consultor principal para ${consultantName}:`, mainConsultantProjects);
     }
 
-    // Buscar projetos onde o consultor é de apoio
     const { data: supportConsultantProjects, error: supportProjectError } = await supabase
       .from('projects')
       .select('total_hours, id, name, support_consultant_id')
@@ -198,7 +244,6 @@ export const calculateConsultantWorkedHours = async (consultantId: string): Prom
       console.log(`Projetos como consultor de apoio para ${consultantName}:`, supportConsultantProjects);
     }
 
-    // Combinar todos os projetos
     const allProjects = [
       ...(mainConsultantProjects || []),
       ...(supportConsultantProjects || [])
@@ -216,7 +261,6 @@ export const calculateConsultantWorkedHours = async (consultantId: string): Prom
       console.log(`Nenhum projeto encontrado para ${consultantName}`);
     }
 
-    // Usar o maior valor entre horas das etapas e horas dos projetos
     const totalHours = Math.max(totalStageHours, totalProjectHours);
     
     console.log(`=== RESUMO PARA ${consultantName} ===`);
@@ -248,7 +292,6 @@ export const calculateConsultantActiveProjects = async (consultantId: string): P
   try {
     console.log(`=== CALCULANDO PROJETOS ATIVOS PARA CONSULTOR: ${consultantId} ===`);
     
-    // Primeiro, vamos buscar o nome do consultor para logs
     const { data: consultantData, error: consultantError } = await supabase
       .from('consultants')
       .select('name')
@@ -258,7 +301,6 @@ export const calculateConsultantActiveProjects = async (consultantId: string): P
     const consultantName = consultantData?.name || 'Desconhecido';
     console.log(`Nome do consultor: ${consultantName}`);
     
-    // Buscar projetos onde o consultor é principal
     const { data: mainProjects, error: mainError } = await supabase
       .from('projects')
       .select('id, name, status, main_consultant_id')
@@ -271,7 +313,6 @@ export const calculateConsultantActiveProjects = async (consultantId: string): P
       console.log(`Projetos como consultor principal para ${consultantName}:`, mainProjects);
     }
 
-    // Buscar projetos onde o consultor é de apoio
     const { data: supportProjects, error: supportError } = await supabase
       .from('projects')
       .select('id, name, status, support_consultant_id')
@@ -284,13 +325,11 @@ export const calculateConsultantActiveProjects = async (consultantId: string): P
       console.log(`Projetos como consultor de apoio para ${consultantName}:`, supportProjects);
     }
 
-    // Combinar todos os projetos únicos
     const allProjects = [
       ...(mainProjects || []),
       ...(supportProjects || [])
     ];
 
-    // Remover duplicatas baseado no ID
     const uniqueProjects = allProjects.filter((project, index, self) => 
       self.findIndex(p => p.id === project.id) === index
     );
@@ -309,7 +348,6 @@ export const calculateConsultantActiveProjects = async (consultantId: string): P
 
 export const fetchConsultantProjects = async (consultantId: string) => {
   try {
-    // Buscar projetos onde o consultor é principal ou de apoio
     const { data: projects, error: projectsError } = await supabase
       .from('projects')
       .select(`
@@ -322,7 +360,6 @@ export const fetchConsultantProjects = async (consultantId: string) => {
 
     if (projectsError) throw projectsError;
 
-    // Buscar etapas dos projetos onde o consultor está envolvido
     const projectIds = projects?.map(p => p.id) || [];
     let stages = [];
     
@@ -336,7 +373,6 @@ export const fetchConsultantProjects = async (consultantId: string) => {
       stages = stagesData || [];
     }
 
-    // Calcular estatísticas
     const totalProjects = projects?.length || 0;
     const activeProjects = projects?.filter(p => p.status === 'active').length || 0;
     const completedProjects = projects?.filter(p => p.status === 'completed').length || 0;
