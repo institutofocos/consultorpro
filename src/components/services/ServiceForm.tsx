@@ -94,13 +94,34 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
   const [currentEditingIndex, setCurrentEditingIndex] = useState<number | null>(null);
   const [currentDescription, setCurrentDescription] = useState("");
 
-  // Set initial selected tags from service
+  // Load existing service tags when editing
   useEffect(() => {
-    if (service?.tags) {
-      const tagIds = service.tags.map((tag: any) => tag.id);
-      setSelectedTags(tagIds);
-    }
-  }, [service]);
+    const loadServiceTags = async () => {
+      if (service?.id) {
+        try {
+          console.log(`Carregando tags do serviço ${service.id} para edição...`);
+          
+          const { data: serviceTags, error } = await supabase
+            .from('service_tags')
+            .select('tag_id')
+            .eq('service_id', service.id);
+          
+          if (error) {
+            console.error('Erro ao buscar tags do serviço:', error);
+            return;
+          }
+          
+          const tagIds = serviceTags?.map(st => st.tag_id) || [];
+          console.log('Tags do serviço carregadas:', tagIds);
+          setSelectedTags(tagIds);
+        } catch (error) {
+          console.error('Erro ao carregar tags do serviço:', error);
+        }
+      }
+    };
+    
+    loadServiceTags();
+  }, [service?.id]);
 
   const form = useForm<ServiceFormValues>({
     resolver: zodResolver(serviceSchema),
@@ -357,6 +378,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
       if (selectedTags.length > 0) {
         // First delete existing tags if updating
         if (service) {
+          console.log(`Removendo tags existentes do serviço ${savedServiceId}...`);
           await supabase
             .from('service_tags')
             .delete()
@@ -372,12 +394,24 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
         }));
         
         if (serviceTags.length > 0) {
+          console.log('Inserindo tags do serviço:', serviceTags);
           const { error: tagError } = await supabase
             .from('service_tags')
             .insert(serviceTags);
             
-          if (tagError) throw tagError;
+          if (tagError) {
+            console.error('Erro ao inserir tags do serviço:', tagError);
+            throw tagError;
+          }
+          console.log('Tags do serviço inseridas com sucesso');
         }
+      } else if (service) {
+        // If no tags selected but updating an existing service, remove existing tags
+        console.log(`Removendo todas as tags do serviço ${savedServiceId}...`);
+        await supabase
+          .from('service_tags')
+          .delete()
+          .eq('service_id', savedServiceId);
       }
       
       toast.success('Serviço cadastrado com sucesso!');

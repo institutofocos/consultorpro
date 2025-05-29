@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Edit, Trash2, Plus, Eye, Clock, DollarSign, ExternalLink } from 'lucide-react';
+import { Search, Edit, Trash2, Plus, Eye, Clock, DollarSign, ExternalLink, Tag } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ServiceForm } from './ServiceForm';
@@ -11,12 +11,21 @@ import { Service } from '@/integrations/supabase/services';
 import { fetchServices } from '@/integrations/supabase/services';
 import { useToast } from "@/components/ui/use-toast";
 import { formatDateBR } from '@/utils/dateUtils';
+import { supabase } from '@/integrations/supabase/client';
+
+interface ServiceWithTags extends Service {
+  tags?: Array<{
+    id: string;
+    name: string;
+    color?: string;
+  }>;
+}
 
 const ServiceList = () => {
-  const [services, setServices] = useState<Service[]>([]);
+  const [services, setServices] = useState<ServiceWithTags[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedService, setSelectedService] = useState<Service | null>(null);
-  const [editingService, setEditingService] = useState<Service | null>(null);
+  const [selectedService, setSelectedService] = useState<ServiceWithTags | null>(null);
+  const [editingService, setEditingService] = useState<ServiceWithTags | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -25,8 +34,48 @@ const ServiceList = () => {
   const loadServices = async () => {
     try {
       setIsLoading(true);
+      console.log('Carregando serviços...');
+      
+      // Buscar serviços básicos
       const servicesData = await fetchServices();
-      setServices(servicesData);
+      console.log('Serviços encontrados:', servicesData.length);
+      
+      // Para cada serviço, buscar suas tags
+      const servicesWithTags = await Promise.all(
+        servicesData.map(async (service) => {
+          try {
+            console.log(`Buscando tags para serviço ${service.id}...`);
+            
+            const { data: serviceTags, error } = await supabase
+              .from('service_tags')
+              .select(`
+                tag_id,
+                project_tags (
+                  id,
+                  name,
+                  color
+                )
+              `)
+              .eq('service_id', service.id);
+            
+            if (error) {
+              console.error(`Erro ao buscar tags do serviço ${service.id}:`, error);
+              return { ...service, tags: [] };
+            }
+            
+            const tags = serviceTags?.map(st => st.project_tags).filter(Boolean) || [];
+            console.log(`Tags encontradas para serviço ${service.id}:`, tags.length);
+            
+            return { ...service, tags };
+          } catch (error) {
+            console.error(`Erro ao processar tags do serviço ${service.id}:`, error);
+            return { ...service, tags: [] };
+          }
+        })
+      );
+      
+      console.log('Serviços carregados com tags:', servicesWithTags.length);
+      setServices(servicesWithTags);
     } catch (error) {
       console.error('Error loading services:', error);
       toast({
@@ -52,8 +101,13 @@ const ServiceList = () => {
   const handleDeleteService = async (serviceId: string) => {
     if (window.confirm('Tem certeza que deseja excluir este serviço?')) {
       try {
-        // For now, we'll implement a simple delete using supabase directly
-        const { supabase } = await import('@/integrations/supabase/client');
+        // Delete service tags first
+        await supabase
+          .from('service_tags')
+          .delete()
+          .eq('service_id', serviceId);
+          
+        // Then delete the service
         const { error } = await supabase
           .from('services')
           .delete()
@@ -234,8 +288,17 @@ const ServiceList = () => {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        <Badge variant="outline">SEBRAE DF</Badge>
+                      <div className="flex flex-wrap gap-1 max-w-[200px]">
+                        {service.tags && service.tags.length > 0 ? (
+                          service.tags.map((tag) => (
+                            <Badge key={tag.id} variant="outline" className="text-xs">
+                              <Tag className="h-3 w-3 mr-1" />
+                              {tag.name}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -304,6 +367,21 @@ const ServiceList = () => {
                     >
                       {selectedService.url}
                     </a>
+                  </div>
+                )}
+                
+                {/* Tags in details */}
+                {selectedService.tags && selectedService.tags.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Tags:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedService.tags.map((tag) => (
+                        <Badge key={tag.id} variant="secondary" className="gap-1">
+                          <Tag className="h-3 w-3" />
+                          {tag.name}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

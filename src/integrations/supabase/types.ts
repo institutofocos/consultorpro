@@ -1439,7 +1439,7 @@ export type Database = {
             foreignKeyName: "service_tags_tag_id_fkey"
             columns: ["tag_id"]
             isOneToOne: false
-            referencedRelation: "tags"
+            referencedRelation: "project_tags"
             referencedColumns: ["id"]
           },
         ]
