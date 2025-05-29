@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from 'react-router-dom';
-import { Calendar, BarChart2, Kanban } from 'lucide-react';
+import { Calendar, BarChart2 } from 'lucide-react';
 
 const ReportsList: React.FC = () => {
   const navigate = useNavigate();
@@ -12,9 +12,6 @@ const ReportsList: React.FC = () => {
     switch (value) {
       case "calendar":
         navigate('/reports/calendar');
-        break;
-      case "kanban":
-        navigate('/reports/kanban');
         break;
       case "gantt":
         navigate('/reports/gantt');
@@ -29,7 +26,7 @@ const ReportsList: React.FC = () => {
     <div className="space-y-8 animate-fade-in">
       <div>
         <h1 className="text-3xl font-bold">Relatórios</h1>
-        <p className="text-muted-foreground">Relatórios e análises</p>
+        <p className="text-muted-foreground">Relatórios e análises de projetos</p>
       </div>
 
       <Tabs defaultValue="default" onValueChange={handleTabChange}>
@@ -37,10 +34,6 @@ const ReportsList: React.FC = () => {
           <TabsTrigger value="calendar">
             <Calendar className="h-4 w-4 mr-2" />
             Agenda
-          </TabsTrigger>
-          <TabsTrigger value="kanban">
-            <Kanban className="h-4 w-4 mr-2" />
-            Kanban
           </TabsTrigger>
           <TabsTrigger value="gantt">
             <BarChart2 className="h-4 w-4 mr-2" />
@@ -64,18 +57,6 @@ const ReportsList: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground">Visualizar eventos e prazos em formato de calendário</p>
-                  </CardContent>
-                </Card>
-                
-                <Card className="flex-1 cursor-pointer hover:bg-muted/50" onClick={() => handleTabChange("kanban")}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Kanban className="mr-2 h-5 w-5" />
-                      Kanban
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">Visualizar projetos em formato de quadro Kanban</p>
                   </CardContent>
                 </Card>
                 

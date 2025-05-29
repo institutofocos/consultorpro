@@ -1,8 +1,7 @@
 
 import React from 'react';
-import { NavLink, Outlet, Navigate } from 'react-router-dom';
-import { Calendar, KanbanSquare, ChartGantt } from 'lucide-react';
-import { Card } from "@/components/ui/card";
+import { NavLink, Outlet } from 'react-router-dom';
+import { Calendar, BarChart3 } from 'lucide-react';
 
 export default function ReportsLayout() {
   return (
@@ -23,20 +22,6 @@ export default function ReportsLayout() {
         </NavLink>
         
         <NavLink 
-          to="/reports/kanban"
-          className={({ isActive }) => 
-            `flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-              isActive 
-                ? 'bg-blue-100 text-blue-700 font-medium' 
-                : 'hover:bg-gray-100'
-            }`
-          }
-        >
-          <KanbanSquare className="w-5 h-5" />
-          <span>Kanban</span>
-        </NavLink>
-        
-        <NavLink 
           to="/reports/gantt"
           className={({ isActive }) => 
             `flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
@@ -46,7 +31,7 @@ export default function ReportsLayout() {
             }`
           }
         >
-          <ChartGantt className="w-5 h-5" />
+          <BarChart3 className="w-5 h-5" />
           <span>Gantt</span>
         </NavLink>
       </div>
