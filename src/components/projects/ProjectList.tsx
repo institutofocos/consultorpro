@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -86,15 +85,41 @@ const ProjectList: React.FC = () => {
     queryFn: fetchProjects,
   });
 
+  // Função helper para verificar se uma data está atrasada
+  const isOverdue = (endDate: string | null) => {
+    if (!endDate) return false;
+    const today = new Date();
+    const targetDate = new Date(endDate);
+    return targetDate < today;
+  };
+
+  // Função helper para verificar se um status indica conclusão
+  const isCompletedStatus = (status: string) => {
+    const completionStatuses = statuses.filter(s => s.is_completion_status);
+    return completionStatuses.some(s => s.name === status) || status === 'concluido';
+  };
+
   const filteredProjects = projects.filter((project: Project) => {
     const matchesSearch = searchTerm === '' || 
       project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    // Modificar a lógica do filtro de status para incluir etapas
+    // Lógica do filtro de status - incluindo entregas atrasadas
     let matchesStatus = false;
     if (statusFilter === '') {
       matchesStatus = true; // Se não há filtro, incluir todos
+    } else if (statusFilter === 'entregas_atrasadas') {
+      // Filtro especial para entregas atrasadas
+      const projectOverdue = !isCompletedStatus(project.status) && isOverdue(project.endDate);
+      
+      // Verificar se alguma etapa está atrasada
+      const hasOverdueStages = project.stages && project.stages.some(stage => 
+        !stage.completed && 
+        !isCompletedStatus(stage.status || '') && 
+        isOverdue(stage.endDate)
+      );
+      
+      matchesStatus = projectOverdue || hasOverdueStages;
     } else {
       // Verificar se o status do projeto corresponde
       const projectMatches = project.status === statusFilter;
@@ -193,6 +218,7 @@ const ProjectList: React.FC = () => {
   // Preparar opções de status dinamicamente
   const statusOptions = [
     { id: '', name: 'Todos os status' },
+    { id: 'entregas_atrasadas', name: 'Entregas Atrasadas' }, // Nova opção
     ...statuses.map(status => ({
       id: status.name,
       name: status.display_name
@@ -366,6 +392,11 @@ const ProjectList: React.FC = () => {
           <div className="flex justify-between items-center mt-4">
             <div className="text-sm text-muted-foreground">
               {filteredProjects.length} projeto(s) encontrado(s)
+              {statusFilter === 'entregas_atrasadas' && (
+                <span className="ml-2 text-red-600 font-medium">
+                  (Entregas Atrasadas)
+                </span>
+              )}
             </div>
           </div>
         </CardContent>
