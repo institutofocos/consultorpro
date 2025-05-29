@@ -139,12 +139,22 @@ export const checkConsultantAuthorizedForService = async (consultantId: string, 
 
 export const calculateConsultantWorkedHours = async (consultantId: string): Promise<number> => {
   try {
-    console.log(`Calculating worked hours for consultant: ${consultantId}`);
+    console.log(`=== CALCULANDO HORAS TRABALHADAS PARA CONSULTOR: ${consultantId} ===`);
+    
+    // Primeiro, vamos buscar o nome do consultor para logs
+    const { data: consultantData, error: consultantError } = await supabase
+      .from('consultants')
+      .select('name')
+      .eq('id', consultantId)
+      .single();
+    
+    const consultantName = consultantData?.name || 'Desconhecido';
+    console.log(`Nome do consultor: ${consultantName}`);
     
     // Buscar todas as etapas onde o consultor está diretamente alocado
     const { data: stageHours, error: stageError } = await supabase
       .from('project_stages')
-      .select('hours, project_id, name')
+      .select('hours, project_id, name, consultant_id')
       .eq('consultant_id', consultantId);
 
     if (stageError) {
@@ -152,35 +162,68 @@ export const calculateConsultantWorkedHours = async (consultantId: string): Prom
       throw stageError;
     }
 
-    console.log(`Stage hours for consultant ${consultantId}:`, stageHours);
+    console.log(`Etapas encontradas para ${consultantName}:`, stageHours);
     
     let totalStageHours = 0;
     if (stageHours && stageHours.length > 0) {
-      totalStageHours = stageHours.reduce((sum, stage) => sum + (stage.hours || 0), 0);
+      totalStageHours = stageHours.reduce((sum, stage) => {
+        console.log(`  - Etapa "${stage.name}": ${stage.hours || 0}h (projeto: ${stage.project_id})`);
+        return sum + (stage.hours || 0);
+      }, 0);
+    } else {
+      console.log(`Nenhuma etapa encontrada para ${consultantName}`);
     }
 
-    // Buscar projetos onde o consultor é principal ou de apoio e somar as horas totais
-    const { data: projectHours, error: projectError } = await supabase
+    // Buscar projetos onde o consultor é principal
+    const { data: mainConsultantProjects, error: mainProjectError } = await supabase
       .from('projects')
-      .select('total_hours, id, name')
-      .or(`main_consultant_id.eq.${consultantId},support_consultant_id.eq.${consultantId}`);
+      .select('total_hours, id, name, main_consultant_id')
+      .eq('main_consultant_id', consultantId);
 
-    if (projectError) {
-      console.error('Error fetching project hours:', projectError);
-      throw projectError;
+    if (mainProjectError) {
+      console.error('Error fetching main consultant projects:', mainProjectError);
+    } else {
+      console.log(`Projetos como consultor principal para ${consultantName}:`, mainConsultantProjects);
     }
 
-    console.log(`Project hours for consultant ${consultantId}:`, projectHours);
+    // Buscar projetos onde o consultor é de apoio
+    const { data: supportConsultantProjects, error: supportProjectError } = await supabase
+      .from('projects')
+      .select('total_hours, id, name, support_consultant_id')
+      .eq('support_consultant_id', consultantId);
+
+    if (supportProjectError) {
+      console.error('Error fetching support consultant projects:', supportProjectError);
+    } else {
+      console.log(`Projetos como consultor de apoio para ${consultantName}:`, supportConsultantProjects);
+    }
+
+    // Combinar todos os projetos
+    const allProjects = [
+      ...(mainConsultantProjects || []),
+      ...(supportConsultantProjects || [])
+    ];
+
+    console.log(`Total de projetos encontrados para ${consultantName}:`, allProjects);
 
     let totalProjectHours = 0;
-    if (projectHours && projectHours.length > 0) {
-      totalProjectHours = projectHours.reduce((sum, project) => sum + (project.total_hours || 0), 0);
+    if (allProjects && allProjects.length > 0) {
+      totalProjectHours = allProjects.reduce((sum, project) => {
+        console.log(`  - Projeto "${project.name}": ${project.total_hours || 0}h`);
+        return sum + (project.total_hours || 0);
+      }, 0);
+    } else {
+      console.log(`Nenhum projeto encontrado para ${consultantName}`);
     }
 
     // Usar o maior valor entre horas das etapas e horas dos projetos
     const totalHours = Math.max(totalStageHours, totalProjectHours);
     
-    console.log(`Total worked hours for consultant ${consultantId}: ${totalHours} (stage: ${totalStageHours}, project: ${totalProjectHours})`);
+    console.log(`=== RESUMO PARA ${consultantName} ===`);
+    console.log(`Total de horas das etapas: ${totalStageHours}`);
+    console.log(`Total de horas dos projetos: ${totalProjectHours}`);
+    console.log(`Total final de horas trabalhadas: ${totalHours}`);
+    console.log(`=== FIM DO CÁLCULO ===`);
     
     return totalHours;
   } catch (error) {
@@ -193,7 +236,7 @@ export const calculateConsultantAvailableHours = async (consultantId: string, ho
   try {
     const workedHours = await calculateConsultantWorkedHours(consultantId);
     const available = Math.max(0, hoursPerMonth - workedHours);
-    console.log(`Available hours for consultant ${consultantId}: ${available} (total: ${hoursPerMonth}, worked: ${workedHours})`);
+    console.log(`Horas disponíveis para consultor ${consultantId}: ${available} (total: ${hoursPerMonth}, trabalhadas: ${workedHours})`);
     return available;
   } catch (error) {
     console.error('Error calculating consultant available hours:', error);
@@ -203,24 +246,59 @@ export const calculateConsultantAvailableHours = async (consultantId: string, ho
 
 export const calculateConsultantActiveProjects = async (consultantId: string): Promise<number> => {
   try {
-    console.log(`Calculating active projects for consultant: ${consultantId}`);
+    console.log(`=== CALCULANDO PROJETOS ATIVOS PARA CONSULTOR: ${consultantId} ===`);
     
-    // Buscar projetos onde o consultor é principal ou de apoio
-    const { data: projects, error } = await supabase
+    // Primeiro, vamos buscar o nome do consultor para logs
+    const { data: consultantData, error: consultantError } = await supabase
+      .from('consultants')
+      .select('name')
+      .eq('id', consultantId)
+      .single();
+    
+    const consultantName = consultantData?.name || 'Desconhecido';
+    console.log(`Nome do consultor: ${consultantName}`);
+    
+    // Buscar projetos onde o consultor é principal
+    const { data: mainProjects, error: mainError } = await supabase
       .from('projects')
-      .select('id, name, status')
-      .or(`main_consultant_id.eq.${consultantId},support_consultant_id.eq.${consultantId}`)
-      .in('status', ['active', 'em_producao', 'em_planejamento']);
+      .select('id, name, status, main_consultant_id')
+      .eq('main_consultant_id', consultantId)
+      .in('status', ['active', 'em_producao', 'em_planejamento', 'planned']);
 
-    if (error) {
-      console.error('Error fetching consultant projects:', error);
-      throw error;
+    if (mainError) {
+      console.error('Error fetching main consultant projects:', mainError);
+    } else {
+      console.log(`Projetos como consultor principal para ${consultantName}:`, mainProjects);
     }
+
+    // Buscar projetos onde o consultor é de apoio
+    const { data: supportProjects, error: supportError } = await supabase
+      .from('projects')
+      .select('id, name, status, support_consultant_id')
+      .eq('support_consultant_id', consultantId)
+      .in('status', ['active', 'em_producao', 'em_planejamento', 'planned']);
+
+    if (supportError) {
+      console.error('Error fetching support consultant projects:', supportError);
+    } else {
+      console.log(`Projetos como consultor de apoio para ${consultantName}:`, supportProjects);
+    }
+
+    // Combinar todos os projetos únicos
+    const allProjects = [
+      ...(mainProjects || []),
+      ...(supportProjects || [])
+    ];
+
+    // Remover duplicatas baseado no ID
+    const uniqueProjects = allProjects.filter((project, index, self) => 
+      self.findIndex(p => p.id === project.id) === index
+    );
     
-    console.log(`Active projects for consultant ${consultantId}:`, projects);
+    console.log(`Projetos únicos ativos para ${consultantName}:`, uniqueProjects);
     
-    const projectCount = projects?.length || 0;
-    console.log(`Total active projects for consultant ${consultantId}: ${projectCount}`);
+    const projectCount = uniqueProjects.length;
+    console.log(`=== TOTAL DE PROJETOS ATIVOS PARA ${consultantName}: ${projectCount} ===`);
     
     return projectCount;
   } catch (error) {
