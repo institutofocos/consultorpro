@@ -9,6 +9,7 @@ import ProjectRulesManager from './ProjectRulesManager';
 import APIKeyManager from './APIKeyManager';
 import WhatsAppConnections from './WhatsAppConnections';
 import SwaggerDocs from './SwaggerDocs';
+import TagList from '../tags/TagList';
 
 const SettingsPage = () => {
   return (
@@ -19,13 +20,14 @@ const SettingsPage = () => {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid grid-cols-4 lg:grid-cols-8">
+        <TabsList className="grid grid-cols-4 lg:grid-cols-9">
           <TabsTrigger value="users">Usuários</TabsTrigger>
           <TabsTrigger value="project-rules">Regras</TabsTrigger>
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
           <TabsTrigger value="timezone">Horário</TabsTrigger>
+          <TabsTrigger value="tags">Tags</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="docs">Docs</TabsTrigger>
         </TabsList>
@@ -52,6 +54,10 @@ const SettingsPage = () => {
 
         <TabsContent value="timezone">
           <TimezoneSettings />
+        </TabsContent>
+
+        <TabsContent value="tags">
+          <TagList />
         </TabsContent>
 
         <TabsContent value="logs">
