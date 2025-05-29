@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Eye, Search, ChevronDown, ChevronRight, Zap } from 'lucide-react';
+import { Edit, Trash2, Eye, Search, ChevronDown, ChevronRight, Zap, ExternalLink } from 'lucide-react';
 import { Project } from './types';
 import ServiceNameCell from './ServiceNameCell';
 import ProjectDetails from './ProjectDetails';
@@ -210,6 +210,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
               <TableHead>Data Fim</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Progresso</TableHead>
+              <TableHead>URL</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -299,6 +300,20 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                       <div className="text-sm">
                         {progress.completed}/{progress.total}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {project.url ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(project.url, '_blank')}
+                          title="Abrir URL do projeto"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        '-'
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end space-x-2">
@@ -417,6 +432,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                         <TableCell className="text-muted-foreground text-sm">
                           {stageCompleted ? '100%' : '0%'}
                         </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">-</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end space-x-2">
                             <DropdownMenu>
