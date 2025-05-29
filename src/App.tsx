@@ -19,7 +19,6 @@ import SettingsPage from "./components/settings/SettingsPage";
 import ClientList from "./components/clients/ClientList";
 import FinancialPage from "./components/financial/FinancialPage";
 import DemandsList from "./components/demands/DemandsList";
-import ReportsLayout from "./components/reports/ReportsLayout";
 import Dashboard from "./components/dashboard/Dashboard";
 
 const queryClient = new QueryClient();
@@ -61,11 +60,6 @@ const App = () => (
             
             <Route path="/financial" element={
               <Layout><FinancialPage /></Layout>
-            } />
-            
-            {/* Reports routes */}
-            <Route path="/reports" element={
-              <Layout><ReportsLayout /></Layout>
             } />
             
             <Route path="/settings" element={
