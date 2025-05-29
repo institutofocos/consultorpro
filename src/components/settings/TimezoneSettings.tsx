@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -136,14 +137,6 @@ const TimezoneSettings: React.FC = () => {
         console.error('Format save error:', formatError);
         throw formatError;
       }
-
-      // Log da alteração
-      await supabase.rpc('insert_system_log', {
-        p_log_type: 'info',
-        p_category: 'settings',
-        p_message: 'Configurações de horário atualizadas',
-        p_details: { timezone: timezoneData, datetime_format: formatData }
-      });
 
       toast({
         title: "Sucesso",

@@ -78,14 +78,6 @@ const WebhookSettings: React.FC = () => {
 
       if (error) throw error;
 
-      // Log da alteração
-      await supabase.rpc('insert_system_log', {
-        p_log_type: 'info',
-        p_category: 'webhook',
-        p_message: `Configurações de webhook atualizadas: intervalo ${webhookConfig.interval_seconds}s, ${webhookConfig.enabled ? 'ativado' : 'desativado'}`,
-        p_details: webhookConfig as any
-      });
-
       toast.success("Configurações de webhook salvas com sucesso", {
         icon: <CheckCircle2 className="h-5 w-5 text-green-600" />
       });

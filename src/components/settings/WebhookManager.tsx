@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -107,14 +108,6 @@ const WebhookManager: React.FC = () => {
 
       if (error) throw error;
 
-      // Log da alteração
-      await supabase.rpc('insert_system_log', {
-        p_log_type: 'info',
-        p_category: 'webhook',
-        p_message: `Configurações de webhook atualizadas: intervalo ${webhookConfig.interval_seconds}s, ${webhookConfig.enabled ? 'ativado' : 'desativado'}`,
-        p_details: webhookConfig as any
-      });
-
       toast.success("Configurações de webhook salvas com sucesso");
     } catch (error) {
       console.error('Error saving webhook settings:', error);
@@ -151,39 +144,14 @@ const WebhookManager: React.FC = () => {
 
       if (error) {
         console.error('Webhook function error:', error);
-        
-        // Log error to system logs
-        await supabase.rpc('insert_system_log', {
-          p_log_type: 'error',
-          p_category: 'webhook',
-          p_message: `Erro na função webhook: ${action}`,
-          p_details: { error: error.message, action, data } as any
-        });
-        
         throw new Error(error.message || 'Webhook function failed');
       }
 
       console.log('Webhook function result:', result);
       
       if (!result || result.success === false) {
-        // Log warning to system logs
-        await supabase.rpc('insert_system_log', {
-          p_log_type: 'warning',
-          p_category: 'webhook',
-          p_message: `Webhook operation failed: ${action}`,
-          p_details: { result, action, data } as any
-        });
-        
         throw new Error(result?.message || 'Webhook operation failed');
       }
-
-      // Log success to system logs
-      await supabase.rpc('insert_system_log', {
-        p_log_type: 'success',
-        p_category: 'webhook',
-        p_message: `Webhook operation successful: ${action}`,
-        p_details: { result, action } as any
-      });
       
       return result;
     } catch (error) {
@@ -219,14 +187,6 @@ const WebhookManager: React.FC = () => {
       console.log('Auto queue processing result:', result.message);
     } catch (error) {
       console.error('Error in auto webhook queue processing:', error);
-      
-      // Log error silently
-      await supabase.rpc('insert_system_log', {
-        p_log_type: 'error',
-        p_category: 'webhook',
-        p_message: 'Erro no processamento automático de webhooks',
-        p_details: { error: error instanceof Error ? error.message : 'Unknown error' } as any
-      });
     }
   };
 
