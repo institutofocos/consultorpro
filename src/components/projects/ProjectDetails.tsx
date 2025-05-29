@@ -4,14 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { X, Edit, Calendar, User, DollarSign, Clock, FileText, Activity, Zap } from 'lucide-react';
+import { X, Edit, Calendar, User, DollarSign, Clock, FileText, Activity } from 'lucide-react';
 import { Project } from './types';
 import ProjectStagesList from './ProjectStagesList';
 import ProjectHistory from './ProjectHistory';
-import { useProjectActions } from '@/hooks/useProjectActions';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
-import { toast } from 'sonner';
 import { formatDateBR } from '@/utils/dateUtils';
 
 interface ProjectDetailsProps {
@@ -26,18 +23,6 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
   onProjectUpdated
 }) => {
   const { statuses, isLoading: statusesLoading, getStatusDisplay, getStatusBadgeStyle } = useProjectStatuses();
-  const { updateProjectStatus, isLoading } = useProjectActions();
-
-  const handleStatusChange = async (newStatus: string) => {
-    try {
-      await updateProjectStatus(project.id, newStatus);
-      toast.success('Status do projeto atualizado com sucesso!');
-      onProjectUpdated();
-    } catch (error) {
-      console.error('Erro ao atualizar status:', error);
-      toast.error('Erro ao atualizar status do projeto');
-    }
-  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -86,40 +71,6 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
                 ID: {project.projectId}
               </Badge>
             )}
-            
-            {/* Status Change Dropdown - Usando status dinâmicos */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" disabled={isLoading || statusesLoading}>
-                  <Zap className="h-4 w-4 mr-1" />
-                  Alterar Status
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-white border shadow-lg z-50">
-                {statuses.length === 0 ? (
-                  <DropdownMenuItem disabled className="text-muted-foreground">
-                    Nenhum status disponível
-                  </DropdownMenuItem>
-                ) : (
-                  statuses.map((status) => (
-                    <DropdownMenuItem
-                      key={status.id}
-                      onClick={() => handleStatusChange(status.name)}
-                      className="cursor-pointer hover:bg-gray-100"
-                      disabled={status.name === project.status}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: status.color }}
-                        />
-                        {status.display_name}
-                      </div>
-                    </DropdownMenuItem>
-                  ))
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
           {project.description && (
             <p className="text-muted-foreground max-w-3xl">
@@ -259,6 +210,7 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
           <ProjectStagesList
             project={project}
             onProjectUpdated={onProjectUpdated}
+            readOnly={true}
           />
         </TabsContent>
 

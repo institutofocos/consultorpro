@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,11 +19,13 @@ import {
 interface ProjectStagesListProps {
   project: Project;
   onProjectUpdated: () => void;
+  readOnly?: boolean;
 }
 
 const ProjectStagesList: React.FC<ProjectStagesListProps> = ({ 
   project, 
-  onProjectUpdated 
+  onProjectUpdated,
+  readOnly = false
 }) => {
   const { updateStageStatus, isLoading } = useProjectActions();
   const { getStageStatusChangeDate } = useProjectHistory(project.id);
@@ -136,42 +139,44 @@ const ProjectStagesList: React.FC<ProjectStagesListProps> = ({
                   </div>
                 </div>
                 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={isLoading}
-                      title="Alterar status da etapa"
-                    >
-                      <Zap className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="bg-white border shadow-lg z-50">
-                    {statuses.length === 0 ? (
-                      <DropdownMenuItem disabled className="text-muted-foreground">
-                        Nenhum status disponível
-                      </DropdownMenuItem>
-                    ) : (
-                      statuses.map((status) => (
-                        <DropdownMenuItem
-                          key={status.id}
-                          onClick={() => handleStageStatusChange(stage.id, status.name)}
-                          disabled={status.name === stage.status}
-                          className="cursor-pointer hover:bg-gray-100"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: status.color }}
-                            />
-                            {status.display_name}
-                          </div>
+                {!readOnly && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isLoading}
+                        title="Alterar status da etapa"
+                      >
+                        <Zap className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="bg-white border shadow-lg z-50">
+                      {statuses.length === 0 ? (
+                        <DropdownMenuItem disabled className="text-muted-foreground">
+                          Nenhum status disponível
                         </DropdownMenuItem>
-                      ))
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      ) : (
+                        statuses.map((status) => (
+                          <DropdownMenuItem
+                            key={status.id}
+                            onClick={() => handleStageStatusChange(stage.id, status.name)}
+                            disabled={status.name === stage.status}
+                            className="cursor-pointer hover:bg-gray-100"
+                          >
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: status.color }}
+                              />
+                              {status.display_name}
+                            </div>
+                          </DropdownMenuItem>
+                        ))
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
