@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
@@ -7,16 +6,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Brazilian date formatting utility
+// Brazilian date formatting utility - simplified for Deno
 const formatDateBR = (date: string | Date | null | undefined): string => {
   if (!date) return '-';
   
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     
+    // Check if date is valid
+    if (isNaN(dateObj.getTime())) return '-';
+    
     // Format to Brazilian date format DD/MM/YYYY
-    const day = dateObj.getDate().toString().padStart(2, '0');
-    const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
     const year = dateObj.getFullYear();
     
     return `${day}/${month}/${year}`;
@@ -26,19 +28,22 @@ const formatDateBR = (date: string | Date | null | undefined): string => {
   }
 };
 
-// Brazilian datetime formatting utility  
+// Brazilian datetime formatting utility - simplified for Deno  
 const formatDateTimeBR = (date: string | Date | null | undefined): string => {
   if (!date) return '-';
   
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     
+    // Check if date is valid
+    if (isNaN(dateObj.getTime())) return '-';
+    
     // Format to Brazilian datetime format DD/MM/YYYY HH:mm
-    const day = dateObj.getDate().toString().padStart(2, '0');
-    const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
     const year = dateObj.getFullYear();
-    const hours = dateObj.getHours().toString().padStart(2, '0');
-    const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+    const hours = String(dateObj.getHours()).padStart(2, '0');
+    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
     
     return `${day}/${month}/${year} ${hours}:${minutes}`;
   } catch (error) {
@@ -214,7 +219,7 @@ serve(async (req) => {
 
       try {
         console.log('Sending test payload to:', url);
-        console.log('Test payload:', testPayload);
+        console.log('Test payload:', JSON.stringify(testPayload, null, 2));
         
         const response = await fetch(url, {
           method: 'POST',
@@ -226,7 +231,13 @@ serve(async (req) => {
         });
 
         const success = response.ok;
-        const responseText = await response.text();
+        let responseText = '';
+        
+        try {
+          responseText = await response.text();
+        } catch (e) {
+          responseText = 'Unable to read response body';
+        }
         
         console.log('Webhook test result:', { 
           success, 
@@ -250,11 +261,12 @@ serve(async (req) => {
         );
       } catch (error) {
         console.error('Error testing webhook:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
         return new Response(
           JSON.stringify({ 
             success: false, 
-            message: "Teste falhou: " + (error.message || 'Erro desconhecido'),
-            error: error.message
+            message: "Teste falhou: " + errorMessage,
+            error: errorMessage
           }),
           { 
             headers: { ...corsHeaders, "Content-Type": "application/json" },
