@@ -103,139 +103,6 @@ export type Database = {
           },
         ]
       }
-      chat_messages: {
-        Row: {
-          content: string
-          id: string
-          message_source: string | null
-          room_id: string
-          sender_id: string
-          sender_name: string
-          timestamp: string | null
-          whatsapp_message_id: string | null
-          whatsapp_metadata: Json | null
-        }
-        Insert: {
-          content: string
-          id?: string
-          message_source?: string | null
-          room_id: string
-          sender_id: string
-          sender_name: string
-          timestamp?: string | null
-          whatsapp_message_id?: string | null
-          whatsapp_metadata?: Json | null
-        }
-        Update: {
-          content?: string
-          id?: string
-          message_source?: string | null
-          room_id?: string
-          sender_id?: string
-          sender_name?: string
-          timestamp?: string | null
-          whatsapp_message_id?: string | null
-          whatsapp_metadata?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_messages_room_id_fkey"
-            columns: ["room_id"]
-            isOneToOne: false
-            referencedRelation: "chat_rooms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chat_room_participants: {
-        Row: {
-          created_at: string | null
-          id: string
-          room_id: string
-          user_id: string
-          user_name: string
-          user_role: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          room_id: string
-          user_id: string
-          user_name: string
-          user_role: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          room_id?: string
-          user_id?: string
-          user_name?: string
-          user_role?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_room_participants_room_id_fkey"
-            columns: ["room_id"]
-            isOneToOne: false
-            referencedRelation: "chat_rooms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chat_rooms: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          id: string
-          is_protected: boolean | null
-          level: number | null
-          name: string
-          parent_id: string | null
-          project_id: string | null
-          protection_reason: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          is_protected?: boolean | null
-          level?: number | null
-          name: string
-          parent_id?: string | null
-          project_id?: string | null
-          protection_reason?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          is_protected?: boolean | null
-          level?: number | null
-          name?: string
-          parent_id?: string | null
-          project_id?: string | null
-          protection_reason?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_rooms_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "chat_rooms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_chat_rooms_project_id"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       clients: {
         Row: {
           address: string | null
@@ -893,7 +760,6 @@ export type Database = {
       }
       notes: {
         Row: {
-          chat_room_id: string | null
           client_id: string | null
           color: string | null
           consultant_id: string | null
@@ -901,7 +767,6 @@ export type Database = {
           created_at: string | null
           due_date: string | null
           end_date: string | null
-          has_internal_chat: boolean | null
           id: string
           linked_task_id: string | null
           service_id: string | null
@@ -911,7 +776,6 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
-          chat_room_id?: string | null
           client_id?: string | null
           color?: string | null
           consultant_id?: string | null
@@ -919,7 +783,6 @@ export type Database = {
           created_at?: string | null
           due_date?: string | null
           end_date?: string | null
-          has_internal_chat?: boolean | null
           id?: string
           linked_task_id?: string | null
           service_id?: string | null
@@ -929,7 +792,6 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
-          chat_room_id?: string | null
           client_id?: string | null
           color?: string | null
           consultant_id?: string | null
@@ -937,7 +799,6 @@ export type Database = {
           created_at?: string | null
           due_date?: string | null
           end_date?: string | null
-          has_internal_chat?: boolean | null
           id?: string
           linked_task_id?: string | null
           service_id?: string | null
@@ -1346,84 +1207,6 @@ export type Database = {
           },
         ]
       }
-      scheduled_messages: {
-        Row: {
-          connection_id: string | null
-          created_at: string | null
-          id: string
-          is_recurring: boolean | null
-          last_sent_at: string | null
-          message: string
-          next_send_at: string | null
-          recurrence_day: number | null
-          recurrence_time: string | null
-          recurrence_type: string | null
-          room_id: string
-          send_date: string | null
-          send_time: string | null
-          sender_id: string
-          sender_name: string
-          status: string
-          title: string
-          updated_at: string | null
-        }
-        Insert: {
-          connection_id?: string | null
-          created_at?: string | null
-          id?: string
-          is_recurring?: boolean | null
-          last_sent_at?: string | null
-          message: string
-          next_send_at?: string | null
-          recurrence_day?: number | null
-          recurrence_time?: string | null
-          recurrence_type?: string | null
-          room_id: string
-          send_date?: string | null
-          send_time?: string | null
-          sender_id: string
-          sender_name: string
-          status?: string
-          title: string
-          updated_at?: string | null
-        }
-        Update: {
-          connection_id?: string | null
-          created_at?: string | null
-          id?: string
-          is_recurring?: boolean | null
-          last_sent_at?: string | null
-          message?: string
-          next_send_at?: string | null
-          recurrence_day?: number | null
-          recurrence_time?: string | null
-          recurrence_type?: string | null
-          room_id?: string
-          send_date?: string | null
-          send_time?: string | null
-          sender_id?: string
-          sender_name?: string
-          status?: string
-          title?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "scheduled_messages_connection_id_fkey"
-            columns: ["connection_id"]
-            isOneToOne: false
-            referencedRelation: "whatsapp_connections"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "scheduled_messages_room_id_fkey"
-            columns: ["room_id"]
-            isOneToOne: false
-            referencedRelation: "chat_rooms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       service_tags: {
         Row: {
           created_at: string
@@ -1713,55 +1496,6 @@ export type Database = {
         }
         Relationships: []
       }
-      whatsapp_chat_mappings: {
-        Row: {
-          auto_sync: boolean | null
-          chat_room_id: string
-          connection_id: string
-          created_at: string | null
-          id: string
-          whatsapp_contact_id: string
-        }
-        Insert: {
-          auto_sync?: boolean | null
-          chat_room_id: string
-          connection_id: string
-          created_at?: string | null
-          id?: string
-          whatsapp_contact_id: string
-        }
-        Update: {
-          auto_sync?: boolean | null
-          chat_room_id?: string
-          connection_id?: string
-          created_at?: string | null
-          id?: string
-          whatsapp_contact_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "whatsapp_chat_mappings_chat_room_id_fkey"
-            columns: ["chat_room_id"]
-            isOneToOne: false
-            referencedRelation: "chat_rooms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "whatsapp_chat_mappings_connection_id_fkey"
-            columns: ["connection_id"]
-            isOneToOne: false
-            referencedRelation: "whatsapp_connections"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "whatsapp_chat_mappings_whatsapp_contact_id_fkey"
-            columns: ["whatsapp_contact_id"]
-            isOneToOne: false
-            referencedRelation: "whatsapp_contacts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       whatsapp_connections: {
         Row: {
           connection_data: Json | null
@@ -1900,10 +1634,6 @@ export type Database = {
         Args: { project_start_date: string; stages: Json }
         Returns: Json
       }
-      create_project_chat_rooms: {
-        Args: { p_project_id: string; p_project_name: string }
-        Returns: string
-      }
       delete_project_stage: {
         Args: { stage_id: string }
         Returns: boolean
@@ -1950,10 +1680,6 @@ export type Database = {
       is_project_fully_completed: {
         Args: { p_project_id: string }
         Returns: boolean
-      }
-      update_chat_room_protection: {
-        Args: { p_project_id: string }
-        Returns: undefined
       }
     }
     Enums: {
