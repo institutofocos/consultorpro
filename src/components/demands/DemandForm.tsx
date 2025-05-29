@@ -57,11 +57,12 @@ interface Stage {
 }
 
 interface DemandFormProps {
+  editingDemand?: any;
   onDemandSaved?: () => void;
   onCancel?: () => void;
 }
 
-const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
+const DemandForm: React.FC<DemandFormProps> = ({ editingDemand, onDemandSaved, onCancel }) => {
   const [clients, setClients] = useState<Array<{id: string, name: string}>>([]);
   const [services, setServices] = useState<Array<{id: string, name: string, description?: string, stages?: any, total_hours?: number, hourly_rate?: number}>>([]);
   const [availableTags, setAvailableTags] = useState<Array<{id: string, name: string}>>([]);
@@ -102,6 +103,77 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
     loadCurrentUserData();
   }, []);
 
+  // Populate form when editing
+  useEffect(() => {
+    if (editingDemand) {
+      console.log('Populating form with editing demand:', editingDemand);
+      
+      form.setValue('name', editingDemand.name || '');
+      form.setValue('description', editingDemand.description || '');
+      form.setValue('clientId', editingDemand.client_id || '');
+      form.setValue('serviceId', editingDemand.service_id || '');
+      form.setValue('startDate', editingDemand.start_date || '');
+      form.setValue('endDate', editingDemand.end_date || '');
+      form.setValue('totalValue', Number(editingDemand.total_value) || 0);
+      form.setValue('totalHours', Number(editingDemand.total_hours) || 0);
+      form.setValue('hourlyRate', Number(editingDemand.hourly_rate) || 0);
+      form.setValue('thirdPartyExpenses', Number(editingDemand.third_party_expenses) || 0);
+      form.setValue('taxPercent', Number(editingDemand.tax_percent) || 16);
+      form.setValue('managerName', editingDemand.manager_name || '');
+      form.setValue('managerEmail', editingDemand.manager_email || '');
+      form.setValue('managerPhone', editingDemand.manager_phone || '');
+      form.setValue('tags', editingDemand.tags || []);
+
+      // Load existing stages if editing
+      loadExistingStages();
+    }
+  }, [editingDemand, form]);
+
+  const loadExistingStages = async () => {
+    if (!editingDemand?.id) return;
+
+    try {
+      const { data: stages, error } = await supabase
+        .from('project_stages')
+        .select('*')
+        .eq('project_id', editingDemand.id)
+        .order('stage_order');
+
+      if (error) {
+        console.error('Error loading stages:', error);
+        return;
+      }
+
+      if (stages && stages.length > 0) {
+        const formattedStages: Stage[] = stages.map(stage => ({
+          id: stage.id,
+          projectId: stage.project_id,
+          name: stage.name,
+          description: stage.description || '',
+          days: stage.days,
+          hours: stage.hours,
+          value: Number(stage.value),
+          startDate: stage.start_date || '',
+          endDate: stage.end_date || '',
+          completed: stage.completed,
+          clientApproved: stage.client_approved,
+          managerApproved: stage.manager_approved,
+          invoiceIssued: stage.invoice_issued,
+          paymentReceived: stage.payment_received,
+          consultantsSettled: stage.consultants_settled,
+          attachment: stage.attachment || '',
+          stageOrder: stage.stage_order,
+          status: stage.status || 'iniciar_projeto'
+        }));
+
+        setFormData(prev => ({ ...prev, stages: formattedStages }));
+        form.setValue('stages', formattedStages);
+      }
+    } catch (error) {
+      console.error('Error loading existing stages:', error);
+    }
+  };
+
   const loadCurrentUserData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -113,9 +185,11 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
         .eq('id', user.id)
         .single();
 
-      form.setValue('managerName', profile?.full_name || user.email?.split('@')[0] || '');
-      form.setValue('managerEmail', user.email || '');
-      form.setValue('managerPhone', user.phone || '');
+      if (!editingDemand) {
+        form.setValue('managerName', profile?.full_name || user.email?.split('@')[0] || '');
+        form.setValue('managerEmail', user.email || '');
+        form.setValue('managerPhone', user.phone || '');
+      }
     } catch (error) {
       console.error('Erro ao carregar dados do usuário:', error);
     }
@@ -349,128 +423,181 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
   const onSubmit = async (values: DemandFormValues) => {
     try {
       setIsSubmitting(true);
-      console.log('Iniciando criação de demanda com valores:', values);
       
-      // Criar a demanda (usando a tabela projects, mas com status 'planned' e sem consultores)
-      const demandData = {
-        name: values.name,
-        description: values.description || '',
-        client_id: values.clientId,
-        service_id: values.serviceId,
-        start_date: values.startDate,
-        end_date: values.endDate,
-        total_value: values.totalValue || 0,
-        total_hours: values.totalHours || 0,
-        hourly_rate: values.hourlyRate || 0,
-        third_party_expenses: values.thirdPartyExpenses || 0,
-        tax_percent: values.taxPercent || 16,
-        manager_name: values.managerName || '',
-        manager_email: values.managerEmail || '',
-        manager_phone: values.managerPhone || '',
-        status: 'planned', // Status inicial para demandas
-        main_consultant_id: null, // Sem consultor inicial
-        support_consultant_id: null, // Sem consultor inicial
-        main_consultant_commission: 0,
-        support_consultant_commission: 0,
-        main_consultant_value: 0,
-        support_consultant_value: 0,
-        tags: values.tags || []
-      };
-
-      console.log('Dados da demanda para inserção:', demandData);
-
-      const { data: createdDemand, error: demandError } = await supabase
-        .from('projects')
-        .insert(demandData)
-        .select()
-        .single();
-
-      if (demandError) {
-        console.error('Erro ao criar demanda:', demandError);
-        throw demandError;
-      }
-
-      console.log('Demanda criada com sucesso:', createdDemand);
-
-      // Criar etapas se houver
-      if (formData.stages && formData.stages.length > 0) {
-        console.log('Criando etapas:', formData.stages);
+      if (editingDemand) {
+        // Update existing demand
+        console.log('Atualizando demanda existente:', editingDemand.id);
         
-        const stagesToInsert = formData.stages.map(stage => ({
-          project_id: createdDemand.id,
-          name: stage.name,
-          description: stage.description || '',
-          days: stage.days,
-          hours: stage.hours,
-          value: stage.value,
-          start_date: stage.startDate || null,
-          end_date: stage.endDate || null,
-          stage_order: stage.stageOrder,
-          status: stage.status,
-          completed: false,
-          client_approved: false,
-          manager_approved: false,
-          invoice_issued: false,
-          payment_received: false,
-          consultants_settled: false,
-        }));
+        const updateData = {
+          name: values.name,
+          description: values.description || '',
+          client_id: values.clientId,
+          service_id: values.serviceId,
+          start_date: values.startDate,
+          end_date: values.endDate,
+          total_value: values.totalValue || 0,
+          total_hours: values.totalHours || 0,
+          hourly_rate: values.hourlyRate || 0,
+          third_party_expenses: values.thirdPartyExpenses || 0,
+          tax_percent: values.taxPercent || 16,
+          manager_name: values.managerName || '',
+          manager_email: values.managerEmail || '',
+          manager_phone: values.managerPhone || '',
+          tags: values.tags || []
+        };
 
-        const { error: stagesError } = await supabase
-          .from('project_stages')
-          .insert(stagesToInsert);
+        const { error: updateError } = await supabase
+          .from('projects')
+          .update(updateData)
+          .eq('id', editingDemand.id);
 
-        if (stagesError) {
-          console.error('Erro ao criar etapas:', stagesError);
-          throw stagesError;
+        if (updateError) {
+          console.error('Erro ao atualizar demanda:', updateError);
+          throw updateError;
         }
-        
-        console.log('Etapas criadas com sucesso');
-      }
 
-      // Criar relações de tags se houver
-      if (values.tags && values.tags.length > 0) {
-        console.log('Criando relações de tags:', values.tags);
-        console.log('Tags disponíveis para matching:', availableTags);
-        
-        // Filtrar apenas os IDs de tags que existem
-        const validTagIds = values.tags.map(tagName => {
-          const tag = availableTags.find(t => t.name === tagName);
-          if (!tag) {
-            console.warn(`Tag não encontrada: ${tagName}`);
-            return null;
+        // Update stages
+        if (formData.stages && formData.stages.length > 0) {
+          // Delete existing stages
+          await supabase
+            .from('project_stages')
+            .delete()
+            .eq('project_id', editingDemand.id);
+
+          // Insert updated stages
+          const stagesToInsert = formData.stages.map(stage => ({
+            project_id: editingDemand.id,
+            name: stage.name,
+            description: stage.description || '',
+            days: stage.days,
+            hours: stage.hours,
+            value: stage.value,
+            start_date: stage.startDate || null,
+            end_date: stage.endDate || null,
+            stage_order: stage.stageOrder,
+            status: stage.status,
+            completed: stage.completed,
+            client_approved: stage.clientApproved,
+            manager_approved: stage.managerApproved,
+            invoice_issued: stage.invoiceIssued,
+            payment_received: stage.paymentReceived,
+            consultants_settled: stage.consultantsSettled,
+          }));
+
+          const { error: stagesError } = await supabase
+            .from('project_stages')
+            .insert(stagesToInsert);
+
+          if (stagesError) {
+            console.error('Erro ao atualizar etapas:', stagesError);
+            throw stagesError;
           }
-          return tag.id;
-        }).filter(Boolean);
-
-        console.log('IDs de tags válidos:', validTagIds);
-
-        if (validTagIds.length > 0) {
-          const { error: tagsError } = await supabase
-            .from('project_tag_relations')
-            .insert(
-              validTagIds.map(tagId => ({
-                project_id: createdDemand.id,
-                tag_id: tagId,
-              }))
-            );
-
-          if (tagsError) {
-            console.error('Erro ao criar relações de tags:', tagsError);
-            throw tagsError;
-          }
-          
-          console.log('Relações de tags criadas com sucesso');
-        } else {
-          console.log('Nenhuma tag válida encontrada para criar relações');
         }
-      }
 
-      toast.success('Demanda criada com sucesso!');
+        toast.success('Demanda atualizada com sucesso!');
+      } else {
+        // Create new demand
+        console.log('Iniciando criação de demanda com valores:', values);
+        
+        const demandData = {
+          name: values.name,
+          description: values.description || '',
+          client_id: values.clientId,
+          service_id: values.serviceId,
+          start_date: values.startDate,
+          end_date: values.endDate,
+          total_value: values.totalValue || 0,
+          total_hours: values.totalHours || 0,
+          hourly_rate: values.hourlyRate || 0,
+          third_party_expenses: values.thirdPartyExpenses || 0,
+          tax_percent: values.taxPercent || 16,
+          manager_name: values.managerName || '',
+          manager_email: values.managerEmail || '',
+          manager_phone: values.managerPhone || '',
+          status: 'planned',
+          main_consultant_id: null,
+          support_consultant_id: null,
+          main_consultant_commission: 0,
+          support_consultant_commission: 0,
+          main_consultant_value: 0,
+          support_consultant_value: 0,
+          tags: values.tags || []
+        };
+
+        const { data: createdDemand, error: demandError } = await supabase
+          .from('projects')
+          .insert(demandData)
+          .select()
+          .single();
+
+        if (demandError) {
+          console.error('Erro ao criar demanda:', demandError);
+          throw demandError;
+        }
+
+        // Create stages if any
+        if (formData.stages && formData.stages.length > 0) {
+          const stagesToInsert = formData.stages.map(stage => ({
+            project_id: createdDemand.id,
+            name: stage.name,
+            description: stage.description || '',
+            days: stage.days,
+            hours: stage.hours,
+            value: stage.value,
+            start_date: stage.startDate || null,
+            end_date: stage.endDate || null,
+            stage_order: stage.stageOrder,
+            status: stage.status,
+            completed: false,
+            client_approved: false,
+            manager_approved: false,
+            invoice_issued: false,
+            payment_received: false,
+            consultants_settled: false,
+          }));
+
+          const { error: stagesError } = await supabase
+            .from('project_stages')
+            .insert(stagesToInsert);
+
+          if (stagesError) {
+            console.error('Erro ao criar etapas:', stagesError);
+            throw stagesError;
+          }
+        }
+
+        // Create tag relations if any
+        if (values.tags && values.tags.length > 0) {
+          const validTagIds = values.tags.map(tagName => {
+            const tag = availableTags.find(t => t.name === tagName);
+            return tag ? tag.id : null;
+          }).filter(Boolean);
+
+          if (validTagIds.length > 0) {
+            const { error: tagsError } = await supabase
+              .from('project_tag_relations')
+              .insert(
+                validTagIds.map(tagId => ({
+                  project_id: createdDemand.id,
+                  tag_id: tagId,
+                }))
+              );
+
+            if (tagsError) {
+              console.error('Erro ao criar relações de tags:', tagsError);
+              throw tagsError;
+            }
+          }
+        }
+
+        toast.success('Demanda criada com sucesso!');
+      }
+      
       form.reset();
       onDemandSaved?.();
     } catch (error) {
-      console.error('Error creating demand:', error);
-      toast.error('Erro ao criar demanda: ' + (error as any).message);
+      console.error('Error saving demand:', error);
+      toast.error('Erro ao salvar demanda: ' + (error as any).message);
     } finally {
       setIsSubmitting(false);
     }
@@ -481,7 +608,7 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Nova Demanda</CardTitle>
+            <CardTitle>{editingDemand ? 'Editar Demanda' : 'Nova Demanda'}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Nome da Demanda */}
@@ -959,7 +1086,7 @@ const DemandForm: React.FC<DemandFormProps> = ({ onDemandSaved, onCancel }) => {
             Cancelar
           </Button>
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Criando...' : 'Criar Demanda'}
+            {isSubmitting ? (editingDemand ? 'Atualizando...' : 'Criando...') : (editingDemand ? 'Atualizar Demanda' : 'Criar Demanda')}
           </Button>
         </div>
       </form>
