@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter, Plus, X, Eye } from 'lucide-react';
+import { Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter, Plus, X, Eye, FileCheck } from 'lucide-react';
 import { fetchDemandsWithoutConsultants, assignConsultantsToDemand } from '@/integrations/supabase/projects';
 import { 
   fetchConsultants, 
