@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -73,7 +72,6 @@ export const fetchProjects = async () => {
         totalValue: project.total_value || 0,
         taxPercent: project.tax_percent || 16,
         thirdPartyExpenses: project.third_party_expenses || 0,
-        // CORREÇÃO: usar main_consultant_value para o campo consultantValue
         consultantValue: project.main_consultant_value || 0,
         supportConsultantValue: project.support_consultant_value || 0,
         managerName: project.manager_name,
@@ -443,11 +441,11 @@ export const createProject = async (project: any) => {
   try {
     console.log('Dados recebidos para criação:', project);
     
-    // Mapear propriedades da interface para colunas do banco
+    // Mapear propriedades da interface para colunas do banco - SEM user_id
     const projectData = {
       name: project.name,
       description: project.description,
-      status: project.mainConsultantId ? 'em_producao' : 'em_planejamento', // Auto-set status based on consultant
+      status: project.mainConsultantId ? 'em_producao' : 'em_planejamento',
       client_id: project.clientId || null,
       service_id: project.serviceId || null,
       main_consultant_id: project.mainConsultantId || null,
@@ -459,7 +457,7 @@ export const createProject = async (project: any) => {
       hourly_rate: project.hourlyRate || 0,
       main_consultant_commission: project.mainConsultantCommission || 0,
       support_consultant_commission: project.supportConsultantCommission || 0,
-      main_consultant_value: project.consultantValue || 0, // CORREÇÃO: usar consultantValue para main_consultant_value
+      main_consultant_value: project.consultantValue || 0,
       support_consultant_value: project.supportConsultantValue || 0,
       third_party_expenses: project.thirdPartyExpenses || 0,
       tax_percent: project.taxPercent || 16,
@@ -470,7 +468,7 @@ export const createProject = async (project: any) => {
       tags: project.tags || []
     };
 
-    console.log('Dados mapeados para o banco:', projectData);
+    console.log('Dados mapeados para o banco (sem user_id):', projectData);
 
     const { data, error } = await supabase
       .from('projects')
@@ -508,7 +506,7 @@ export const createProject = async (project: any) => {
         status: stage.status || 'iniciar_projeto'
       }));
 
-      console.log('Dados das etapas para inserção:', stagesData);
+      console.log('Dados das etapas para inserção (sem user_id):', stagesData);
 
       const { error: stagesError } = await supabase
         .from('project_stages')
@@ -521,7 +519,6 @@ export const createProject = async (project: any) => {
       }
     }
 
-    // Update project status automatically after creation
     await updateProjectStatusAutomatically(data.id);
 
     return data;
@@ -535,7 +532,7 @@ export const updateProject = async (project: any) => {
   try {
     console.log('Dados recebidos para atualização:', project);
     
-    // Mapear propriedades da interface para colunas do banco
+    // Mapear propriedades da interface para colunas do banco - SEM user_id
     const projectData = {
       name: project.name,
       description: project.description,
@@ -550,7 +547,7 @@ export const updateProject = async (project: any) => {
       hourly_rate: project.hourlyRate || 0,
       main_consultant_commission: project.mainConsultantCommission || 0,
       support_consultant_commission: project.supportConsultantCommission || 0,
-      main_consultant_value: project.consultantValue || 0, // CORREÇÃO: usar consultantValue para main_consultant_value
+      main_consultant_value: project.consultantValue || 0,
       support_consultant_value: project.supportConsultantValue || 0,
       third_party_expenses: project.thirdPartyExpenses || 0,
       tax_percent: project.taxPercent || 16,
@@ -558,11 +555,10 @@ export const updateProject = async (project: any) => {
       manager_email: project.managerEmail,
       manager_phone: project.managerPhone,
       url: project.url || null,
-      // Don't include status here - it will be calculated automatically
       tags: project.tags || []
     };
 
-    console.log('Dados mapeados para atualização:', projectData);
+    console.log('Dados mapeados para atualização (sem user_id):', projectData);
 
     const { data, error } = await supabase
       .from('projects')
@@ -608,7 +604,7 @@ export const updateProject = async (project: any) => {
         status: stage.status || 'iniciar_projeto'
       }));
 
-      console.log('Dados das etapas para atualização:', stagesData);
+      console.log('Dados das etapas para atualização (sem user_id):', stagesData);
 
       const { error: stagesError } = await supabase
         .from('project_stages')
@@ -621,7 +617,6 @@ export const updateProject = async (project: any) => {
       }
     }
 
-    // Update project status automatically after update
     await updateProjectStatusAutomatically(project.id);
 
     return data;

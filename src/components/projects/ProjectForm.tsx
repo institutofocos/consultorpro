@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -371,6 +372,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       console.log('Tipo de operação:', project ? 'UPDATE' : 'CREATE');
       console.log('Dados do formulário:', formData);
 
+      // Preparar dados do projeto SEM user_id - apenas com os campos que existem na tabela projects
       const projectData: Project = {
         id: project?.id || '',
         name: formData.name,
@@ -400,7 +402,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         url: formData.url || ''
       };
 
-      console.log('Dados do projeto preparados:', projectData);
+      console.log('Dados do projeto preparados (SEM user_id):', projectData);
 
       let savedProject: any;
       if (project?.id) {
@@ -448,7 +450,6 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       console.log('Projeto transformado:', transformedProject);
       console.log('Chamando onProjectSaved...');
       
-      // Call the callback with the saved project
       onProjectSaved(transformedProject);
       
       console.log('=== SUBMISSÃO CONCLUÍDA COM SUCESSO ===');
