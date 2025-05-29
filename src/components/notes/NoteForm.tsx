@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -26,6 +27,7 @@ import ChecklistItem from './ChecklistItem';
 import { createChecklist, NoteChecklist } from '@/integrations/supabase/notes';
 import { toast } from 'sonner';
 import { formatDateForDB, formatTimeForDB } from '@/utils/dateUtils';
+import { useProjectStatuses } from '@/hooks/useProjectStatuses';
 
 export interface NoteFormProps {
   onSave: (data: any) => void;
@@ -92,6 +94,9 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
     }
   });
 
+  // Buscar status configurados usando o hook
+  const { statuses: projectStatuses, isLoading: statusesLoading } = useProjectStatuses();
+
   // Buscar dados auxiliares
   const { data: consultants = [] } = useQuery({
     queryKey: ['consultants'],
@@ -108,10 +113,11 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
     queryFn: fetchServices,
   });
 
+  // Buscar tags configuradas da tabela project_tags
   const { data: tags = [] } = useQuery({
-    queryKey: ['tags'],
+    queryKey: ['project-tags'],
     queryFn: async () => {
-      const { data } = await supabase.from('tags').select('*');
+      const { data } = await supabase.from('project_tags').select('*').order('name');
       return data || [];
     },
   });
@@ -269,36 +275,22 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
-                      disabled={field.value !== 'finalizados' && !canMarkAsFinalized && form.watch('status') === 'finalizados'}
-                    >
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione um status" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="iniciar_projeto">Iniciar Projeto</SelectItem>
-                        <SelectItem value="em_producao">Em Produção</SelectItem>
-                        <SelectItem value="aguardando_assinatura">Aguardando Assinatura</SelectItem>
-                        <SelectItem value="aguardando_aprovacao">Aguardando Aprovação</SelectItem>
-                        <SelectItem value="aguardando_nota_fiscal">Aguardando Nota Fiscal</SelectItem>
-                        <SelectItem value="aguardando_pagamento">Aguardando Pagamento</SelectItem>
-                        <SelectItem value="aguardando_repasse">Aguardando Repasse</SelectItem>
-                        <SelectItem 
-                          value="finalizados"
-                          disabled={!canMarkAsFinalized}
-                        >
-                          Finalizado
-                          {!canMarkAsFinalized && (
-                            <span className="text-xs text-muted-foreground ml-2">
-                              (Complete todas as checklists primeiro)
-                            </span>
-                          )}
-                        </SelectItem>
-                        <SelectItem value="cancelados">Cancelado</SelectItem>
+                        {statusesLoading ? (
+                          <SelectItem value="" disabled>Carregando status...</SelectItem>
+                        ) : (
+                          projectStatuses.map((status) => (
+                            <SelectItem key={status.id} value={status.name}>
+                              {status.display_name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />

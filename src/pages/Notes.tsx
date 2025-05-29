@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { LayoutGrid, List, Kanban, Plus, Filter, Calendar as CalendarIcon, BarChart3 } from 'lucide-react';
@@ -29,6 +30,7 @@ import NotesKanban from '@/components/notes/NotesKanban';
 import NotesGantt from '@/components/notes/NotesGantt';
 import NoteForm from '@/components/notes/NoteForm';
 import NoteFormSelect from '@/components/notes/NoteFormSelect';
+import { useProjectStatuses } from '@/hooks/useProjectStatuses';
 
 const NotesPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<string>('lista');
@@ -43,6 +45,9 @@ const NotesPage: React.FC = () => {
   const [consultants, setConsultants] = useState<Array<{id: string, name: string}>>([]);
   const [services, setServices] = useState<Array<{id: string, name: string}>>([]);
   const [clients, setClients] = useState<Array<{id: string, name: string}>>([]);
+
+  // Buscar status configurados
+  const { statuses: projectStatuses } = useProjectStatuses();
 
   useEffect(() => {
     const fetchFilterOptions = async () => {
@@ -220,15 +225,11 @@ const NotesPage: React.FC = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">Todos os status</SelectItem>
-                <SelectItem value="iniciar_projeto">Iniciar Projeto</SelectItem>
-                <SelectItem value="em_producao">Em Produção</SelectItem>
-                <SelectItem value="aguardando_assinatura">Aguardando Assinatura</SelectItem>
-                <SelectItem value="aguardando_aprovacao">Aguardando Aprovação</SelectItem>
-                <SelectItem value="aguardando_nota_fiscal">Aguardando Nota Fiscal</SelectItem>
-                <SelectItem value="aguardando_pagamento">Aguardando Pagamento</SelectItem>
-                <SelectItem value="aguardando_repasse">Aguardando Repasse</SelectItem>
-                <SelectItem value="finalizados">Finalizado</SelectItem>
-                <SelectItem value="cancelados">Cancelado</SelectItem>
+                {projectStatuses.map((status) => (
+                  <SelectItem key={status.id} value={status.name}>
+                    {status.display_name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
