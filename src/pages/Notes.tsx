@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { LayoutGrid, List, Kanban, Plus, Filter, Calendar as CalendarIcon, BarChart3 } from 'lucide-react';
@@ -221,10 +220,15 @@ const NotesPage: React.FC = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">Todos os status</SelectItem>
-                <SelectItem value="a_fazer">A fazer</SelectItem>
-                <SelectItem value="em_producao">Em produção</SelectItem>
-                <SelectItem value="finalizado">Finalizado</SelectItem>
-                <SelectItem value="cancelado">Cancelado</SelectItem>
+                <SelectItem value="iniciar_projeto">Iniciar Projeto</SelectItem>
+                <SelectItem value="em_producao">Em Produção</SelectItem>
+                <SelectItem value="aguardando_assinatura">Aguardando Assinatura</SelectItem>
+                <SelectItem value="aguardando_aprovacao">Aguardando Aprovação</SelectItem>
+                <SelectItem value="aguardando_nota_fiscal">Aguardando Nota Fiscal</SelectItem>
+                <SelectItem value="aguardando_pagamento">Aguardando Pagamento</SelectItem>
+                <SelectItem value="aguardando_repasse">Aguardando Repasse</SelectItem>
+                <SelectItem value="finalizados">Finalizado</SelectItem>
+                <SelectItem value="cancelados">Cancelado</SelectItem>
               </SelectContent>
             </Select>
 

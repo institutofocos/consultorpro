@@ -37,7 +37,7 @@ export interface NoteFormProps {
 const formSchema = z.object({
   title: z.string().optional(),
   content: z.string().optional(),
-  status: z.string().default("a_fazer"),
+  status: z.string().default("iniciar_projeto"),
   color: z.string().optional(),
   start_date: z.string().optional(),
   start_time: z.string().optional(),
@@ -75,7 +75,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
     defaultValues: {
       title: "",
       content: "",
-      status: "a_fazer",
+      status: "iniciar_projeto",
       color: "#ffffff",
       start_date: "",
       start_time: "",
@@ -235,15 +235,15 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        {children || <Button variant="outline" size="sm">Nova Anotação</Button>}
+        {children || <Button variant="outline" size="sm">Nova Tarefa</Button>}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <DialogHeader>
-              <DialogTitle>{initialData ? 'Editar Anotação' : 'Nova Anotação'}</DialogTitle>
+              <DialogTitle>{initialData ? 'Editar Tarefa' : 'Nova Tarefa'}</DialogTitle>
               <DialogDescription>
-                {initialData ? 'Edite os detalhes da anotação.' : 'Crie uma nova anotação para seu projeto.'}
+                {initialData ? 'Edite os detalhes da tarefa.' : 'Crie uma nova tarefa para seu projeto.'}
               </DialogDescription>
             </DialogHeader>
 
@@ -256,7 +256,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
                   <FormItem className="md:col-span-2">
                     <FormLabel>Título</FormLabel>
                     <FormControl>
-                      <Input placeholder="Título da anotação" {...field} />
+                      <Input placeholder="Título da tarefa" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -272,7 +272,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
                     <Select 
                       onValueChange={field.onChange} 
                       defaultValue={field.value}
-                      disabled={field.value !== 'finalizado' && !canMarkAsFinalized && form.watch('status') === 'finalizado'}
+                      disabled={field.value !== 'finalizados' && !canMarkAsFinalized && form.watch('status') === 'finalizados'}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -280,10 +280,15 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="a_fazer">A fazer</SelectItem>
-                        <SelectItem value="em_producao">Em produção</SelectItem>
+                        <SelectItem value="iniciar_projeto">Iniciar Projeto</SelectItem>
+                        <SelectItem value="em_producao">Em Produção</SelectItem>
+                        <SelectItem value="aguardando_assinatura">Aguardando Assinatura</SelectItem>
+                        <SelectItem value="aguardando_aprovacao">Aguardando Aprovação</SelectItem>
+                        <SelectItem value="aguardando_nota_fiscal">Aguardando Nota Fiscal</SelectItem>
+                        <SelectItem value="aguardando_pagamento">Aguardando Pagamento</SelectItem>
+                        <SelectItem value="aguardando_repasse">Aguardando Repasse</SelectItem>
                         <SelectItem 
-                          value="finalizado"
+                          value="finalizados"
                           disabled={!canMarkAsFinalized}
                         >
                           Finalizado
@@ -293,7 +298,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
                             </span>
                           )}
                         </SelectItem>
-                        <SelectItem value="cancelado">Cancelado</SelectItem>
+                        <SelectItem value="cancelados">Cancelado</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -323,7 +328,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
                 <FormItem>
                   <FormLabel>Conteúdo</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Conteúdo da anotação" {...field} />
+                    <Textarea placeholder="Conteúdo da tarefa" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -690,7 +695,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
             </div>
 
             <DialogFooter>
-              <Button type="submit">{initialData ? 'Atualizar' : 'Salvar'}</Button>
+              <Button type="submit">{initialData ? 'Atualizar' : 'Cadastrar'}</Button>
             </DialogFooter>
           </form>
         </Form>

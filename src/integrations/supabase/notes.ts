@@ -52,7 +52,7 @@ export const fetchNotes = async () => {
         clients:client_id(id, name),
         services:service_id(id, name),
         note_consultants(consultant:consultants(id, name)),
-        note_tag_relations(tag:note_tags(id, name)),
+        note_tag_relations(tag:tags(id, name)),
         checklists:note_checklists(*),
         linked_task:notes!linked_task_id(id, title, status)
       `)
