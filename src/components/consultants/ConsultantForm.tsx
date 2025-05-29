@@ -112,11 +112,17 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
     setIsLoading(true);
 
     try {
+      console.log('=== INICIANDO SALVAMENTO DE CONSULTOR ===');
+      console.log('Dados do formulário:', formData);
+      console.log('Consultor existente:', consultant);
+
       if (!formData.name?.trim() || !formData.email?.trim()) {
         toast.error('Nome e email são obrigatórios');
+        setIsLoading(false);
         return;
       }
 
+      // Preparar dados do consultor com validação adequada
       const consultantData = {
         name: formData.name.trim(),
         email: formData.email.trim(),
@@ -126,15 +132,18 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
         state: formData.state?.trim() || null,
         zip_code: formData.zip_code?.trim() || null,
         education: formData.education?.trim() || null,
-        salary: Number(formData.salary) || 0,
-        commission_percentage: Number(formData.commission_percentage) || 0,
-        hours_per_month: Number(formData.hours_per_month) || 160,
+        salary: isNaN(Number(formData.salary)) ? 0 : Number(formData.salary),
+        commission_percentage: isNaN(Number(formData.commission_percentage)) ? 0 : Number(formData.commission_percentage),
+        hours_per_month: isNaN(Number(formData.hours_per_month)) ? 160 : Number(formData.hours_per_month),
         pix_key: formData.pix_key?.trim() || null,
         url: formData.url?.trim() || null,
       };
 
+      console.log('Dados preparados para salvar:', consultantData);
+
       let savedConsultant;
       if (consultant?.id) {
+        console.log('Atualizando consultor existente com ID:', consultant.id);
         const { data, error } = await supabase
           .from('consultants')
           .update(consultantData)
@@ -142,29 +151,47 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Erro na atualização:', error);
+          throw error;
+        }
+        
+        console.log('Consultor atualizado com sucesso:', data);
         savedConsultant = data;
         toast.success('Consultor atualizado com sucesso!');
       } else {
+        console.log('Criando novo consultor');
         const { data, error } = await supabase
           .from('consultants')
           .insert(consultantData)
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Erro na criação:', error);
+          throw error;
+        }
+
+        console.log('Consultor criado com sucesso:', data);
         savedConsultant = data;
         toast.success('Consultor criado com sucesso!');
       }
 
-      // Gerenciar serviços do consultor
+      // Gerenciar serviços do consultor se existirem
       if (formData.services && formData.services.length > 0) {
-        // Remover serviços existentes
+        console.log('Gerenciando serviços do consultor:', formData.services);
+        
+        // Remover serviços existentes se for uma atualização
         if (consultant?.id) {
-          await supabase
+          console.log('Removendo serviços existentes');
+          const { error: deleteError } = await supabase
             .from('consultant_services')
             .delete()
             .eq('consultant_id', savedConsultant.id);
+
+          if (deleteError) {
+            console.error('Erro ao remover serviços existentes:', deleteError);
+          }
         }
 
         // Adicionar novos serviços
@@ -173,20 +200,34 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
           service_id: serviceId
         }));
 
+        console.log('Inserindo relações de serviços:', serviceRelations);
+
         const { error: servicesError } = await supabase
           .from('consultant_services')
           .insert(serviceRelations);
 
         if (servicesError) {
-          console.error('Error saving consultant services:', servicesError);
+          console.error('Erro ao salvar serviços do consultor:', servicesError);
           toast.warning('Consultor salvo, mas houve erro ao associar serviços');
+        } else {
+          console.log('Serviços associados com sucesso');
         }
       }
 
+      console.log('=== SALVAMENTO CONCLUÍDO COM SUCESSO ===');
       onConsultantSaved({ ...savedConsultant, ...formData });
     } catch (error) {
-      console.error('Error saving consultant:', error);
-      toast.error('Erro ao salvar consultor: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+      console.error('=== ERRO NO SALVAMENTO ===', error);
+      let errorMessage = 'Erro desconhecido';
+      
+      if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = (error as any).message;
+      } else if (error && typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      console.error('Mensagem de erro final:', errorMessage);
+      toast.error('Erro ao salvar consultor: ' + errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -339,8 +380,8 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
                   id="salary"
                   type="number"
                   step="0.01"
-                  value={formData.salary}
-                  onChange={(e) => setFormData(prev => ({ ...prev, salary: Number(e.target.value) }))}
+                  value={formData.salary || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, salary: e.target.value ? Number(e.target.value) : 0 }))}
                   placeholder="0.00"
                 />
               </div>
@@ -351,8 +392,8 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
                   id="commission_percentage"
                   type="number"
                   step="0.01"
-                  value={formData.commission_percentage}
-                  onChange={(e) => setFormData(prev => ({ ...prev, commission_percentage: Number(e.target.value) }))}
+                  value={formData.commission_percentage || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, commission_percentage: e.target.value ? Number(e.target.value) : 0 }))}
                   placeholder="0.00"
                 />
               </div>
@@ -362,8 +403,8 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
                 <Input
                   id="hours_per_month"
                   type="number"
-                  value={formData.hours_per_month}
-                  onChange={(e) => setFormData(prev => ({ ...prev, hours_per_month: Number(e.target.value) }))}
+                  value={formData.hours_per_month || 160}
+                  onChange={(e) => setFormData(prev => ({ ...prev, hours_per_month: e.target.value ? Number(e.target.value) : 160 }))}
                   placeholder="160"
                 />
               </div>
