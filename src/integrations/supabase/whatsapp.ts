@@ -4,7 +4,6 @@ import type { Database } from './types';
 
 export type WhatsAppConnection = Database['public']['Tables']['whatsapp_connections']['Row'];
 export type WhatsAppContact = Database['public']['Tables']['whatsapp_contacts']['Row'];
-export type WhatsAppChatMapping = Database['public']['Tables']['whatsapp_chat_mappings']['Row'];
 
 // Funções para gerenciar conexões WhatsApp
 export const fetchWhatsAppConnections = async () => {
@@ -198,44 +197,6 @@ export const fetchWhatsAppContacts = async (connectionId: string) => {
   
   if (error) {
     console.error('Erro ao buscar contatos WhatsApp:', error);
-    throw error;
-  }
-  
-  return data;
-};
-
-// Funções para mapeamento de salas de chat
-export const createChatMapping = async (mapping: {
-  chat_room_id: string;
-  whatsapp_contact_id: string;
-  connection_id: string;
-}) => {
-  const { data, error } = await supabase
-    .from('whatsapp_chat_mappings')
-    .insert(mapping)
-    .select()
-    .single();
-  
-  if (error) {
-    console.error('Erro ao criar mapeamento de chat:', error);
-    throw error;
-  }
-  
-  return data;
-};
-
-export const fetchChatMappings = async (connectionId: string) => {
-  const { data, error } = await supabase
-    .from('whatsapp_chat_mappings')
-    .select(`
-      *,
-      chat_room:chat_rooms(*),
-      whatsapp_contact:whatsapp_contacts(*)
-    `)
-    .eq('connection_id', connectionId);
-  
-  if (error) {
-    console.error('Erro ao buscar mapeamentos de chat:', error);
     throw error;
   }
   

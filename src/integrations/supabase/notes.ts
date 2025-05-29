@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export type Note = {
@@ -13,8 +14,6 @@ export type Note = {
   client_id?: string;
   service_id?: string;
   tag_ids?: string[];
-  has_internal_chat?: boolean;
-  chat_room_id?: string;
   created_at?: string;
   updated_at?: string;
   consultant_names?: string[];
@@ -280,7 +279,6 @@ export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'upd
       client_id: noteFields.client_id,
       service_id: noteFields.service_id,
       consultant_id: consultant_ids?.[0] || null,
-      has_internal_chat: noteFields.has_internal_chat,
     };
 
     const { data: noteResult, error } = await supabase
@@ -340,41 +338,6 @@ export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'upd
         .insert(customFieldsData);
     }
 
-    if (noteData.has_internal_chat) {
-      try {
-        const { data: chatRoom, error: chatError } = await supabase
-          .from('chat_rooms')
-          .insert({
-            name: `Chat: ${noteResult.title}`,
-            description: `Chat interno para a anotação: ${noteResult.title}`
-          })
-          .select()
-          .single();
-        
-        if (!chatError && chatRoom) {
-          await supabase
-            .from('notes')
-            .update({ chat_room_id: chatRoom.id })
-            .eq('id', noteResult.id);
-
-          if (consultant_ids && consultant_ids.length > 0) {
-            const participantsData = consultant_ids.map(consultantId => ({
-              room_id: chatRoom.id,
-              user_id: consultantId,
-              user_name: 'Consultor',
-              user_role: 'consultant'
-            }));
-            
-            await supabase
-              .from('chat_room_participants')
-              .insert(participantsData);
-          }
-        }
-      } catch (chatError) {
-        console.log('Could not create chat room:', chatError);
-      }
-    }
-
     return await fetchNoteById(noteResult.id);
   } catch (error) {
     console.error('Error in createNote:', error);
@@ -384,7 +347,7 @@ export const createNote = async (noteData: Omit<Note, 'id' | 'created_at' | 'upd
 
 export const updateNote = async (id: string, noteData: Partial<Note>): Promise<Note | null> => {
   try {
-    const { consultant_ids, tag_ids, checklists, chat_room_id, consultant_names, client_name, service_name, tag_names, custom_fields, ...noteFields } = noteData;
+    const { consultant_ids, tag_ids, checklists, consultant_names, client_name, service_name, tag_names, custom_fields, ...noteFields } = noteData;
 
     if (noteFields.status === 'finalizados') {
       const note = await fetchNoteById(id);
@@ -407,7 +370,6 @@ export const updateNote = async (id: string, noteData: Partial<Note>): Promise<N
       client_id: noteFields.client_id,
       service_id: noteFields.service_id,
       consultant_id: consultant_ids?.[0] || undefined,
-      has_internal_chat: noteFields.has_internal_chat,
     };
 
     Object.keys(dbFields).forEach(key => {
@@ -599,7 +561,7 @@ async function fetchClientName(clientId: string): Promise<string | null> {
   return data?.name || null;
 }
 
-async function fetchServiceName(serviceId: string): Promise<string | null> {
+async function fetchServiceName(serviceId: string): Promise<string | null> => {
   const { data } = await supabase
     .from('services')
     .select('name')

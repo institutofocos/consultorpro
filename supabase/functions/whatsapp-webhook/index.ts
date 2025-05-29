@@ -120,82 +120,11 @@ async function processWhatsAppMessage(supabaseClient: any, message: WhatsAppMess
       contact = newContact
     }
 
-    // Buscar ou criar sala de chat mapeada
-    let chatRoom
-    const { data: existingMapping } = await supabaseClient
-      .from('whatsapp_chat_mappings')
-      .select('chat_room:chat_rooms(*)')
-      .eq('whatsapp_contact_id', contact.id)
-      .eq('connection_id', connection.id)
-      .single()
-
-    if (existingMapping && existingMapping.chat_room) {
-      chatRoom = existingMapping.chat_room
-    } else {
-      // Criar nova sala de chat
-      const { data: newRoom, error: roomError } = await supabaseClient
-        .from('chat_rooms')
-        .insert({
-          name: `WhatsApp: ${contact.name}`,
-          description: `Conversa do WhatsApp com ${contact.name}`,
-          level: 1
-        })
-        .select()
-        .single()
-
-      if (roomError) {
-        console.error('Erro ao criar sala:', roomError)
-        return
-      }
-
-      // Criar mapeamento
-      await supabaseClient
-        .from('whatsapp_chat_mappings')
-        .insert({
-          chat_room_id: newRoom.id,
-          whatsapp_contact_id: contact.id,
-          connection_id: connection.id
-        })
-
-      chatRoom = newRoom
-    }
-
-    // Verificar se a mensagem já foi processada
-    const { data: existingMessage } = await supabaseClient
-      .from('chat_messages')
-      .select('id')
-      .eq('whatsapp_message_id', message.key.id)
-      .single()
-
-    if (existingMessage) {
-      console.log('Mensagem já processada, ignorando')
-      return
-    }
-
-    // Inserir mensagem na sala de chat
-    const { error: messageError } = await supabaseClient
-      .from('chat_messages')
-      .insert({
-        room_id: chatRoom.id,
-        sender_id: message.key.fromMe ? connection.user_id : 'whatsapp-user',
-        sender_name: message.key.fromMe ? 'Você' : contact.name,
-        content: messageText,
-        message_source: 'whatsapp',
-        whatsapp_message_id: message.key.id,
-        whatsapp_metadata: {
-          remote_jid: message.key.remoteJid,
-          timestamp: message.messageTimestamp,
-          push_name: message.pushName
-        },
-        timestamp: new Date(message.messageTimestamp * 1000).toISOString()
-      })
-
-    if (messageError) {
-      console.error('Erro ao inserir mensagem:', messageError)
-      return
-    }
-
-    console.log('Mensagem processada com sucesso:', message.key.id)
+    console.log('Mensagem WhatsApp processada com sucesso:', {
+      messageId: message.key.id,
+      contactName: contact.name,
+      messageText: messageText.substring(0, 50) + '...'
+    })
   } catch (error) {
     console.error('Erro ao processar mensagem WhatsApp:', error)
   }
