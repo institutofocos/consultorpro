@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { FileCheck, Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter, Plus, X } from 'lucide-react';
+import { Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter, Plus, X, Eye } from 'lucide-react';
 import { fetchDemandsWithoutConsultants, assignConsultantsToDemand } from '@/integrations/supabase/projects';
 import { 
   fetchConsultants, 
@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ptBR } from 'date-fns/locale';
 import SearchableSelect from "@/components/ui/searchable-select";
 import DemandForm from './DemandForm';
+import DemandViewModal from './DemandViewModal';
 
 interface ConsultantInfo {
   id: string;
@@ -48,6 +49,8 @@ const DemandsList = () => {
   const [supportConsultantInfo, setSupportConsultantInfo] = useState<ConsultantInfo | null>(null);
   const [filteredConsultants, setFilteredConsultants] = useState<{id: string, name: string}[]>([]);
   const [isDemandDialogOpen, setIsDemandDialogOpen] = useState(false);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [selectedDemandForView, setSelectedDemandForView] = useState<any>(null);
   const { toast } = useToast();
   
   // Filter states
@@ -328,6 +331,11 @@ const DemandsList = () => {
     return matchesService && matchesDateRange;
   });
 
+  const handleViewDemand = (demand: any) => {
+    setSelectedDemandForView(demand);
+    setViewModalOpen(true);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
@@ -420,7 +428,7 @@ const DemandsList = () => {
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
           <CardTitle className="text-xl">
             <div className="flex items-center">
-              <FileCheck className="h-5 w-5 mr-2" />
+              {/* Removido o ícone FileCheck */}
             </div>
           </CardTitle>
         </CardHeader>
@@ -444,7 +452,18 @@ const DemandsList = () => {
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-base truncate">{demand.name}</h3>
-                            <p className="text-sm text-muted-foreground line-clamp-1">{demand.description || "Sem descrição"}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleViewDemand(demand)}
+                                className="p-1 h-auto hover:bg-blue-100"
+                                title="Ver detalhes completos"
+                              >
+                                <Eye className="h-4 w-4 text-blue-600" />
+                              </Button>
+                              <span className="text-sm text-muted-foreground">Clique na lupa para ver detalhes</span>
+                            </div>
                           </div>
                         </div>
                         
@@ -644,6 +663,13 @@ const DemandsList = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Modal de visualização da demanda */}
+      <DemandViewModal
+        demand={selectedDemandForView}
+        isOpen={viewModalOpen}
+        onClose={() => setViewModalOpen(false)}
+      />
     </div>
   );
 };
