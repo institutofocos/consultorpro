@@ -364,11 +364,11 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       console.log('Tipo de operação:', project ? 'UPDATE' : 'CREATE');
       console.log('Dados do formulário ANTES da limpeza:', JSON.stringify(formData, null, 2));
 
-      // CRIAR OBJETO TOTALMENTE LIMPO - REMOVENDO QUALQUER CAMPO RELACIONADO A USER
+      // CRIAR OBJETO TOTALMENTE LIMPO - REMOVENDO QUALQUER CAMPO RELACIONADO A USER E PROJECT_ID
       const safeProjectData = {
         // ID apenas se for atualização
         ...(project?.id && { id: project.id }),
-        // Campos básicos - APENAS OS QUE EXISTEM NA TABELA PROJECTS
+        // Campos básicos - APENAS OS QUE EXISTEM NA TABELA PROJECTS (SEM project_id)
         name: formData.name,
         description: formData.description || '',
         serviceId: formData.serviceId || null,
@@ -397,20 +397,20 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       };
 
       console.log('=== DADOS COMPLETAMENTE LIMPOS ===');
-      console.log('Objeto seguro (SEM qualquer campo de usuário):', JSON.stringify(safeProjectData, null, 2));
+      console.log('Objeto seguro (SEM qualquer campo de usuário ou project_id):', JSON.stringify(safeProjectData, null, 2));
 
       // VERIFICAÇÃO FINAL DE SEGURANÇA - GARANTIR QUE NÃO HÁ CAMPOS PROIBIDOS
-      const prohibitedFields = ['user_id', 'userId', 'user', 'user_type', 'userType'];
+      const prohibitedFields = ['user_id', 'userId', 'user', 'user_type', 'userType', 'project_id', 'projectId'];
       const hasProhibitedField = Object.keys(safeProjectData).some(key => 
         prohibitedFields.some(prohibited => key.toLowerCase().includes(prohibited.toLowerCase()))
       );
       
       if (hasProhibitedField) {
-        console.error('⚠️ ERRO CRÍTICO: Campo relacionado a usuário detectado!');
-        throw new Error('Dados de usuário detectados - operação cancelada por segurança');
+        console.error('⚠️ ERRO CRÍTICO: Campo relacionado a usuário ou project_id detectado!');
+        throw new Error('Dados de usuário ou project_id detectados - operação cancelada por segurança');
       }
 
-      console.log('✅ Verificação de segurança aprovada - nenhum campo de usuário');
+      console.log('✅ Verificação de segurança aprovada - nenhum campo proibido');
 
       let savedProject: any;
       if (project?.id) {
@@ -539,11 +539,6 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             {project ? 'Editar Projeto' : 'Novo Projeto'}
-            {project?.projectId && (
-              <Badge variant="outline" className="ml-2">
-                ID: {project.projectId}
-              </Badge>
-            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">

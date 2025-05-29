@@ -56,7 +56,6 @@ export const fetchProjects = async () => {
       
       return {
         id: project.id,
-        projectId: project.project_id,
         name: project.name,
         description: project.description,
         serviceId: project.service_id,
@@ -439,7 +438,7 @@ export const createProject = async (project: any) => {
     console.log('=== INICIANDO CRIAÇÃO DE PROJETO ===');
     console.log('Dados originais recebidos:', JSON.stringify(project, null, 2));
     
-    // CRIAR OBJETO COMPLETAMENTE LIMPO - APENAS CAMPOS DA TABELA PROJECTS
+    // CRIAR OBJETO COMPLETAMENTE LIMPO - APENAS CAMPOS DA TABELA PROJECTS (SEM project_id)
     const cleanProjectData = {
       name: String(project.name || ''),
       description: String(project.description || ''),
@@ -466,10 +465,10 @@ export const createProject = async (project: any) => {
     };
 
     console.log('=== DADOS LIMPOS PARA INSERÇÃO ===');
-    console.log('Objeto final (SEM campos proibidos):', JSON.stringify(cleanProjectData, null, 2));
+    console.log('Objeto final (SEM project_id e outros campos proibidos):', JSON.stringify(cleanProjectData, null, 2));
     
     // VERIFICAÇÃO DE SEGURANÇA - garantir que não há campos proibidos
-    const forbiddenFields = ['user_id', 'userId', 'user', 'tags', 'tagIds', 'stages'];
+    const forbiddenFields = ['user_id', 'userId', 'user', 'tags', 'tagIds', 'stages', 'project_id', 'projectId'];
     const dataKeys = Object.keys(cleanProjectData);
     const hasForbiddenField = dataKeys.some(key => forbiddenFields.includes(key));
     
@@ -553,7 +552,7 @@ export const updateProject = async (project: any) => {
     console.log('=== INICIANDO ATUALIZAÇÃO DE PROJETO ===');
     console.log('Dados originais recebidos:', JSON.stringify(project, null, 2));
     
-    // CRIAR OBJETO COMPLETAMENTE LIMPO - APENAS CAMPOS DA TABELA PROJECTS
+    // CRIAR OBJETO COMPLETAMENTE LIMPO - APENAS CAMPOS DA TABELA PROJECTS (SEM project_id)
     const cleanProjectData = {
       name: String(project.name || ''),
       description: String(project.description || ''),
@@ -579,10 +578,10 @@ export const updateProject = async (project: any) => {
     };
 
     console.log('=== DADOS LIMPOS PARA ATUALIZAÇÃO ===');
-    console.log('Objeto final (SEM campos proibidos):', JSON.stringify(cleanProjectData, null, 2));
+    console.log('Objeto final (SEM project_id e outros campos proibidos):', JSON.stringify(cleanProjectData, null, 2));
     
     // VERIFICAÇÃO DE SEGURANÇA
-    const forbiddenFields = ['user_id', 'userId', 'user', 'tags', 'tagIds', 'stages'];
+    const forbiddenFields = ['user_id', 'userId', 'user', 'tags', 'tagIds', 'stages', 'project_id', 'projectId'];
     const dataKeys = Object.keys(cleanProjectData);
     const hasForbiddenField = dataKeys.some(key => forbiddenFields.includes(key));
     
