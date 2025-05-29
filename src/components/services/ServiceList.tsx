@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -368,7 +367,7 @@ const ServiceList = () => {
                           </div>
                         </div>
                         
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                           {stage.days && (
                             <div>
                               <span className="font-medium text-gray-700">Dias:</span>
@@ -383,14 +382,6 @@ const ServiceList = () => {
                             <span className="font-medium text-gray-700">Valor:</span>
                             <span className="ml-1 text-gray-600">{formatCurrency(stage.value || 0)}</span>
                           </div>
-                          {stage.attachment && (
-                            <div>
-                              <span className="font-medium text-gray-700">Anexo:</span>
-                              <span className="ml-1 text-blue-600 underline cursor-pointer">
-                                {stage.attachmentName || 'Ver arquivo'}
-                              </span>
-                            </div>
-                          )}
                         </div>
                       </div>
                     ));
