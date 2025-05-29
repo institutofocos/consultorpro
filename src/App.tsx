@@ -13,8 +13,6 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import ConsultantList from "./components/consultants/ConsultantList";
 import ProjectList from "./components/projects/ProjectList";
 import ServiceList from "./components/services/ServiceList";
-import KpiList from "./components/kpis/KpiList";
-import OkrList from "./components/okrs/OkrList";
 import Layout from "./components/layout/Layout";
 import ActivitiesList from "./components/activities/ActivitiesList";
 import SettingsPage from "./components/settings/SettingsPage";
@@ -82,14 +80,6 @@ const App = () => (
             
             <Route path="/demands" element={
               <Layout><DemandsList /></Layout>
-            } />
-            
-            <Route path="/kpis" element={
-              <Layout><KpiList /></Layout>
-            } />
-            
-            <Route path="/okrs" element={
-              <Layout><OkrList /></Layout>
             } />
             
             <Route path="/financial" element={
