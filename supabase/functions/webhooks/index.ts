@@ -7,6 +7,46 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Brazilian date formatting utility
+const formatDateBR = (date: string | Date | null | undefined): string => {
+  if (!date) return '-';
+  
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    
+    // Format to Brazilian date format DD/MM/YYYY
+    const day = dateObj.getDate().toString().padStart(2, '0');
+    const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+    const year = dateObj.getFullYear();
+    
+    return `${day}/${month}/${year}`;
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return '-';
+  }
+};
+
+// Brazilian datetime formatting utility  
+const formatDateTimeBR = (date: string | Date | null | undefined): string => {
+  if (!date) return '-';
+  
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    
+    // Format to Brazilian datetime format DD/MM/YYYY HH:mm
+    const day = dateObj.getDate().toString().padStart(2, '0');
+    const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+    const year = dateObj.getFullYear();
+    const hours = dateObj.getHours().toString().padStart(2, '0');
+    const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+    
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  } catch (error) {
+    console.error('Error formatting datetime:', error);
+    return '-';
+  }
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -140,27 +180,34 @@ serve(async (req) => {
         );
       }
       
+      const currentDate = new Date();
       const testPayload = {
         event_type: 'TEST',
         table_name: 'test',
-        timestamp: new Date().toISOString(),
+        timestamp: formatDateTimeBR(currentDate),
         data: {
           message: 'Este é um payload de teste do webhook',
           test: true,
+          data_sistema: formatDateBR(currentDate),
+          hora_sistema: formatDateTimeBR(currentDate),
           project: {
             id: 'test-project-id',
             name: 'Projeto de Teste',
-            status: 'active'
+            status: 'active',
+            created_at: formatDateBR(currentDate),
+            due_date: formatDateBR(new Date(currentDate.getTime() + 30 * 24 * 60 * 60 * 1000))
           },
           client: {
             id: 'test-client-id',
             name: 'Cliente de Teste',
-            email: 'cliente@teste.com'
+            email: 'cliente@teste.com',
+            created_at: formatDateBR(currentDate)
           },
           consultant: {
             id: 'test-consultant-id',
             name: 'Consultor de Teste',
-            email: 'consultor@teste.com'
+            email: 'consultor@teste.com',
+            created_at: formatDateBR(currentDate)
           }
         }
       };
@@ -373,14 +420,16 @@ serve(async (req) => {
     if (action === "trigger_test") {
       console.log('Triggering comprehensive test webhook events');
       
-      // Create comprehensive test data
+      const currentDate = new Date();
+      
+      // Create comprehensive test data with Brazilian date formatting
       const testClientData = {
         id: crypto.randomUUID(),
         name: 'Cliente de Teste Webhook',
         contact_name: 'João Silva',
         email: 'joao@clienteteste.com',
         phone: '(11) 99999-9999',
-        created_at: new Date().toISOString()
+        created_at: formatDateTimeBR(currentDate)
       };
 
       const testConsultantData = {
@@ -390,7 +439,7 @@ serve(async (req) => {
         phone: '(11) 88888-8888',
         commission_percentage: 15,
         hours_per_month: 160,
-        created_at: new Date().toISOString()
+        created_at: formatDateTimeBR(currentDate)
       };
 
       const testProjectData = {
@@ -401,7 +450,9 @@ serve(async (req) => {
         total_value: 5000,
         client_id: testClientData.id,
         main_consultant_id: testConsultantData.id,
-        created_at: new Date().toISOString()
+        created_at: formatDateTimeBR(currentDate),
+        start_date: formatDateBR(currentDate),
+        due_date: formatDateBR(new Date(currentDate.getTime() + 30 * 24 * 60 * 60 * 1000))
       };
 
       const testStageData = {
@@ -411,7 +462,8 @@ serve(async (req) => {
         description: 'Etapa criada para teste de webhook',
         value: 1000,
         completed: false,
-        created_at: new Date().toISOString()
+        created_at: formatDateTimeBR(currentDate),
+        due_date: formatDateBR(new Date(currentDate.getTime() + 15 * 24 * 60 * 60 * 1000))
       };
 
       // Get active webhooks
@@ -578,13 +630,18 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
   const basePayload = {
     event_type: log.event_type,
     table_name: log.table_name,
-    timestamp: log.created_at,
+    timestamp: formatDateTimeBR(log.created_at),
     webhook_id: log.webhook_id,
     attempt: log.attempt_count + 1,
     data: log.payload
   };
 
   try {
+    // Format any date fields in the payload using Brazilian format
+    if (basePayload.data) {
+      formatPayloadDates(basePayload.data);
+    }
+
     // Enrich based on table type
     switch (log.table_name) {
       case 'projects':
@@ -596,6 +653,7 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
             .single();
           
           if (client) {
+            formatPayloadDates(client);
             basePayload.data.client_details = client;
           }
         }
@@ -608,6 +666,7 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
             .single();
           
           if (consultant) {
+            formatPayloadDates(consultant);
             basePayload.data.main_consultant_details = consultant;
           }
         }
@@ -620,6 +679,7 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
             .single();
           
           if (service) {
+            formatPayloadDates(service);
             basePayload.data.service_details = service;
           }
         }
@@ -638,6 +698,9 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
             .single();
           
           if (project) {
+            formatPayloadDates(project);
+            if (project.clients) formatPayloadDates(project.clients);
+            if (project.services) formatPayloadDates(project.services);
             basePayload.data.project_details = project;
           }
         }
@@ -664,6 +727,10 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
             .or(`main_consultant_id.eq.${log.payload.id},support_consultant_id.eq.${log.payload.id}`)
             .eq('status', 'active');
           
+          if (projects) {
+            projects.forEach(project => formatPayloadDates(project));
+          }
+          
           basePayload.data.active_projects = projects || [];
           basePayload.data.active_projects_count = projects?.length || 0;
         }
@@ -674,5 +741,24 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
   } catch (error) {
     console.error('Error enriching webhook payload:', error);
     return basePayload; // Return base payload if enrichment fails
+  }
+}
+
+// Helper function to format all date fields in an object to Brazilian format
+function formatPayloadDates(obj: any): void {
+  if (!obj || typeof obj !== 'object') return;
+  
+  const dateFields = ['created_at', 'updated_at', 'due_date', 'start_date', 'end_date', 'completed_at', 'deleted_at'];
+  
+  for (const key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      if (dateFields.includes(key) && obj[key]) {
+        obj[key] = formatDateTimeBR(obj[key]);
+      } else if (key.includes('date') && obj[key]) {
+        obj[key] = formatDateBR(obj[key]);
+      } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+        formatPayloadDates(obj[key]); // Recursively format nested objects
+      }
+    }
   }
 }
