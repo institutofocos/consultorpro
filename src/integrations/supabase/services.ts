@@ -163,6 +163,7 @@ export const createOrUpdateService = async (serviceData: any, isUpdate: boolean 
         throw error;
       }
       
+      console.log('Service updated successfully:', data);
       return data;
     } else {
       const { data, error } = await supabase
@@ -176,6 +177,7 @@ export const createOrUpdateService = async (serviceData: any, isUpdate: boolean 
         throw error;
       }
       
+      console.log('Service created successfully:', data);
       return data;
     }
   } catch (error) {
@@ -210,6 +212,7 @@ export const createService = async (serviceData: Omit<Service, 'id' | 'created_a
       throw error;
     }
 
+    console.log('Service created successfully:', data);
     return data;
   } catch (error) {
     console.error('Error in createService:', error);
@@ -244,6 +247,7 @@ export const updateService = async (id: string, serviceData: Partial<Omit<Servic
       throw error;
     }
 
+    console.log('Service updated successfully:', data);
     return data;
   } catch (error) {
     console.error('Error in updateService:', error);
