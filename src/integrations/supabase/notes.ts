@@ -1,6 +1,5 @@
-
 import { supabase } from "./client";
-import { parseTimeForDB, getCurrentTimestampBR } from "@/utils/dateUtils";
+import { parseTimeForDB, getCurrentTimestampBR, formatDateForDB, formatTimeForDB, separateDateAndTime } from "@/utils/dateUtils";
 
 export interface Note {
   id: string;
@@ -66,34 +65,47 @@ export const fetchNotes = async () => {
 
     console.log('Raw notes data:', data);
 
-    const transformedData = data?.map(note => ({
-      id: note.id,
-      title: note.title,
-      content: note.content,
-      status: note.status as Note['status'],
-      color: note.color,
-      start_date: note.start_date,
-      start_time: note.start_time,
-      due_date: note.due_date,
-      due_time: note.due_time,
-      end_date: note.end_date,
-      end_time: note.end_time,
-      client_id: note.client_id,
-      service_id: note.service_id,
-      consultant_id: note.consultant_id,
-      linked_task_id: note.linked_task_id,
-      created_at: note.created_at,
-      updated_at: note.updated_at,
-      client_name: note.clients?.name,
-      service_name: note.services?.name,
-      consultant_names: note.note_consultants?.map((nc: any) => nc.consultant?.name).filter(Boolean) || [],
-      tag_names: note.note_tag_relations?.map((tr: any) => tr.tag?.name).filter(Boolean) || [],
-      checklists: note.checklists || [],
-      linked_task: note.linked_task ? {
-        ...note.linked_task,
-        status: note.linked_task.status as Note['status']
-      } : undefined
-    })) || [];
+    const transformedData = data?.map(note => {
+      // Separar data e hora dos campos end_date se necessário
+      let endDate = note.end_date;
+      let endTime = note.end_time;
+      
+      // Se end_date contém data e hora juntas, separar
+      if (endDate && endDate.includes(' ')) {
+        const separated = separateDateAndTime(endDate);
+        endDate = separated.date;
+        endTime = separated.time;
+      }
+
+      return {
+        id: note.id,
+        title: note.title,
+        content: note.content,
+        status: note.status as Note['status'],
+        color: note.color,
+        start_date: note.start_date,
+        start_time: note.start_time,
+        due_date: note.due_date,
+        due_time: note.due_time,
+        end_date: endDate,
+        end_time: endTime,
+        client_id: note.client_id,
+        service_id: note.service_id,
+        consultant_id: note.consultant_id,
+        linked_task_id: note.linked_task_id,
+        created_at: note.created_at,
+        updated_at: note.updated_at,
+        client_name: note.clients?.name,
+        service_name: note.services?.name,
+        consultant_names: note.note_consultants?.map((nc: any) => nc.consultant?.name).filter(Boolean) || [],
+        tag_names: note.note_tag_relations?.map((tr: any) => tr.tag?.name).filter(Boolean) || [],
+        checklists: note.checklists || [],
+        linked_task: note.linked_task ? {
+          ...note.linked_task,
+          status: note.linked_task.status as Note['status']
+        } : undefined
+      };
+    }) || [];
 
     console.log('Transformed notes data:', transformedData);
     return transformedData;
@@ -113,11 +125,11 @@ export const createNote = async (note: Partial<Note>) => {
       content: note.content || null,
       status: note.status || 'iniciar_projeto',
       color: note.color || null,
-      start_date: note.start_date || null,
+      start_date: formatDateForDB(note.start_date),
       start_time: parseTimeForDB(note.start_time),
-      due_date: note.due_date || null,
+      due_date: formatDateForDB(note.due_date),
       due_time: parseTimeForDB(note.due_time),
-      end_date: note.end_date || null,
+      end_date: formatDateForDB(note.end_date),
       end_time: parseTimeForDB(note.end_time),
       client_id: note.client_id || null,
       service_id: note.service_id || null,
@@ -158,11 +170,11 @@ export const updateNote = async (id: string, note: Partial<Note>) => {
       content: note.content,
       status: note.status,
       color: note.color,
-      start_date: note.start_date,
+      start_date: formatDateForDB(note.start_date),
       start_time: parseTimeForDB(note.start_time),
-      due_date: note.due_date,
+      due_date: formatDateForDB(note.due_date),
       due_time: parseTimeForDB(note.due_time),
-      end_date: note.end_date,
+      end_date: formatDateForDB(note.end_date),
       end_time: parseTimeForDB(note.end_time),
       client_id: note.client_id,
       service_id: note.service_id,
@@ -218,13 +230,13 @@ export const updateNoteStatus = async (id: string, status: Note['status']) => {
       updated_at: getCurrentTimestampBR()
     };
 
-    // Se estiver finalizando, adicionar data/hora de fim
+    // Se estiver finalizando, adicionar data/hora de fim separadamente
     if (status === 'finalizados') {
       const now = new Date();
       const brazilTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
       
-      updateData.end_date = brazilTime.toISOString().split('T')[0]; // YYYY-MM-DD
-      updateData.end_time = `${String(brazilTime.getHours()).padStart(2, '0')}:${String(brazilTime.getMinutes()).padStart(2, '0')}`;
+      updateData.end_date = formatDateForDB(brazilTime);
+      updateData.end_time = parseTimeForDB(`${String(brazilTime.getHours()).padStart(2, '0')}:${String(brazilTime.getMinutes()).padStart(2, '0')}`);
     }
 
     const { data, error } = await supabase
@@ -306,6 +318,8 @@ export const updateChecklist = async (checklistId: string, updates: Partial<Note
     
     const updateData = {
       ...updates,
+      due_date: formatDateForDB(updates.due_date),
+      due_time: parseTimeForDB(updates.due_time),
       updated_at: getCurrentTimestampBR()
     };
     
@@ -334,7 +348,6 @@ export const updateChecklist = async (checklistId: string, updates: Partial<Note
   }
 };
 
-// Add the missing export for updateChecklistStatus
 export const updateChecklistStatus = async (checklistId: string, completed: boolean, noteId: string) => {
   try {
     console.log('Updating checklist status:', checklistId, completed);
@@ -363,7 +376,6 @@ export const updateChecklistStatus = async (checklistId: string, completed: bool
   }
 };
 
-// Add the missing export for createChecklist
 export const createChecklist = async (noteId: string, checklist: Partial<NoteChecklist>) => {
   try {
     console.log('Creating checklist:', noteId, checklist);
@@ -373,7 +385,7 @@ export const createChecklist = async (noteId: string, checklist: Partial<NoteChe
       title: checklist.title,
       description: checklist.description || null,
       completed: false,
-      due_date: checklist.due_date || null,
+      due_date: formatDateForDB(checklist.due_date),
       due_time: parseTimeForDB(checklist.due_time),
       responsible_consultant_id: checklist.responsible_consultant_id || null,
       created_at: getCurrentTimestampBR(),
@@ -399,7 +411,6 @@ export const createChecklist = async (noteId: string, checklist: Partial<NoteChe
   }
 };
 
-// Additional utility functions for notes
 export const fetchClients = async () => {
   try {
     const { data, error } = await supabase

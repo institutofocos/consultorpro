@@ -131,7 +131,19 @@ export const formatDateForDB = (date: Date | string | null | undefined): string 
   if (!date) return null;
   
   try {
-    const dateObj = typeof date === 'string' ? parseISO(date) : date;
+    let dateObj: Date;
+    
+    if (typeof date === 'string') {
+      // Se é uma string de data brasileira (DD/MM/YYYY), converte primeiro
+      if (date.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+        dateObj = parseBRDate(date) || new Date();
+      } else {
+        dateObj = parseISO(date);
+      }
+    } else {
+      dateObj = date;
+    }
+    
     if (isNaN(dateObj.getTime())) return null;
     
     return format(dateObj, 'yyyy-MM-dd');
@@ -250,6 +262,35 @@ export const formatDateTimeBRSimple = (date: string | Date | null | undefined): 
     };
   } catch (error) {
     console.error('Error formatting datetime:', error);
+    return { date: '', time: '' };
+  }
+};
+
+/**
+ * Convert a combined datetime string (DD/MM/YYYY HH:MM) to separate date and time
+ */
+export const separateDateAndTime = (dateTimeString: string | null | undefined): { date: string; time: string } => {
+  if (!dateTimeString) return { date: '', time: '' };
+  
+  try {
+    // Se é um formato combinado brasileiro (DD/MM/YYYY HH:MM)
+    const match = dateTimeString.match(/^(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2})$/);
+    if (match) {
+      return {
+        date: match[1],
+        time: match[2]
+      };
+    }
+    
+    // Se é uma data ISO, converter
+    const dateObj = parseISO(dateTimeString);
+    if (!isNaN(dateObj.getTime())) {
+      return formatDateTimeBR(dateObj);
+    }
+    
+    return { date: '', time: '' };
+  } catch (error) {
+    console.error('Error separating date and time:', error);
     return { date: '', time: '' };
   }
 };
