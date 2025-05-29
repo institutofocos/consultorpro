@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { X, Edit, Calendar, User, DollarSign, Clock, FileText, Activity } from 'lucide-react';
+import { Edit, Calendar, User, DollarSign, Clock, FileText, Activity } from 'lucide-react';
 import { Project } from './types';
 import ProjectStagesList from './ProjectStagesList';
 import ProjectHistory from './ProjectHistory';
@@ -59,28 +59,23 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h2 className="text-2xl font-bold">{project.name}</h2>
-            <Badge style={getStatusBadgeStyle(project.status)}>
-              {statusDisplay.label}
+      <div>
+        <div className="flex items-center gap-3 mb-2">
+          <h2 className="text-2xl font-bold">{project.name}</h2>
+          <Badge style={getStatusBadgeStyle(project.status)}>
+            {statusDisplay.label}
+          </Badge>
+          {project.projectId && (
+            <Badge variant="outline">
+              ID: {project.projectId}
             </Badge>
-            {project.projectId && (
-              <Badge variant="outline">
-                ID: {project.projectId}
-              </Badge>
-            )}
-          </div>
-          {project.description && (
-            <p className="text-muted-foreground max-w-3xl">
-              {project.description}
-            </p>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
+        {project.description && (
+          <p className="text-muted-foreground max-w-3xl">
+            {project.description}
+          </p>
+        )}
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
