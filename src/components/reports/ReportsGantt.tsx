@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, User, BarChart3, Plus, Eye, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, User, BarChart3, Plus, RefreshCw } from 'lucide-react';
 import { format, differenceInDays, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -85,6 +85,7 @@ export default function ReportsGantt() {
   const { data: projects = [] } = useQuery({
     queryKey: ['projects-gantt'],
     queryFn: async () => {
+      console.log('Fetching projects for Gantt...');
       const { data, error } = await supabase
         .from('projects')
         .select('id, name, status, start_date, end_date, description, main_consultant_id')
@@ -95,6 +96,7 @@ export default function ReportsGantt() {
         throw error;
       }
       
+      console.log('Projects fetched:', data?.length || 0);
       return data as Project[];
     }
   });
@@ -103,6 +105,7 @@ export default function ReportsGantt() {
   const { data: ganttTasks = [], isLoading, refetch } = useQuery({
     queryKey: ['gantt-tasks', selectedProject],
     queryFn: async () => {
+      console.log('Fetching Gantt tasks for project:', selectedProject);
       let query = supabase
         .from('gantt_tasks')
         .select(`
@@ -123,30 +126,53 @@ export default function ReportsGantt() {
         throw error;
       }
       
+      console.log('Gantt tasks fetched:', data?.length || 0);
       return data as GanttTask[];
     }
   });
 
-  // Auto-populate gantt on component mount if empty
+  // Auto-populate gantt when component mounts and there are projects but no tasks
   useEffect(() => {
     if (projects.length > 0 && ganttTasks.length === 0) {
+      console.log('Auto-populating Gantt with all projects...');
       populateAllProjects();
     }
   }, [projects, ganttTasks]);
 
   const populateAllProjects = async () => {
     try {
-      // Limpar tarefas existentes
-      await supabase.from('gantt_tasks').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      console.log('Starting to populate all projects...');
+      
+      // Clear existing tasks first
+      const { error: deleteError } = await supabase
+        .from('gantt_tasks')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
 
-      // Popular com todos os projetos
-      for (const project of projects) {
-        await populateGanttFromProject(project.id, false);
+      if (deleteError) {
+        console.error('Error clearing existing tasks:', deleteError);
+        throw deleteError;
       }
+
+      console.log('Existing tasks cleared');
+
+      // Populate with all projects
+      let successCount = 0;
+      for (const project of projects) {
+        try {
+          await populateGanttFromProject(project.id, false);
+          successCount++;
+          console.log(`Successfully populated project: ${project.name}`);
+        } catch (error) {
+          console.error(`Error populating project ${project.name}:`, error);
+        }
+      }
+
+      console.log(`Populated ${successCount} out of ${projects.length} projects`);
 
       toast({
         title: "Sucesso",
-        description: `Gantt populado com ${projects.length} projetos`
+        description: `Gantt populado com ${successCount} projetos`
       });
       
       refetch();
@@ -162,12 +188,13 @@ export default function ReportsGantt() {
 
   const populateGanttFromProject = async (projectId: string, showToast = true) => {
     try {
-      // Buscar dados do projeto com suas etapas
+      console.log(`Populating Gantt for project: ${projectId}`);
+      
+      // Fetch project data with stages
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .select(`
-          *,
-          project_stages (*)
+          *
         `)
         .eq('id', projectId)
         .single();
@@ -178,6 +205,7 @@ export default function ReportsGantt() {
       }
 
       if (!projectData) {
+        console.log('Project not found');
         if (showToast) {
           toast({
             variant: "destructive",
@@ -188,45 +216,70 @@ export default function ReportsGantt() {
         return;
       }
 
-      // Inserir tarefa principal do projeto
+      console.log('Project data:', projectData);
+
+      // Insert main project task
+      const mainTaskData = {
+        project_id: projectId,
+        task_name: projectData.name,
+        task_description: projectData.description || 'Projeto principal',
+        start_date: projectData.start_date,
+        end_date: projectData.end_date,
+        duration_days: differenceInDays(new Date(projectData.end_date), new Date(projectData.start_date)) + 1,
+        assigned_consultant_id: projectData.main_consultant_id,
+        status: projectData.status === 'completed' || projectData.status === 'concluido' ? 'completed' : 
+                projectData.status === 'em_producao' || projectData.status === 'active' ? 'in_progress' : 'not_started',
+        priority: 'medium',
+        progress_percentage: projectData.status === 'completed' || projectData.status === 'concluido' ? 100 : 0
+      };
+
+      console.log('Inserting main task:', mainTaskData);
+
       const { error: insertError } = await supabase
         .from('gantt_tasks')
-        .insert({
-          project_id: projectId,
-          task_name: projectData.name,
-          task_description: projectData.description || 'Projeto principal',
-          start_date: projectData.start_date,
-          end_date: projectData.end_date,
-          duration_days: differenceInDays(new Date(projectData.end_date), new Date(projectData.start_date)) + 1,
-          assigned_consultant_id: projectData.main_consultant_id,
-          status: projectData.status === 'completed' ? 'completed' : 
-                  projectData.status === 'active' ? 'in_progress' : 'not_started',
-          priority: 'medium',
-          progress_percentage: projectData.status === 'completed' ? 100 : 0
-        });
+        .insert(mainTaskData);
 
       if (insertError) {
         console.error('Error inserting main task:', insertError);
+        throw insertError;
       }
 
-      // Inserir tarefas baseadas nas etapas do projeto
-      if (projectData.project_stages && projectData.project_stages.length > 0) {
-        for (const stage of projectData.project_stages) {
-          await supabase
+      // Fetch and insert project stages
+      const { data: stages, error: stagesError } = await supabase
+        .from('project_stages')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('stage_order');
+
+      if (stagesError) {
+        console.error('Error fetching stages:', stagesError);
+      } else if (stages && stages.length > 0) {
+        console.log(`Found ${stages.length} stages for project`);
+        
+        for (const stage of stages) {
+          const stageTaskData = {
+            project_id: projectId,
+            task_name: stage.name,
+            task_description: stage.description || '',
+            start_date: stage.start_date || projectData.start_date,
+            end_date: stage.end_date || projectData.end_date,
+            duration_days: stage.days || 1,
+            progress_percentage: stage.completed ? 100 : 0,
+            assigned_consultant_id: stage.consultant_id || projectData.main_consultant_id,
+            status: stage.completed ? 'completed' : 
+                    stage.status === 'em_producao' ? 'in_progress' : 'not_started',
+            priority: 'medium'
+          };
+
+          console.log('Inserting stage task:', stageTaskData);
+
+          const { error: stageInsertError } = await supabase
             .from('gantt_tasks')
-            .insert({
-              project_id: projectId,
-              task_name: stage.name,
-              task_description: stage.description || '',
-              start_date: stage.start_date || projectData.start_date,
-              end_date: stage.end_date || projectData.end_date,
-              duration_days: stage.days || 1,
-              progress_percentage: stage.completed ? 100 : 0,
-              assigned_consultant_id: stage.consultant_id || projectData.main_consultant_id,
-              status: stage.completed ? 'completed' : 
-                      stage.status === 'em_producao' ? 'in_progress' : 'not_started',
-              priority: 'medium'
-            });
+            .insert(stageTaskData);
+
+          if (stageInsertError) {
+            console.error('Error inserting stage task:', stageInsertError);
+          }
         }
       }
 
@@ -238,7 +291,7 @@ export default function ReportsGantt() {
         refetch();
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error in populateGanttFromProject:', error);
       if (showToast) {
         toast({
           variant: "destructive",
