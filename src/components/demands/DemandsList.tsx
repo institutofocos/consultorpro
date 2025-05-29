@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter, Plus, X, Eye, FileCheck } from 'lucide-react';
+import { Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter, Plus, X, Eye } from 'lucide-react';
 import { fetchDemandsWithoutConsultants, assignConsultantsToDemand } from '@/integrations/supabase/projects';
 import { 
   fetchConsultants, 
@@ -428,7 +428,7 @@ const DemandsList = () => {
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
           <CardTitle className="text-xl">
             <div className="flex items-center">
-              {/* Removido o ícone FileCheck */}
+              <span>Demandas Disponíveis</span>
             </div>
           </CardTitle>
         </CardHeader>
@@ -516,7 +516,6 @@ const DemandsList = () => {
                         {/* Service and tags row */}
                         <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
                           <div className="flex items-center gap-2 text-xs">
-                            <FileCheck className="h-3 w-3 text-muted-foreground" />
                             <span className="font-medium">Serviço:</span>
                             <span className="text-muted-foreground">{demand.serviceName || "Não especificado"}</span>
                           </div>
