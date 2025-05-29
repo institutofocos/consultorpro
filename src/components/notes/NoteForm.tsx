@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -171,14 +172,15 @@ const NoteForm: React.FC<NoteFormProps> = ({ onSave, initialData, children, onCl
       if (initialData?.id) {
         // Se estamos editando, criar checklist diretamente no banco
         const checklistData = {
-          ...newChecklist,
-          note_id: initialData.id,
+          title: newChecklist.title,
+          description: newChecklist.description,
           due_date: formatDateForDB(newChecklist.due_date),
           due_time: formatTimeForDB(newChecklist.due_time),
+          responsible_consultant_id: newChecklist.responsible_consultant_id || null,
           completed: false
         };
         
-        const result = await createChecklist(checklistData);
+        const result = await createChecklist(initialData.id, checklistData);
         if (result) {
           setChecklistsData(prev => [...prev, result]);
           toast.success('Checklist adicionada com sucesso!');

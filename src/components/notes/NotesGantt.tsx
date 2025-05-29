@@ -106,7 +106,7 @@ const NotesGantt: React.FC<NotesGanttProps> = ({ notes }) => {
           startDate: note.start_date!,
           endDate: checklist.due_date!,
           status: checklist.completed ? 'finalizados' : 'iniciar_projeto',
-          consultant: checklist.responsible_consultant_name || 'Não atribuído',
+          consultant: checklist.responsible_consultant_id || 'Não atribuído',
           parentId: note.id
         });
       });

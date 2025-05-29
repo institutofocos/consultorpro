@@ -89,7 +89,10 @@ export const fetchNotes = async () => {
       consultant_names: note.note_consultants?.map((nc: any) => nc.consultant?.name).filter(Boolean) || [],
       tag_names: note.note_tag_relations?.map((tr: any) => tr.tag?.name).filter(Boolean) || [],
       checklists: note.checklists || [],
-      linked_task: note.linked_task
+      linked_task: note.linked_task ? {
+        ...note.linked_task,
+        status: note.linked_task.status as Note['status']
+      } : undefined
     })) || [];
 
     console.log('Transformed notes data:', transformedData);
