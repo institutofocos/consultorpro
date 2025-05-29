@@ -1,44 +1,28 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import AdminSetup from "./pages/AdminSetup";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { AuthProvider } from "./contexts/AuthContext";
 
 // Import components
 import ConsultantList from "./components/consultants/ConsultantList";
 import ProjectList from "./components/projects/ProjectList";
 import ServiceList from "./components/services/ServiceList";
 import Layout from "./components/layout/Layout";
-import ActivitiesList from "./components/activities/ActivitiesList";
 import SettingsPage from "./components/settings/SettingsPage";
 import ClientList from "./components/clients/ClientList";
 import FinancialPage from "./components/financial/FinancialPage";
 import DemandsList from "./components/demands/DemandsList";
-
-// Modified to always render children without authentication check
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  // No authentication check, always render children
-  return <>{children}</>;
-};
-
-// Modified to always grant permission without checks
-const PermissionRoute = ({ 
-  children, 
-  moduleName, 
-  actionType = 'view' 
-}: { 
-  children: React.ReactNode;
-  moduleName: string;
-  actionType?: 'view' | 'edit';
-}) => {
-  // No permission check, always allow access
-  return <>{children}</>;
-};
+import ReportsLayout from "./components/reports/ReportsLayout";
+import ReportsCalendar from "./components/reports/ReportsCalendar";
+import ReportsGantt from "./components/reports/ReportsGantt";
+import Dashboard from "./components/dashboard/Dashboard";
 
 const queryClient = new QueryClient();
 
@@ -54,12 +38,9 @@ const App = () => (
             <Route path="/auth" element={<Navigate to="/" replace />} />
             <Route path="/admin-setup" element={<Navigate to="/" replace />} />
             
-            {/* Always render the dashboard directly */}
-            <Route path="/" element={
-              <Layout><Index /></Layout>
-            } />
+            {/* Main routes with Layout wrapper */}
+            <Route path="/" element={<Layout><Dashboard /></Layout>} />
             
-            {/* Other routes without authentication checks */}
             <Route path="/consultants" element={
               <Layout><ConsultantList /></Layout>
             } />
@@ -82,6 +63,11 @@ const App = () => (
             
             <Route path="/financial" element={
               <Layout><FinancialPage /></Layout>
+            } />
+            
+            {/* Reports routes with proper nesting */}
+            <Route path="/reports/*" element={
+              <Layout><ReportsLayout /></Layout>
             } />
             
             <Route path="/settings" element={
