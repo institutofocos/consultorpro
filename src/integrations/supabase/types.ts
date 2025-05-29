@@ -1246,6 +1246,7 @@ export type Database = {
           total_hours: number | null
           total_value: number
           updated_at: string | null
+          url: string | null
         }
         Insert: {
           client_id?: string | null
@@ -1274,6 +1275,7 @@ export type Database = {
           total_hours?: number | null
           total_value?: number
           updated_at?: string | null
+          url?: string | null
         }
         Update: {
           client_id?: string | null
@@ -1302,6 +1304,7 @@ export type Database = {
           total_hours?: number | null
           total_value?: number
           updated_at?: string | null
+          url?: string | null
         }
         Relationships: [
           {

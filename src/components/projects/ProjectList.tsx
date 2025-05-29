@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -55,7 +56,7 @@ const ProjectList: React.FC = () => {
           setClients(clientsData);
         }
 
-        // Fetch tags
+        // Fetch tags using project_tags table
         const tagsData = await fetchTags();
         setTags(tagsData);
 

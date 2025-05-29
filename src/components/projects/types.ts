@@ -54,6 +54,8 @@ export interface Project {
   // Novos campos de horas e valor
   totalHours?: number;
   hourlyRate?: number;
+  // Campo URL
+  url?: string;
   status: 'planned' | 'active' | 'completed' | 'cancelled' | 'em_producao' | 'aguardando_assinatura' | 'aguardando_aprovacao' | 'aguardando_nota_fiscal' | 'aguardando_pagamento' | 'aguardando_repasse' | 'concluido' | 'cancelado' | string;
   tags?: string[]; // Changed from ProjectTag[] to string[]
   tagIds?: string[];

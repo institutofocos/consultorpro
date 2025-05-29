@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, PlusIcon, TrashIcon, InfoIcon } from "lucide-react";
+import { CalendarIcon, PlusIcon, TrashIcon, InfoIcon, LinkIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -48,7 +48,8 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     hourlyRate: 0,
     status: 'planned',
     tags: [],
-    stages: []
+    stages: [],
+    url: ''
   });
 
   const [clients, setClients] = useState([]);
@@ -68,7 +69,8 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         clientId: project.clientId || '',
         mainConsultantId: project.mainConsultantId || '',
         supportConsultantId: project.supportConsultantId || '',
-        stages: project.stages || []
+        stages: project.stages || [],
+        url: project.url || ''
       });
     }
   }, [project]);
@@ -341,7 +343,8 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         hourlyRate: Number(formData.hourlyRate || 0),
         status: formData.status as 'planned' | 'active' | 'completed' | 'cancelled',
         tags: formData.tags || [],
-        stages: formData.stages || []
+        stages: formData.stages || [],
+        url: formData.url || ''
       };
 
       console.log('Dados do projeto preparados:', projectData);
@@ -384,7 +387,8 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         hourlyRate: savedProject.hourly_rate,
         status: savedProject.status,
         tags: savedProject.tags || [],
-        stages: formData.stages || []
+        stages: formData.stages || [],
+        url: savedProject.url || ''
       };
 
       console.log('Projeto transformado:', transformedProject);
@@ -477,6 +481,24 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
             />
             <p className="text-xs text-muted-foreground mt-1">
               A descrição será preenchida automaticamente ao selecionar um serviço
+            </p>
+          </div>
+
+          {/* URL do Projeto */}
+          <div>
+            <Label htmlFor="url" className="flex items-center gap-2">
+              <LinkIcon className="h-4 w-4" />
+              URL do Projeto
+            </Label>
+            <Input
+              id="url"
+              type="url"
+              value={formData.url}
+              onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
+              placeholder="https://exemplo.com"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Link relacionado ao projeto (opcional)
             </p>
           </div>
 

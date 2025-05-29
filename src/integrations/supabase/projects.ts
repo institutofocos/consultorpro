@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -76,6 +75,7 @@ export const fetchProjects = async () => {
         managerPhone: project.manager_phone,
         totalHours: project.total_hours || 0,
         hourlyRate: project.hourly_rate || 0,
+        url: project.url || '',
         status: project.status,
         tags: project.project_tag_relations?.map(rel => rel.tag?.name).filter(Boolean) || [],
         tagIds: project.project_tag_relations?.map(rel => rel.tag?.id).filter(Boolean) || [],
@@ -414,6 +414,7 @@ export const createProject = async (project: any) => {
       manager_name: project.managerName,
       manager_email: project.managerEmail,
       manager_phone: project.managerPhone,
+      url: project.url || null,
       tags: project.tags || []
     };
 
@@ -504,6 +505,7 @@ export const updateProject = async (project: any) => {
       manager_name: project.managerName,
       manager_email: project.managerEmail,
       manager_phone: project.managerPhone,
+      url: project.url || null,
       // Don't include status here - it will be calculated automatically
       tags: project.tags || []
     };
@@ -639,11 +641,11 @@ export const linkProjectToTags = async (projectId: string, tagIds: string[]) => 
   }
 };
 
-// Fetch basic tags for filters
+// Fetch basic tags for filters - update to use project_tags
 export const fetchTags = async () => {
   try {
     const { data, error } = await supabase
-      .from('tags')
+      .from('project_tags')
       .select('*')
       .order('name');
     
