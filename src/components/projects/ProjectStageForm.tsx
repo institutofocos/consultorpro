@@ -6,9 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import SearchableSelect from "@/components/ui/searchable-select";
-import { fetchProjectTags } from "@/integrations/supabase/projects";
 
 interface ProjectStage {
   id?: string;
@@ -19,8 +16,6 @@ interface ProjectStage {
   days: number;
   start_date: string;
   end_date: string;
-  tags?: string[];
-  tagIds?: string[];
 }
 
 interface ProjectStageFormProps {
@@ -29,16 +24,6 @@ interface ProjectStageFormProps {
 }
 
 const ProjectStageForm: React.FC<ProjectStageFormProps> = ({ stages, onStagesChange }) => {
-  const [availableTags, setAvailableTags] = useState([]);
-
-  useEffect(() => {
-    const loadTags = async () => {
-      const tags = await fetchProjectTags();
-      setAvailableTags(tags);
-    };
-    loadTags();
-  }, []);
-
   const addStage = () => {
     const newStage: ProjectStage = {
       name: '',
@@ -47,9 +32,7 @@ const ProjectStageForm: React.FC<ProjectStageFormProps> = ({ stages, onStagesCha
       hours: 8,
       days: 1,
       start_date: '',
-      end_date: '',
-      tags: [],
-      tagIds: []
+      end_date: ''
     };
     onStagesChange([...stages, newStage]);
   };
@@ -62,73 +45,6 @@ const ProjectStageForm: React.FC<ProjectStageFormProps> = ({ stages, onStagesCha
 
   const removeStage = (index: number) => {
     const updatedStages = stages.filter((_, i) => i !== index);
-    onStagesChange(updatedStages);
-  };
-
-  const handleTagSelection = (stageIndex: number, value: string | string[]) => {
-    if (typeof value === 'string' && value) {
-      console.log('Tag selected:', value);
-      console.log('Available tags:', availableTags);
-      
-      const tag = availableTags.find(t => t.id === value);
-      console.log('Found tag:', tag);
-      
-      if (tag) {
-        const updatedStages = [...stages];
-        const currentStage = updatedStages[stageIndex];
-        
-        // Initialize arrays if they don't exist
-        const currentTags = currentStage.tags || [];
-        const currentTagIds = currentStage.tagIds || [];
-        
-        // Check if tag is already added
-        if (!currentTagIds.includes(tag.id)) {
-          updatedStages[stageIndex] = {
-            ...currentStage,
-            tags: [...currentTags, tag.name],
-            tagIds: [...currentTagIds, tag.id]
-          };
-          
-          console.log('Updated stage:', updatedStages[stageIndex]);
-          onStagesChange(updatedStages);
-        } else {
-          console.log('Tag already exists in stage');
-        }
-      } else {
-        console.log('Tag not found in available tags');
-      }
-    }
-  };
-
-  const removeTag = (stageIndex: number, tagIndex: number) => {
-    console.log('Removing tag - stageIndex:', stageIndex, 'tagIndex:', tagIndex);
-    console.log('Current stages:', stages);
-    console.log('Stage before removal:', stages[stageIndex]);
-    
-    const updatedStages = [...stages];
-    const currentStage = updatedStages[stageIndex];
-    
-    // Ensure we have arrays to work with
-    const currentTags = currentStage.tags || [];
-    const currentTagIds = currentStage.tagIds || [];
-    
-    console.log('Current tags:', currentTags);
-    console.log('Current tagIds:', currentTagIds);
-    
-    // Remove the tag at the specified index
-    const newTags = currentTags.filter((_, i) => i !== tagIndex);
-    const newTagIds = currentTagIds.filter((_, i) => i !== tagIndex);
-    
-    console.log('New tags after removal:', newTags);
-    console.log('New tagIds after removal:', newTagIds);
-    
-    updatedStages[stageIndex] = {
-      ...currentStage,
-      tags: newTags,
-      tagIds: newTagIds
-    };
-    
-    console.log('Updated stage after removal:', updatedStages[stageIndex]);
     onStagesChange(updatedStages);
   };
 
@@ -229,39 +145,6 @@ const ProjectStageForm: React.FC<ProjectStageFormProps> = ({ stages, onStagesCha
                   placeholder="Descrição da etapa"
                   rows={3}
                 />
-              </div>
-
-              <div className="md:col-span-2">
-                <Label htmlFor={`stage-tags-${index}`}>Tags da Etapa</Label>
-                <SearchableSelect
-                  options={availableTags}
-                  value=""
-                  onValueChange={(value) => handleTagSelection(index, value)}
-                  placeholder="Adicionar tag à etapa"
-                  searchPlaceholder="Pesquisar tags..."
-                  emptyText="Nenhuma tag encontrada"
-                />
-                {stage.tags && stage.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {stage.tags.map((tagName, tagIndex) => (
-                      <Badge key={`${index}-${tagIndex}-${tagName}`} variant="secondary" className="text-xs">
-                        {tagName}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            console.log('Remove button clicked for tag:', tagName, 'at index:', tagIndex);
-                            removeTag(index, tagIndex);
-                          }}
-                          className="ml-1 text-muted-foreground hover:text-destructive"
-                        >
-                          ×
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           </CardContent>
