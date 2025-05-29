@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export const fetchConsultants = async () => {
@@ -138,24 +139,49 @@ export const checkConsultantAuthorizedForService = async (consultantId: string, 
 
 export const calculateConsultantWorkedHours = async (consultantId: string): Promise<number> => {
   try {
-    const currentDate = new Date();
-    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    console.log(`Calculating worked hours for consultant: ${consultantId}`);
     
-    const firstDayStr = firstDayOfMonth.toISOString().split('T')[0];
-    const lastDayStr = lastDayOfMonth.toISOString().split('T')[0];
-
-    // Buscar todas as etapas onde o consultor está vinculado no mês vigente
-    const { data, error } = await supabase
+    // Buscar todas as etapas onde o consultor está diretamente alocado
+    const { data: stageHours, error: stageError } = await supabase
       .from('project_stages')
-      .select('hours')
-      .eq('consultant_id', consultantId)
-      .gte('start_date', firstDayStr)
-      .lte('end_date', lastDayStr);
+      .select('hours, project_id, name')
+      .eq('consultant_id', consultantId);
 
-    if (error) throw error;
+    if (stageError) {
+      console.error('Error fetching stage hours:', stageError);
+      throw stageError;
+    }
+
+    console.log(`Stage hours for consultant ${consultantId}:`, stageHours);
     
-    const totalHours = data?.reduce((sum, stage) => sum + (stage.hours || 0), 0) || 0;
+    let totalStageHours = 0;
+    if (stageHours && stageHours.length > 0) {
+      totalStageHours = stageHours.reduce((sum, stage) => sum + (stage.hours || 0), 0);
+    }
+
+    // Buscar projetos onde o consultor é principal ou de apoio e somar as horas totais
+    const { data: projectHours, error: projectError } = await supabase
+      .from('projects')
+      .select('total_hours, id, name')
+      .or(`main_consultant_id.eq.${consultantId},support_consultant_id.eq.${consultantId}`);
+
+    if (projectError) {
+      console.error('Error fetching project hours:', projectError);
+      throw projectError;
+    }
+
+    console.log(`Project hours for consultant ${consultantId}:`, projectHours);
+
+    let totalProjectHours = 0;
+    if (projectHours && projectHours.length > 0) {
+      totalProjectHours = projectHours.reduce((sum, project) => sum + (project.total_hours || 0), 0);
+    }
+
+    // Usar o maior valor entre horas das etapas e horas dos projetos
+    const totalHours = Math.max(totalStageHours, totalProjectHours);
+    
+    console.log(`Total worked hours for consultant ${consultantId}: ${totalHours} (stage: ${totalStageHours}, project: ${totalProjectHours})`);
+    
     return totalHours;
   } catch (error) {
     console.error('Error calculating consultant worked hours:', error);
@@ -166,7 +192,9 @@ export const calculateConsultantWorkedHours = async (consultantId: string): Prom
 export const calculateConsultantAvailableHours = async (consultantId: string, hoursPerMonth: number = 160): Promise<number> => {
   try {
     const workedHours = await calculateConsultantWorkedHours(consultantId);
-    return Math.max(0, hoursPerMonth - workedHours);
+    const available = Math.max(0, hoursPerMonth - workedHours);
+    console.log(`Available hours for consultant ${consultantId}: ${available} (total: ${hoursPerMonth}, worked: ${workedHours})`);
+    return available;
   } catch (error) {
     console.error('Error calculating consultant available hours:', error);
     return hoursPerMonth;
@@ -175,26 +203,26 @@ export const calculateConsultantAvailableHours = async (consultantId: string, ho
 
 export const calculateConsultantActiveProjects = async (consultantId: string): Promise<number> => {
   try {
-    const currentDate = new Date();
-    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    console.log(`Calculating active projects for consultant: ${consultantId}`);
     
-    const firstDayStr = firstDayOfMonth.toISOString().split('T')[0];
-    const lastDayStr = lastDayOfMonth.toISOString().split('T')[0];
+    // Buscar projetos onde o consultor é principal ou de apoio
+    const { data: projects, error } = await supabase
+      .from('projects')
+      .select('id, name, status')
+      .or(`main_consultant_id.eq.${consultantId},support_consultant_id.eq.${consultantId}`)
+      .in('status', ['active', 'em_producao', 'em_planejamento']);
 
-    // Buscar projetos únicos onde o consultor tem etapas no mês vigente
-    const { data, error } = await supabase
-      .from('project_stages')
-      .select('project_id')
-      .eq('consultant_id', consultantId)
-      .gte('start_date', firstDayStr)
-      .lte('end_date', lastDayStr);
-
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching consultant projects:', error);
+      throw error;
+    }
     
-    // Contar projetos únicos
-    const uniqueProjects = new Set(data?.map(stage => stage.project_id) || []);
-    return uniqueProjects.size;
+    console.log(`Active projects for consultant ${consultantId}:`, projects);
+    
+    const projectCount = projects?.length || 0;
+    console.log(`Total active projects for consultant ${consultantId}: ${projectCount}`);
+    
+    return projectCount;
   } catch (error) {
     console.error('Error calculating consultant active projects:', error);
     return 0;
