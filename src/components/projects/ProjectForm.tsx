@@ -370,10 +370,10 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
 
       console.log('=== INICIANDO SUBMISSÃO DO FORMULÁRIO ===');
       console.log('Tipo de operação:', project ? 'UPDATE' : 'CREATE');
-      console.log('Dados do formulário:', formData);
+      console.log('Dados do formulário ANTES da limpeza:', formData);
 
-      // Preparar dados do projeto SEM user_id - apenas com os campos que existem na tabela projects
-      const projectData = {
+      // GARANTIR que NENHUM user_id seja enviado - criar objeto limpo
+      const cleanProjectData = {
         id: project?.id || '',
         name: formData.name,
         description: formData.description || '',
@@ -402,16 +402,25 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         url: formData.url || ''
       };
 
-      console.log('Dados do projeto preparados (SEM user_id):', projectData);
+      console.log('Dados LIMPOS preparados (GARANTIDO sem user_id):', cleanProjectData);
+
+      // Verificação final de segurança
+      const forbiddenFields = ['user_id', 'userId'];
+      forbiddenFields.forEach(field => {
+        if (field in cleanProjectData) {
+          console.error(`CAMPO PROIBIDO DETECTADO: ${field}`);
+          delete cleanProjectData[field];
+        }
+      });
 
       let savedProject: any;
       if (project?.id) {
         console.log('Atualizando projeto existente com ID:', project.id);
-        savedProject = await updateProject(projectData);
+        savedProject = await updateProject(cleanProjectData);
         toast.success('Projeto atualizado com sucesso!');
       } else {
         console.log('Criando novo projeto');
-        savedProject = await createProject(projectData);
+        savedProject = await createProject(cleanProjectData);
         toast.success('Projeto criado com sucesso!');
       }
 
