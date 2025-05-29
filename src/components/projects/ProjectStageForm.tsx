@@ -101,15 +101,34 @@ const ProjectStageForm: React.FC<ProjectStageFormProps> = ({ stages, onStagesCha
   };
 
   const removeTag = (stageIndex: number, tagIndex: number) => {
+    console.log('Removing tag - stageIndex:', stageIndex, 'tagIndex:', tagIndex);
+    console.log('Current stages:', stages);
+    console.log('Stage before removal:', stages[stageIndex]);
+    
     const updatedStages = [...stages];
     const currentStage = updatedStages[stageIndex];
     
+    // Ensure we have arrays to work with
+    const currentTags = currentStage.tags || [];
+    const currentTagIds = currentStage.tagIds || [];
+    
+    console.log('Current tags:', currentTags);
+    console.log('Current tagIds:', currentTagIds);
+    
+    // Remove the tag at the specified index
+    const newTags = currentTags.filter((_, i) => i !== tagIndex);
+    const newTagIds = currentTagIds.filter((_, i) => i !== tagIndex);
+    
+    console.log('New tags after removal:', newTags);
+    console.log('New tagIds after removal:', newTagIds);
+    
     updatedStages[stageIndex] = {
       ...currentStage,
-      tags: currentStage.tags?.filter((_, i) => i !== tagIndex) || [],
-      tagIds: currentStage.tagIds?.filter((_, i) => i !== tagIndex) || []
+      tags: newTags,
+      tagIds: newTagIds
     };
     
+    console.log('Updated stage after removal:', updatedStages[stageIndex]);
     onStagesChange(updatedStages);
   };
 
@@ -225,11 +244,16 @@ const ProjectStageForm: React.FC<ProjectStageFormProps> = ({ stages, onStagesCha
                 {stage.tags && stage.tags.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {stage.tags.map((tagName, tagIndex) => (
-                      <Badge key={tagIndex} variant="secondary" className="text-xs">
+                      <Badge key={`${index}-${tagIndex}-${tagName}`} variant="secondary" className="text-xs">
                         {tagName}
                         <button
                           type="button"
-                          onClick={() => removeTag(index, tagIndex)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('Remove button clicked for tag:', tagName, 'at index:', tagIndex);
+                            removeTag(index, tagIndex);
+                          }}
                           className="ml-1 text-muted-foreground hover:text-destructive"
                         >
                           ×
