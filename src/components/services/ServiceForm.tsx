@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -168,20 +167,25 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
     }
   }, [hourlyRate]);
 
-  // Fetch tags from database
+  // Fetch tags from project_tags database
   useEffect(() => {
     const fetchTags = async () => {
       try {
+        console.log('Buscando project tags para seleção em serviços...');
         const { data, error } = await supabase
-          .from('tags')
+          .from('project_tags')
           .select('*')
           .order('name');
           
-        if (error) throw error;
+        if (error) {
+          console.error('Erro ao buscar project tags:', error);
+          throw error;
+        }
         
+        console.log('Project tags encontradas para seleção:', data?.length || 0);
         setTags(data || []);
       } catch (error: any) {
-        console.error('Error fetching tags:', error);
+        console.error('Error fetching project tags:', error);
         toast.error('Erro ao carregar tags');
       }
     };
@@ -454,7 +458,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onSave, onCan
                 )}
               />
 
-              {/* Tags Selection */}
+              {/* Tags Selection - usando project_tags */}
               <div className="space-y-2">
                 <FormLabel>Tags</FormLabel>
                 <div>
