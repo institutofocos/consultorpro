@@ -138,12 +138,25 @@ export const checkConsultantAuthorizedForService = async (consultantId: string, 
 
 export const calculateConsultantWorkedHours = async (consultantId: string): Promise<number> => {
   try {
-    const { data, error } = await supabase.rpc('calculate_consultant_worked_hours', {
-      consultant_id: consultantId
-    });
+    const currentDate = new Date();
+    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    
+    const firstDayStr = firstDayOfMonth.toISOString().split('T')[0];
+    const lastDayStr = lastDayOfMonth.toISOString().split('T')[0];
+
+    // Buscar todas as etapas onde o consultor está vinculado no mês vigente
+    const { data, error } = await supabase
+      .from('project_stages')
+      .select('hours')
+      .eq('consultant_id', consultantId)
+      .gte('start_date', firstDayStr)
+      .lte('end_date', lastDayStr);
 
     if (error) throw error;
-    return data || 0;
+    
+    const totalHours = data?.reduce((sum, stage) => sum + (stage.hours || 0), 0) || 0;
+    return totalHours;
   } catch (error) {
     console.error('Error calculating consultant worked hours:', error);
     return 0;
@@ -152,13 +165,8 @@ export const calculateConsultantWorkedHours = async (consultantId: string): Prom
 
 export const calculateConsultantAvailableHours = async (consultantId: string, hoursPerMonth: number = 160): Promise<number> => {
   try {
-    const { data, error } = await supabase.rpc('calculate_consultant_available_hours', {
-      consultant_id: consultantId,
-      hours_per_month: hoursPerMonth
-    });
-
-    if (error) throw error;
-    return data || hoursPerMonth;
+    const workedHours = await calculateConsultantWorkedHours(consultantId);
+    return Math.max(0, hoursPerMonth - workedHours);
   } catch (error) {
     console.error('Error calculating consultant available hours:', error);
     return hoursPerMonth;
@@ -167,12 +175,26 @@ export const calculateConsultantAvailableHours = async (consultantId: string, ho
 
 export const calculateConsultantActiveProjects = async (consultantId: string): Promise<number> => {
   try {
-    const { data, error } = await supabase.rpc('calculate_consultant_active_projects', {
-      consultant_id: consultantId
-    });
+    const currentDate = new Date();
+    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    
+    const firstDayStr = firstDayOfMonth.toISOString().split('T')[0];
+    const lastDayStr = lastDayOfMonth.toISOString().split('T')[0];
+
+    // Buscar projetos únicos onde o consultor tem etapas no mês vigente
+    const { data, error } = await supabase
+      .from('project_stages')
+      .select('project_id')
+      .eq('consultant_id', consultantId)
+      .gte('start_date', firstDayStr)
+      .lte('end_date', lastDayStr);
 
     if (error) throw error;
-    return data || 0;
+    
+    // Contar projetos únicos
+    const uniqueProjects = new Set(data?.map(stage => stage.project_id) || []);
+    return uniqueProjects.size;
   } catch (error) {
     console.error('Error calculating consultant active projects:', error);
     return 0;

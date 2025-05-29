@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -23,6 +22,11 @@ import ConsultantServicesModal from './ConsultantServicesModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
 import { Tables } from '@/integrations/supabase/types';
+import { 
+  calculateConsultantWorkedHours, 
+  calculateConsultantAvailableHours, 
+  calculateConsultantActiveProjects 
+} from '@/integrations/supabase/consultants';
 
 export type Consultant = {
   id: string;
@@ -67,31 +71,6 @@ const mapConsultantFromDB = (consultant: Tables<"consultants"> & { services?: st
     availableHours: 0,
     workedHours: 0,
   };
-};
-
-// Function to calculate consultant statistics directly from database
-const calculateConsultantStats = async (consultantId: string) => {
-  try {
-    // Get projects where consultant is main or support
-    const { data: projects, error: projectsError } = await supabase
-      .from('projects')
-      .select('id, total_hours, status')
-      .or(`main_consultant_id.eq.${consultantId},support_consultant_id.eq.${consultantId}`)
-      .in('status', ['active', 'planned']);
-
-    if (projectsError) {
-      console.error('Error fetching consultant projects:', projectsError);
-      return { workedHours: 0, activeProjects: 0 };
-    }
-
-    const activeProjects = projects?.length || 0;
-    const workedHours = projects?.reduce((total, project) => total + (project.total_hours || 0), 0) || 0;
-
-    return { workedHours, activeProjects };
-  } catch (error) {
-    console.error('Error calculating consultant stats:', error);
-    return { workedHours: 0, activeProjects: 0 };
-  }
 };
 
 export const ConsultantList: React.FC = () => {
@@ -158,11 +137,17 @@ export const ConsultantList: React.FC = () => {
         const activeProjectsMap: {[key: string]: number} = {};
         
         for (const consultant of mappedConsultants) {
-          const stats = await calculateConsultantStats(consultant.id);
+          console.log(`Calculating stats for consultant ${consultant.name} (${consultant.id})`);
           
-          workedHoursMap[consultant.id] = stats.workedHours;
-          availableHoursMap[consultant.id] = Math.max(0, consultant.hoursPerMonth - stats.workedHours);
-          activeProjectsMap[consultant.id] = stats.activeProjects;
+          const workedHoursValue = await calculateConsultantWorkedHours(consultant.id);
+          const availableHoursValue = await calculateConsultantAvailableHours(consultant.id, consultant.hoursPerMonth);
+          const activeProjectsValue = await calculateConsultantActiveProjects(consultant.id);
+          
+          console.log(`Consultant ${consultant.name}: worked=${workedHoursValue}, available=${availableHoursValue}, projects=${activeProjectsValue}`);
+          
+          workedHoursMap[consultant.id] = workedHoursValue;
+          availableHoursMap[consultant.id] = availableHoursValue;
+          activeProjectsMap[consultant.id] = activeProjectsValue;
         }
         
         setWorkedHours(workedHoursMap);
@@ -221,11 +206,13 @@ export const ConsultantList: React.FC = () => {
         const activeProjectsMap: {[key: string]: number} = {};
         
         for (const consultant of mappedConsultants) {
-          const stats = await calculateConsultantStats(consultant.id);
+          const workedHoursValue = await calculateConsultantWorkedHours(consultant.id);
+          const availableHoursValue = await calculateConsultantAvailableHours(consultant.id, consultant.hoursPerMonth);
+          const activeProjectsValue = await calculateConsultantActiveProjects(consultant.id);
           
-          workedHoursMap[consultant.id] = stats.workedHours;
-          availableHoursMap[consultant.id] = Math.max(0, consultant.hoursPerMonth - stats.workedHours);
-          activeProjectsMap[consultant.id] = stats.activeProjects;
+          workedHoursMap[consultant.id] = workedHoursValue;
+          availableHoursMap[consultant.id] = availableHoursValue;
+          activeProjectsMap[consultant.id] = activeProjectsValue;
         }
         
         setWorkedHours(workedHoursMap);
