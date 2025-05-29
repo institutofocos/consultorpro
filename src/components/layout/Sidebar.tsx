@@ -3,8 +3,9 @@ import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   Users, Briefcase, BarChart2, 
-  Settings, ChevronLeft, ChevronRight, Layers,
-  Building, DollarSign, LogOut
+  FileText, Settings, ChevronLeft, ChevronRight, Layers,
+  Building, KanbanSquare, DollarSign,
+  CheckSquare, LogOut
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -64,7 +65,9 @@ export const Sidebar: React.FC = () => {
     { to: '/clients', icon: <Building size={20} />, label: 'Clientes' },
     { to: '/projects', icon: <Briefcase size={20} />, label: 'Projetos' },
     { to: '/services', icon: <Layers size={20} />, label: 'Serviços' },
+    { to: '/demands', icon: <FileText size={20} />, label: 'Demandas' },
     { to: '/financial', icon: <DollarSign size={20} />, label: 'Financeiro' },
+    { to: '/notes', icon: <CheckSquare size={20} />, label: 'Tarefas' },
     { to: '/settings', icon: <Settings size={20} />, label: 'Configurações' }
   ];
 
