@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarDays, User, Clock, Plus, RefreshCw } from 'lucide-react';
+import { CalendarDays, User, Clock, Plus, RefreshCw, BarChart3 } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format, differenceInDays, parseISO, startOfWeek, addDays } from 'date-fns';
@@ -19,8 +19,8 @@ interface GanttTask {
   end_date: string;
   duration_days: number;
   progress_percentage: number;
-  status: 'not_started' | 'in_progress' | 'completed' | 'on_hold';
-  priority: 'low' | 'medium' | 'high';
+  status: string; // Changed from union type to string
+  priority: string; // Changed from union type to string
   assigned_consultant_id?: string;
   assigned_consultant?: {
     name: string;
@@ -46,12 +46,22 @@ const statusConfig = {
   in_progress: { label: 'Em Progresso', color: 'bg-blue-500', textColor: 'text-white' },
   completed: { label: 'Concluído', color: 'bg-green-500', textColor: 'text-white' },
   on_hold: { label: 'Em Espera', color: 'bg-yellow-500', textColor: 'text-white' }
-};
+} as const;
 
 const priorityConfig = {
   low: { label: 'Baixa', color: 'bg-green-100 text-green-800' },
   medium: { label: 'Média', color: 'bg-yellow-100 text-yellow-800' },
   high: { label: 'Alta', color: 'bg-red-100 text-red-800' }
+} as const;
+
+// Helper function to get status config with fallback
+const getStatusConfig = (status: string) => {
+  return statusConfig[status as keyof typeof statusConfig] || statusConfig.not_started;
+};
+
+// Helper function to get priority config with fallback
+const getPriorityConfig = (priority: string) => {
+  return priorityConfig[priority as keyof typeof priorityConfig] || priorityConfig.medium;
 };
 
 const ReportsGantt: React.FC = () => {
@@ -305,6 +315,9 @@ const ReportsGantt: React.FC = () => {
                   
                   if (!position.visible) return null;
 
+                  const statusConfig = getStatusConfig(task.status);
+                  const priorityConfig = getPriorityConfig(task.priority);
+
                   return (
                     <div key={task.id} className="flex items-center">
                       {/* Task Info */}
@@ -316,11 +329,11 @@ const ReportsGantt: React.FC = () => {
                             {task.project?.client && ` - ${task.project.client.name}`}
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge className={statusConfig[task.status].color}>
-                              {statusConfig[task.status].label}
+                            <Badge className={statusConfig.color}>
+                              {statusConfig.label}
                             </Badge>
-                            <Badge variant="outline" className={priorityConfig[task.priority].color}>
-                              {priorityConfig[task.priority].label}
+                            <Badge variant="outline" className={priorityConfig.color}>
+                              {priorityConfig.label}
                             </Badge>
                             {task.assigned_consultant && (
                               <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -335,7 +348,7 @@ const ReportsGantt: React.FC = () => {
                       {/* Timeline */}
                       <div className="flex-1 relative h-8 bg-muted/20 rounded">
                         <div
-                          className={`absolute top-1 bottom-1 rounded ${statusConfig[task.status].color} ${statusConfig[task.status].textColor} flex items-center justify-center text-xs font-medium`}
+                          className={`absolute top-1 bottom-1 rounded ${statusConfig.color} ${statusConfig.textColor} flex items-center justify-center text-xs font-medium`}
                           style={{
                             left: position.left,
                             width: position.width
