@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -72,6 +73,7 @@ export const fetchProjects = async () => {
         totalValue: project.total_value || 0,
         taxPercent: project.tax_percent || 16,
         thirdPartyExpenses: project.third_party_expenses || 0,
+        // CORREÇÃO: usar main_consultant_value para o campo consultantValue
         consultantValue: project.main_consultant_value || 0,
         supportConsultantValue: project.support_consultant_value || 0,
         managerName: project.manager_name,
@@ -411,7 +413,7 @@ export const createProject = async (project: any) => {
       hourly_rate: project.hourlyRate || 0,
       main_consultant_commission: project.mainConsultantCommission || 0,
       support_consultant_commission: project.supportConsultantCommission || 0,
-      main_consultant_value: project.mainConsultantValue || 0,
+      main_consultant_value: project.consultantValue || 0, // CORREÇÃO: usar consultantValue para main_consultant_value
       support_consultant_value: project.supportConsultantValue || 0,
       third_party_expenses: project.thirdPartyExpenses || 0,
       tax_percent: project.taxPercent || 16,
@@ -502,7 +504,7 @@ export const updateProject = async (project: any) => {
       hourly_rate: project.hourlyRate || 0,
       main_consultant_commission: project.mainConsultantCommission || 0,
       support_consultant_commission: project.supportConsultantCommission || 0,
-      main_consultant_value: project.mainConsultantValue || 0,
+      main_consultant_value: project.consultantValue || 0, // CORREÇÃO: usar consultantValue para main_consultant_value
       support_consultant_value: project.supportConsultantValue || 0,
       third_party_expenses: project.thirdPartyExpenses || 0,
       tax_percent: project.taxPercent || 16,

@@ -85,7 +85,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         totalValue: project.totalValue || 0,
         taxPercent: project.taxPercent || 16,
         thirdPartyExpenses: project.thirdPartyExpenses || 0,
-        consultantValue: project.consultantValue || 0,
+        consultantValue: project.consultantValue || 0, // Este é o valor do consultor principal
         supportConsultantValue: project.supportConsultantValue || 0,
         managerName: project.managerName || '',
         managerEmail: project.managerEmail || '',
@@ -102,7 +102,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       console.log('Dados do formulário sendo definidos:', projectFormData);
       console.log('Main Consultant ID:', projectFormData.mainConsultantId);
       console.log('Support Consultant ID:', projectFormData.supportConsultantId);
-      console.log('Consultant Value:', projectFormData.consultantValue);
+      console.log('Consultant Value (Principal):', projectFormData.consultantValue);
       console.log('Support Consultant Value:', projectFormData.supportConsultantValue);
 
       setFormData(projectFormData);
@@ -954,7 +954,10 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
                 type="number"
                 step="0.01"
                 value={formData.consultantValue}
-                onChange={(e) => setFormData(prev => ({ ...prev, consultantValue: Number(e.target.value) }))}
+                onChange={(e) => {
+                  console.log('Mudando valor do consultor principal para:', e.target.value);
+                  setFormData(prev => ({ ...prev, consultantValue: Number(e.target.value) }));
+                }}
                 placeholder="0.00"
               />
             </div>
