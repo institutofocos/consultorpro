@@ -70,7 +70,6 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       console.log('=== CARREGANDO DADOS DO PROJETO PARA EDIÇÃO ===');
       console.log('Projeto completo:', project);
       
-      // Definir os dados do formulário com os valores do projeto
       const projectFormData = {
         name: project.name || '',
         description: project.description || '',
@@ -85,7 +84,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         totalValue: project.totalValue || 0,
         taxPercent: project.taxPercent || 16,
         thirdPartyExpenses: project.thirdPartyExpenses || 0,
-        consultantValue: project.consultantValue || 0, // Este é o valor do consultor principal
+        consultantValue: project.consultantValue || 0,
         supportConsultantValue: project.supportConsultantValue || 0,
         managerName: project.managerName || '',
         managerEmail: project.managerEmail || '',
@@ -100,14 +99,8 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       };
 
       console.log('Dados do formulário sendo definidos:', projectFormData);
-      console.log('Main Consultant ID:', projectFormData.mainConsultantId);
-      console.log('Support Consultant ID:', projectFormData.supportConsultantId);
-      console.log('Consultant Value (Principal):', projectFormData.consultantValue);
-      console.log('Support Consultant Value:', projectFormData.supportConsultantValue);
-
       setFormData(projectFormData);
 
-      // Se há um serviceId, carregar os consultores autorizados APÓS definir os dados do formulário
       if (project.serviceId) {
         console.log('Carregando consultores autorizados para o serviço:', project.serviceId);
         fetchAuthorizedConsultants(project.serviceId);
@@ -371,11 +364,11 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       console.log('Tipo de operação:', project ? 'UPDATE' : 'CREATE');
       console.log('Dados do formulário ANTES da limpeza:', JSON.stringify(formData, null, 2));
 
-      // CRIAR OBJETO TOTALMENTE LIMPO - SEM NENHUM CAMPO PROIBIDO
-      const cleanProjectData = {
+      // CRIAR OBJETO TOTALMENTE LIMPO - REMOVENDO QUALQUER CAMPO RELACIONADO A USER
+      const safeProjectData = {
         // ID apenas se for atualização
         ...(project?.id && { id: project.id }),
-        // Campos básicos
+        // Campos básicos - APENAS OS QUE EXISTEM NA TABELA PROJECTS
         name: formData.name,
         description: formData.description || '',
         serviceId: formData.serviceId || null,
@@ -403,33 +396,35 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         url: formData.url || ''
       };
 
-      console.log('=== DADOS TOTALMENTE LIMPOS ===');
-      console.log('Objeto limpo (GARANTIDO sem user_id):', JSON.stringify(cleanProjectData, null, 2));
+      console.log('=== DADOS COMPLETAMENTE LIMPOS ===');
+      console.log('Objeto seguro (SEM qualquer campo de usuário):', JSON.stringify(safeProjectData, null, 2));
 
-      // VERIFICAÇÃO FINAL DE SEGURANÇA
-      const forbiddenFields = ['user_id', 'userId', 'user'];
-      const hasProhibitedField = forbiddenFields.some(field => field in cleanProjectData);
+      // VERIFICAÇÃO FINAL DE SEGURANÇA - GARANTIR QUE NÃO HÁ CAMPOS PROIBIDOS
+      const prohibitedFields = ['user_id', 'userId', 'user', 'user_type', 'userType'];
+      const hasProhibitedField = Object.keys(safeProjectData).some(key => 
+        prohibitedFields.some(prohibited => key.toLowerCase().includes(prohibited.toLowerCase()))
+      );
+      
       if (hasProhibitedField) {
-        console.error('⚠️ ERRO CRÍTICO: Campo proibido detectado!');
-        throw new Error('Campo user_id detectado nos dados - operação cancelada por segurança');
+        console.error('⚠️ ERRO CRÍTICO: Campo relacionado a usuário detectado!');
+        throw new Error('Dados de usuário detectados - operação cancelada por segurança');
       }
 
-      console.log('✅ Verificação de segurança aprovada - nenhum campo proibido');
+      console.log('✅ Verificação de segurança aprovada - nenhum campo de usuário');
 
       let savedProject: any;
       if (project?.id) {
         console.log('Atualizando projeto existente com ID:', project.id);
-        savedProject = await updateProject(cleanProjectData);
+        savedProject = await updateProject(safeProjectData);
         toast.success('Projeto atualizado com sucesso!');
       } else {
         console.log('Criando novo projeto');
-        savedProject = await createProject(cleanProjectData);
+        savedProject = await createProject(safeProjectData);
         toast.success('Projeto criado com sucesso!');
       }
 
       console.log('Projeto salvo no banco:', savedProject);
 
-      // Transform the saved project to match the Project interface
       const transformedProject: Project = {
         id: savedProject.id,
         name: savedProject.name,
