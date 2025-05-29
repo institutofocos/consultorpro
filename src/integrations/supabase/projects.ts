@@ -375,17 +375,6 @@ export const deleteProject = async (id: string) => {
 
     console.log(`Deleting project "${project.name}" with cancelado status...`);
 
-    // Delete chat rooms and related data first
-    const { error: chatRoomsError } = await supabase
-      .from('chat_rooms')
-      .delete()
-      .eq('project_id', id);
-    
-    if (chatRoomsError) {
-      console.error('Error deleting chat rooms:', chatRoomsError);
-      // Don't throw error here, continue with deletion
-    }
-
     // Delete all related project stages
     const { error: stagesError } = await supabase
       .from('project_stages')
