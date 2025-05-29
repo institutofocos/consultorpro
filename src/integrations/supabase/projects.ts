@@ -399,7 +399,7 @@ export const createProject = async (project: any) => {
     const projectData = {
       name: project.name,
       description: project.description,
-      status: project.mainConsultantId ? 'em_producao' : 'em_planejamento', // Auto-set status based on consultant
+      status: project.mainConsultantId ? 'em_producao' : 'em_planejamento',
       client_id: project.clientId || null,
       service_id: project.serviceId || null,
       main_consultant_id: project.mainConsultantId || null,
@@ -446,30 +446,39 @@ export const createProject = async (project: any) => {
     if (project.stages && project.stages.length > 0) {
       console.log('Criando etapas do projeto:', project.stages);
       
-      const stagesData = project.stages.map((stage: any) => ({
-        project_id: data.id,
-        name: stage.name,
-        description: stage.description || '',
-        days: stage.days || 1,
-        hours: stage.hours || 8,
-        value: stage.value || 0,
-        start_date: stage.startDate,
-        end_date: stage.endDate,
-        stage_order: stage.stageOrder || 1,
-        consultant_id: stage.consultantId || null,
-        status: stage.status || 'iniciar_projeto'
-      }));
+      for (const stage of project.stages) {
+        const stageData = {
+          project_id: data.id,
+          name: stage.name,
+          description: stage.description || '',
+          days: stage.days || 1,
+          hours: stage.hours || 8,
+          value: stage.value || 0,
+          start_date: stage.startDate,
+          end_date: stage.endDate,
+          stage_order: stage.stageOrder || 1,
+          consultant_id: stage.consultantId || null,
+          status: stage.status || 'iniciar_projeto'
+        };
 
-      console.log('Dados das etapas para inserção:', stagesData);
+        console.log('Dados da etapa para inserção:', stageData);
 
-      const { error: stagesError } = await supabase
-        .from('project_stages')
-        .insert(stagesData);
+        const { data: stageResult, error: stageError } = await supabase
+          .from('project_stages')
+          .insert(stageData)
+          .select()
+          .single();
 
-      if (stagesError) {
-        console.error('Error creating stages:', stagesError);
-      } else {
-        console.log('Etapas criadas com sucesso');
+        if (stageError) {
+          console.error('Error creating stage:', stageError);
+        } else {
+          console.log('Etapa criada com sucesso:', stageResult);
+          
+          // Link stage to tags if they exist
+          if (stage.tagIds && stage.tagIds.length > 0) {
+            await linkStageToTags(stageResult.id, stage.tagIds);
+          }
+        }
       }
     }
 
@@ -510,7 +519,6 @@ export const updateProject = async (project: any) => {
       manager_email: project.managerEmail,
       manager_phone: project.managerPhone,
       url: project.url || null,
-      // Don't include status here - it will be calculated automatically
       tags: project.tags || []
     };
 
@@ -546,30 +554,39 @@ export const updateProject = async (project: any) => {
         .eq('project_id', project.id);
 
       // Insert new stages
-      const stagesData = project.stages.map((stage: any) => ({
-        project_id: project.id,
-        name: stage.name,
-        description: stage.description || '',
-        days: stage.days || 1,
-        hours: stage.hours || 8,
-        value: stage.value || 0,
-        start_date: stage.startDate,
-        end_date: stage.endDate,
-        stage_order: stage.stageOrder || 1,
-        consultant_id: stage.consultantId || null,
-        status: stage.status || 'iniciar_projeto'
-      }));
+      for (const stage of project.stages) {
+        const stageData = {
+          project_id: project.id,
+          name: stage.name,
+          description: stage.description || '',
+          days: stage.days || 1,
+          hours: stage.hours || 8,
+          value: stage.value || 0,
+          start_date: stage.startDate,
+          end_date: stage.endDate,
+          stage_order: stage.stageOrder || 1,
+          consultant_id: stage.consultantId || null,
+          status: stage.status || 'iniciar_projeto'
+        };
 
-      console.log('Dados das etapas para atualização:', stagesData);
+        console.log('Dados da etapa para atualização:', stageData);
 
-      const { error: stagesError } = await supabase
-        .from('project_stages')
-        .insert(stagesData);
+        const { data: stageResult, error: stageError } = await supabase
+          .from('project_stages')
+          .insert(stageData)
+          .select()
+          .single();
 
-      if (stagesError) {
-        console.error('Error updating stages:', stagesError);
-      } else {
-        console.log('Etapas atualizadas com sucesso');
+        if (stageError) {
+          console.error('Error updating stage:', stageError);
+        } else {
+          console.log('Etapa atualizada com sucesso:', stageResult);
+          
+          // Link stage to tags if they exist
+          if (stage.tagIds && stage.tagIds.length > 0) {
+            await linkStageToTags(stageResult.id, stage.tagIds);
+          }
+        }
       }
     }
 
@@ -690,5 +707,33 @@ export const fetchServices = async () => {
   } catch (error) {
     console.error('Error fetching services:', error);
     return [];
+  }
+};
+
+// New function to link stages to tags
+export const linkStageToTags = async (stageId: string, tagIds: string[]) => {
+  try {
+    // First, remove existing tag relations for this stage
+    await supabase
+      .from('stage_tag_relations')
+      .delete()
+      .eq('stage_id', stageId);
+
+    // Then, create new relations
+    if (tagIds.length > 0) {
+      const relations = tagIds.map(tagId => ({
+        stage_id: stageId,
+        tag_id: tagId
+      }));
+
+      const { error } = await supabase
+        .from('stage_tag_relations')
+        .insert(relations);
+
+      if (error) throw error;
+    }
+  } catch (error) {
+    console.error('Error linking stage to tags:', error);
+    throw error;
   }
 };

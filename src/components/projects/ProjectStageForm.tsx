@@ -1,11 +1,14 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import SearchableSelect from "@/components/ui/searchable-select";
+import { fetchProjectTags } from "@/integrations/supabase/projects";
 
 interface ProjectStage {
   id?: string;
@@ -16,6 +19,8 @@ interface ProjectStage {
   days: number;
   start_date: string;
   end_date: string;
+  tags?: string[];
+  tagIds?: string[];
 }
 
 interface ProjectStageFormProps {
@@ -24,6 +29,16 @@ interface ProjectStageFormProps {
 }
 
 const ProjectStageForm: React.FC<ProjectStageFormProps> = ({ stages, onStagesChange }) => {
+  const [availableTags, setAvailableTags] = useState([]);
+
+  useEffect(() => {
+    const loadTags = async () => {
+      const tags = await fetchProjectTags();
+      setAvailableTags(tags);
+    };
+    loadTags();
+  }, []);
+
   const addStage = () => {
     const newStage: ProjectStage = {
       name: '',
@@ -32,7 +47,9 @@ const ProjectStageForm: React.FC<ProjectStageFormProps> = ({ stages, onStagesCha
       hours: 8,
       days: 1,
       start_date: '',
-      end_date: ''
+      end_date: '',
+      tags: [],
+      tagIds: []
     };
     onStagesChange([...stages, newStage]);
   };
@@ -45,6 +62,31 @@ const ProjectStageForm: React.FC<ProjectStageFormProps> = ({ stages, onStagesCha
 
   const removeStage = (index: number) => {
     const updatedStages = stages.filter((_, i) => i !== index);
+    onStagesChange(updatedStages);
+  };
+
+  const handleTagSelection = (stageIndex: number, value: string | string[]) => {
+    if (typeof value === 'string') {
+      const tag = availableTags.find(t => t.id === value);
+      if (tag && !stages[stageIndex].tags?.includes(tag.name)) {
+        const updatedStages = [...stages];
+        updatedStages[stageIndex] = {
+          ...updatedStages[stageIndex],
+          tags: [...(updatedStages[stageIndex].tags || []), tag.name],
+          tagIds: [...(updatedStages[stageIndex].tagIds || []), tag.id]
+        };
+        onStagesChange(updatedStages);
+      }
+    }
+  };
+
+  const removeTag = (stageIndex: number, tagIndex: number) => {
+    const updatedStages = [...stages];
+    updatedStages[stageIndex] = {
+      ...updatedStages[stageIndex],
+      tags: updatedStages[stageIndex].tags?.filter((_, i) => i !== tagIndex),
+      tagIds: updatedStages[stageIndex].tagIds?.filter((_, i) => i !== tagIndex)
+    };
     onStagesChange(updatedStages);
   };
 
@@ -145,6 +187,34 @@ const ProjectStageForm: React.FC<ProjectStageFormProps> = ({ stages, onStagesCha
                   placeholder="Descrição da etapa"
                   rows={3}
                 />
+              </div>
+
+              <div className="md:col-span-2">
+                <Label htmlFor={`stage-tags-${index}`}>Tags da Etapa</Label>
+                <SearchableSelect
+                  options={availableTags}
+                  value=""
+                  onValueChange={(value) => handleTagSelection(index, value)}
+                  placeholder="Adicionar tag à etapa"
+                  searchPlaceholder="Pesquisar tags..."
+                  emptyText="Nenhuma tag encontrada"
+                />
+                {stage.tags && stage.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {stage.tags.map((tagName, tagIndex) => (
+                      <Badge key={tagIndex} variant="secondary" className="text-xs">
+                        {tagName}
+                        <button
+                          type="button"
+                          onClick={() => removeTag(index, tagIndex)}
+                          className="ml-1 text-muted-foreground hover:text-destructive"
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
