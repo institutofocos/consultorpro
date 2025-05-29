@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export const fetchConsultants = async () => {
@@ -107,15 +106,135 @@ export const updateConsultant = async (id: string, consultant: any) => {
 
 export const deleteConsultant = async (id: string) => {
   try {
-    const { error } = await supabase
+    console.log(`=== INICIANDO EXCLUSÃO DE CONSULTOR: ${id} ===`);
+    
+    // Verificar se o consultor existe
+    const { data: consultant, error: consultantError } = await supabase
+      .from('consultants')
+      .select('name')
+      .eq('id', id)
+      .single();
+    
+    if (consultantError) {
+      console.error('Erro ao buscar consultor:', consultantError);
+      throw new Error('Consultor não encontrado');
+    }
+    
+    console.log(`Consultor encontrado: ${consultant.name}`);
+    
+    // Verificar se existem projetos vinculados como consultor principal
+    const { data: mainConsultantProjects, error: mainError } = await supabase
+      .from('projects')
+      .select('id, name')
+      .eq('main_consultant_id', id);
+    
+    if (mainError) {
+      console.error('Erro ao verificar projetos como consultor principal:', mainError);
+      throw new Error('Erro ao verificar dependências do consultor');
+    }
+    
+    console.log(`Projetos como consultor principal:`, mainConsultantProjects);
+    
+    // Verificar se existem projetos vinculados como consultor de apoio
+    const { data: supportConsultantProjects, error: supportError } = await supabase
+      .from('projects')
+      .select('id, name')
+      .eq('support_consultant_id', id);
+    
+    if (supportError) {
+      console.error('Erro ao verificar projetos como consultor de apoio:', supportError);
+      throw new Error('Erro ao verificar dependências do consultor');
+    }
+    
+    console.log(`Projetos como consultor de apoio:`, supportConsultantProjects);
+    
+    // Se existem projetos vinculados, não permitir exclusão
+    if (mainConsultantProjects && mainConsultantProjects.length > 0) {
+      const projectNames = mainConsultantProjects.map(p => p.name).join(', ');
+      throw new Error(`Não é possível excluir o consultor pois ele é consultor principal nos seguintes projetos: ${projectNames}. Remova-o desses projetos antes de excluí-lo.`);
+    }
+    
+    if (supportConsultantProjects && supportConsultantProjects.length > 0) {
+      const projectNames = supportConsultantProjects.map(p => p.name).join(', ');
+      throw new Error(`Não é possível excluir o consultor pois ele é consultor de apoio nos seguintes projetos: ${projectNames}. Remova-o desses projetos antes de excluí-lo.`);
+    }
+    
+    // Verificar se existem etapas de projeto vinculadas
+    const { data: stages, error: stagesError } = await supabase
+      .from('project_stages')
+      .select('id, name, project_id')
+      .eq('consultant_id', id);
+    
+    if (stagesError) {
+      console.error('Erro ao verificar etapas vinculadas:', stagesError);
+      throw new Error('Erro ao verificar dependências do consultor');
+    }
+    
+    console.log(`Etapas vinculadas:`, stages);
+    
+    if (stages && stages.length > 0) {
+      const stageNames = stages.map(s => s.name).join(', ');
+      throw new Error(`Não é possível excluir o consultor pois ele está vinculado às seguintes etapas: ${stageNames}. Remova-o dessas etapas antes de excluí-lo.`);
+    }
+    
+    // Verificar se existem transações financeiras vinculadas
+    const { data: transactions, error: transactionsError } = await supabase
+      .from('financial_transactions')
+      .select('id')
+      .eq('consultant_id', id);
+    
+    if (transactionsError) {
+      console.error('Erro ao verificar transações financeiras:', transactionsError);
+      throw new Error('Erro ao verificar dependências do consultor');
+    }
+    
+    console.log(`Transações financeiras vinculadas:`, transactions);
+    
+    if (transactions && transactions.length > 0) {
+      throw new Error(`Não é possível excluir o consultor pois existem ${transactions.length} transações financeiras vinculadas a ele.`);
+    }
+    
+    // Remover serviços do consultor primeiro
+    console.log('Removendo serviços vinculados...');
+    const { error: servicesError } = await supabase
+      .from('consultant_services')
+      .delete()
+      .eq('consultant_id', id);
+    
+    if (servicesError) {
+      console.error('Erro ao remover serviços do consultor:', servicesError);
+      throw new Error('Erro ao remover serviços vinculados ao consultor');
+    }
+    
+    // Remover documentos do consultor
+    console.log('Removendo documentos vinculados...');
+    const { error: documentsError } = await supabase
+      .from('consultant_documents')
+      .delete()
+      .eq('consultant_id', id);
+    
+    if (documentsError) {
+      console.error('Erro ao remover documentos do consultor:', documentsError);
+      // Não falhar aqui, apenas logar o erro
+      console.warn('Documentos não foram removidos, mas continuando com a exclusão');
+    }
+    
+    // Finalmente, excluir o consultor
+    console.log('Excluindo consultor...');
+    const { error: deleteError } = await supabase
       .from('consultants')
       .delete()
       .eq('id', id);
     
-    if (error) throw error;
+    if (deleteError) {
+      console.error('Erro ao excluir consultor:', deleteError);
+      throw new Error(`Erro ao excluir consultor: ${deleteError.message}`);
+    }
+    
+    console.log(`=== CONSULTOR ${consultant.name} EXCLUÍDO COM SUCESSO ===`);
     return true;
   } catch (error) {
-    console.error('Error deleting consultant:', error);
+    console.error('=== ERRO NA EXCLUSÃO DO CONSULTOR ===', error);
     throw error;
   }
 };
