@@ -10,7 +10,7 @@ import { CalendarIcon, Edit2, Save, X, Trash2, User, MoreVertical } from 'lucide
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { NoteChecklist } from '@/integrations/supabase/notes';
-import { updateChecklistStatus } from '@/integrations/supabase/notes';
+import { updateChecklist } from '@/integrations/supabase/notes';
 import { toast } from 'sonner';
 import {
   DropdownMenu,
@@ -37,7 +37,7 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, noteId, onUpdate, o
 
   const handleToggleComplete = async (checked: boolean) => {
     try {
-      await updateChecklistStatus(item.id, checked, noteId);
+      await updateChecklist(item.id, { completed: checked });
       
       const updatedItem = {
         ...item,

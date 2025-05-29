@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { 
   Calendar, Tag, UserCircle, Building, Layers,
@@ -81,7 +82,12 @@ const NoteCard: React.FC<NoteCardProps> = ({
 
       const updatedNote = await updateNoteStatus(note.id, newStatus);
       if (updatedNote) {
-        await onUpdate(updatedNote);
+        // Cast the updated note to the correct type
+        const typedNote: Note = {
+          ...updatedNote,
+          status: updatedNote.status as Note['status']
+        };
+        await onUpdate(typedNote);
         toast.success('Status atualizado com sucesso');
       }
     } catch (error) {
@@ -106,7 +112,12 @@ const NoteCard: React.FC<NoteCardProps> = ({
 
       const updatedNote = await updateNoteStatus(note.id, 'finalizados');
       if (updatedNote) {
-        await onUpdate(updatedNote);
+        // Cast the updated note to the correct type
+        const typedNote: Note = {
+          ...updatedNote,
+          status: updatedNote.status as Note['status']
+        };
+        await onUpdate(typedNote);
         toast.success('Tarefa marcada como finalizada');
       }
     } catch (error: any) {
