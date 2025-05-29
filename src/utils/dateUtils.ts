@@ -11,37 +11,41 @@ export const BR_DATETIME_FORMAT = 'dd/MM/yyyy HH:mm';
  * Format a date string or Date object to Brazilian format (DD/MM/YYYY)
  */
 export const formatDateBR = (date: string | Date | null | undefined): string => {
-  if (!date) return '-';
+  if (!date) return '';
   
   try {
     const dateObj = typeof date === 'string' ? parseISO(date) : date;
     
     // Check if date is valid
-    if (isNaN(dateObj.getTime())) return '-';
+    if (isNaN(dateObj.getTime())) return '';
     
     return format(dateObj, BR_DATE_FORMAT, { locale: ptBR });
   } catch (error) {
     console.error('Error formatting date:', error);
-    return '-';
+    return '';
   }
 };
 
 /**
  * Format a datetime string or Date object to Brazilian format (DD/MM/YYYY HH:mm)
+ * Returns an object with separate date and time strings
  */
-export const formatDateTimeBR = (date: string | Date | null | undefined): string => {
-  if (!date) return '-';
+export const formatDateTimeBR = (date: string | Date | null | undefined): { date: string; time: string } => {
+  if (!date) return { date: '', time: '' };
   
   try {
     const dateObj = typeof date === 'string' ? parseISO(date) : date;
     
     // Check if date is valid
-    if (isNaN(dateObj.getTime())) return '-';
+    if (isNaN(dateObj.getTime())) return { date: '', time: '' };
     
-    return format(dateObj, BR_DATETIME_FORMAT, { locale: ptBR });
+    return {
+      date: format(dateObj, BR_DATE_FORMAT, { locale: ptBR }),
+      time: format(dateObj, BR_TIME_FORMAT, { locale: ptBR })
+    };
   } catch (error) {
     console.error('Error formatting datetime:', error);
-    return '-';
+    return { date: '', time: '' };
   }
 };
 
@@ -49,7 +53,7 @@ export const formatDateTimeBR = (date: string | Date | null | undefined): string
  * Format time only to Brazilian format (HH:mm)
  */
 export const formatTimeBR = (time: string | null | undefined): string => {
-  if (!time) return '-';
+  if (!time) return '';
   
   try {
     // Se o time vem como string no formato HH:mm
@@ -59,32 +63,42 @@ export const formatTimeBR = (time: string | null | undefined): string => {
     
     // Se for uma data completa, extrair apenas a hora
     const dateObj = parseISO(time);
-    if (isNaN(dateObj.getTime())) return '-';
+    if (isNaN(dateObj.getTime())) return '';
     
     return format(dateObj, BR_TIME_FORMAT, { locale: ptBR });
   } catch (error) {
     console.error('Error formatting time:', error);
-    return '-';
+    return '';
   }
 };
 
 /**
- * Combine date and time into a single Brazilian formatted string
+ * Combine separate date and time strings into display format
+ * Returns object with separate date and time strings
  */
-export const formatDateTimeFromSeparate = (date: string | null | undefined, time: string | null | undefined): string => {
+export const formatDateTimeFromSeparate = (date: string | null | undefined, time: string | null | undefined): { date: string; time: string; combined: string } => {
   const formattedDate = formatDateBR(date);
   const formattedTime = formatTimeBR(time);
   
-  if (formattedDate === '-') return '-';
-  if (formattedTime === '-') return formattedDate;
+  let combined = '';
+  if (formattedDate && formattedTime) {
+    combined = `${formattedDate} ${formattedTime}`;
+  } else if (formattedDate) {
+    combined = formattedDate;
+  }
   
-  return `${formattedDate} ${formattedTime}`;
+  return {
+    date: formattedDate,
+    time: formattedTime,
+    combined
+  };
 };
 
 /**
  * Get current date and time formatted in Brazilian timezone
+ * Returns object with separate date and time strings
  */
-export const getCurrentDateTimeBR = (): string => {
+export const getCurrentDateTimeBR = (): { date: string; time: string } => {
   return formatDateTimeBR(new Date());
 };
 
@@ -147,13 +161,13 @@ export const formatTimeForDB = (time: string | null | undefined): string | null 
  * Simple Deno-compatible date formatting for edge functions
  */
 export const formatDateBRSimple = (date: string | Date | null | undefined): string => {
-  if (!date) return '-';
+  if (!date) return '';
   
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     
     // Check if date is valid
-    if (isNaN(dateObj.getTime())) return '-';
+    if (isNaN(dateObj.getTime())) return '';
     
     // Format to Brazilian date format DD/MM/YYYY
     const day = String(dateObj.getDate()).padStart(2, '0');
@@ -163,21 +177,22 @@ export const formatDateBRSimple = (date: string | Date | null | undefined): stri
     return `${day}/${month}/${year}`;
   } catch (error) {
     console.error('Error formatting date:', error);
-    return '-';
+    return '';
   }
 };
 
 /**
  * Simple Deno-compatible datetime formatting for edge functions
+ * Returns object with separate date and time strings
  */
-export const formatDateTimeBRSimple = (date: string | Date | null | undefined): string => {
-  if (!date) return '-';
+export const formatDateTimeBRSimple = (date: string | Date | null | undefined): { date: string; time: string } => {
+  if (!date) return { date: '', time: '' };
   
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     
     // Check if date is valid
-    if (isNaN(dateObj.getTime())) return '-';
+    if (isNaN(dateObj.getTime())) return { date: '', time: '' };
     
     // Format to Brazilian datetime format DD/MM/YYYY HH:mm
     const day = String(dateObj.getDate()).padStart(2, '0');
@@ -186,9 +201,12 @@ export const formatDateTimeBRSimple = (date: string | Date | null | undefined): 
     const hours = String(dateObj.getHours()).padStart(2, '0');
     const minutes = String(dateObj.getMinutes()).padStart(2, '0');
     
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
+    return {
+      date: `${day}/${month}/${year}`,
+      time: `${hours}:${minutes}`
+    };
   } catch (error) {
     console.error('Error formatting datetime:', error);
-    return '-';
+    return { date: '', time: '' };
   }
 };

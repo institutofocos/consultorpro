@@ -252,24 +252,33 @@ const NoteCard: React.FC<NoteCardProps> = ({
           )}
         </div>
 
-        {/* Datas com novo formato */}
+        {/* Datas com formato separado */}
         <div className="grid grid-cols-1 gap-1 text-xs text-gray-500">
           {note.start_date && (
             <div className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              <span>Início: {formatDateTimeFromSeparate(note.start_date, note.start_time)}</span>
+              <span>
+                Início: {formatDateBR(note.start_date)}
+                {note.start_time && ` às ${formatTimeBR(note.start_time)}`}
+              </span>
             </div>
           )}
           {note.due_date && (
             <div className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
-              <span>Vencimento: {formatDateTimeFromSeparate(note.due_date, note.due_time)}</span>
+              <span>
+                Vencimento: {formatDateBR(note.due_date)}
+                {note.due_time && ` às ${formatTimeBR(note.due_time)}`}
+              </span>
             </div>
           )}
           {note.end_date && (
             <div className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
-              <span>Conclusão: {formatDateTimeFromSeparate(note.end_date, note.end_time)}</span>
+              <span>
+                Conclusão: {formatDateBR(note.end_date)}
+                {note.end_time && ` às ${formatTimeBR(note.end_time)}`}
+              </span>
             </div>
           )}
         </div>
@@ -352,7 +361,8 @@ const NoteCard: React.FC<NoteCardProps> = ({
                   </span>
                   {checklist.due_date && (
                     <span className="text-xs text-muted-foreground">
-                      {formatDateTimeFromSeparate(checklist.due_date, checklist.due_time)}
+                      {formatDateBR(checklist.due_date)}
+                      {checklist.due_time && ` ${formatTimeBR(checklist.due_time)}`}
                     </span>
                   )}
                 </div>
