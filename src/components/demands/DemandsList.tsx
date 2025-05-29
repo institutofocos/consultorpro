@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter, Plus, X, Eye, Edit, Trash2 } from 'lucide-react';
@@ -52,6 +51,8 @@ const DemandsList = () => {
   const [isDemandDialogOpen, setIsDemandDialogOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedDemandForView, setSelectedDemandForView] = useState<any>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedDemandForEdit, setSelectedDemandForEdit] = useState<any>(null);
   const { toast } = useToast();
   
   // Filter states
@@ -338,10 +339,18 @@ const DemandsList = () => {
   };
 
   const handleEditDemand = (demand: any) => {
-    // TODO: Implementar edição de demanda
+    setSelectedDemandForEdit(demand);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDemandUpdated = async () => {
+    setIsEditDialogOpen(false);
+    // Refresh the demands list
+    const demandsData = await fetchDemandsWithoutConsultants();
+    setDemands(demandsData);
     toast({
-      title: "Em desenvolvimento",
-      description: "Funcionalidade de edição em desenvolvimento.",
+      title: "Sucesso",
+      description: "Demanda atualizada com sucesso.",
     });
   };
 
@@ -460,29 +469,7 @@ const DemandsList = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold text-base truncate">{demand.name}</h3>
-                              <div className="flex items-center gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleViewDemand(demand)}
-                                  className="p-1 h-6 w-6 hover:bg-blue-100"
-                                  title="Ver detalhes completos"
-                                >
-                                  <Eye className="h-4 w-4 text-blue-600" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEditDemand(demand)}
-                                  className="p-1 h-6 w-6 hover:bg-green-100"
-                                  title="Editar demanda"
-                                >
-                                  <Edit className="h-4 w-4 text-green-600" />
-                                </Button>
-                              </div>
-                            </div>
+                            <h3 className="font-semibold text-base truncate">{demand.name}</h3>
                           </div>
                         </div>
                         
@@ -549,24 +536,43 @@ const DemandsList = () => {
                         </div>
                       </div>
                       
-                      {/* Right section - Action buttons */}
-                      <div className="flex flex-col items-end justify-center gap-2">
-                        <Button 
-                          size="sm" 
-                          onClick={() => handleOpenAssignmentDialog(demand)}
-                          className="whitespace-nowrap gap-1"
+                      {/* Right section - Action icons */}
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewDemand(demand)}
+                          className="p-2 h-8 w-8 hover:bg-blue-50"
+                          title="Ver detalhes completos"
                         >
-                          <UserCheck className="h-4 w-4" />
-                          Atribuir Consultores
+                          <Eye className="h-4 w-4 text-blue-600" />
                         </Button>
-                        <Button 
-                          size="sm" 
-                          variant="destructive"
-                          onClick={() => handleCancelDemand(demand.id)}
-                          className="whitespace-nowrap gap-1"
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditDemand(demand)}
+                          className="p-2 h-8 w-8 hover:bg-yellow-50"
+                          title="Editar demanda"
                         >
-                          <Trash2 className="h-4 w-4" />
-                          Cancelar Demanda
+                          <Edit className="h-4 w-4 text-yellow-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenAssignmentDialog(demand)}
+                          className="p-2 h-8 w-8 hover:bg-green-50"
+                          title="Atribuir consultores"
+                        >
+                          <UserCheck className="h-4 w-4 text-green-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCancelDemand(demand.id)}
+                          className="p-2 h-8 w-8 hover:bg-red-50"
+                          title="Cancelar demanda"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
                         </Button>
                       </div>
                     </div>
@@ -679,6 +685,22 @@ const DemandsList = () => {
               Atribuir e Mover para Projetos
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Demand Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent size="full" className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Demanda</DialogTitle>
+          </DialogHeader>
+          {selectedDemandForEdit && (
+            <DemandForm
+              editingDemand={selectedDemandForEdit}
+              onDemandSaved={handleDemandUpdated}
+              onCancel={() => setIsEditDialogOpen(false)}
+            />
+          )}
         </DialogContent>
       </Dialog>
       
