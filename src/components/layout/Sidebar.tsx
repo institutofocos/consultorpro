@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { 
-  Users, Briefcase, BarChart2, LineChart, 
+  Users, Briefcase, BarChart2, 
   FileText, Settings, ChevronLeft, ChevronRight, Layers,
   Building, KanbanSquare, DollarSign,
   CheckSquare, MessageSquare, FileCheck, LogOut
@@ -68,7 +68,6 @@ export const Sidebar: React.FC = () => {
     { to: '/financial', icon: <DollarSign size={20} />, label: 'Financeiro' },
     { to: '/notes', icon: <CheckSquare size={20} />, label: 'Tarefas' },
     { to: '/chat', icon: <MessageSquare size={20} />, label: 'Chat Interno' },
-    { to: '/kpis', icon: <LineChart size={20} />, label: 'KPIs / OKRs' },
     { to: '/settings', icon: <Settings size={20} />, label: 'Configurações' }
   ];
 
