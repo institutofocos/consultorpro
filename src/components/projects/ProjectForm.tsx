@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -370,11 +369,13 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
 
       console.log('=== INICIANDO SUBMISSÃO DO FORMULÁRIO ===');
       console.log('Tipo de operação:', project ? 'UPDATE' : 'CREATE');
-      console.log('Dados do formulário ANTES da limpeza:', formData);
+      console.log('Dados do formulário ANTES da limpeza:', JSON.stringify(formData, null, 2));
 
-      // GARANTIR que NENHUM user_id seja enviado - criar objeto limpo
+      // CRIAR OBJETO TOTALMENTE LIMPO - SEM NENHUM CAMPO PROIBIDO
       const cleanProjectData = {
-        id: project?.id || '',
+        // ID apenas se for atualização
+        ...(project?.id && { id: project.id }),
+        // Campos básicos
         name: formData.name,
         description: formData.description || '',
         serviceId: formData.serviceId || null,
@@ -402,16 +403,18 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         url: formData.url || ''
       };
 
-      console.log('Dados LIMPOS preparados (GARANTIDO sem user_id):', cleanProjectData);
+      console.log('=== DADOS TOTALMENTE LIMPOS ===');
+      console.log('Objeto limpo (GARANTIDO sem user_id):', JSON.stringify(cleanProjectData, null, 2));
 
-      // Verificação final de segurança
-      const forbiddenFields = ['user_id', 'userId'];
-      forbiddenFields.forEach(field => {
-        if (field in cleanProjectData) {
-          console.error(`CAMPO PROIBIDO DETECTADO: ${field}`);
-          delete cleanProjectData[field];
-        }
-      });
+      // VERIFICAÇÃO FINAL DE SEGURANÇA
+      const forbiddenFields = ['user_id', 'userId', 'user'];
+      const hasProhibitedField = forbiddenFields.some(field => field in cleanProjectData);
+      if (hasProhibitedField) {
+        console.error('⚠️ ERRO CRÍTICO: Campo proibido detectado!');
+        throw new Error('Campo user_id detectado nos dados - operação cancelada por segurança');
+      }
+
+      console.log('✅ Verificação de segurança aprovada - nenhum campo proibido');
 
       let savedProject: any;
       if (project?.id) {

@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -440,19 +441,28 @@ export const deleteProject = async (id: string) => {
 export const createProject = async (project: any) => {
   try {
     console.log('=== INICIANDO CRIAÇÃO DE PROJETO ===');
-    console.log('Dados recebidos para criação:', project);
+    console.log('Dados recebidos para criação:', JSON.stringify(project, null, 2));
     
-    // Create a clean object with only the fields that exist in the projects table
+    // VERIFICAÇÃO CRÍTICA: GARANTIR que user_id NÃO SEJA ENVIADO
+    const forbiddenFields = ['user_id', 'userId', 'user'];
+    forbiddenFields.forEach(field => {
+      if (field in project) {
+        console.error(`⚠️ CAMPO PROIBIDO DETECTADO E REMOVIDO: ${field}`, project[field]);
+        delete project[field];
+      }
+    });
+    
+    // Criar objeto EXTREMAMENTE limpo - APENAS campos que existem na tabela projects
     const projectData = {
-      name: project.name,
-      description: project.description || '',
+      name: String(project.name || ''),
+      description: String(project.description || ''),
       status: project.mainConsultantId ? 'em_producao' : 'em_planejamento',
       client_id: project.clientId || null,
       service_id: project.serviceId || null,
       main_consultant_id: project.mainConsultantId || null,
       support_consultant_id: project.supportConsultantId || null,
-      start_date: project.startDate,
-      end_date: project.endDate,
+      start_date: project.startDate || null,
+      end_date: project.endDate || null,
       total_value: Number(project.totalValue || 0),
       total_hours: Number(project.totalHours || 0),
       hourly_rate: Number(project.hourlyRate || 0),
@@ -462,14 +472,24 @@ export const createProject = async (project: any) => {
       support_consultant_value: Number(project.supportConsultantValue || 0),
       third_party_expenses: Number(project.thirdPartyExpenses || 0),
       tax_percent: Number(project.taxPercent || 16),
-      manager_name: project.managerName || '',
-      manager_email: project.managerEmail || '',
-      manager_phone: project.managerPhone || '',
+      manager_name: String(project.managerName || ''),
+      manager_email: String(project.managerEmail || ''),
+      manager_phone: String(project.managerPhone || ''),
       url: project.url || null,
-      tags: project.tags || []
+      tags: Array.isArray(project.tags) ? project.tags : []
     };
 
-    console.log('Dados LIMPOS para inserção (sem user_id):', projectData);
+    console.log('=== DADOS FINAIS PARA INSERÇÃO ===');
+    console.log('Objeto limpo (SEM user_id):', JSON.stringify(projectData, null, 2));
+    
+    // VERIFICAÇÃO FINAL - GARANTIR que não há campos proibidos
+    const dataKeys = Object.keys(projectData);
+    const hasForbiddenField = dataKeys.some(key => forbiddenFields.includes(key));
+    if (hasForbiddenField) {
+      throw new Error('ERRO CRÍTICO: Campo user_id detectado nos dados finais!');
+    }
+    
+    console.log('✅ Verificação aprovada - nenhum campo user_id nos dados');
     
     const { data, error } = await supabase
       .from('projects')
@@ -478,12 +498,12 @@ export const createProject = async (project: any) => {
       .single();
     
     if (error) {
-      console.error('Erro ao inserir projeto no banco:', error);
-      console.error('Dados que causaram o erro:', projectData);
+      console.error('❌ ERRO AO INSERIR NO SUPABASE:', error);
+      console.error('Dados que causaram o erro:', JSON.stringify(projectData, null, 2));
       throw error;
     }
 
-    console.log('Projeto criado com sucesso no banco:', data);
+    console.log('✅ Projeto criado com sucesso no banco:', data);
 
     // Link project to tags if they exist
     if (project.tagIds && project.tagIds.length > 0) {
@@ -544,18 +564,27 @@ export const createProject = async (project: any) => {
 export const updateProject = async (project: any) => {
   try {
     console.log('=== INICIANDO ATUALIZAÇÃO DE PROJETO ===');
-    console.log('Dados recebidos para atualização:', project);
+    console.log('Dados recebidos para atualização:', JSON.stringify(project, null, 2));
+    
+    // VERIFICAÇÃO CRÍTICA: GARANTIR que user_id NÃO SEJA ENVIADO
+    const forbiddenFields = ['user_id', 'userId', 'user'];
+    forbiddenFields.forEach(field => {
+      if (field in project) {
+        console.error(`⚠️ CAMPO PROIBIDO DETECTADO E REMOVIDO: ${field}`, project[field]);
+        delete project[field];
+      }
+    });
     
     // Mapear APENAS os campos que existem na tabela projects - SEM user_id
     const projectData = {
-      name: project.name,
-      description: project.description || '',
+      name: String(project.name || ''),
+      description: String(project.description || ''),
       client_id: project.clientId || null,
       service_id: project.serviceId || null,
       main_consultant_id: project.mainConsultantId || null,
       support_consultant_id: project.supportConsultantId || null,
-      start_date: project.startDate,
-      end_date: project.endDate,
+      start_date: project.startDate || null,
+      end_date: project.endDate || null,
       total_value: Number(project.totalValue || 0),
       total_hours: Number(project.totalHours || 0),
       hourly_rate: Number(project.hourlyRate || 0),
@@ -565,14 +594,22 @@ export const updateProject = async (project: any) => {
       support_consultant_value: Number(project.supportConsultantValue || 0),
       third_party_expenses: Number(project.thirdPartyExpenses || 0),
       tax_percent: Number(project.taxPercent || 16),
-      manager_name: project.managerName || '',
-      manager_email: project.managerEmail || '',
-      manager_phone: project.managerPhone || '',
+      manager_name: String(project.managerName || ''),
+      manager_email: String(project.managerEmail || ''),
+      manager_phone: String(project.managerPhone || ''),
       url: project.url || null,
-      tags: project.tags || []
+      tags: Array.isArray(project.tags) ? project.tags : []
     };
 
-    console.log('Dados mapeados para atualização:', projectData);
+    console.log('=== DADOS FINAIS PARA ATUALIZAÇÃO ===');
+    console.log('Objeto limpo (SEM user_id):', JSON.stringify(projectData, null, 2));
+    
+    // VERIFICAÇÃO FINAL
+    const dataKeys = Object.keys(projectData);
+    const hasForbiddenField = dataKeys.some(key => forbiddenFields.includes(key));
+    if (hasForbiddenField) {
+      throw new Error('ERRO CRÍTICO: Campo user_id detectado nos dados finais de atualização!');
+    }
 
     const { data, error } = await supabase
       .from('projects')
@@ -582,11 +619,12 @@ export const updateProject = async (project: any) => {
       .single();
     
     if (error) {
-      console.error('Erro ao atualizar projeto:', error);
+      console.error('❌ ERRO ao atualizar projeto:', error);
+      console.error('Dados que causaram o erro:', JSON.stringify(projectData, null, 2));
       throw error;
     }
 
-    console.log('Projeto atualizado com sucesso:', data);
+    console.log('✅ Projeto atualizado com sucesso:', data);
 
     // Update project tags if they exist
     if (project.tagIds) {
