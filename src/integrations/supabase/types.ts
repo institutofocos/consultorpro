@@ -1408,6 +1408,10 @@ export type Database = {
         Args: { stage_id: string }
         Returns: boolean
       }
+      execute_sql: {
+        Args: { query: string }
+        Returns: undefined
+      }
       format_date_br: {
         Args: { input_date: string }
         Returns: string

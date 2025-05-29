@@ -20,8 +20,6 @@ import ClientList from "./components/clients/ClientList";
 import FinancialPage from "./components/financial/FinancialPage";
 import DemandsList from "./components/demands/DemandsList";
 import ReportsLayout from "./components/reports/ReportsLayout";
-import ReportsCalendar from "./components/reports/ReportsCalendar";
-import ReportsGantt from "./components/reports/ReportsGantt";
 import Dashboard from "./components/dashboard/Dashboard";
 
 const queryClient = new QueryClient();
@@ -65,8 +63,8 @@ const App = () => (
               <Layout><FinancialPage /></Layout>
             } />
             
-            {/* Reports routes with proper nesting */}
-            <Route path="/reports/*" element={
+            {/* Reports routes */}
+            <Route path="/reports" element={
               <Layout><ReportsLayout /></Layout>
             } />
             

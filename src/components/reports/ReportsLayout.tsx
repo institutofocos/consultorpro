@@ -1,42 +1,40 @@
 
 import React from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, BarChart3 } from 'lucide-react';
+import ReportsCalendar from './ReportsCalendar';
+import ReportsGantt from './ReportsGantt';
 
-export default function ReportsLayout() {
+const ReportsLayout: React.FC = () => {
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2 mb-6">
-        <NavLink 
-          to="/reports/calendar"
-          className={({ isActive }) => 
-            `flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-              isActive 
-                ? 'bg-blue-100 text-blue-700 font-medium' 
-                : 'hover:bg-gray-100'
-            }`
-          }
-        >
-          <Calendar className="w-5 h-5" />
-          <span>Agenda</span>
-        </NavLink>
-        
-        <NavLink 
-          to="/reports/gantt"
-          className={({ isActive }) => 
-            `flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-              isActive 
-                ? 'bg-blue-100 text-blue-700 font-medium' 
-                : 'hover:bg-gray-100'
-            }`
-          }
-        >
-          <BarChart3 className="w-5 h-5" />
-          <span>Gantt</span>
-        </NavLink>
+      <div>
+        <h1 className="text-3xl font-bold">Relatórios</h1>
+        <p className="text-muted-foreground">Visualize e analise dados dos projetos</p>
       </div>
-      
-      <Outlet />
+
+      <Tabs defaultValue="calendar" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="calendar" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Calendário
+          </TabsTrigger>
+          <TabsTrigger value="gantt" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Gantt
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="calendar" className="mt-6">
+          <ReportsCalendar />
+        </TabsContent>
+        
+        <TabsContent value="gantt" className="mt-6">
+          <ReportsGantt />
+        </TabsContent>
+      </Tabs>
     </div>
   );
-}
+};
+
+export default ReportsLayout;

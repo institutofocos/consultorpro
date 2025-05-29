@@ -1,127 +1,100 @@
 
 import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, User, BarChart3, Plus, RefreshCw } from 'lucide-react';
-import { format, differenceInDays, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CalendarDays, User, Clock, Plus, RefreshCw } from 'lucide-react';
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { format, differenceInDays, parseISO, startOfWeek, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
 
 interface GanttTask {
   id: string;
   project_id: string;
   task_name: string;
-  task_description: string | null;
+  task_description?: string;
   start_date: string;
   end_date: string;
   duration_days: number;
   progress_percentage: number;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  status: 'not_started' | 'in_progress' | 'completed' | 'on_hold' | 'cancelled';
-  assigned_consultant_id: string | null;
-  depends_on_task_id: string | null;
-  created_at: string;
-  updated_at: string;
-  projects?: {
+  status: 'not_started' | 'in_progress' | 'completed' | 'on_hold';
+  priority: 'low' | 'medium' | 'high';
+  assigned_consultant_id?: string;
+  assigned_consultant?: {
     name: string;
-    status: string;
   };
-  consultants?: {
+  project?: {
     name: string;
+    client?: {
+      name: string;
+    };
   };
 }
 
 interface Project {
   id: string;
   name: string;
-  status: string;
-  start_date: string;
-  end_date: string;
-  description: string;
-  main_consultant_id: string;
+  client?: {
+    name: string;
+  };
 }
 
-const statusColors = {
-  not_started: 'bg-gray-200 text-gray-800',
-  in_progress: 'bg-blue-200 text-blue-800',
-  completed: 'bg-green-200 text-green-800',
-  on_hold: 'bg-yellow-200 text-yellow-800',
-  cancelled: 'bg-red-200 text-red-800'
+const statusConfig = {
+  not_started: { label: 'Não Iniciado', color: 'bg-gray-400', textColor: 'text-gray-100' },
+  in_progress: { label: 'Em Progresso', color: 'bg-blue-500', textColor: 'text-white' },
+  completed: { label: 'Concluído', color: 'bg-green-500', textColor: 'text-white' },
+  on_hold: { label: 'Em Espera', color: 'bg-yellow-500', textColor: 'text-white' }
 };
 
-const priorityColors = {
-  low: 'bg-blue-100 text-blue-800',
-  medium: 'bg-yellow-100 text-yellow-800',
-  high: 'bg-orange-100 text-orange-800',
-  critical: 'bg-red-100 text-red-800'
+const priorityConfig = {
+  low: { label: 'Baixa', color: 'bg-green-100 text-green-800' },
+  medium: { label: 'Média', color: 'bg-yellow-100 text-yellow-800' },
+  high: { label: 'Alta', color: 'bg-red-100 text-red-800' }
 };
 
-const statusLabels = {
-  not_started: 'Não iniciado',
-  in_progress: 'Em andamento',
-  completed: 'Concluído',
-  on_hold: 'Em espera',
-  cancelled: 'Cancelado'
-};
-
-const priorityLabels = {
-  low: 'Baixa',
-  medium: 'Média',
-  high: 'Alta',
-  critical: 'Crítica'
-};
-
-export default function ReportsGantt() {
+const ReportsGantt: React.FC = () => {
+  const [tasks, setTasks] = useState<GanttTask[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'week' | 'month'>('month');
+  const [isLoading, setIsLoading] = useState(true);
+  const [viewStartDate, setViewStartDate] = useState<Date>(() => startOfWeek(new Date()));
   const { toast } = useToast();
 
-  // Fetch projects
-  const { data: projects = [] } = useQuery({
-    queryKey: ['projects-gantt'],
-    queryFn: async () => {
-      console.log('🔍 Buscando projetos para o Gantt...');
-      const { data, error } = await supabase
+  // Generate timeline weeks (4 weeks)
+  const timelineWeeks = Array.from({ length: 4 }, (_, i) => addDays(viewStartDate, i * 7));
+
+  useEffect(() => {
+    fetchData();
+  }, [selectedProject]);
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+
+      // Fetch projects
+      const { data: projectsData } = await supabase
         .from('projects')
         .select(`
-          id, 
-          name, 
-          status, 
-          start_date, 
-          end_date, 
-          description, 
-          main_consultant_id,
-          consultants:main_consultant_id(name)
+          id,
+          name,
+          clients (name)
         `)
         .order('name');
-      
-      if (error) {
-        console.error('❌ Erro ao buscar projetos:', error);
-        throw error;
-      }
-      
-      console.log('✅ Projetos encontrados:', data?.length || 0);
-      console.log('📋 Dados dos projetos:', data);
-      return data as Project[];
-    }
-  });
 
-  // Fetch gantt tasks
-  const { data: ganttTasks = [], isLoading, refetch } = useQuery({
-    queryKey: ['gantt-tasks', selectedProject],
-    queryFn: async () => {
-      console.log('🔍 Buscando tarefas do Gantt para projeto:', selectedProject);
+      setProjects(projectsData || []);
+
+      // Fetch tasks with filters
       let query = supabase
         .from('gantt_tasks')
         .select(`
           *,
-          projects:project_id (name, status),
-          consultants:assigned_consultant_id (name)
+          consultants (name),
+          projects (
+            name,
+            clients (name)
+          )
         `)
         .order('start_date');
 
@@ -129,473 +102,312 @@ export default function ReportsGantt() {
         query = query.eq('project_id', selectedProject);
       }
 
-      const { data, error } = await query;
-      
-      if (error) {
-        console.error('❌ Erro ao buscar tarefas do Gantt:', error);
-        throw error;
-      }
-      
-      console.log('✅ Tarefas do Gantt encontradas:', data?.length || 0);
-      console.log('📋 Dados das tarefas:', data);
-      return data as GanttTask[];
-    }
-  });
+      const { data: tasksData, error } = await query;
 
-  // Auto-populate gantt when component mounts and there are projects but no tasks
-  useEffect(() => {
-    if (projects.length > 0 && ganttTasks.length === 0) {
-      console.log('🔄 Auto-populando Gantt com todos os projetos...');
-      populateAllProjects();
-    }
-  }, [projects, ganttTasks]);
+      if (error) throw error;
 
-  const populateAllProjects = async () => {
-    try {
-      console.log('🚀 Iniciando população completa do Gantt...');
-      
-      // Clear existing tasks first
-      console.log('🗑️ Limpando tarefas existentes...');
-      const { error: deleteError } = await supabase
-        .from('gantt_tasks')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
-
-      if (deleteError) {
-        console.error('❌ Erro ao limpar tarefas existentes:', deleteError);
-        throw deleteError;
-      }
-
-      console.log('✅ Tarefas existentes removidas');
-
-      // Populate with all projects
-      let successCount = 0;
-      for (const project of projects) {
-        try {
-          console.log(`📂 Processando projeto: ${project.name} (${project.id})`);
-          await populateGanttFromProject(project.id, false);
-          successCount++;
-          console.log(`✅ Projeto ${project.name} processado com sucesso`);
-        } catch (error) {
-          console.error(`❌ Erro ao processar projeto ${project.name}:`, error);
-        }
-      }
-
-      console.log(`🎉 População concluída: ${successCount} de ${projects.length} projetos`);
-
-      toast({
-        title: "Sucesso",
-        description: `Gantt populado com ${successCount} projetos`
-      });
-      
-      refetch();
+      setTasks(tasksData || []);
     } catch (error) {
-      console.error('❌ Erro na população completa:', error);
+      console.error('Error fetching Gantt data:', error);
       toast({
         variant: "destructive",
-        title: "Erro",
-        description: "Erro ao popular dados do Gantt"
+        title: "Erro ao carregar dados",
+        description: "Não foi possível carregar os dados do Gantt."
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const populateGanttFromProject = async (projectId: string, showToast = true) => {
+  const generateTasksFromProjects = async () => {
     try {
-      console.log(`🔄 Populando Gantt para projeto: ${projectId}`);
-      
-      // Fetch project data with main consultant
-      const { data: projectData, error: projectError } = await supabase
+      setIsLoading(true);
+
+      // Get projects that don't have Gantt tasks yet
+      const { data: projectsWithoutTasks } = await supabase
         .from('projects')
         .select(`
-          *,
-          main_consultant:consultants!main_consultant_id(id, name),
-          support_consultant:consultants!support_consultant_id(id, name)
+          id,
+          name,
+          start_date,
+          end_date,
+          main_consultant_id,
+          status,
+          project_stages (*)
         `)
-        .eq('id', projectId)
-        .single();
+        .not('id', 'in', `(${tasks.map(t => `'${t.project_id}'`).join(',')})`);
 
-      if (projectError) {
-        console.error('❌ Erro ao buscar dados do projeto:', projectError);
-        throw projectError;
-      }
-
-      if (!projectData) {
-        console.log('⚠️ Projeto não encontrado');
-        if (showToast) {
-          toast({
-            variant: "destructive",
-            title: "Erro",
-            description: "Projeto não encontrado"
-          });
-        }
+      if (!projectsWithoutTasks || projectsWithoutTasks.length === 0) {
+        toast({
+          title: "Nenhum projeto novo",
+          description: "Todos os projetos já possuem tarefas no Gantt."
+        });
         return;
       }
 
-      console.log('📊 Dados do projeto:', projectData);
+      // Use the Supabase function to populate Gantt tasks
+      for (const project of projectsWithoutTasks) {
+        const { error } = await supabase.rpc('populate_gantt_from_project', {
+          p_project_id: project.id
+        });
 
-      // Mapear status do projeto para status do Gantt
-      const mapProjectStatus = (status: string) => {
-        const statusMap: Record<string, 'not_started' | 'in_progress' | 'completed' | 'on_hold' | 'cancelled'> = {
-          'em_planejamento': 'not_started',
-          'planned': 'not_started',
-          'em_producao': 'in_progress',
-          'active': 'in_progress',
-          'concluido': 'completed',
-          'completed': 'completed',
-          'cancelado': 'cancelled',
-          'cancelled': 'cancelled',
-          'pausado': 'on_hold'
-        };
-        return statusMap[status] || 'not_started';
-      };
-
-      // Insert main project task
-      const mainTaskData = {
-        project_id: projectId,
-        task_name: `📋 ${projectData.name}`,
-        task_description: projectData.description || 'Projeto principal',
-        start_date: projectData.start_date,
-        end_date: projectData.end_date,
-        duration_days: differenceInDays(new Date(projectData.end_date), new Date(projectData.start_date)) + 1,
-        assigned_consultant_id: projectData.main_consultant_id,
-        status: mapProjectStatus(projectData.status),
-        priority: 'high' as const,
-        progress_percentage: projectData.status === 'concluido' || projectData.status === 'completed' ? 100 : 0
-      };
-
-      console.log('📝 Inserindo tarefa principal:', mainTaskData);
-
-      const { error: insertError } = await supabase
-        .from('gantt_tasks')
-        .insert(mainTaskData);
-
-      if (insertError) {
-        console.error('❌ Erro ao inserir tarefa principal:', insertError);
-        throw insertError;
-      }
-
-      console.log('✅ Tarefa principal inserida com sucesso');
-
-      // Fetch and insert project stages
-      const { data: stages, error: stagesError } = await supabase
-        .from('project_stages')
-        .select(`
-          *,
-          consultant:consultants!consultant_id(id, name)
-        `)
-        .eq('project_id', projectId)
-        .order('stage_order');
-
-      if (stagesError) {
-        console.error('❌ Erro ao buscar etapas:', stagesError);
-      } else if (stages && stages.length > 0) {
-        console.log(`📋 Encontradas ${stages.length} etapas para o projeto`);
-        
-        for (const stage of stages) {
-          console.log(`📌 Processando etapa: ${stage.name}`);
-          
-          // Mapear status da etapa para status do Gantt
-          const mapStageStatus = (stageStatus: string, completed: boolean) => {
-            if (completed) return 'completed';
-            
-            const statusMap: Record<string, 'not_started' | 'in_progress' | 'completed' | 'on_hold' | 'cancelled'> = {
-              'iniciar_projeto': 'not_started',
-              'em_producao': 'in_progress',
-              'aguardando_aprovacao': 'on_hold',
-              'aguardando_assinatura': 'on_hold',
-              'concluido': 'completed',
-              'cancelado': 'cancelled'
-            };
-            return statusMap[stageStatus] || 'not_started';
-          };
-
-          const stageTaskData = {
-            project_id: projectId,
-            task_name: `📝 ${stage.name}`,
-            task_description: stage.description || '',
-            start_date: stage.start_date || projectData.start_date,
-            end_date: stage.end_date || projectData.end_date,
-            duration_days: stage.days || 1,
-            progress_percentage: stage.completed ? 100 : 0,
-            assigned_consultant_id: stage.consultant_id || projectData.main_consultant_id,
-            status: mapStageStatus(stage.status, stage.completed),
-            priority: 'medium' as const
-          };
-
-          console.log('📝 Inserindo etapa:', stageTaskData);
-
-          const { error: stageInsertError } = await supabase
-            .from('gantt_tasks')
-            .insert(stageTaskData);
-
-          if (stageInsertError) {
-            console.error(`❌ Erro ao inserir etapa ${stage.name}:`, stageInsertError);
-          } else {
-            console.log(`✅ Etapa ${stage.name} inserida com sucesso`);
-          }
+        if (error) {
+          console.error(`Error generating tasks for project ${project.name}:`, error);
         }
-      } else {
-        console.log('⚠️ Nenhuma etapa encontrada para este projeto');
       }
 
-      if (showToast) {
-        toast({
-          title: "Sucesso",
-          description: `Projeto "${projectData.name}" adicionado ao Gantt`
-        });
-        refetch();
-      }
+      toast({
+        title: "Tarefas geradas",
+        description: `Tarefas do Gantt foram geradas para ${projectsWithoutTasks.length} projeto(s).`
+      });
+
+      await fetchData();
     } catch (error) {
-      console.error('❌ Erro na função populateGanttFromProject:', error);
-      if (showToast) {
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Erro ao popular dados do Gantt"
-        });
-      }
+      console.error('Error generating tasks:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao gerar tarefas",
+        description: "Não foi possível gerar as tarefas automaticamente."
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const getTimelineData = () => {
-    if (ganttTasks.length === 0) return { days: [], startDate: new Date(), endDate: new Date() };
+  const getTaskPosition = (startDate: string, endDate: string) => {
+    const start = parseISO(startDate);
+    const end = parseISO(endDate);
+    const viewEnd = addDays(viewStartDate, 28); // 4 weeks
 
-    const startDate = new Date(Math.min(...ganttTasks.map(task => new Date(task.start_date).getTime())));
-    const endDate = new Date(Math.max(...ganttTasks.map(task => new Date(task.end_date).getTime())));
+    // Calculate position within the 4-week view
+    const totalViewDays = 28;
+    const daysSinceViewStart = differenceInDays(start, viewStartDate);
+    const taskDuration = differenceInDays(end, start) + 1;
 
-    const timelineStart = viewMode === 'week' ? startOfWeek(startDate) : startDate;
-    const timelineEnd = viewMode === 'week' ? endOfWeek(endDate) : endDate;
+    // Calculate percentages for positioning
+    const leftPercent = Math.max(0, (daysSinceViewStart / totalViewDays) * 100);
+    const widthPercent = Math.min(100 - leftPercent, (taskDuration / totalViewDays) * 100);
 
-    const days = eachDayOfInterval({ start: timelineStart, end: timelineEnd });
-
-    return { days, startDate: timelineStart, endDate: timelineEnd };
-  };
-
-  const { days, startDate: timelineStart, endDate: timelineEnd } = getTimelineData();
-
-  const getTaskPosition = (task: GanttTask) => {
-    const taskStart = new Date(task.start_date);
-    const taskEnd = new Date(task.end_date);
-    
-    const totalDays = differenceInDays(timelineEnd, timelineStart) + 1;
-    const startOffset = differenceInDays(taskStart, timelineStart);
-    const duration = differenceInDays(taskEnd, taskStart) + 1;
-    
-    const left = Math.max(0, (startOffset / totalDays) * 100);
-    const width = Math.min(100 - left, (duration / totalDays) * 100);
-    
-    return { left: `${left}%`, width: `${width}%` };
+    return {
+      left: `${leftPercent}%`,
+      width: `${Math.max(2, widthPercent)}%`, // Minimum 2% width for visibility
+      visible: daysSinceViewStart < totalViewDays && daysSinceViewStart + taskDuration > 0
+    };
   };
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <BarChart3 className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <p className="text-gray-500">Carregando dados do Gantt...</p>
-        </div>
+      <div className="flex items-center justify-center p-8">
+        <RefreshCw className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Carregando dados do Gantt...</span>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Header Controls */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Gráfico de Gantt</h2>
-          <p className="text-muted-foreground">
-            Visualização cronológica dos projetos e suas tarefas
-          </p>
-        </div>
-        
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
           <Select value={selectedProject} onValueChange={setSelectedProject}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Selecionar projeto" />
+            <SelectTrigger className="w-[300px]">
+              <SelectValue placeholder="Selecione um projeto" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos os projetos</SelectItem>
+              <SelectItem value="all">Todos os Projetos</SelectItem>
               {projects.map((project) => (
                 <SelectItem key={project.id} value={project.id}>
-                  {project.name}
+                  {project.name} {project.client && `- ${project.client.name}`}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          <Select value={viewMode} onValueChange={(value: 'week' | 'month') => setViewMode(value)}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="week">Semana</SelectItem>
-              <SelectItem value="month">Mês</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Button
-            onClick={populateAllProjects}
-            variant="outline"
-            size="sm"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Atualizar Gantt
-          </Button>
-
-          {selectedProject !== 'all' && (
+          <div className="flex gap-2">
             <Button
-              onClick={() => populateGanttFromProject(selectedProject)}
               variant="outline"
               size="sm"
+              onClick={() => setViewStartDate(addDays(viewStartDate, -7))}
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Popular Projeto
+              ← Semana Anterior
             </Button>
-          )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setViewStartDate(addDays(viewStartDate, 7))}
+            >
+              Próxima Semana →
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchData}
+            disabled={isLoading}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Atualizar
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={generateTasksFromProjects}
+            disabled={isLoading}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Gerar do Projeto
+          </Button>
         </div>
       </div>
 
-      {ganttTasks.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center h-64">
-            <BarChart3 className="h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Nenhuma tarefa encontrada
-            </h3>
-            <p className="text-gray-500 text-center mb-4">
-              {projects.length === 0 
-                ? 'Nenhum projeto cadastrado. Crie alguns projetos primeiro.'
-                : 'Clique em "Atualizar Gantt" para popular com todos os projetos ou selecione um projeto específico.'}
-            </p>
-            {projects.length > 0 && (
-              <Button onClick={populateAllProjects}>
-                <Plus className="w-4 h-4 mr-2" />
-                Popular Gantt com Todos os Projetos
+      {/* Gantt Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Gráfico de Gantt - {format(viewStartDate, 'dd/MM/yyyy', { locale: ptBR })} a {format(addDays(viewStartDate, 27), 'dd/MM/yyyy', { locale: ptBR })}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {tasks.length === 0 ? (
+            <div className="text-center py-12">
+              <CalendarDays className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium">Nenhuma tarefa encontrada</h3>
+              <p className="text-muted-foreground mb-4">
+                Gere tarefas automaticamente a partir dos projetos existentes.
+              </p>
+              <Button onClick={generateTasksFromProjects} disabled={isLoading}>
+                <Plus className="h-4 w-4 mr-2" />
+                Gerar Tarefas dos Projetos
               </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5" />
-              Cronograma de Tarefas
-            </CardTitle>
-            <CardDescription>
-              {ganttTasks.length} tarefa(s) encontrada(s)
-              {selectedProject !== 'all' && projects.find(p => p.id === selectedProject) && 
-                ` para o projeto "${projects.find(p => p.id === selectedProject)?.name}"`
-              }
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
+            </div>
+          ) : (
+            <div className="space-y-4">
               {/* Timeline Header */}
-              <div className="min-w-[800px]">
-                <div className="flex border-b">
-                  <div className="w-80 p-3 border-r bg-gray-50 font-medium">
-                    Tarefa
-                  </div>
-                  <div className="flex-1 relative">
-                    <div className="flex">
-                      {days.map((day, index) => (
-                        <div 
-                          key={index}
-                          className="flex-1 p-2 text-xs text-center border-r border-gray-200 bg-gray-50"
-                          style={{ minWidth: '40px' }}
-                        >
-                          {format(day, viewMode === 'week' ? 'dd/MM' : 'dd', { locale: ptBR })}
-                        </div>
-                      ))}
+              <div className="flex">
+                <div className="w-80 flex-shrink-0"></div>
+                <div className="flex-1 grid grid-cols-4 gap-1 text-sm font-medium text-muted-foreground">
+                  {timelineWeeks.map((week, index) => (
+                    <div key={index} className="text-center py-2 border-r border-muted">
+                      Semana {format(week, 'dd/MM', { locale: ptBR })}
                     </div>
-                  </div>
+                  ))}
                 </div>
+              </div>
 
-                {/* Tasks */}
-                {ganttTasks.map((task) => {
-                  const position = getTaskPosition(task);
+              {/* Task Rows */}
+              <div className="space-y-2">
+                {tasks.map((task) => {
+                  const position = getTaskPosition(task.start_date, task.end_date);
                   
+                  if (!position.visible) return null;
+
                   return (
-                    <div key={task.id} className="flex border-b hover:bg-gray-50">
-                      <div className="w-80 p-3 border-r">
-                        <div className="space-y-2">
-                          <div className="font-medium text-sm truncate" title={task.task_name}>
-                            {task.task_name}
+                    <div key={task.id} className="flex items-center">
+                      {/* Task Info */}
+                      <div className="w-80 flex-shrink-0 pr-4">
+                        <div className="space-y-1">
+                          <div className="font-medium text-sm">{task.task_name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {task.project?.name}
+                            {task.project?.client && ` - ${task.project.client.name}`}
                           </div>
-                          
-                          <div className="flex flex-wrap gap-1">
-                            <Badge 
-                              variant="secondary" 
-                              className={cn("text-xs", statusColors[task.status])}
-                            >
-                              {statusLabels[task.status]}
+                          <div className="flex items-center gap-2">
+                            <Badge className={statusConfig[task.status].color}>
+                              {statusConfig[task.status].label}
                             </Badge>
-                            <Badge 
-                              variant="outline" 
-                              className={cn("text-xs", priorityColors[task.priority])}
-                            >
-                              {priorityLabels[task.priority]}
+                            <Badge variant="outline" className={priorityConfig[task.priority].color}>
+                              {priorityConfig[task.priority].label}
                             </Badge>
-                          </div>
-
-                          <div className="flex items-center gap-2 text-xs text-gray-500">
-                            <Calendar className="w-3 h-3" />
-                            {format(new Date(task.start_date), 'dd/MM', { locale: ptBR })} - 
-                            {format(new Date(task.end_date), 'dd/MM', { locale: ptBR })}
-                          </div>
-
-                          {task.consultants && (
-                            <div className="flex items-center gap-1 text-xs text-gray-500">
-                              <User className="w-3 h-3" />
-                              <span className="truncate">{task.consultants.name}</span>
-                            </div>
-                          )}
-
-                          {task.progress_percentage > 0 && (
-                            <div className="flex items-center gap-1 text-xs text-gray-500">
-                              <div className="w-12 h-1 bg-gray-200 rounded">
-                                <div 
-                                  className="h-1 bg-blue-500 rounded"
-                                  style={{ width: `${task.progress_percentage}%` }}
-                                />
+                            {task.assigned_consultant && (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <User className="h-3 w-3" />
+                                {task.assigned_consultant.name}
                               </div>
-                              <span>{task.progress_percentage}%</span>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </div>
-                      
-                      <div className="flex-1 relative p-2" style={{ minHeight: '80px' }}>
-                        <div 
-                          className={cn(
-                            "absolute top-1/2 transform -translate-y-1/2 h-6 rounded",
-                            "flex items-center justify-center text-xs font-medium",
-                            task.status === 'completed' ? 'bg-green-500 text-white' :
-                            task.status === 'in_progress' ? 'bg-blue-500 text-white' :
-                            task.status === 'on_hold' ? 'bg-yellow-500 text-white' :
-                            task.status === 'cancelled' ? 'bg-red-500 text-white' :
-                            'bg-gray-400 text-white'
-                          )}
+
+                      {/* Timeline */}
+                      <div className="flex-1 relative h-8 bg-muted/20 rounded">
+                        <div
+                          className={`absolute top-1 bottom-1 rounded ${statusConfig[task.status].color} ${statusConfig[task.status].textColor} flex items-center justify-center text-xs font-medium`}
                           style={{
                             left: position.left,
-                            width: position.width,
-                            minWidth: '60px'
+                            width: position.width
                           }}
-                          title={`${task.task_name} (${task.duration_days} dias)`}
                         >
-                          <Clock className="w-3 h-3 mr-1" />
-                          {task.duration_days}d
+                          <div className="flex items-center gap-1 px-2">
+                            <Clock className="h-3 w-3" />
+                            {task.duration_days}d
+                            {task.progress_percentage > 0 && (
+                              <span>({task.progress_percentage}%)</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
+
+              {/* Timeline Grid */}
+              <div className="relative">
+                <div className="flex">
+                  <div className="w-80 flex-shrink-0"></div>
+                  <div className="flex-1 grid grid-cols-4 gap-1">
+                    {timelineWeeks.map((_, index) => (
+                      <div key={index} className="h-4 border-r border-muted/50"></div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Summary Stats */}
+      {tasks.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold">{tasks.length}</div>
+              <div className="text-xs text-muted-foreground">Total de Tarefas</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-green-600">
+                {tasks.filter(t => t.status === 'completed').length}
+              </div>
+              <div className="text-xs text-muted-foreground">Concluídas</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-blue-600">
+                {tasks.filter(t => t.status === 'in_progress').length}
+              </div>
+              <div className="text-xs text-muted-foreground">Em Progresso</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-gray-600">
+                {tasks.filter(t => t.status === 'not_started').length}
+              </div>
+              <div className="text-xs text-muted-foreground">Não Iniciadas</div>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
-}
+};
+
+export default ReportsGantt;
