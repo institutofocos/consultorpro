@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
@@ -535,79 +536,178 @@ serve(async (req) => {
       );
     }
 
-    if (action === "verify_triggers") {
-      console.log('Verifying and creating comprehensive webhook triggers');
+    if (action === "setup_triggers") {
+      console.log('Setting up automatic database triggers for webhook system');
       
       const tablesToMonitor = [
-        'projects',
-        'project_stages', 
         'consultants',
-        'clients',
+        'clients', 
+        'projects',
         'services',
+        'project_stages',
         'notes',
         'financial_transactions',
+        'accounts_payable',
+        'accounts_receivable',
+        'manual_transactions',
         'chat_messages',
-        'chat_rooms'
+        'chat_rooms',
+        'system_settings'
       ];
 
       let results = [];
 
-      for (const tableName of tablesToMonitor) {
-        try {
-          // Drop existing trigger if it exists
-          const dropTriggerSQL = `
-            DROP TRIGGER IF EXISTS webhook_trigger_${tableName} ON public.${tableName};
-          `;
-          
-          await supabaseClient.rpc('execute_sql', { query: dropTriggerSQL });
+      try {
+        // First, ensure the trigger function exists and is updated
+        const triggerFunctionSQL = `
+          CREATE OR REPLACE FUNCTION public.trigger_webhooks()
+          RETURNS trigger
+          LANGUAGE plpgsql
+          SECURITY DEFINER
+          AS $function$
+          DECLARE
+            webhook_record RECORD;
+            payload jsonb;
+            event_type text;
+          BEGIN
+            -- Determinar o tipo de evento
+            IF TG_OP = 'INSERT' then
+              event_type := 'INSERT';
+              payload := to_jsonb(NEW);
+            ELSIF TG_OP = 'UPDATE' then
+              event_type := 'UPDATE';
+              payload := jsonb_build_object(
+                'old', to_jsonb(OLD),
+                'new', to_jsonb(NEW)
+              );
+            ELSIF TG_OP = 'DELETE' then
+              event_type := 'DELETE';
+              payload := to_jsonb(OLD);
+            END IF;
 
-          // Create comprehensive trigger function
-          const createTriggerSQL = `
-            CREATE OR REPLACE TRIGGER webhook_trigger_${tableName}
-            AFTER INSERT OR UPDATE OR DELETE ON public.${tableName}
-            FOR EACH ROW EXECUTE FUNCTION public.trigger_webhooks();
-          `;
-          
-          const { error: triggerError } = await supabaseClient.rpc('execute_sql', { 
-            query: createTriggerSQL 
-          });
+            -- Buscar webhooks ativos que monitoram esta tabela e evento
+            FOR webhook_record IN
+              SELECT * FROM public.webhooks 
+              WHERE is_active = true 
+              AND TG_TABLE_NAME = ANY(tables)
+              AND event_type = ANY(events)
+            LOOP
+              -- Inserir na fila de webhooks para processamento
+              INSERT INTO public.webhook_logs (webhook_id, event_type, table_name, payload)
+              VALUES (webhook_record.id, event_type, TG_TABLE_NAME, payload);
+            END LOOP;
 
-          if (triggerError) {
-            console.error(`Error creating trigger for ${tableName}:`, triggerError);
+            IF TG_OP = 'DELETE' THEN
+              RETURN OLD;
+            ELSE
+              RETURN NEW;
+            END IF;
+          END;
+          $function$;
+        `;
+
+        const { error: functionError } = await supabaseClient.rpc('execute_sql', { 
+          query: triggerFunctionSQL 
+        });
+
+        if (functionError) {
+          console.error('Error creating trigger function:', functionError);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              message: `Error creating trigger function: ${functionError.message}` 
+            }),
+            { 
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 500 
+            }
+          );
+        }
+
+        console.log('Webhook trigger function created/updated successfully');
+
+        // Now create triggers for each table
+        for (const tableName of tablesToMonitor) {
+          try {
+            // Drop existing trigger if it exists
+            const dropTriggerSQL = `
+              DROP TRIGGER IF EXISTS webhook_trigger_${tableName} ON public.${tableName};
+            `;
+            
+            await supabaseClient.rpc('execute_sql', { query: dropTriggerSQL });
+
+            // Create comprehensive trigger
+            const createTriggerSQL = `
+              CREATE TRIGGER webhook_trigger_${tableName}
+              AFTER INSERT OR UPDATE OR DELETE ON public.${tableName}
+              FOR EACH ROW EXECUTE FUNCTION public.trigger_webhooks();
+            `;
+            
+            const { error: triggerError } = await supabaseClient.rpc('execute_sql', { 
+              query: createTriggerSQL 
+            });
+
+            if (triggerError) {
+              console.error(`Error creating trigger for ${tableName}:`, triggerError);
+              results.push({
+                table: tableName,
+                status: 'error',
+                message: triggerError.message
+              });
+            } else {
+              console.log(`Webhook trigger created for ${tableName}`);
+              results.push({
+                table: tableName,
+                status: 'created',
+                message: 'Trigger criado com sucesso - capturando INSERT, UPDATE e DELETE'
+              });
+            }
+          } catch (error) {
+            console.error(`Error processing table ${tableName}:`, error);
             results.push({
               table: tableName,
               status: 'error',
-              message: triggerError.message
-            });
-          } else {
-            console.log(`Trigger created for ${tableName}`);
-            results.push({
-              table: tableName,
-              status: 'created',
-              message: 'Trigger created successfully'
+              message: error.message || 'Erro desconhecido'
             });
           }
-        } catch (error) {
-          console.error(`Error creating trigger for ${tableName}:`, error);
-          results.push({
-            table: tableName,
-            status: 'error',
-            message: error.message
-          });
         }
-      }
 
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'Trigger verification completed',
-          results: results
-        }),
-        { 
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200 
-        }
-      );
+        const successCount = results.filter(r => r.status === 'created').length;
+        const errorCount = results.filter(r => r.status === 'error').length;
+
+        console.log(`Triggers setup completed: ${successCount} success, ${errorCount} errors`);
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: `Sistema configurado: ${successCount} triggers criados, ${errorCount} erros`,
+            results: results,
+            summary: {
+              total: tablesToMonitor.length,
+              success: successCount,
+              errors: errorCount
+            }
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200 
+          }
+        );
+
+      } catch (error) {
+        console.error('Error in trigger setup:', error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: `Erro geral na configuração: ${error.message}`,
+            error: error.message
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500 
+          }
+        );
+      }
     }
 
     return new Response(
@@ -747,6 +847,55 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
           basePayload.data.active_projects_count = projects?.length || 0;
         }
         break;
+
+      case 'financial_transactions':
+      case 'accounts_payable':
+      case 'accounts_receivable':
+      case 'manual_transactions':
+        // Add financial context
+        if (log.payload?.project_id) {
+          const { data: project } = await supabaseClient
+            .from('projects')
+            .select('id, name, client_id, clients(name)')
+            .eq('id', log.payload.project_id)
+            .single();
+          
+          if (project) {
+            formatPayloadDates(project);
+            basePayload.data.project_context = project;
+          }
+        }
+        break;
+
+      case 'notes':
+        // Add task/note context
+        if (log.payload?.client_id) {
+          const { data: client } = await supabaseClient
+            .from('clients')
+            .select('id, name')
+            .eq('id', log.payload.client_id)
+            .single();
+          
+          if (client) {
+            basePayload.data.client_context = client;
+          }
+        }
+        break;
+
+      case 'chat_messages':
+        // Add chat room context
+        if (log.payload?.room_id) {
+          const { data: room } = await supabaseClient
+            .from('chat_rooms')
+            .select('id, name, project_id')
+            .eq('id', log.payload.room_id)
+            .single();
+          
+          if (room) {
+            basePayload.data.room_context = room;
+          }
+        }
+        break;
     }
 
     return basePayload;
@@ -760,7 +909,7 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
 function formatPayloadDates(obj: any): void {
   if (!obj || typeof obj !== 'object') return;
   
-  const dateFields = ['created_at', 'updated_at', 'due_date', 'start_date', 'end_date', 'completed_at', 'deleted_at'];
+  const dateFields = ['created_at', 'updated_at', 'due_date', 'start_date', 'end_date', 'completed_at', 'deleted_at', 'payment_date'];
   
   for (const key in obj) {
     if (obj.hasOwnProperty(key)) {

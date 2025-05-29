@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { AlertCircle, CheckCircle2, X, RefreshCw, TestTube, Settings, Zap, Database, Save } from "lucide-react";
+import { AlertCircle, CheckCircle2, X, RefreshCw, TestTube, Settings, Zap, Database, Save, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Webhook {
@@ -34,6 +34,7 @@ const WebhookManager: React.FC = () => {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isTesting, setIsTesting] = useState<string>('');
+  const [isSettingUpTriggers, setIsSettingUpTriggers] = useState<boolean>(false);
   const [webhookConfig, setWebhookConfig] = useState<WebhookConfig>({ interval_seconds: 5, enabled: true });
   const [selectedEvents, setSelectedEvents] = useState<Record<string, boolean>>({
     INSERT: true,
@@ -42,14 +43,18 @@ const WebhookManager: React.FC = () => {
   });
   const [selectedTables, setSelectedTables] = useState<Record<string, boolean>>({
     consultants: true,
+    clients: true,
     projects: true,
     services: true,
-    clients: true,
-    notes: true,
     project_stages: true,
+    notes: true,
     financial_transactions: true,
+    accounts_payable: true,
+    accounts_receivable: true,
+    manual_transactions: true,
     chat_messages: true,
-    chat_rooms: true
+    chat_rooms: true,
+    system_settings: true
   });
 
   // Load existing webhooks and settings on component mount
@@ -225,54 +230,51 @@ const WebhookManager: React.FC = () => {
     }
   };
 
-  const verifyTriggers = async () => {
+  const setupDatabaseTriggers = async () => {
     try {
-      setIsLoading(true);
-      console.log('Verificando e configurando triggers de webhook...');
+      setIsSettingUpTriggers(true);
+      console.log('Configurando triggers automáticos no banco de dados...');
       
       toast.info("Configurando sistema", {
-        description: "Criando triggers para capturar todas as interações do sistema"
+        description: "Criando triggers automáticos para capturar TODAS as alterações no banco de dados"
       });
       
-      const result = await callWebhookFunction('verify_triggers');
+      const result = await callWebhookFunction('setup_triggers');
       
       if (result.success) {
-        console.log('Trigger verification results:', result.results);
+        console.log('Trigger setup results:', result.results);
         
-        const createdTriggers = result.results.filter(r => r.status === 'created');
+        const successTriggers = result.results.filter(r => r.status === 'created');
         const errorTriggers = result.results.filter(r => r.status === 'error');
         
-        if (createdTriggers.length > 0) {
-          toast.success("Sistema configurado", {
-            description: `${createdTriggers.length} trigger(s) criados. Webhooks irão capturar todas as interações!`,
-            icon: <CheckCircle2 className="h-5 w-5 text-success" />
-          });
-        } else if (errorTriggers.length > 0) {
-          toast.error("Erro em alguns triggers", {
-            description: `${errorTriggers.length} trigger(s) tiveram erro`,
-            icon: <AlertCircle className="h-5 w-5 text-destructive" />
-          });
-        } else {
-          toast.success("Sistema já configurado", {
-            description: "Todos os triggers estão ativos e capturando interações",
+        if (successTriggers.length > 0) {
+          toast.success("Sistema de webhooks configurado!", {
+            description: `${successTriggers.length} triggers criados. Capturando automaticamente todas as operações: consultores, clientes, projetos, serviços, financeiro, tarefas, chat e configurações.`,
             icon: <CheckCircle2 className="h-5 w-5 text-success" />
           });
         }
+        
+        if (errorTriggers.length > 0) {
+          toast.error("Alguns triggers falharam", {
+            description: `${errorTriggers.length} trigger(s) tiveram erro. Verifique os logs do sistema.`,
+            icon: <AlertCircle className="h-5 w-5 text-destructive" />
+          });
+        }
       } else {
-        toast.error("Falha na configuração", {
-          description: result.message || "Erro ao configurar triggers",
+        toast.error("Falha na configuração automática", {
+          description: result.message || "Erro ao configurar triggers automáticos",
           icon: <AlertCircle className="h-5 w-5 text-destructive" />
         });
       }
       
     } catch (error) {
-      console.error("Error verifying triggers:", error);
-      toast.error("Erro na configuração", {
-        description: error instanceof Error ? error.message : "Falha ao configurar sistema",
+      console.error("Error setting up database triggers:", error);
+      toast.error("Erro na configuração automática", {
+        description: error instanceof Error ? error.message : "Falha ao configurar sistema automático",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
     } finally {
-      setIsLoading(false);
+      setIsSettingUpTriggers(false);
     }
   };
 
@@ -326,7 +328,7 @@ const WebhookManager: React.FC = () => {
       });
 
       toast.success("Webhook registrado", {
-        description: "Webhook configurado! Irá receber todas as interações automaticamente",
+        description: "Webhook configurado! Irá receber todas as alterações automaticamente",
         icon: <CheckCircle2 className="h-5 w-5 text-success" />
       });
 
@@ -435,9 +437,53 @@ const WebhookManager: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-3xl font-bold">Sistema de Webhooks</h1>
-        <p className="text-muted-foreground">Configure webhooks para receber notificações de todas as interações do sistema</p>
+        <h1 className="text-3xl font-bold">Sistema de Webhooks Automático</h1>
+        <p className="text-muted-foreground">Configure webhooks para receber automaticamente todas as alterações do sistema em tempo real</p>
       </div>
+
+      {/* System Auto-Configuration */}
+      <Card className="shadow-card border-green-200 bg-green-50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Configuração Automática do Sistema
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="p-4 bg-white rounded-lg border">
+              <h4 className="font-medium mb-2">Sistema de Captura Automática:</h4>
+              <div className="space-y-1 text-sm">
+                <p>• <strong>Consultores:</strong> Adições, atualizações e remoções</p>
+                <p>• <strong>Clientes:</strong> Novos clientes, alterações e exclusões</p>
+                <p>• <strong>Projetos:</strong> Criação, mudanças de status, atualizações</p>
+                <p>• <strong>Serviços:</strong> Novos serviços e modificações</p>
+                <p>• <strong>Etapas:</strong> Progresso de projetos e conclusões</p>
+                <p>• <strong>Financeiro:</strong> Transações, contas a pagar/receber</p>
+                <p>• <strong>Tarefas:</strong> Criação e atualização de notas/tarefas</p>
+                <p>• <strong>Chat:</strong> Mensagens e criação de salas</p>
+                <p>• <strong>Configurações:</strong> Mudanças no sistema</p>
+              </div>
+            </div>
+            <Button 
+              onClick={setupDatabaseTriggers}
+              disabled={isSettingUpTriggers}
+              className="w-full bg-green-600 hover:bg-green-700"
+              size="lg"
+            >
+              {isSettingUpTriggers ? (
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Shield className="h-4 w-4 mr-2" />
+              )}
+              Configurar Sistema Automático Completo
+            </Button>
+            <p className="text-sm text-muted-foreground">
+              Este botão configura triggers automáticos no banco de dados para capturar TODAS as operações em tempo real.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Webhook Configuration Settings */}
       <Card className="shadow-card border-blue-200 bg-blue-50">
@@ -499,35 +545,6 @@ const WebhookManager: React.FC = () => {
               Salvar Configurações
             </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* System Configuration */}
-      <Card className="shadow-card border-green-200 bg-green-50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5" />
-            Configuração do Sistema
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            Configure o sistema para capturar TODAS as interações: novos clientes, consultores, projetos, demandas, etapas e muito mais.
-            O processamento automático acontece a cada {webhookConfig.interval_seconds} segundos.
-          </p>
-          <Button 
-            onClick={verifyTriggers}
-            disabled={isLoading}
-            variant="default"
-            className="w-full bg-green-600 hover:bg-green-700"
-          >
-            {isLoading ? (
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Zap className="h-4 w-4 mr-2" />
-            )}
-            Configurar Sistema Completo
-          </Button>
         </CardContent>
       </Card>
 
@@ -600,18 +617,22 @@ const WebhookManager: React.FC = () => {
           </div>
           
           <div className="space-y-2">
-            <h3 className="text-sm font-medium">Entidades do Sistema</h3>
+            <h3 className="text-sm font-medium">Entidades do Sistema (Todas as Operações)</h3>
             <div className="grid grid-cols-2 gap-4">
               {Object.entries({
                 consultants: 'Consultores',
                 clients: 'Clientes',
                 projects: 'Projetos/Demandas', 
-                project_stages: 'Etapas de Projetos',
                 services: 'Serviços',
-                notes: 'Notas e Tarefas',
+                project_stages: 'Etapas de Projetos',
+                notes: 'Tarefas/Notas',
                 financial_transactions: 'Transações Financeiras',
+                accounts_payable: 'Contas a Pagar',
+                accounts_receivable: 'Contas a Receber',
+                manual_transactions: 'Transações Manuais',
                 chat_messages: 'Mensagens do Chat',
-                chat_rooms: 'Salas de Chat'
+                chat_rooms: 'Salas de Chat',
+                system_settings: 'Configurações do Sistema'
               }).map(([key, label]) => (
                 <div key={key} className="flex items-center space-x-2">
                   <Checkbox 
@@ -685,14 +706,14 @@ const WebhookManager: React.FC = () => {
           ) : webhooks.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               <p className="text-lg mb-2">Nenhum webhook registrado</p>
-              <p className="text-sm">Configure um webhook acima para receber todas as interações do sistema</p>
+              <p className="text-sm">Configure um webhook acima para receber todas as alterações do sistema automaticamente</p>
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-blue-800 flex items-center gap-2">
-                  <Zap className="h-4 w-4" />
-                  Sistema ativo - Capturando todas as interações a cada {webhookConfig.interval_seconds} segundos
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-green-800 flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Sistema ativo - Capturando automaticamente todas as operações a cada {webhookConfig.interval_seconds} segundos
                 </p>
               </div>
               {webhooks.map((webhook) => (
