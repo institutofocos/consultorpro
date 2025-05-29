@@ -373,15 +373,15 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       console.log('Dados do formulário:', formData);
 
       // Preparar dados do projeto SEM user_id - apenas com os campos que existem na tabela projects
-      const projectData: Project = {
+      const projectData = {
         id: project?.id || '',
         name: formData.name,
         description: formData.description || '',
-        serviceId: formData.serviceId || undefined,
-        clientId: formData.clientId || undefined,
-        mainConsultantId: formData.mainConsultantId || undefined,
+        serviceId: formData.serviceId || null,
+        clientId: formData.clientId || null,
+        mainConsultantId: formData.mainConsultantId || null,
         mainConsultantCommission: Number(formData.mainConsultantCommission || 0),
-        supportConsultantId: formData.supportConsultantId || undefined,
+        supportConsultantId: formData.supportConsultantId || null,
         supportConsultantCommission: Number(formData.supportConsultantCommission || 0),
         startDate: formData.startDate,
         endDate: formData.endDate,
@@ -390,12 +390,12 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         thirdPartyExpenses: Number(formData.thirdPartyExpenses || 0),
         consultantValue: Number(formData.consultantValue || 0),
         supportConsultantValue: Number(formData.supportConsultantValue || 0),
-        managerName: formData.managerName,
-        managerEmail: formData.managerEmail,
-        managerPhone: formData.managerPhone,
+        managerName: formData.managerName || '',
+        managerEmail: formData.managerEmail || '',
+        managerPhone: formData.managerPhone || '',
         totalHours: Number(formData.totalHours || 0),
         hourlyRate: Number(formData.hourlyRate || 0),
-        status: formData.status as 'planned' | 'active' | 'completed' | 'cancelled',
+        status: formData.status,
         tags: formData.tags || [],
         tagIds: formData.tagIds || [],
         stages: formData.stages || [],
@@ -421,25 +421,25 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       const transformedProject: Project = {
         id: savedProject.id,
         name: savedProject.name,
-        description: savedProject.description,
+        description: savedProject.description || '',
         serviceId: savedProject.service_id,
         clientId: savedProject.client_id,
         mainConsultantId: savedProject.main_consultant_id,
-        mainConsultantCommission: savedProject.main_consultant_commission,
+        mainConsultantCommission: savedProject.main_consultant_commission || 0,
         supportConsultantId: savedProject.support_consultant_id,
-        supportConsultantCommission: savedProject.support_consultant_commission,
+        supportConsultantCommission: savedProject.support_consultant_commission || 0,
         startDate: savedProject.start_date,
         endDate: savedProject.end_date,
-        totalValue: savedProject.total_value,
-        taxPercent: savedProject.tax_percent,
-        thirdPartyExpenses: savedProject.third_party_expenses,
-        consultantValue: savedProject.main_consultant_value,
-        supportConsultantValue: savedProject.support_consultant_value,
-        managerName: savedProject.manager_name,
-        managerEmail: savedProject.manager_email,
-        managerPhone: savedProject.manager_phone,
-        totalHours: savedProject.total_hours,
-        hourlyRate: savedProject.hourly_rate,
+        totalValue: savedProject.total_value || 0,
+        taxPercent: savedProject.tax_percent || 16,
+        thirdPartyExpenses: savedProject.third_party_expenses || 0,
+        consultantValue: savedProject.main_consultant_value || 0,
+        supportConsultantValue: savedProject.support_consultant_value || 0,
+        managerName: savedProject.manager_name || '',
+        managerEmail: savedProject.manager_email || '',
+        managerPhone: savedProject.manager_phone || '',
+        totalHours: savedProject.total_hours || 0,
+        hourlyRate: savedProject.hourly_rate || 0,
         status: savedProject.status,
         tags: savedProject.tags || [],
         tagIds: formData.tagIds || [],
@@ -456,7 +456,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     } catch (error) {
       console.error('=== ERRO NA SUBMISSÃO ===');
       console.error('Error saving project:', error);
-      toast.error('Erro ao salvar projeto: ' + (error.message || 'Erro desconhecido'));
+      toast.error('Erro ao salvar projeto: ' + (error?.message || 'Erro desconhecido'));
     } finally {
       setIsLoading(false);
     }

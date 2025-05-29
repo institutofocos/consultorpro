@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -439,12 +440,13 @@ export const deleteProject = async (id: string) => {
 
 export const createProject = async (project: any) => {
   try {
+    console.log('=== INICIANDO CRIAÇÃO DE PROJETO ===');
     console.log('Dados recebidos para criação:', project);
     
-    // Mapear propriedades da interface para colunas do banco - SEM user_id
+    // Mapear APENAS os campos que existem na tabela projects - SEM user_id
     const projectData = {
       name: project.name,
-      description: project.description,
+      description: project.description || '',
       status: project.mainConsultantId ? 'em_producao' : 'em_planejamento',
       client_id: project.clientId || null,
       service_id: project.serviceId || null,
@@ -452,23 +454,23 @@ export const createProject = async (project: any) => {
       support_consultant_id: project.supportConsultantId || null,
       start_date: project.startDate,
       end_date: project.endDate,
-      total_value: project.totalValue || 0,
-      total_hours: project.totalHours || 0,
-      hourly_rate: project.hourlyRate || 0,
-      main_consultant_commission: project.mainConsultantCommission || 0,
-      support_consultant_commission: project.supportConsultantCommission || 0,
-      main_consultant_value: project.consultantValue || 0,
-      support_consultant_value: project.supportConsultantValue || 0,
-      third_party_expenses: project.thirdPartyExpenses || 0,
-      tax_percent: project.taxPercent || 16,
-      manager_name: project.managerName,
-      manager_email: project.managerEmail,
-      manager_phone: project.managerPhone,
+      total_value: Number(project.totalValue || 0),
+      total_hours: Number(project.totalHours || 0),
+      hourly_rate: Number(project.hourlyRate || 0),
+      main_consultant_commission: Number(project.mainConsultantCommission || 0),
+      support_consultant_commission: Number(project.supportConsultantCommission || 0),
+      main_consultant_value: Number(project.consultantValue || 0),
+      support_consultant_value: Number(project.supportConsultantValue || 0),
+      third_party_expenses: Number(project.thirdPartyExpenses || 0),
+      tax_percent: Number(project.taxPercent || 16),
+      manager_name: project.managerName || '',
+      manager_email: project.managerEmail || '',
+      manager_phone: project.managerPhone || '',
       url: project.url || null,
       tags: project.tags || []
     };
 
-    console.log('Dados mapeados para o banco (sem user_id):', projectData);
+    console.log('Dados mapeados para inserção no banco:', projectData);
 
     const { data, error } = await supabase
       .from('projects')
@@ -477,14 +479,15 @@ export const createProject = async (project: any) => {
       .single();
     
     if (error) {
-      console.error('Erro ao inserir projeto:', error);
+      console.error('Erro ao inserir projeto no banco:', error);
       throw error;
     }
 
-    console.log('Projeto criado com sucesso:', data);
+    console.log('Projeto criado com sucesso no banco:', data);
 
     // Link project to tags if they exist
     if (project.tagIds && project.tagIds.length > 0) {
+      console.log('Vinculando tags ao projeto:', project.tagIds);
       await linkProjectToTags(data.id, project.tagIds);
     }
 
@@ -493,36 +496,46 @@ export const createProject = async (project: any) => {
       console.log('Criando etapas do projeto:', project.stages);
       
       const stagesData = project.stages.map((stage: any) => ({
-        project_id: data.id,
+        project_id: data.id, // UUID do projeto criado
         name: stage.name,
         description: stage.description || '',
-        days: stage.days || 1,
-        hours: stage.hours || 8,
-        value: stage.value || 0,
-        start_date: stage.startDate,
-        end_date: stage.endDate,
-        stage_order: stage.stageOrder || 1,
+        days: Number(stage.days) || 1,
+        hours: Number(stage.hours) || 8,
+        value: Number(stage.value) || 0,
+        start_date: stage.startDate || null,
+        end_date: stage.endDate || null,
+        stage_order: Number(stage.stageOrder) || 1,
         consultant_id: stage.consultantId || null,
-        status: stage.status || 'iniciar_projeto'
+        status: stage.status || 'iniciar_projeto',
+        completed: false,
+        client_approved: false,
+        manager_approved: false,
+        invoice_issued: false,
+        payment_received: false,
+        consultants_settled: false
       }));
 
-      console.log('Dados das etapas para inserção (sem user_id):', stagesData);
+      console.log('Dados das etapas para inserção:', stagesData);
 
       const { error: stagesError } = await supabase
         .from('project_stages')
         .insert(stagesData);
 
       if (stagesError) {
-        console.error('Error creating stages:', stagesError);
+        console.error('Erro ao criar etapas:', stagesError);
+        // Não parar a criação do projeto por erro nas etapas
       } else {
         console.log('Etapas criadas com sucesso');
       }
     }
 
+    // Atualizar status do projeto automaticamente
     await updateProjectStatusAutomatically(data.id);
 
+    console.log('=== PROJETO CRIADO COM SUCESSO ===');
     return data;
   } catch (error) {
+    console.error('=== ERRO NA CRIAÇÃO DO PROJETO ===');
     console.error('Error creating project:', error);
     throw error;
   }
@@ -530,35 +543,36 @@ export const createProject = async (project: any) => {
 
 export const updateProject = async (project: any) => {
   try {
+    console.log('=== INICIANDO ATUALIZAÇÃO DE PROJETO ===');
     console.log('Dados recebidos para atualização:', project);
     
-    // Mapear propriedades da interface para colunas do banco - SEM user_id
+    // Mapear APENAS os campos que existem na tabela projects - SEM user_id
     const projectData = {
       name: project.name,
-      description: project.description,
+      description: project.description || '',
       client_id: project.clientId || null,
       service_id: project.serviceId || null,
       main_consultant_id: project.mainConsultantId || null,
       support_consultant_id: project.supportConsultantId || null,
       start_date: project.startDate,
       end_date: project.endDate,
-      total_value: project.totalValue || 0,
-      total_hours: project.totalHours || 0,
-      hourly_rate: project.hourlyRate || 0,
-      main_consultant_commission: project.mainConsultantCommission || 0,
-      support_consultant_commission: project.supportConsultantCommission || 0,
-      main_consultant_value: project.consultantValue || 0,
-      support_consultant_value: project.supportConsultantValue || 0,
-      third_party_expenses: project.thirdPartyExpenses || 0,
-      tax_percent: project.taxPercent || 16,
-      manager_name: project.managerName,
-      manager_email: project.managerEmail,
-      manager_phone: project.managerPhone,
+      total_value: Number(project.totalValue || 0),
+      total_hours: Number(project.totalHours || 0),
+      hourly_rate: Number(project.hourlyRate || 0),
+      main_consultant_commission: Number(project.mainConsultantCommission || 0),
+      support_consultant_commission: Number(project.supportConsultantCommission || 0),
+      main_consultant_value: Number(project.consultantValue || 0),
+      support_consultant_value: Number(project.supportConsultantValue || 0),
+      third_party_expenses: Number(project.thirdPartyExpenses || 0),
+      tax_percent: Number(project.taxPercent || 16),
+      manager_name: project.managerName || '',
+      manager_email: project.managerEmail || '',
+      manager_phone: project.managerPhone || '',
       url: project.url || null,
       tags: project.tags || []
     };
 
-    console.log('Dados mapeados para atualização (sem user_id):', projectData);
+    console.log('Dados mapeados para atualização:', projectData);
 
     const { data, error } = await supabase
       .from('projects')
@@ -594,17 +608,23 @@ export const updateProject = async (project: any) => {
         project_id: project.id,
         name: stage.name,
         description: stage.description || '',
-        days: stage.days || 1,
-        hours: stage.hours || 8,
-        value: stage.value || 0,
-        start_date: stage.startDate,
-        end_date: stage.endDate,
-        stage_order: stage.stageOrder || 1,
+        days: Number(stage.days) || 1,
+        hours: Number(stage.hours) || 8,
+        value: Number(stage.value) || 0,
+        start_date: stage.startDate || null,
+        end_date: stage.endDate || null,
+        stage_order: Number(stage.stageOrder) || 1,
         consultant_id: stage.consultantId || null,
-        status: stage.status || 'iniciar_projeto'
+        status: stage.status || 'iniciar_projeto',
+        completed: stage.completed || false,
+        client_approved: stage.clientApproved || false,
+        manager_approved: stage.managerApproved || false,
+        invoice_issued: stage.invoiceIssued || false,
+        payment_received: stage.paymentReceived || false,
+        consultants_settled: stage.consultantsSettled || false
       }));
 
-      console.log('Dados das etapas para atualização (sem user_id):', stagesData);
+      console.log('Dados das etapas para atualização:', stagesData);
 
       const { error: stagesError } = await supabase
         .from('project_stages')
@@ -619,8 +639,10 @@ export const updateProject = async (project: any) => {
 
     await updateProjectStatusAutomatically(project.id);
 
+    console.log('=== PROJETO ATUALIZADO COM SUCESSO ===');
     return data;
   } catch (error) {
+    console.error('=== ERRO NA ATUALIZAÇÃO DO PROJETO ===');
     console.error('Error updating project:', error);
     throw error;
   }
