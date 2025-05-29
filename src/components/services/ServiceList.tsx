@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -175,14 +174,7 @@ const ServiceList = () => {
                   {filteredServices.map((service) => (
                     <tr key={service.id} className="border-b hover:bg-gray-50">
                       <td className="p-4">
-                        <div>
-                          <p className="font-medium">{service.name}</p>
-                          {service.description && (
-                            <p className="text-sm text-muted-foreground line-clamp-1">
-                              {service.description}
-                            </p>
-                          )}
-                        </div>
+                        <p className="font-medium">{service.name}</p>
                       </td>
                       <td className="p-4">
                         <span className="text-sm">
