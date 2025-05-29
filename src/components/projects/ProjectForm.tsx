@@ -263,9 +263,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       attachment: '',
       stageOrder: (formData.stages?.length || 0) + 1,
       consultantId: '',
-      status: 'iniciar_projeto',
-      tags: [],
-      tagIds: []
+      status: 'iniciar_projeto'
     };
     
     setFormData(prev => ({
@@ -861,47 +859,6 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
                       searchPlaceholder="Pesquisar consultores..."
                       emptyText="Nenhum consultor encontrado"
                     />
-                  </div>
-
-                  <div>
-                    <Label>Tags da Etapa</Label>
-                    <SearchableSelect
-                      options={availableTags}
-                      value=""
-                      onValueChange={(value) => {
-                        if (typeof value === 'string') {
-                          const tag = availableTags.find(t => t.id === value);
-                          if (tag && !stage.tags?.includes(tag.name)) {
-                            updateStage(index, 'tags', [...(stage.tags || []), tag.name]);
-                            updateStage(index, 'tagIds', [...(stage.tagIds || []), tag.id]);
-                          }
-                        }
-                      }}
-                      placeholder="Adicionar tag à etapa"
-                      searchPlaceholder="Pesquisar tags..."
-                      emptyText="Nenhuma tag encontrada"
-                    />
-                    {stage.tags && stage.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {stage.tags.map((tagName, tagIndex) => (
-                          <Badge key={tagIndex} variant="secondary" className="text-xs">
-                            {tagName}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newTags = stage.tags?.filter((_, i) => i !== tagIndex) || [];
-                                const newTagIds = stage.tagIds?.filter((_, i) => i !== tagIndex) || [];
-                                updateStage(index, 'tags', newTags);
-                                updateStage(index, 'tagIds', newTagIds);
-                              }}
-                              className="ml-1 text-muted-foreground hover:text-destructive"
-                            >
-                              ×
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </div>
               ))}
