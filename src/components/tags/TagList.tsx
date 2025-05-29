@@ -43,58 +43,58 @@ const TagList: React.FC = () => {
     }
   });
   
-  // Fetch tags with React Query
+  // Fetch tags with React Query - usando project_tags
   const { 
     data: tags = [], 
     isLoading,
     error 
   } = useQuery({
-    queryKey: ['tags'],
+    queryKey: ['project-tags'],
     queryFn: async () => {
-      console.log('Buscando tags...');
+      console.log('Buscando project tags...');
       const { data, error } = await supabase
-        .from('tags')
+        .from('project_tags')
         .select('*')
         .order('name');
         
       if (error) {
-        console.error('Erro ao buscar tags:', error);
+        console.error('Erro ao buscar project tags:', error);
         throw error;
       }
       
-      console.log('Tags encontradas:', data?.length || 0);
+      console.log('Project tags encontradas:', data?.length || 0);
       return data || [];
     },
     retry: 3,
     retryDelay: 1000,
   });
 
-  // Create tag mutation
+  // Create tag mutation - usando project_tags
   const createTagMutation = useMutation({
     mutationFn: async (name: string) => {
-      console.log('Criando tag:', name);
+      console.log('Criando project tag:', name);
       
       const { data, error } = await supabase
-        .from('tags')
+        .from('project_tags')
         .insert([{ name: name.trim() }])
         .select()
         .single();
           
       if (error) {
-        console.error('Erro ao criar tag:', error);
+        console.error('Erro ao criar project tag:', error);
         throw error;
       }
       
-      console.log('Tag criada:', data);
+      console.log('Project tag criada:', data);
       return data;
     },
     onSuccess: (data) => {
       toast.success(`Tag "${data.name}" adicionada com sucesso!`);
-      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      queryClient.invalidateQueries({ queryKey: ['project-tags'] });
       form.reset();
     },
     onError: (error: any) => {
-      console.error('Erro na criação da tag:', error);
+      console.error('Erro na criação da project tag:', error);
       if (error.code === '23505') {
         toast.error('Já existe uma tag com este nome');
       } else {
@@ -103,34 +103,34 @@ const TagList: React.FC = () => {
     }
   });
 
-  // Update tag mutation
+  // Update tag mutation - usando project_tags
   const updateTagMutation = useMutation({
     mutationFn: async ({ id, name }: { id: string, name: string }) => {
-      console.log('Atualizando tag:', id, name);
+      console.log('Atualizando project tag:', id, name);
       
       const { data, error } = await supabase
-        .from('tags')
+        .from('project_tags')
         .update({ name: name.trim() })
         .eq('id', id)
         .select()
         .single();
           
       if (error) {
-        console.error('Erro ao atualizar tag:', error);
+        console.error('Erro ao atualizar project tag:', error);
         throw error;
       }
       
-      console.log('Tag atualizada:', data);
+      console.log('Project tag atualizada:', data);
       return data;
     },
     onSuccess: (data) => {
       toast.success(`Tag "${data.name}" atualizada com sucesso!`);
-      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      queryClient.invalidateQueries({ queryKey: ['project-tags'] });
       setEditingTag(null);
       form.reset();
     },
     onError: (error: any) => {
-      console.error('Erro na atualização da tag:', error);
+      console.error('Erro na atualização da project tag:', error);
       if (error.code === '23505') {
         toast.error('Já existe uma tag com este nome');
       } else {
@@ -139,29 +139,29 @@ const TagList: React.FC = () => {
     }
   });
 
-  // Delete tag mutation - REMOVIDA A CONFIRMAÇÃO
+  // Delete tag mutation - usando project_tags
   const deleteTagMutation = useMutation({
     mutationFn: async (id: string) => {
-      console.log('Deletando tag com ID:', id);
+      console.log('Deletando project tag com ID:', id);
       
       const { error } = await supabase
-        .from('tags')
+        .from('project_tags')
         .delete()
         .eq('id', id);
         
       if (error) {
-        console.error('Erro ao deletar tag:', error);
+        console.error('Erro ao deletar project tag:', error);
         throw error;
       }
       
-      console.log('Tag deletada com sucesso');
+      console.log('Project tag deletada com sucesso');
     },
     onSuccess: () => {
       toast.success('Tag removida com sucesso!');
-      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      queryClient.invalidateQueries({ queryKey: ['project-tags'] });
     },
     onError: (error: any) => {
-      console.error('Erro na deleção da tag:', error);
+      console.error('Erro na deleção da project tag:', error);
       toast.error('Erro ao remover tag: ' + error.message);
     }
   });
@@ -187,9 +187,9 @@ const TagList: React.FC = () => {
     form.reset();
   };
   
-  // Delete handler - REMOVIDA A CONFIRMAÇÃO
+  // Delete handler
   const handleDeleteTag = (id: string, tagName: string) => {
-    console.log('Iniciando deleção da tag:', tagName);
+    console.log('Iniciando deleção da project tag:', tagName);
     deleteTagMutation.mutate(id);
   };
 
@@ -198,8 +198,8 @@ const TagList: React.FC = () => {
     return (
       <div className="space-y-8 animate-fade-in">
         <div>
-          <h1 className="text-3xl font-bold">Tags</h1>
-          <p className="text-muted-foreground">Gerenciamento de tags para serviços</p>
+          <h1 className="text-3xl font-bold">Tags de Projetos</h1>
+          <p className="text-muted-foreground">Gerenciamento de tags para projetos</p>
         </div>
         <div className="flex justify-center py-8">
           <p>Carregando tags...</p>
@@ -213,8 +213,8 @@ const TagList: React.FC = () => {
     return (
       <div className="space-y-8 animate-fade-in">
         <div>
-          <h1 className="text-3xl font-bold">Tags</h1>
-          <p className="text-muted-foreground">Gerenciamento de tags para serviços</p>
+          <h1 className="text-3xl font-bold">Tags de Projetos</h1>
+          <p className="text-muted-foreground">Gerenciamento de tags para projetos</p>
         </div>
         <div className="flex justify-center py-8">
           <p className="text-red-500">Erro ao carregar tags: {error.message}</p>
@@ -226,8 +226,8 @@ const TagList: React.FC = () => {
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
-        <h1 className="text-3xl font-bold">Tags</h1>
-        <p className="text-muted-foreground">Gerenciamento de tags para serviços</p>
+        <h1 className="text-3xl font-bold">Tags de Projetos</h1>
+        <p className="text-muted-foreground">Gerenciamento de tags para projetos</p>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -258,7 +258,7 @@ const TagList: React.FC = () => {
                       <FormLabel>Nome da Tag</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="Ex: Consultoria" 
+                          placeholder="Ex: Urgente" 
                           {...field} 
                           disabled={createTagMutation.isPending || updateTagMutation.isPending}
                         />

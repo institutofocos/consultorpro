@@ -123,6 +123,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         name: item.consultants.name
       })) || [];
 
+      console.log('Consultores autorizados encontrados:', authorizedConsultants);
       setFilteredConsultants(authorizedConsultants);
 
       // Ao editar um projeto, manter os consultores selecionados se ainda forem válidos
@@ -175,10 +176,14 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
 
       if (clientsRes.data) setClients(clientsRes.data);
       if (servicesRes.data) setServices(servicesRes.data);
-      if (consultantsRes.data) setConsultants(consultantsRes.data);
+      if (consultantsRes.data) {
+        console.log('Todos os consultores carregados:', consultantsRes.data);
+        setConsultants(consultantsRes.data);
+      }
 
-      // Carregar tags do projeto
+      // Carregar tags do projeto corretamente
       const tagsData = await fetchProjectTags();
+      console.log('Tags carregadas:', tagsData);
       setAvailableTags(tagsData);
     } catch (error) {
       console.error('Error fetching select options:', error);
@@ -473,6 +478,23 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     return netValue;
   };
 
+  // Preparar opções de consultores com base no filtro e se está editando
+  const getConsultantOptions = () => {
+    // Se estiver editando e não há filtro de serviço, mostrar todos os consultores
+    if (project && filteredConsultants.length === 0) {
+      console.log('Projeto em edição, mostrando todos os consultores:', consultants);
+      return consultants;
+    }
+    // Se há consultores filtrados, usar eles
+    if (filteredConsultants.length > 0) {
+      console.log('Usando consultores filtrados:', filteredConsultants);
+      return filteredConsultants;
+    }
+    // Senão, usar todos os consultores
+    console.log('Usando todos os consultores como fallback:', consultants);
+    return consultants;
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <Card>
@@ -591,17 +613,17 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
             </div>
           </div>
 
-          {/* Consultores */}
+          {/* Consultores - CORRIGIDO */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="mainConsultant">Consultor Principal</Label>
               <SearchableSelect
-                options={filteredConsultants.length > 0 ? filteredConsultants : consultants}
+                options={getConsultantOptions()}
                 value={formData.mainConsultantId || ''}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, mainConsultantId: value as string }))}
-                placeholder={formData.serviceId ? "Selecione o consultor principal" : "Selecione um serviço primeiro"}
+                placeholder="Selecione o consultor principal"
                 searchPlaceholder="Pesquisar consultores..."
-                emptyText={formData.serviceId ? "Nenhum consultor habilitado para este serviço" : "Selecione um serviço primeiro"}
+                emptyText="Nenhum consultor encontrado"
               />
               {!formData.serviceId && !project && (
                 <p className="text-xs text-muted-foreground mt-1">
@@ -613,12 +635,12 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
             <div>
               <Label htmlFor="supportConsultant">Consultor de Apoio</Label>
               <SearchableSelect
-                options={[{ id: '', name: 'Nenhum' }, ...(filteredConsultants.length > 0 ? filteredConsultants : consultants)]}
+                options={[{ id: '', name: 'Nenhum' }, ...getConsultantOptions()]}
                 value={formData.supportConsultantId || ''}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, supportConsultantId: value as string }))}
-                placeholder={formData.serviceId ? "Selecione o consultor de apoio" : "Selecione um serviço primeiro"}
+                placeholder="Selecione o consultor de apoio"
                 searchPlaceholder="Pesquisar consultores..."
-                emptyText={formData.serviceId ? "Nenhum consultor habilitado para este serviço" : "Selecione um serviço primeiro"}
+                emptyText="Nenhum consultor encontrado"
               />
               {!formData.serviceId && !project && (
                 <p className="text-xs text-muted-foreground mt-1">
@@ -830,12 +852,12 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
                   <div>
                     <Label>Consultor Responsável</Label>
                     <SearchableSelect
-                      options={[{ id: '', name: 'Nenhum' }, ...(filteredConsultants.length > 0 ? filteredConsultants : consultants)]}
+                      options={[{ id: '', name: 'Nenhum' }, ...getConsultantOptions()]}
                       value={stage.consultantId || ''}
                       onValueChange={(value) => updateStage(index, 'consultantId', value as string)}
-                      placeholder={formData.serviceId ? "Selecione um consultor" : "Selecione um serviço primeiro"}
+                      placeholder="Selecione um consultor"
                       searchPlaceholder="Pesquisar consultores..."
-                      emptyText={formData.serviceId ? "Nenhum consultor habilitado para este serviço" : "Selecione um serviço primeiro"}
+                      emptyText="Nenhum consultor encontrado"
                     />
                   </div>
                 </div>
