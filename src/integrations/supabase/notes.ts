@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 import { parseTimeForDB, getCurrentTimestampBR, formatDateForDB, formatTimeForDB, separateDateAndTime } from "@/utils/dateUtils";
 
@@ -26,6 +27,9 @@ export interface Note {
   tag_names?: string[];
   checklists?: NoteChecklist[];
   linked_task?: Note;
+  // Properties for handling multiple consultants and tags
+  consultant_ids?: string[];
+  tag_ids?: string[];
 }
 
 export interface NoteChecklist {
@@ -564,7 +568,7 @@ export const fetchConsultants = async () => {
 export const fetchNoteTags = async () => {
   try {
     const { data, error } = await supabase
-      .from('note_tags')
+      .from('project_tags')
       .select('*')
       .order('name');
     
