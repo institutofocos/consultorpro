@@ -18,7 +18,6 @@ import ActivitiesList from "./components/activities/ActivitiesList";
 import SettingsPage from "./components/settings/SettingsPage";
 import ClientList from "./components/clients/ClientList";
 import FinancialPage from "./components/financial/FinancialPage";
-import NotesPage from "./pages/Notes";
 import DemandsList from "./components/demands/DemandsList";
 
 // Modified to always render children without authentication check
@@ -83,10 +82,6 @@ const App = () => (
             
             <Route path="/financial" element={
               <Layout><FinancialPage /></Layout>
-            } />
-            
-            <Route path="/notes" element={
-              <Layout><NotesPage /></Layout>
             } />
             
             <Route path="/settings" element={
