@@ -221,40 +221,27 @@ const DemandForm: React.FC<DemandFormProps> = ({ editingDemand, onDemandSaved, o
         throw servicesError;
       }
 
-      // Primeiro, tentar buscar das tags principais (tabela 'tags')
-      let tagsData = [];
-      const { data: mainTagsData, error: mainTagsError } = await supabase
-        .from('tags')
+      // Buscar tags apenas da tabela project_tags (mesma usada nas configurações)
+      console.log('Buscando tags da tabela project_tags...');
+      const { data: tagsData, error: tagsError } = await supabase
+        .from('project_tags')
         .select('id, name')
         .order('name');
 
-      if (mainTagsError) {
-        console.error('Erro ao carregar tags principais:', mainTagsError);
-        // Se falhar, tentar buscar da tabela project_tags
-        const { data: projectTagsData, error: projectTagsError } = await supabase
-          .from('project_tags')
-          .select('id, name')
-          .order('name');
-
-        if (projectTagsError) {
-          console.error('Erro ao carregar project tags:', projectTagsError);
-          tagsData = [];
-        } else {
-          tagsData = projectTagsData || [];
-          console.log('Tags carregadas da tabela project_tags:', tagsData);
-        }
+      if (tagsError) {
+        console.error('Erro ao carregar tags:', tagsError);
+        toast.error('Erro ao carregar tags');
+        setAvailableTags([]);
       } else {
-        tagsData = mainTagsData || [];
-        console.log('Tags carregadas da tabela tags:', tagsData);
+        setAvailableTags(tagsData || []);
+        console.log('Tags carregadas com sucesso:', tagsData?.length || 0);
       }
 
       // Atualizar estados
       if (clientsData) setClients(clientsData);
       if (servicesData) setServices(servicesData);
-      setAvailableTags(tagsData);
       
       console.log('Opções carregadas com sucesso');
-      console.log('Total de tags disponíveis:', tagsData.length);
     } catch (error) {
       console.error('Error fetching select options:', error);
       toast.error('Erro ao carregar opções do formulário');
@@ -566,7 +553,7 @@ const DemandForm: React.FC<DemandFormProps> = ({ editingDemand, onDemandSaved, o
           }
         }
 
-        // Create tag relations if any
+        // Create tag relations using project_tags IDs
         if (values.tags && values.tags.length > 0) {
           const validTagIds = values.tags.map(tagName => {
             const tag = availableTags.find(t => t.name === tagName);
