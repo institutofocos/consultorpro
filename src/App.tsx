@@ -1,103 +1,88 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from '@/contexts/AuthContext';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import Auth from "./pages/Auth";
-import AdminSetup from "./pages/AdminSetup";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
-
-// Import components
-import ConsultantList from "./components/consultants/ConsultantList";
-import ProjectList from "./components/projects/ProjectList";
-import ServiceList from "./components/services/ServiceList";
-import Layout from "./components/layout/Layout";
-import ActivitiesList from "./components/activities/ActivitiesList";
-import SettingsPage from "./components/settings/SettingsPage";
-import ClientList from "./components/clients/ClientList";
-import FinancialPage from "./components/financial/FinancialPage";
-import NotesPage from "./pages/Notes";
-import DemandsList from "./components/demands/DemandsList";
-
-// Modified to always render children without authentication check
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  // No authentication check, always render children
-  return <>{children}</>;
-};
-
-// Modified to always grant permission without checks
-const PermissionRoute = ({ 
-  children, 
-  moduleName, 
-  actionType = 'view' 
-}: { 
-  children: React.ReactNode;
-  moduleName: string;
-  actionType?: 'view' | 'edit';
-}) => {
-  // No permission check, always allow access
-  return <>{children}</>;
-};
+import AuthPage from './pages/AuthPage';
+import Consultants from "./pages/Consultants";
+import Clients from "./pages/Clients";
+import Services from "./pages/Services";
+import Projects from "./pages/Projects";
+import ProjectDetail from "./pages/ProjectDetail";
+import Dashboard from "./pages/Dashboard";
+import Financial from "./pages/Financial";
+import Settings from "./pages/Settings";
+import DemandForm from "./pages/DemandForm";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <AuthProvider>
           <Routes>
-            {/* Redirect from auth to dashboard */}
-            <Route path="/auth" element={<Navigate to="/" replace />} />
-            <Route path="/admin-setup" element={<Navigate to="/" replace />} />
-            
-            {/* Always render the dashboard directly */}
+            <Route path="/auth" element={<AuthPage />} />
             <Route path="/" element={
-              <Layout><Index /></Layout>
+              <ProtectedRoute>
+                <Index />
+              </ProtectedRoute>
             } />
-            
-            {/* Other routes without authentication checks */}
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
             <Route path="/consultants" element={
-              <Layout><ConsultantList /></Layout>
+              <ProtectedRoute>
+                <Consultants />
+              </ProtectedRoute>
             } />
-            
             <Route path="/clients" element={
-              <Layout><ClientList /></Layout>
+              <ProtectedRoute>
+                <Clients />
+              </ProtectedRoute>
             } />
-            
-            <Route path="/projects" element={
-              <Layout><ProjectList /></Layout>
-            } />
-            
             <Route path="/services" element={
-              <Layout><ServiceList /></Layout>
+              <ProtectedRoute>
+                <Services />
+              </ProtectedRoute>
             } />
-            
-            <Route path="/demands" element={
-              <Layout><DemandsList /></Layout>
+            <Route path="/projects" element={
+              <ProtectedRoute>
+                <Projects />
+              </ProtectedRoute>
             } />
-            
+            <Route path="/projects/:id" element={
+              <ProtectedRoute>
+                <ProjectDetail />
+              </ProtectedRoute>
+            } />
             <Route path="/financial" element={
-              <Layout><FinancialPage /></Layout>
+              <ProtectedRoute>
+                <Financial />
+              </ProtectedRoute>
             } />
-            
-            <Route path="/notes" element={
-              <Layout><NotesPage /></Layout>
-            } />
-            
             <Route path="/settings" element={
-              <Layout><SettingsPage /></Layout>
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
             } />
-            
-            <Route path="*" element={<NotFound />} />
+            <Route path="/demands" element={
+              <ProtectedRoute>
+                <DemandForm />
+              </ProtectedRoute>
+            } />
           </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </TooltipProvider>
   </QueryClientProvider>
 );
 
