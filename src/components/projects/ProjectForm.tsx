@@ -13,7 +13,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { createProject, updateProject } from "@/integrations/supabase/projects";
+import { createProject, updateProject, fetchProjectTags } from "@/integrations/supabase/projects";
 import { Project, Stage } from "./types";
 import SearchableSelect from "@/components/ui/searchable-select";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +48,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     hourlyRate: 0,
     status: 'planned',
     tags: [],
+    tagIds: [],
     stages: [],
     url: ''
   });
@@ -62,7 +63,13 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
   useEffect(() => {
     fetchSelectOptions();
     loadCurrentUserData();
+  }, []);
+
+  useEffect(() => {
     if (project) {
+      console.log('Loading project data for editing:', project);
+      
+      // Carregar dados do projeto no formulário
       setFormData({
         ...project,
         serviceId: project.serviceId || '',
@@ -70,8 +77,17 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         mainConsultantId: project.mainConsultantId || '',
         supportConsultantId: project.supportConsultantId || '',
         stages: project.stages || [],
-        url: project.url || ''
+        url: project.url || '',
+        tags: project.tags || [],
+        tagIds: project.tagIds || [],
+        consultantValue: project.consultantValue || 0,
+        supportConsultantValue: project.supportConsultantValue || 0
       });
+
+      // Se há um serviceId, carregar os consultores autorizados
+      if (project.serviceId) {
+        fetchAuthorizedConsultants(project.serviceId);
+      }
     }
   }, [project]);
 
@@ -109,16 +125,17 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
 
       setFilteredConsultants(authorizedConsultants);
 
-      // Verificar se os consultores selecionados ainda são válidos
-      const validMainConsultant = authorizedConsultants.find(c => c.id === formData.mainConsultantId);
-      const validSupportConsultant = authorizedConsultants.find(c => c.id === formData.supportConsultantId);
+      // Ao editar um projeto, manter os consultores selecionados se ainda forem válidos
+      if (project) {
+        const validMainConsultant = authorizedConsultants.find(c => c.id === project.mainConsultantId);
+        const validSupportConsultant = authorizedConsultants.find(c => c.id === project.supportConsultantId);
 
-      if (!validMainConsultant || !validSupportConsultant) {
-        setFormData(prev => ({
-          ...prev,
-          mainConsultantId: validMainConsultant ? prev.mainConsultantId : '',
-          supportConsultantId: validSupportConsultant ? prev.supportConsultantId : ''
-        }));
+        if (!validMainConsultant && project.mainConsultantId) {
+          console.log('Main consultant not authorized for this service, keeping selection but showing warning');
+        }
+        if (!validSupportConsultant && project.supportConsultantId) {
+          console.log('Support consultant not authorized for this service, keeping selection but showing warning');
+        }
       }
     } catch (error) {
       console.error('Erro ao buscar consultores autorizados:', error);
@@ -150,17 +167,19 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
 
   const fetchSelectOptions = async () => {
     try {
-      const [clientsRes, servicesRes, consultantsRes, tagsRes] = await Promise.all([
+      const [clientsRes, servicesRes, consultantsRes] = await Promise.all([
         supabase.from('clients').select('id, name').order('name'),
         supabase.from('services').select('id, name, description, stages, total_hours, hourly_rate').order('name'),
-        supabase.from('consultants').select('id, name').order('name'),
-        supabase.from('tags').select('id, name').order('name')
+        supabase.from('consultants').select('id, name').order('name')
       ]);
 
       if (clientsRes.data) setClients(clientsRes.data);
       if (servicesRes.data) setServices(servicesRes.data);
       if (consultantsRes.data) setConsultants(consultantsRes.data);
-      if (tagsRes.data) setAvailableTags(tagsRes.data);
+
+      // Carregar tags do projeto
+      const tagsData = await fetchProjectTags();
+      setAvailableTags(tagsData);
     } catch (error) {
       console.error('Error fetching select options:', error);
       toast.error('Erro ao carregar opções do formulário');
@@ -171,9 +190,9 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     setFormData(prev => ({ 
       ...prev, 
       serviceId,
-      // Limpar consultores ao trocar de serviço
-      mainConsultantId: '',
-      supportConsultantId: ''
+      // Só limpar consultores se não estiver editando um projeto existente
+      mainConsultantId: project ? prev.mainConsultantId : '',
+      supportConsultantId: project ? prev.supportConsultantId : ''
     }));
     
     const selectedService = services.find(s => s.id === serviceId);
@@ -185,7 +204,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         hourlyRate: Number(selectedService.hourly_rate) || prev.hourlyRate
       }));
 
-      if (selectedService.stages) {
+      if (selectedService.stages && !project) { // Só auto-adicionar etapas se não estiver editando
         const serviceStages = Array.isArray(selectedService.stages) 
           ? selectedService.stages 
           : JSON.parse(selectedService.stages || '[]');
@@ -343,6 +362,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         hourlyRate: Number(formData.hourlyRate || 0),
         status: formData.status as 'planned' | 'active' | 'completed' | 'cancelled',
         tags: formData.tags || [],
+        tagIds: formData.tagIds || [],
         stages: formData.stages || [],
         url: formData.url || ''
       };
@@ -387,6 +407,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         hourlyRate: savedProject.hourly_rate,
         status: savedProject.status,
         tags: savedProject.tags || [],
+        tagIds: formData.tagIds || [],
         stages: formData.stages || [],
         url: savedProject.url || ''
       };
@@ -413,10 +434,19 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       if (tag && !formData.tags?.includes(tag.name)) {
         setFormData(prev => ({
           ...prev,
-          tags: [...(prev.tags || []), tag.name]
+          tags: [...(prev.tags || []), tag.name],
+          tagIds: [...(prev.tagIds || []), tag.id]
         }));
       }
     }
+  };
+
+  const removeTag = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags?.filter((_, i) => i !== index),
+      tagIds: prev.tagIds?.filter((_, i) => i !== index)
+    }));
   };
 
   // Calculate net value with correct sequence: gross - taxes - third party - main consultant - support consultant
@@ -566,15 +596,14 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
             <div>
               <Label htmlFor="mainConsultant">Consultor Principal</Label>
               <SearchableSelect
-                options={filteredConsultants}
+                options={filteredConsultants.length > 0 ? filteredConsultants : consultants}
                 value={formData.mainConsultantId || ''}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, mainConsultantId: value as string }))}
                 placeholder={formData.serviceId ? "Selecione o consultor principal" : "Selecione um serviço primeiro"}
                 searchPlaceholder="Pesquisar consultores..."
                 emptyText={formData.serviceId ? "Nenhum consultor habilitado para este serviço" : "Selecione um serviço primeiro"}
-                disabled={!formData.serviceId}
               />
-              {!formData.serviceId && (
+              {!formData.serviceId && !project && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Apenas consultores habilitados para o serviço selecionado aparecerão aqui
                 </p>
@@ -584,15 +613,14 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
             <div>
               <Label htmlFor="supportConsultant">Consultor de Apoio</Label>
               <SearchableSelect
-                options={[{ id: '', name: 'Nenhum' }, ...filteredConsultants]}
+                options={[{ id: '', name: 'Nenhum' }, ...(filteredConsultants.length > 0 ? filteredConsultants : consultants)]}
                 value={formData.supportConsultantId || ''}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, supportConsultantId: value as string }))}
                 placeholder={formData.serviceId ? "Selecione o consultor de apoio" : "Selecione um serviço primeiro"}
                 searchPlaceholder="Pesquisar consultores..."
                 emptyText={formData.serviceId ? "Nenhum consultor habilitado para este serviço" : "Selecione um serviço primeiro"}
-                disabled={!formData.serviceId}
               />
-              {!formData.serviceId && (
+              {!formData.serviceId && !project && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Apenas consultores habilitados para o serviço selecionado aparecerão aqui
                 </p>
@@ -623,7 +651,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
             </div>
           </div>
 
-          {/* Tags - Remove status field */}
+          {/* Tags */}
           <div>
             <Label htmlFor="tags">Tags</Label>
             <SearchableSelect
@@ -641,10 +669,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
                     {tagName}
                     <button
                       type="button"
-                      onClick={() => setFormData(prev => ({
-                        ...prev,
-                        tags: prev.tags?.filter((_, i) => i !== index)
-                      }))}
+                      onClick={() => removeTag(index)}
                       className="ml-1 text-muted-foreground hover:text-destructive"
                     >
                       ×
@@ -805,13 +830,12 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
                   <div>
                     <Label>Consultor Responsável</Label>
                     <SearchableSelect
-                      options={[{ id: '', name: 'Nenhum' }, ...filteredConsultants]}
+                      options={[{ id: '', name: 'Nenhum' }, ...(filteredConsultants.length > 0 ? filteredConsultants : consultants)]}
                       value={stage.consultantId || ''}
                       onValueChange={(value) => updateStage(index, 'consultantId', value as string)}
                       placeholder={formData.serviceId ? "Selecione um consultor" : "Selecione um serviço primeiro"}
                       searchPlaceholder="Pesquisar consultores..."
                       emptyText={formData.serviceId ? "Nenhum consultor habilitado para este serviço" : "Selecione um serviço primeiro"}
-                      disabled={!formData.serviceId}
                     />
                   </div>
                 </div>
