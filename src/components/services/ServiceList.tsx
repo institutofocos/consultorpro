@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -91,6 +92,35 @@ const ServiceList = () => {
       const finalUrl = url.startsWith('http') ? url : `https://${url}`;
       window.open(finalUrl, '_blank');
     }
+  };
+
+  // Function to process and parse stages data
+  const processStages = (stages: any) => {
+    if (!stages) return [];
+    
+    let parsedStages = stages;
+    
+    // If stages is a string, try to parse it as JSON
+    if (typeof stages === 'string') {
+      try {
+        parsedStages = JSON.parse(stages);
+      } catch (e) {
+        console.error('Error parsing stages JSON:', e);
+        return [];
+      }
+    }
+    
+    // If it's an array, return it directly
+    if (Array.isArray(parsedStages)) {
+      return parsedStages;
+    }
+    
+    // If it's an object, convert it to array (legacy support)
+    if (typeof parsedStages === 'object' && parsedStages !== null) {
+      return Object.values(parsedStages);
+    }
+    
+    return [];
   };
 
   const filteredServices = services.filter(service =>
@@ -307,103 +337,66 @@ const ServiceList = () => {
                 </div>
               </div>
 
-              {/* Service Stages - Only show stages for this specific service */}
-              {selectedService.stages && (
-                <div>
-                  <h4 className="text-lg font-semibold mb-4">Etapas do Serviço</h4>
-                  <div className="space-y-3">
-                    {Array.isArray(selectedService.stages) && selectedService.stages.length > 0 ? (
-                      selectedService.stages.map((stage: any, index: number) => (
-                        <div key={index} className="border border-gray-200 rounded-lg p-4 bg-white">
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="flex-1">
-                              <h5 className="font-medium text-gray-900">
-                                Etapa {index + 1}: {stage.name || 'Sem nome'}
-                              </h5>
-                              {stage.description && (
-                                <p className="text-sm text-gray-600 mt-1">
-                                  {stage.description}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            {stage.days && (
-                              <div>
-                                <span className="font-medium text-gray-700">Dias:</span>
-                                <span className="ml-1 text-gray-600">{stage.days}</span>
-                              </div>
-                            )}
-                            <div>
-                              <span className="font-medium text-gray-700">Horas:</span>
-                              <span className="ml-1 text-gray-600">{stage.hours || 0}h</span>
-                            </div>
-                            <div>
-                              <span className="font-medium text-gray-700">Valor:</span>
-                              <span className="ml-1 text-gray-600">{formatCurrency(stage.value || 0)}</span>
-                            </div>
-                            {stage.attachment && (
-                              <div>
-                                <span className="font-medium text-gray-700">Anexo:</span>
-                                <span className="ml-1 text-blue-600 underline cursor-pointer">
-                                  {stage.attachmentName || 'Ver arquivo'}
-                                </span>
-                              </div>
+              {/* Service Stages */}
+              <div>
+                <h4 className="text-lg font-semibold mb-4">Etapas do Serviço</h4>
+                <div className="space-y-3">
+                  {(() => {
+                    const processedStages = processStages(selectedService.stages);
+                    console.log('Processed stages:', processedStages);
+                    
+                    if (!processedStages || processedStages.length === 0) {
+                      return (
+                        <div className="text-center py-4 text-muted-foreground">
+                          <p>Nenhuma etapa cadastrada para este serviço.</p>
+                        </div>
+                      );
+                    }
+                    
+                    return processedStages.map((stage: any, index: number) => (
+                      <div key={index} className="border border-gray-200 rounded-lg p-4 bg-white">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <h5 className="font-medium text-gray-900">
+                              Etapa {index + 1}: {stage.name || 'Sem nome'}
+                            </h5>
+                            {stage.description && (
+                              <p className="text-sm text-gray-600 mt-1">
+                                {stage.description}
+                              </p>
                             )}
                           </div>
                         </div>
-                      ))
-                    ) : selectedService.stages && typeof selectedService.stages === 'object' && Object.keys(selectedService.stages).length > 0 ? (
-                      Object.entries(selectedService.stages).map(([key, stage]: [string, any]) => (
-                        <div key={key} className="border border-gray-200 rounded-lg p-4 bg-white">
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="flex-1">
-                              <h5 className="font-medium text-gray-900">
-                                {stage.name || 'Sem nome'}
-                              </h5>
-                              {stage.description && (
-                                <p className="text-sm text-gray-600 mt-1">
-                                  {stage.description}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            {stage.days && (
-                              <div>
-                                <span className="font-medium text-gray-700">Dias:</span>
-                                <span className="ml-1 text-gray-600">{stage.days}</span>
-                              </div>
-                            )}
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          {stage.days && (
                             <div>
-                              <span className="font-medium text-gray-700">Horas:</span>
-                              <span className="ml-1 text-gray-600">{stage.hours || 0}h</span>
+                              <span className="font-medium text-gray-700">Dias:</span>
+                              <span className="ml-1 text-gray-600">{stage.days}</span>
                             </div>
-                            <div>
-                              <span className="font-medium text-gray-700">Valor:</span>
-                              <span className="ml-1 text-gray-600">{formatCurrency(stage.value || 0)}</span>
-                            </div>
-                            {stage.attachment && (
-                              <div>
-                                <span className="font-medium text-gray-700">Anexo:</span>
-                                <span className="ml-1 text-blue-600 underline cursor-pointer">
-                                  {stage.attachmentName || 'Ver arquivo'}
-                                </span>
-                              </div>
-                            )}
+                          )}
+                          <div>
+                            <span className="font-medium text-gray-700">Horas:</span>
+                            <span className="ml-1 text-gray-600">{stage.hours || 0}h</span>
                           </div>
+                          <div>
+                            <span className="font-medium text-gray-700">Valor:</span>
+                            <span className="ml-1 text-gray-600">{formatCurrency(stage.value || 0)}</span>
+                          </div>
+                          {stage.attachment && (
+                            <div>
+                              <span className="font-medium text-gray-700">Anexo:</span>
+                              <span className="ml-1 text-blue-600 underline cursor-pointer">
+                                {stage.attachmentName || 'Ver arquivo'}
+                              </span>
+                            </div>
+                          )}
                         </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-4 text-muted-foreground">
-                        <p>Nenhuma etapa cadastrada para este serviço.</p>
                       </div>
-                    )}
-                  </div>
+                    ));
+                  })()}
                 </div>
-              )}
+              </div>
 
               {/* Additional Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
