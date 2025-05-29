@@ -1684,6 +1684,26 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      insert_note_with_relations: {
+        Args: {
+          p_title: string
+          p_content?: string
+          p_status?: string
+          p_color?: string
+          p_start_date?: string
+          p_start_time?: string
+          p_due_date?: string
+          p_due_time?: string
+          p_end_date?: string
+          p_end_time?: string
+          p_client_id?: string
+          p_service_id?: string
+          p_consultant_ids?: string[]
+          p_tag_ids?: string[]
+          p_linked_task_id?: string
+        }
+        Returns: string
+      }
       insert_project_history: {
         Args: {
           p_project_id: string
@@ -1709,6 +1729,27 @@ export type Database = {
       }
       is_project_fully_completed: {
         Args: { p_project_id: string }
+        Returns: boolean
+      }
+      update_note_with_relations: {
+        Args: {
+          p_note_id: string
+          p_title: string
+          p_content?: string
+          p_status?: string
+          p_color?: string
+          p_start_date?: string
+          p_start_time?: string
+          p_due_date?: string
+          p_due_time?: string
+          p_end_date?: string
+          p_end_time?: string
+          p_client_id?: string
+          p_service_id?: string
+          p_consultant_ids?: string[]
+          p_tag_ids?: string[]
+          p_linked_task_id?: string
+        }
         Returns: boolean
       }
     }

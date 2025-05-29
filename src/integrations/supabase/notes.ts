@@ -5,7 +5,7 @@ export interface Note {
   id: string;
   title: string;
   content?: string;
-  status: 'iniciar_projeto' | 'em_producao' | 'aguardando_assinatura' | 'aguardando_aprovacao' | 'aguardando_nota_fiscal' | 'aguardando_pagamento' | 'aguardando_repasse' | 'finalizados' | 'cancelados';
+  status: 'iniciar_projeto' | 'em_producao' | 'aguardando_assinatura' | 'aguardando_aprovacao' | 'aguardando_nota_fiscal' | 'aguardando_pagamento' | 'aguardando_repasse' | 'finalizados' | 'cancelados' | 'a_fazer' | 'em_andamento' | 'concluido';
   color?: string;
   start_date?: string;
   start_time?: string;
@@ -52,7 +52,7 @@ export const fetchNotes = async () => {
         clients:client_id(id, name),
         services:service_id(id, name),
         note_consultants(consultant:consultants(id, name)),
-        note_tag_relations(tag:tags(id, name)),
+        note_tag_relations(tag:project_tags(id, name)),
         checklists:note_checklists(*),
         linked_task:notes!linked_task_id(id, title, status)
       `)
@@ -119,9 +119,9 @@ export const createNote = async (note: Partial<Note>) => {
   try {
     console.log('Creating note with data:', note);
     
-    // Preparar dados para inserção com timestamp brasileiro
+    // Preparar dados para inserção
     const noteData = {
-      title: note.title,
+      title: note.title || '',
       content: note.content || null,
       status: note.status || 'iniciar_projeto',
       color: note.color || null,
@@ -152,6 +152,61 @@ export const createNote = async (note: Partial<Note>) => {
       throw error;
     }
 
+    // Se há consultores para associar, adicionar relações
+    if (note.consultant_ids && note.consultant_ids.length > 0) {
+      const consultantRelations = note.consultant_ids.map(consultantId => ({
+        note_id: data.id,
+        consultant_id: consultantId
+      }));
+      
+      const { error: consultantError } = await supabase
+        .from('note_consultants')
+        .insert(consultantRelations);
+      
+      if (consultantError) {
+        console.error('Error creating consultant relations:', consultantError);
+      }
+    }
+
+    // Se há tags para associar, adicionar relações
+    if (note.tag_ids && note.tag_ids.length > 0) {
+      const tagRelations = note.tag_ids.map(tagId => ({
+        note_id: data.id,
+        tag_id: tagId
+      }));
+      
+      const { error: tagError } = await supabase
+        .from('note_tag_relations')
+        .insert(tagRelations);
+      
+      if (tagError) {
+        console.error('Error creating tag relations:', tagError);
+      }
+    }
+
+    // Se há checklists, criar elas
+    if (note.checklists && note.checklists.length > 0) {
+      const checklistsToCreate = note.checklists.map(checklist => ({
+        note_id: data.id,
+        title: checklist.title,
+        description: checklist.description || null,
+        completed: false,
+        due_date: formatDateForDB(checklist.due_date),
+        due_time: parseTimeForDB(checklist.due_time),
+        responsible_consultant_id: checklist.responsible_consultant_id || null,
+        created_at: getCurrentTimestampBR(),
+        updated_at: getCurrentTimestampBR()
+      }));
+
+      const { error: checklistError } = await supabase
+        .from('note_checklists')
+        .insert(checklistsToCreate);
+      
+      if (checklistError) {
+        console.error('Error creating checklists:', checklistError);
+      }
+    }
+
     console.log('Note created successfully:', data);
     return data;
   } catch (error) {
@@ -164,7 +219,7 @@ export const updateNote = async (id: string, note: Partial<Note>) => {
   try {
     console.log('Updating note with data:', note);
     
-    // Preparar dados para atualização com timestamp brasileiro
+    // Preparar dados para atualização
     const noteData = {
       title: note.title,
       content: note.content,
@@ -195,6 +250,56 @@ export const updateNote = async (id: string, note: Partial<Note>) => {
     if (error) {
       console.error('Error updating note:', error);
       throw error;
+    }
+
+    // Atualizar relações de consultores
+    if (note.consultant_ids !== undefined) {
+      // Remover relações existentes
+      await supabase
+        .from('note_consultants')
+        .delete()
+        .eq('note_id', id);
+      
+      // Adicionar novas relações
+      if (note.consultant_ids.length > 0) {
+        const consultantRelations = note.consultant_ids.map(consultantId => ({
+          note_id: id,
+          consultant_id: consultantId
+        }));
+        
+        const { error: consultantError } = await supabase
+          .from('note_consultants')
+          .insert(consultantRelations);
+        
+        if (consultantError) {
+          console.error('Error updating consultant relations:', consultantError);
+        }
+      }
+    }
+
+    // Atualizar relações de tags
+    if (note.tag_ids !== undefined) {
+      // Remover relações existentes
+      await supabase
+        .from('note_tag_relations')
+        .delete()
+        .eq('note_id', id);
+      
+      // Adicionar novas relações
+      if (note.tag_ids.length > 0) {
+        const tagRelations = note.tag_ids.map(tagId => ({
+          note_id: id,
+          tag_id: tagId
+        }));
+        
+        const { error: tagError } = await supabase
+          .from('note_tag_relations')
+          .insert(tagRelations);
+        
+        if (tagError) {
+          console.error('Error updating tag relations:', tagError);
+        }
+      }
     }
 
     console.log('Note updated successfully:', data);
