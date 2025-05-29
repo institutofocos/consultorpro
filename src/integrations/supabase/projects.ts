@@ -1,4 +1,3 @@
-
 import { supabase } from './client';
 import { Project } from '@/components/projects/types';
 
@@ -21,7 +20,42 @@ export const fetchProjects = async () => {
   }
 
   console.log('Projetos encontrados:', data);
-  return data || [];
+  
+  // Transform the data to match Project interface
+  const transformedData = data?.map(project => ({
+    id: project.id,
+    name: project.name,
+    description: project.description,
+    serviceId: project.service_id,
+    clientId: project.client_id,
+    mainConsultantId: project.main_consultant_id,
+    mainConsultantCommission: project.main_consultant_commission,
+    supportConsultantId: project.support_consultant_id,
+    supportConsultantCommission: project.support_consultant_commission,
+    startDate: project.start_date,
+    endDate: project.end_date,
+    totalValue: project.total_value,
+    taxPercent: project.tax_percent,
+    thirdPartyExpenses: project.third_party_expenses,
+    consultantValue: project.main_consultant_value,
+    supportConsultantValue: project.support_consultant_value,
+    totalHours: project.total_hours,
+    hourlyRate: project.hourly_rate,
+    managerName: project.manager_name,
+    managerEmail: project.manager_email,
+    managerPhone: project.manager_phone,
+    url: project.url,
+    status: project.status,
+    tags: project.tags,
+    createdAt: project.created_at,
+    updatedAt: project.updated_at,
+    clientName: project.clients?.name,
+    serviceName: project.services?.name,
+    mainConsultantName: project.consultants?.name,
+    supportConsultantName: project.support_consultants?.[0]?.name
+  })) || [];
+
+  return transformedData;
 };
 
 export const fetchProjectById = async (id: string) => {
@@ -43,6 +77,153 @@ export const fetchProjectById = async (id: string) => {
     throw error;
   }
 
+  return data;
+};
+
+export const fetchDemandsWithoutConsultants = async () => {
+  console.log('Buscando demandas sem consultores...');
+  const { data, error } = await supabase
+    .from('projects')
+    .select(`
+      *,
+      clients(name),
+      services(name)
+    `)
+    .is('main_consultant_id', null)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Erro ao buscar demandas:', error);
+    throw error;
+  }
+
+  console.log('Demandas encontradas:', data);
+  
+  // Transform data and add calculated fields
+  const transformedData = data?.map(demand => ({
+    ...demand,
+    clientName: demand.clients?.name,
+    serviceName: demand.services?.name,
+    totalDays: Math.ceil((new Date(demand.end_date).getTime() - new Date(demand.start_date).getTime()) / (1000 * 60 * 60 * 24))
+  })) || [];
+
+  return transformedData;
+};
+
+export const assignConsultantsToDemand = async (
+  demandId: string,
+  mainConsultantId: string | null,
+  mainConsultantCommission: number,
+  supportConsultantId: string | null,
+  supportConsultantCommission: number
+) => {
+  console.log('Atribuindo consultores à demanda:', {
+    demandId,
+    mainConsultantId,
+    mainConsultantCommission,
+    supportConsultantId,
+    supportConsultantCommission
+  });
+
+  const updateData: any = {
+    main_consultant_id: mainConsultantId,
+    main_consultant_commission: mainConsultantCommission,
+    updated_at: new Date().toISOString()
+  };
+
+  if (supportConsultantId) {
+    updateData.support_consultant_id = supportConsultantId;
+    updateData.support_consultant_commission = supportConsultantCommission;
+  }
+
+  const { data, error } = await supabase
+    .from('projects')
+    .update(updateData)
+    .eq('id', demandId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Erro ao atribuir consultores:', error);
+    throw error;
+  }
+
+  console.log('Consultores atribuídos com sucesso:', data);
+  return data;
+};
+
+export const fetchTags = async () => {
+  console.log('Buscando tags...');
+  const { data, error } = await supabase
+    .from('project_tags')
+    .select('*')
+    .order('name');
+
+  if (error) {
+    console.error('Erro ao buscar tags:', error);
+    throw error;
+  }
+
+  console.log('Tags encontradas:', data);
+  return data || [];
+};
+
+export const fetchConsultants = async () => {
+  console.log('Buscando consultores...');
+  const { data, error } = await supabase
+    .from('consultants')
+    .select('id, name')
+    .order('name');
+
+  if (error) {
+    console.error('Erro ao buscar consultores:', error);
+    throw error;
+  }
+
+  console.log('Consultores encontrados:', data);
+  return data || [];
+};
+
+export const fetchServices = async () => {
+  console.log('Buscando serviços...');
+  const { data, error } = await supabase
+    .from('services')
+    .select('id, name')
+    .order('name');
+
+  if (error) {
+    console.error('Erro ao buscar serviços:', error);
+    throw error;
+  }
+
+  console.log('Serviços encontrados:', data);
+  return data || [];
+};
+
+export const updateStageStatus = async (
+  stageId: string,
+  updates: any,
+  projectName: string,
+  stageName: string
+) => {
+  console.log('Atualizando status da etapa:', { stageId, updates, projectName, stageName });
+
+  const { data, error } = await supabase
+    .from('project_stages')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', stageId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Erro ao atualizar status da etapa:', error);
+    throw error;
+  }
+
+  console.log('Status da etapa atualizado:', data);
   return data;
 };
 

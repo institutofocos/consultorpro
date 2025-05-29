@@ -99,7 +99,7 @@ const ProjectList: React.FC = () => {
     return completionStatuses.some(s => s.name === status) || status === 'concluido';
   };
 
-  const filteredProjects = projects.filter((project: Project) => {
+  const filteredProjects = (projects as Project[]).filter((project: Project) => {
     const matchesSearch = searchTerm === '' || 
       project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()));
