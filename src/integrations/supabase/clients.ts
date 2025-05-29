@@ -53,3 +53,44 @@ export const fetchClientById = async (id: string): Promise<Client | null> => {
     return null;
   }
 };
+
+export const createClient = async (clientData: Omit<Client, 'id' | 'created_at'>): Promise<Client> => {
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .insert([clientData])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating client:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in createClient:', error);
+    throw error;
+  }
+};
+
+export const updateClient = async (id: string, clientData: Partial<Omit<Client, 'id' | 'created_at'>>): Promise<Client> => {
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .update(clientData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating client:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in updateClient:', error);
+    throw error;
+  }
+};

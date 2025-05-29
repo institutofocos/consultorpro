@@ -136,10 +136,24 @@ export const createOrUpdateService = async (serviceData: any, isUpdate: boolean 
   try {
     console.log('Creating/updating service with data:', serviceData);
     
+    // Ensure required fields have default values
+    const sanitizedData = {
+      name: serviceData.name || '',
+      description: serviceData.description || null,
+      url: serviceData.url || null,
+      tax_rate: Number(serviceData.tax_rate) || 16,
+      total_hours: Number(serviceData.total_hours) || 0,
+      hourly_rate: serviceData.hourly_rate ? Number(serviceData.hourly_rate) : null,
+      total_value: serviceData.total_value ? Number(serviceData.total_value) : null,
+      net_value: serviceData.net_value ? Number(serviceData.net_value) : null,
+      extra_costs: Number(serviceData.extra_costs) || 0,
+      stages: serviceData.stages || null,
+    };
+    
     if (isUpdate && serviceId) {
       const { data, error } = await supabase
         .from('services')
-        .update(serviceData)
+        .update(sanitizedData)
         .eq('id', serviceId)
         .select('id')
         .single();
@@ -153,7 +167,7 @@ export const createOrUpdateService = async (serviceData: any, isUpdate: boolean 
     } else {
       const { data, error } = await supabase
         .from('services')
-        .insert([serviceData])
+        .insert([sanitizedData])
         .select('id')
         .single();
         
@@ -166,6 +180,73 @@ export const createOrUpdateService = async (serviceData: any, isUpdate: boolean 
     }
   } catch (error) {
     console.error('Error in createOrUpdateService:', error);
+    throw error;
+  }
+};
+
+export const createService = async (serviceData: Omit<Service, 'id' | 'created_at' | 'updated_at'>): Promise<Service> => {
+  try {
+    const sanitizedData = {
+      name: serviceData.name || '',
+      description: serviceData.description || null,
+      url: serviceData.url || null,
+      tax_rate: Number(serviceData.tax_rate) || 16,
+      total_hours: Number(serviceData.total_hours) || 0,
+      hourly_rate: serviceData.hourly_rate ? Number(serviceData.hourly_rate) : null,
+      total_value: serviceData.total_value ? Number(serviceData.total_value) : null,
+      net_value: serviceData.net_value ? Number(serviceData.net_value) : null,
+      extra_costs: Number(serviceData.extra_costs) || 0,
+      stages: serviceData.stages || null,
+    };
+
+    const { data, error } = await supabase
+      .from('services')
+      .insert([sanitizedData])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating service:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in createService:', error);
+    throw error;
+  }
+};
+
+export const updateService = async (id: string, serviceData: Partial<Omit<Service, 'id' | 'created_at' | 'updated_at'>>): Promise<Service> => {
+  try {
+    const sanitizedData = {
+      ...(serviceData.name !== undefined && { name: serviceData.name }),
+      ...(serviceData.description !== undefined && { description: serviceData.description || null }),
+      ...(serviceData.url !== undefined && { url: serviceData.url || null }),
+      ...(serviceData.tax_rate !== undefined && { tax_rate: Number(serviceData.tax_rate) }),
+      ...(serviceData.total_hours !== undefined && { total_hours: Number(serviceData.total_hours) }),
+      ...(serviceData.hourly_rate !== undefined && { hourly_rate: serviceData.hourly_rate ? Number(serviceData.hourly_rate) : null }),
+      ...(serviceData.total_value !== undefined && { total_value: serviceData.total_value ? Number(serviceData.total_value) : null }),
+      ...(serviceData.net_value !== undefined && { net_value: serviceData.net_value ? Number(serviceData.net_value) : null }),
+      ...(serviceData.extra_costs !== undefined && { extra_costs: Number(serviceData.extra_costs) }),
+      ...(serviceData.stages !== undefined && { stages: serviceData.stages }),
+    };
+
+    const { data, error } = await supabase
+      .from('services')
+      .update(sanitizedData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating service:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in updateService:', error);
     throw error;
   }
 };

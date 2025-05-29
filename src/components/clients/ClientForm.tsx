@@ -6,10 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { createClient, updateClient } from "@/integrations/supabase/clients";
 import { Client } from "@/integrations/supabase/clients";
 
-interface ClientFormData extends Client {
+interface ClientFormData extends Omit<Client, 'id' | 'created_at'> {
   username?: string;
   password?: string;
 }
@@ -22,7 +22,6 @@ interface ClientFormProps {
 
 export default function ClientForm({ client, onClientSaved, onCancel }: ClientFormProps) {
   const [formData, setFormData] = useState<ClientFormData>({
-    id: '',
     name: '',
     contact_name: '',
     email: '',
@@ -39,7 +38,19 @@ export default function ClientForm({ client, onClientSaved, onCancel }: ClientFo
 
   useEffect(() => {
     if (client) {
-      setFormData({ ...client, username: '', password: '' });
+      setFormData({
+        name: client.name || '',
+        contact_name: client.contact_name || '',
+        email: client.email || '',
+        phone: client.phone || '',
+        address: client.address || '',
+        city: client.city || '',
+        state: client.state || '',
+        zip_code: client.zip_code || '',
+        notes: client.notes || '',
+        username: '',
+        password: ''
+      });
     }
   }, [client]);
 
@@ -48,78 +59,39 @@ export default function ClientForm({ client, onClientSaved, onCancel }: ClientFo
     setIsLoading(true);
 
     try {
-      if (!formData.name || !formData.contact_name) {
+      if (!formData.name?.trim() || !formData.contact_name?.trim()) {
         toast.error('Nome da empresa e nome do contato são obrigatórios');
         return;
       }
 
       const clientData = {
-        name: formData.name,
-        contact_name: formData.contact_name,
-        email: formData.email || null,
-        phone: formData.phone || null,
-        address: formData.address || null,
-        city: formData.city || null,
-        state: formData.state || null,
-        zip_code: formData.zip_code || null,
-        notes: formData.notes || null,
+        name: formData.name.trim(),
+        contact_name: formData.contact_name.trim(),
+        email: formData.email?.trim() || null,
+        phone: formData.phone?.trim() || null,
+        address: formData.address?.trim() || null,
+        city: formData.city?.trim() || null,
+        state: formData.state?.trim() || null,
+        zip_code: formData.zip_code?.trim() || null,
+        notes: formData.notes?.trim() || null,
       };
 
-      let savedClient;
+      let savedClient: Client;
+      
       if (client?.id) {
-        const { data, error } = await supabase
-          .from('clients')
-          .update(clientData)
-          .eq('id', client.id)
-          .select()
-          .single();
-
-        if (error) throw error;
-        savedClient = data;
+        // Atualizar cliente existente
+        savedClient = await updateClient(client.id, clientData);
         toast.success('Cliente atualizado com sucesso!');
       } else {
-        const { data, error } = await supabase
-          .from('clients')
-          .insert(clientData)
-          .select()
-          .single();
-
-        if (error) throw error;
-        savedClient = data;
+        // Criar novo cliente
+        savedClient = await createClient(clientData);
         toast.success('Cliente criado com sucesso!');
-      }
-
-      // Se tem username/password, criar perfil de usuário
-      if (formData.username && formData.password && formData.email) {
-        try {
-          const { data: authData, error: authError } = await supabase.auth.signUp({
-            email: formData.email,
-            password: formData.password,
-            options: {
-              data: {
-                full_name: formData.contact_name,
-                role: 'client',
-                client_id: savedClient.id
-              }
-            }
-          });
-
-          if (authError) {
-            console.error('Error creating user:', authError);
-            toast.warning('Cliente criado, mas houve erro ao criar usuário de acesso');
-          } else {
-            toast.success('Cliente e usuário de acesso criados com sucesso!');
-          }
-        } catch (authError) {
-          console.error('Auth error:', authError);
-          toast.warning('Cliente criado, mas houve erro ao criar usuário de acesso');
-        }
       }
 
       onClientSaved(savedClient);
     } catch (error) {
       console.error('Error saving client:', error);
-      toast.error('Erro ao salvar cliente');
+      toast.error('Erro ao salvar cliente: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     } finally {
       setIsLoading(false);
     }
@@ -236,36 +208,6 @@ export default function ClientForm({ client, onClientSaved, onCancel }: ClientFo
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               placeholder="Observações sobre o cliente"
             />
-          </div>
-
-          {/* Acesso ao Sistema */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Acesso ao Sistema</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="username">Nome de Usuário</Label>
-                <Input
-                  id="username"
-                  value={formData.username}
-                  onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-                  placeholder="Nome de usuário para acesso"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="password">Senha</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                  placeholder="Senha de acesso"
-                />
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Para criar acesso ao sistema, preencha também o campo email acima.
-            </p>
           </div>
         </CardContent>
       </Card>

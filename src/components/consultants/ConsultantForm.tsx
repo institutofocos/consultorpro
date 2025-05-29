@@ -81,16 +81,22 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
     if (consultant) {
       const loadConsultantServices = async () => {
         try {
-          // Buscar serviços do consultor
-          const { data: consultantServices, error } = await supabase
-            .from('consultant_services')
-            .select('service_id')
-            .eq('consultant_id', consultant.id);
+          // Só buscar serviços se o consultor tem ID (já foi salvo)
+          if (consultant.id) {
+            const { data: consultantServices, error } = await supabase
+              .from('consultant_services')
+              .select('service_id')
+              .eq('consultant_id', consultant.id);
 
-          if (error) throw error;
+            if (error) {
+              console.error('Error loading consultant services:', error);
+            }
 
-          const serviceIds = consultantServices?.map(cs => cs.service_id) || [];
-          setFormData({ ...consultant, services: serviceIds });
+            const serviceIds = consultantServices?.map(cs => cs.service_id) || [];
+            setFormData({ ...consultant, services: serviceIds });
+          } else {
+            setFormData({ ...consultant, services: [] });
+          }
         } catch (error) {
           console.error('Error loading consultant services:', error);
           setFormData({ ...consultant, services: [] });
@@ -106,25 +112,25 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
     setIsLoading(true);
 
     try {
-      if (!formData.name || !formData.email) {
+      if (!formData.name?.trim() || !formData.email?.trim()) {
         toast.error('Nome e email são obrigatórios');
         return;
       }
 
       const consultantData = {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone || null,
-        street: formData.street || null,
-        city: formData.city || null,
-        state: formData.state || null,
-        zip_code: formData.zip_code || null,
-        education: formData.education || null,
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone?.trim() || null,
+        street: formData.street?.trim() || null,
+        city: formData.city?.trim() || null,
+        state: formData.state?.trim() || null,
+        zip_code: formData.zip_code?.trim() || null,
+        education: formData.education?.trim() || null,
         salary: Number(formData.salary) || 0,
         commission_percentage: Number(formData.commission_percentage) || 0,
         hours_per_month: Number(formData.hours_per_month) || 160,
-        pix_key: formData.pix_key || null,
-        url: formData.url || null,
+        pix_key: formData.pix_key?.trim() || null,
+        url: formData.url?.trim() || null,
       };
 
       let savedConsultant;
@@ -177,38 +183,10 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
         }
       }
 
-      // Se tem username/password, criar perfil de usuário
-      if (formData.username && formData.password) {
-        try {
-          const { data: authData, error: authError } = await supabase.auth.signUp({
-            email: formData.email,
-            password: formData.password,
-            options: {
-              data: {
-                full_name: formData.name,
-                role: 'consultant',
-                consultant_id: savedConsultant.id,
-                profile_photo: formData.profile_photo || null
-              }
-            }
-          });
-
-          if (authError) {
-            console.error('Error creating user:', authError);
-            toast.warning('Consultor criado, mas houve erro ao criar usuário de acesso');
-          } else {
-            toast.success('Consultor e usuário de acesso criados com sucesso!');
-          }
-        } catch (authError) {
-          console.error('Auth error:', authError);
-          toast.warning('Consultor criado, mas houve erro ao criar usuário de acesso');
-        }
-      }
-
       onConsultantSaved({ ...savedConsultant, ...formData });
     } catch (error) {
       console.error('Error saving consultant:', error);
-      toast.error('Erro ao salvar consultor');
+      toast.error('Erro ao salvar consultor: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     } finally {
       setIsLoading(false);
     }
@@ -399,33 +377,6 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
                 onChange={(e) => setFormData(prev => ({ ...prev, pix_key: e.target.value }))}
                 placeholder="CPF, email ou chave aleatória"
               />
-            </div>
-          </div>
-
-          {/* Acesso ao Sistema */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Acesso ao Sistema</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="username">Nome de Usuário</Label>
-                <Input
-                  id="username"
-                  value={formData.username}
-                  onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-                  placeholder="Nome de usuário para acesso"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="password">Senha</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                  placeholder="Senha de acesso"
-                />
-              </div>
             </div>
           </div>
         </CardContent>
