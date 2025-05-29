@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { AlertCircle, CheckCircle2, X, RefreshCw, TestTube, Settings, Zap, Database, Save, Shield } from "lucide-react";
+import { AlertCircle, CheckCircle2, X, RefreshCw, TestTube, Settings, Zap, Database, Save, Shield, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Webhook {
@@ -233,23 +233,23 @@ const WebhookManager: React.FC = () => {
   const setupDatabaseTriggers = async () => {
     try {
       setIsSettingUpTriggers(true);
-      console.log('Configurando triggers automáticos no banco de dados...');
+      console.log('Configurando triggers automáticos no banco de dados com detecção de mudanças de status...');
       
-      toast.info("Configurando sistema", {
-        description: "Criando triggers automáticos para capturar TODAS as alterações no banco de dados"
+      toast.info("Configurando sistema avançado", {
+        description: "Criando triggers com detecção especial para mudanças de status de projetos"
       });
       
       const result = await callWebhookFunction('setup_triggers');
       
       if (result.success) {
-        console.log('Trigger setup results:', result.results);
+        console.log('Enhanced trigger setup results:', result.results);
         
         const successTriggers = result.results.filter(r => r.status === 'created');
         const errorTriggers = result.results.filter(r => r.status === 'error');
         
         if (successTriggers.length > 0) {
-          toast.success("Sistema de webhooks configurado!", {
-            description: `${successTriggers.length} triggers criados. Capturando automaticamente todas as operações: consultores, clientes, projetos, serviços, financeiro, tarefas, chat e configurações.`,
+          toast.success("Sistema avançado de webhooks configurado!", {
+            description: `${successTriggers.length} triggers criados com detecção de mudanças de status de projetos. Capturando automaticamente todas as operações.`,
             icon: <CheckCircle2 className="h-5 w-5 text-success" />
           });
         }
@@ -268,7 +268,7 @@ const WebhookManager: React.FC = () => {
       }
       
     } catch (error) {
-      console.error("Error setting up database triggers:", error);
+      console.error("Error setting up enhanced database triggers:", error);
       toast.error("Erro na configuração automática", {
         description: error instanceof Error ? error.message : "Falha ao configurar sistema automático",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
@@ -328,7 +328,7 @@ const WebhookManager: React.FC = () => {
       });
 
       toast.success("Webhook registrado", {
-        description: "Webhook configurado! Irá receber todas as alterações automaticamente",
+        description: "Webhook configurado! Irá receber todas as alterações automaticamente incluindo mudanças de status",
         icon: <CheckCircle2 className="h-5 w-5 text-success" />
       });
 
@@ -369,17 +369,17 @@ const WebhookManager: React.FC = () => {
   const testWebhook = async (url: string) => {
     try {
       setIsTesting(url);
-      console.log('Testing webhook:', url);
+      console.log('Testing webhook with enhanced payload:', url);
       
       toast.info("Testando webhook", {
-        description: "Enviando dados completos de teste..."
+        description: "Enviando dados de teste incluindo mudanças de status de projeto..."
       });
       
       const result = await callWebhookFunction('test', { url });
       
       if (result.success) {
-        toast.success("Teste bem-sucedido", {
-          description: `Webhook respondeu com status ${result.status}`,
+        toast.success("Teste bem-sucedido!", {
+          description: `Webhook respondeu com status ${result.status}. Dados de teste enviados incluindo mudanças de status.`,
           icon: <CheckCircle2 className="h-5 w-5 text-success" />
         });
       } else {
@@ -403,16 +403,16 @@ const WebhookManager: React.FC = () => {
   const triggerTestEvents = async () => {
     try {
       setIsLoading(true);
-      console.log('Triggering comprehensive test events');
+      console.log('Triggering comprehensive test events including project status changes');
       
-      toast.info("Gerando eventos de teste", {
-        description: "Criando eventos completos para clientes, consultores, projetos e etapas"
+      toast.info("Gerando eventos de teste avançados", {
+        description: "Criando eventos incluindo mudanças de status de projetos"
       });
       
       const result = await callWebhookFunction('trigger_test');
       
       if (result.success) {
-        toast.success("Eventos de teste criados", {
+        toast.success("Eventos de teste criados!", {
           description: result.message + " - Processamento automático em andamento",
           icon: <CheckCircle2 className="h-5 w-5 text-success" />
         });
@@ -437,8 +437,8 @@ const WebhookManager: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-3xl font-bold">Sistema de Webhooks Automático</h1>
-        <p className="text-muted-foreground">Configure webhooks para receber automaticamente todas as alterações do sistema em tempo real</p>
+        <h1 className="text-3xl font-bold">Sistema de Webhooks Automático Avançado</h1>
+        <p className="text-muted-foreground">Configure webhooks para receber automaticamente todas as alterações do sistema incluindo mudanças de status de projetos em tempo real</p>
       </div>
 
       {/* System Auto-Configuration */}
@@ -446,23 +446,29 @@ const WebhookManager: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
-            Configuração Automática do Sistema
+            Configuração Automática Avançada do Sistema
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="p-4 bg-white rounded-lg border">
-              <h4 className="font-medium mb-2">Sistema de Captura Automática:</h4>
+              <h4 className="font-medium mb-2">Sistema de Captura Automática Avançado:</h4>
               <div className="space-y-1 text-sm">
                 <p>• <strong>Consultores:</strong> Adições, atualizações e remoções</p>
                 <p>• <strong>Clientes:</strong> Novos clientes, alterações e exclusões</p>
-                <p>• <strong>Projetos:</strong> Criação, mudanças de status, atualizações</p>
+                <p>• <strong>Projetos:</strong> Criação, <span className="text-green-600 font-semibold">mudanças de status</span>, atualizações</p>
                 <p>• <strong>Serviços:</strong> Novos serviços e modificações</p>
                 <p>• <strong>Etapas:</strong> Progresso de projetos e conclusões</p>
                 <p>• <strong>Financeiro:</strong> Transações, contas a pagar/receber</p>
                 <p>• <strong>Tarefas:</strong> Criação e atualização de notas/tarefas</p>
                 <p>• <strong>Chat:</strong> Mensagens e criação de salas</p>
                 <p>• <strong>Configurações:</strong> Mudanças no sistema</p>
+              </div>
+              <div className="mt-3 p-3 bg-green-100 rounded-lg">
+                <p className="text-sm text-green-800 flex items-center gap-2">
+                  <Activity className="h-4 w-4" />
+                  <strong>Detecção Especial:</strong> Mudanças de status de projetos são capturadas com dados enriquecidos
+                </p>
               </div>
             </div>
             <Button 
@@ -476,10 +482,10 @@ const WebhookManager: React.FC = () => {
               ) : (
                 <Shield className="h-4 w-4 mr-2" />
               )}
-              Configurar Sistema Automático Completo
+              Configurar Sistema Automático Avançado
             </Button>
             <p className="text-sm text-muted-foreground">
-              Este botão configura triggers automáticos no banco de dados para capturar TODAS as operações em tempo real.
+              Este botão configura triggers com detecção especial para mudanças de status de projetos e enriquecimento automático de dados.
             </p>
           </div>
         </CardContent>
@@ -595,7 +601,7 @@ const WebhookManager: React.FC = () => {
                   htmlFor="event-update" 
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  Atualização (UPDATE)
+                  Atualização (UPDATE) - <span className="text-green-600">inclui mudanças de status</span>
                 </label>
               </div>
               <div className="flex items-center space-x-2">
@@ -622,7 +628,7 @@ const WebhookManager: React.FC = () => {
               {Object.entries({
                 consultants: 'Consultores',
                 clients: 'Clientes',
-                projects: 'Projetos/Demandas', 
+                projects: 'Projetos/Demandas (com detecção de status)', 
                 services: 'Serviços',
                 project_stages: 'Etapas de Projetos',
                 notes: 'Tarefas/Notas',
@@ -660,7 +666,7 @@ const WebhookManager: React.FC = () => {
             className="w-full"
           >
             {isLoading && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-            Registrar Webhook Completo
+            Registrar Webhook Avançado
           </Button>
         </CardFooter>
       </Card>
@@ -680,7 +686,7 @@ const WebhookManager: React.FC = () => {
               ) : (
                 <TestTube className="h-4 w-4 mr-2" />
               )}
-              Testar Sistema
+              Testar Sistema Completo
             </Button>
             <Button 
               size="sm" 
@@ -706,14 +712,14 @@ const WebhookManager: React.FC = () => {
           ) : webhooks.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               <p className="text-lg mb-2">Nenhum webhook registrado</p>
-              <p className="text-sm">Configure um webhook acima para receber todas as alterações do sistema automaticamente</p>
+              <p className="text-sm">Configure um webhook acima para receber todas as alterações incluindo mudanças de status automaticamente</p>
             </div>
           ) : (
             <div className="space-y-4">
               <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
                 <p className="text-sm text-green-800 flex items-center gap-2">
                   <Shield className="h-4 w-4" />
-                  Sistema ativo - Capturando automaticamente todas as operações a cada {webhookConfig.interval_seconds} segundos
+                  Sistema avançado ativo - Capturando automaticamente todas as operações incluindo mudanças de status a cada {webhookConfig.interval_seconds} segundos
                 </p>
               </div>
               {webhooks.map((webhook) => (
@@ -730,6 +736,11 @@ const WebhookManager: React.FC = () => {
                       <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded">
                         {webhook.is_active ? `Ativo (${webhookConfig.interval_seconds}s)` : 'Inativo'}
                       </span>
+                      {webhook.tables.includes('projects') && (
+                        <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                          Status Detection ✓
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2 ml-4">

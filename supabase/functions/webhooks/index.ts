@@ -192,14 +192,22 @@ serve(async (req) => {
         table_name: 'test',
         timestamp: formatDateTimeBR(currentDate),
         data: {
-          message: 'Este é um payload de teste do webhook',
+          message: 'Teste do sistema de webhook - tudo funcionando!',
           test: true,
           data_sistema: formatDateBR(currentDate),
           hora_sistema: formatDateTimeBR(currentDate),
+          project_status_change: {
+            project_id: 'test-project-123',
+            project_name: 'Projeto de Teste',
+            old_status: 'planned',
+            new_status: 'in_progress',
+            changed_at: formatDateTimeBR(currentDate),
+            changed_by: 'Sistema de Teste'
+          },
           project: {
             id: 'test-project-id',
             name: 'Projeto de Teste',
-            status: 'active',
+            status: 'in_progress',
             created_at: formatDateBR(currentDate),
             due_date: formatDateBR(new Date(currentDate.getTime() + 30 * 24 * 60 * 60 * 1000))
           },
@@ -226,7 +234,8 @@ serve(async (req) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'User-Agent': 'Supabase-Webhook-Test/1.0'
+            'User-Agent': 'Supabase-Webhook-Test/1.0',
+            'X-Test-Event': 'true'
           },
           body: JSON.stringify(testPayload)
         });
@@ -250,7 +259,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success, 
-            message: success ? "Teste enviado com sucesso" : `Teste falhou: ${response.status} ${response.statusText}`,
+            message: success ? "Teste enviado com sucesso!" : `Teste falhou: ${response.status} ${response.statusText}`,
             status: response.status,
             statusText: response.statusText,
             responseBody: responseText
@@ -431,11 +440,11 @@ serve(async (req) => {
     }
 
     if (action === "trigger_test") {
-      console.log('Triggering comprehensive test webhook events');
+      console.log('Triggering comprehensive test webhook events including project status changes');
       
       const currentDate = new Date();
       
-      // Create comprehensive test data with Brazilian date formatting
+      // Create comprehensive test data with Brazilian date formatting including project status changes
       const testClientData = {
         id: crypto.randomUUID(),
         name: 'Cliente de Teste Webhook',
@@ -468,6 +477,27 @@ serve(async (req) => {
         due_date: formatDateBR(new Date(currentDate.getTime() + 30 * 24 * 60 * 60 * 1000))
       };
 
+      // Project status change test data
+      const testProjectStatusChangeData = {
+        id: testProjectData.id,
+        name: testProjectData.name,
+        description: testProjectData.description,
+        status: 'in_progress', // Changed from 'planned' to 'in_progress'
+        total_value: testProjectData.total_value,
+        client_id: testProjectData.client_id,
+        main_consultant_id: testProjectData.main_consultant_id,
+        created_at: testProjectData.created_at,
+        start_date: testProjectData.start_date,
+        due_date: testProjectData.due_date,
+        updated_at: formatDateTimeBR(currentDate),
+        status_change_info: {
+          old_status: 'planned',
+          new_status: 'in_progress',
+          changed_at: formatDateTimeBR(currentDate),
+          change_reason: 'Teste de mudança de status via webhook'
+        }
+      };
+
       const testStageData = {
         id: crypto.randomUUID(),
         project_id: testProjectData.id,
@@ -498,28 +528,31 @@ serve(async (req) => {
         );
       }
 
-      // Create webhook logs for all entity types
+      // Create webhook logs for all entity types including project status changes
       const testEntities = [
-        { table: 'clients', data: testClientData },
-        { table: 'consultants', data: testConsultantData },
-        { table: 'projects', data: testProjectData },
-        { table: 'project_stages', data: testStageData }
+        { table: 'clients', data: testClientData, event: 'INSERT' },
+        { table: 'consultants', data: testConsultantData, event: 'INSERT' },
+        { table: 'projects', data: testProjectData, event: 'INSERT' },
+        { table: 'projects', data: testProjectStatusChangeData, event: 'UPDATE' }, // Status change event
+        { table: 'project_stages', data: testStageData, event: 'INSERT' }
       ];
 
       let logsCreated = 0;
 
       for (const webhook of webhooks) {
         for (const entity of testEntities) {
-          if (webhook.tables.includes(entity.table) && webhook.events.includes('INSERT')) {
+          if (webhook.tables.includes(entity.table) && webhook.events.includes(entity.event)) {
             await supabaseClient
               .from('webhook_logs')
               .insert({
                 webhook_id: webhook.id,
-                event_type: 'INSERT',
+                event_type: entity.event,
                 table_name: entity.table,
                 payload: entity.data
               });
             logsCreated++;
+            
+            console.log(`Created webhook log for ${entity.table} ${entity.event} event`);
           }
         }
       }
@@ -527,7 +560,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: `${logsCreated} eventos de teste criados para ${webhooks.length} webhook(s) ativos` 
+          message: `${logsCreated} eventos de teste criados incluindo mudanças de status de projeto para ${webhooks.length} webhook(s) ativos` 
         }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -537,7 +570,7 @@ serve(async (req) => {
     }
 
     if (action === "setup_triggers") {
-      console.log('Setting up automatic database triggers for webhook system');
+      console.log('Setting up automatic database triggers for webhook system including project status changes');
       
       const tablesToMonitor = [
         'consultants',
@@ -558,7 +591,7 @@ serve(async (req) => {
       let results = [];
 
       try {
-        // First, ensure the trigger function exists and is updated
+        // Enhanced trigger function that captures project status changes specifically
         const triggerFunctionSQL = `
           CREATE OR REPLACE FUNCTION public.trigger_webhooks()
           RETURNS trigger
@@ -569,6 +602,7 @@ serve(async (req) => {
             webhook_record RECORD;
             payload jsonb;
             event_type text;
+            enhanced_payload jsonb;
           BEGIN
             -- Determinar o tipo de evento
             IF TG_OP = 'INSERT' then
@@ -580,6 +614,20 @@ serve(async (req) => {
                 'old', to_jsonb(OLD),
                 'new', to_jsonb(NEW)
               );
+              
+              -- Enhanced handling for project status changes
+              IF TG_TABLE_NAME = 'projects' AND OLD.status != NEW.status THEN
+                payload := payload || jsonb_build_object(
+                  'status_change', jsonb_build_object(
+                    'old_status', OLD.status,
+                    'new_status', NEW.status,
+                    'changed_at', NOW(),
+                    'project_id', NEW.id,
+                    'project_name', NEW.name
+                  )
+                );
+              END IF;
+              
             ELSIF TG_OP = 'DELETE' then
               event_type := 'DELETE';
               payload := to_jsonb(OLD);
@@ -595,6 +643,20 @@ serve(async (req) => {
               -- Inserir na fila de webhooks para processamento
               INSERT INTO public.webhook_logs (webhook_id, event_type, table_name, payload)
               VALUES (webhook_record.id, event_type, TG_TABLE_NAME, payload);
+              
+              -- Log successful webhook queue insertion
+              INSERT INTO public.system_logs (log_type, category, message, details)
+              VALUES (
+                'info', 
+                'webhook', 
+                'Webhook event queued for processing',
+                jsonb_build_object(
+                  'webhook_id', webhook_record.id,
+                  'event_type', event_type,
+                  'table_name', TG_TABLE_NAME,
+                  'webhook_url', webhook_record.url
+                )
+              );
             END LOOP;
 
             IF TG_OP = 'DELETE' THEN
@@ -611,11 +673,11 @@ serve(async (req) => {
         });
 
         if (functionError) {
-          console.error('Error creating trigger function:', functionError);
+          console.error('Error creating enhanced trigger function:', functionError);
           return new Response(
             JSON.stringify({ 
               success: false, 
-              message: `Error creating trigger function: ${functionError.message}` 
+              message: `Error creating enhanced trigger function: ${functionError.message}` 
             }),
             { 
               headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -624,7 +686,7 @@ serve(async (req) => {
           );
         }
 
-        console.log('Webhook trigger function created/updated successfully');
+        console.log('Enhanced webhook trigger function created/updated successfully with project status change detection');
 
         // Now create triggers for each table
         for (const tableName of tablesToMonitor) {
@@ -655,11 +717,15 @@ serve(async (req) => {
                 message: triggerError.message
               });
             } else {
-              console.log(`Webhook trigger created for ${tableName}`);
+              console.log(`Enhanced webhook trigger created for ${tableName}`);
+              const message = tableName === 'projects' 
+                ? 'Trigger criado com detecção especial de mudanças de status'
+                : 'Trigger criado com sucesso - capturando INSERT, UPDATE e DELETE';
+              
               results.push({
                 table: tableName,
                 status: 'created',
-                message: 'Trigger criado com sucesso - capturando INSERT, UPDATE e DELETE'
+                message: message
               });
             }
           } catch (error) {
@@ -675,17 +741,18 @@ serve(async (req) => {
         const successCount = results.filter(r => r.status === 'created').length;
         const errorCount = results.filter(r => r.status === 'error').length;
 
-        console.log(`Triggers setup completed: ${successCount} success, ${errorCount} errors`);
+        console.log(`Enhanced triggers setup completed: ${successCount} success, ${errorCount} errors`);
 
         return new Response(
           JSON.stringify({ 
             success: true, 
-            message: `Sistema configurado: ${successCount} triggers criados, ${errorCount} erros`,
+            message: `Sistema configurado com detecção de mudanças de status: ${successCount} triggers criados, ${errorCount} erros`,
             results: results,
             summary: {
               total: tablesToMonitor.length,
               success: successCount,
-              errors: errorCount
+              errors: errorCount,
+              special_features: ['Detecção de mudanças de status de projetos', 'Log automático de eventos', 'Enriquecimento de dados']
             }
           }),
           { 
@@ -695,11 +762,11 @@ serve(async (req) => {
         );
 
       } catch (error) {
-        console.error('Error in trigger setup:', error);
+        console.error('Error in enhanced trigger setup:', error);
         return new Response(
           JSON.stringify({ 
             success: false, 
-            message: `Erro geral na configuração: ${error.message}`,
+            message: `Erro geral na configuração avançada: ${error.message}`,
             error: error.message
           }),
           { 
@@ -737,7 +804,7 @@ serve(async (req) => {
   }
 })
 
-// Function to enrich webhook payload with related data
+// Enhanced function to enrich webhook payload with related data and project status change detection
 async function enrichWebhookPayload(log: any, supabaseClient: any) {
   const basePayload = {
     event_type: log.event_type,
@@ -754,14 +821,35 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
       formatPayloadDates(basePayload.data);
     }
 
+    // Special handling for project status changes
+    if (log.table_name === 'projects' && log.event_type === 'UPDATE') {
+      const oldData = log.payload?.old;
+      const newData = log.payload?.new;
+      
+      if (oldData && newData && oldData.status !== newData.status) {
+        basePayload.data.status_change_detected = true;
+        basePayload.data.status_change_details = {
+          old_status: oldData.status,
+          new_status: newData.status,
+          project_id: newData.id,
+          project_name: newData.name,
+          changed_at: formatDateTimeBR(log.created_at),
+          change_type: 'project_status_update'
+        };
+        
+        console.log(`Project status change detected: ${oldData.status} -> ${newData.status} for project ${newData.name}`);
+      }
+    }
+
     // Enrich based on table type
     switch (log.table_name) {
       case 'projects':
-        if (log.payload?.client_id) {
+        if (log.payload?.client_id || log.payload?.new?.client_id) {
+          const clientId = log.payload?.client_id || log.payload?.new?.client_id;
           const { data: client } = await supabaseClient
             .from('clients')
             .select('*')
-            .eq('id', log.payload.client_id)
+            .eq('id', clientId)
             .single();
           
           if (client) {
@@ -770,11 +858,12 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
           }
         }
 
-        if (log.payload?.main_consultant_id) {
+        if (log.payload?.main_consultant_id || log.payload?.new?.main_consultant_id) {
+          const consultantId = log.payload?.main_consultant_id || log.payload?.new?.main_consultant_id;
           const { data: consultant } = await supabaseClient
             .from('consultants')
             .select('*')
-            .eq('id', log.payload.main_consultant_id)
+            .eq('id', consultantId)
             .single();
           
           if (consultant) {
@@ -783,11 +872,12 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
           }
         }
 
-        if (log.payload?.service_id) {
+        if (log.payload?.service_id || log.payload?.new?.service_id) {
+          const serviceId = log.payload?.service_id || log.payload?.new?.service_id;
           const { data: service } = await supabaseClient
             .from('services')
             .select('*')
-            .eq('id', log.payload.service_id)
+            .eq('id', serviceId)
             .single();
           
           if (service) {
@@ -798,7 +888,8 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
         break;
 
       case 'project_stages':
-        if (log.payload?.project_id) {
+        if (log.payload?.project_id || log.payload?.new?.project_id) {
+          const projectId = log.payload?.project_id || log.payload?.new?.project_id;
           const { data: project } = await supabaseClient
             .from('projects')
             .select(`
@@ -806,7 +897,7 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
               clients(*),
               services(*)
             `)
-            .eq('id', log.payload.project_id)
+            .eq('id', projectId)
             .single();
           
           if (project) {
@@ -820,11 +911,12 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
 
       case 'clients':
         // For new clients, include count of their projects
-        if (log.event_type === 'INSERT') {
+        const clientId = log.payload?.id || log.payload?.new?.id;
+        if (log.event_type === 'INSERT' && clientId) {
           const { count } = await supabaseClient
             .from('projects')
             .select('*', { count: 'exact', head: true })
-            .eq('client_id', log.payload.id);
+            .eq('client_id', clientId);
           
           basePayload.data.project_count = count || 0;
         }
@@ -832,11 +924,12 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
 
       case 'consultants':
         // For consultants, include their active projects and stats
-        if (log.payload?.id) {
+        const consultantPayloadId = log.payload?.id || log.payload?.new?.id;
+        if (consultantPayloadId) {
           const { data: projects } = await supabaseClient
             .from('projects')
             .select('*')
-            .or(`main_consultant_id.eq.${log.payload.id},support_consultant_id.eq.${log.payload.id}`)
+            .or(`main_consultant_id.eq.${consultantPayloadId},support_consultant_id.eq.${consultantPayloadId}`)
             .eq('status', 'active');
           
           if (projects) {
@@ -853,11 +946,12 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
       case 'accounts_receivable':
       case 'manual_transactions':
         // Add financial context
-        if (log.payload?.project_id) {
+        const financialProjectId = log.payload?.project_id || log.payload?.new?.project_id;
+        if (financialProjectId) {
           const { data: project } = await supabaseClient
             .from('projects')
-            .select('id, name, client_id, clients(name)')
-            .eq('id', log.payload.project_id)
+            .select('id, name, status, client_id, clients(name)')
+            .eq('id', financialProjectId)
             .single();
           
           if (project) {
@@ -869,11 +963,12 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
 
       case 'notes':
         // Add task/note context
-        if (log.payload?.client_id) {
+        const noteClientId = log.payload?.client_id || log.payload?.new?.client_id;
+        if (noteClientId) {
           const { data: client } = await supabaseClient
             .from('clients')
             .select('id, name')
-            .eq('id', log.payload.client_id)
+            .eq('id', noteClientId)
             .single();
           
           if (client) {
@@ -884,11 +979,12 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
 
       case 'chat_messages':
         // Add chat room context
-        if (log.payload?.room_id) {
+        const roomId = log.payload?.room_id || log.payload?.new?.room_id;
+        if (roomId) {
           const { data: room } = await supabaseClient
             .from('chat_rooms')
             .select('id, name, project_id')
-            .eq('id', log.payload.room_id)
+            .eq('id', roomId)
             .single();
           
           if (room) {
