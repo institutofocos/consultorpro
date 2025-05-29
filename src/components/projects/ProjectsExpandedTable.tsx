@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { 
   Table, 
@@ -21,7 +22,8 @@ import {
   DollarSign,
   Clock,
   CheckCircle,
-  XCircle
+  XCircle,
+  Url
 } from 'lucide-react';
 import { Project } from './types';
 import { format } from 'date-fns';
@@ -215,7 +217,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                       className="p-1 h-8 w-8"
                       title={`Abrir ${project.url}`}
                     >
-                      <ExternalLink className="h-4 w-4 text-blue-600" />
+                      <Url className="h-4 w-4 text-blue-600" />
                     </Button>
                   ) : (
                     <span className="text-muted-foreground text-sm">-</span>
