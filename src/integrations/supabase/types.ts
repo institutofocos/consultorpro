@@ -1075,36 +1075,6 @@ export type Database = {
         }
         Relationships: []
       }
-      system_logs: {
-        Row: {
-          category: string
-          created_at: string
-          details: Json | null
-          id: string
-          log_type: string
-          message: string
-          user_id: string | null
-        }
-        Insert: {
-          category: string
-          created_at?: string
-          details?: Json | null
-          id?: string
-          log_type?: string
-          message: string
-          user_id?: string | null
-        }
-        Update: {
-          category?: string
-          created_at?: string
-          details?: Json | null
-          id?: string
-          log_type?: string
-          message?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       system_settings: {
         Row: {
           created_at: string
@@ -1186,53 +1156,6 @@ export type Database = {
         }
         Relationships: []
       }
-      webhook_logs: {
-        Row: {
-          attempt_count: number
-          created_at: string
-          event_type: string
-          id: string
-          payload: Json
-          response_body: string | null
-          response_status: number | null
-          success: boolean
-          table_name: string
-          webhook_id: string | null
-        }
-        Insert: {
-          attempt_count?: number
-          created_at?: string
-          event_type: string
-          id?: string
-          payload: Json
-          response_body?: string | null
-          response_status?: number | null
-          success?: boolean
-          table_name: string
-          webhook_id?: string | null
-        }
-        Update: {
-          attempt_count?: number
-          created_at?: string
-          event_type?: string
-          id?: string
-          payload?: Json
-          response_body?: string | null
-          response_status?: number | null
-          success?: boolean
-          table_name?: string
-          webhook_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "webhook_logs_webhook_id_fkey"
-            columns: ["webhook_id"]
-            isOneToOne: false
-            referencedRelation: "webhooks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       webhooks: {
         Row: {
           created_at: string
@@ -1265,104 +1188,6 @@ export type Database = {
           url?: string
         }
         Relationships: []
-      }
-      whatsapp_connections: {
-        Row: {
-          connection_data: Json | null
-          created_at: string | null
-          evolution_api_key: string
-          evolution_api_url: string
-          export_from_date: string | null
-          id: string
-          instance_name: string
-          last_sync_at: string | null
-          phone_number: string | null
-          qr_code: string | null
-          status: string
-          updated_at: string | null
-          user_id: string
-          webhook_url: string | null
-        }
-        Insert: {
-          connection_data?: Json | null
-          created_at?: string | null
-          evolution_api_key: string
-          evolution_api_url: string
-          export_from_date?: string | null
-          id?: string
-          instance_name: string
-          last_sync_at?: string | null
-          phone_number?: string | null
-          qr_code?: string | null
-          status?: string
-          updated_at?: string | null
-          user_id: string
-          webhook_url?: string | null
-        }
-        Update: {
-          connection_data?: Json | null
-          created_at?: string | null
-          evolution_api_key?: string
-          evolution_api_url?: string
-          export_from_date?: string | null
-          id?: string
-          instance_name?: string
-          last_sync_at?: string | null
-          phone_number?: string | null
-          qr_code?: string | null
-          status?: string
-          updated_at?: string | null
-          user_id?: string
-          webhook_url?: string | null
-        }
-        Relationships: []
-      }
-      whatsapp_contacts: {
-        Row: {
-          connection_id: string
-          created_at: string | null
-          group_participants: Json | null
-          id: string
-          is_group: boolean | null
-          name: string
-          phone_number: string | null
-          profile_picture_url: string | null
-          updated_at: string | null
-          whatsapp_id: string
-        }
-        Insert: {
-          connection_id: string
-          created_at?: string | null
-          group_participants?: Json | null
-          id?: string
-          is_group?: boolean | null
-          name: string
-          phone_number?: string | null
-          profile_picture_url?: string | null
-          updated_at?: string | null
-          whatsapp_id: string
-        }
-        Update: {
-          connection_id?: string
-          created_at?: string | null
-          group_participants?: Json | null
-          id?: string
-          is_group?: boolean | null
-          name?: string
-          phone_number?: string | null
-          profile_picture_url?: string | null
-          updated_at?: string | null
-          whatsapp_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "whatsapp_contacts_connection_id_fkey"
-            columns: ["connection_id"]
-            isOneToOne: false
-            referencedRelation: "whatsapp_connections"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {
@@ -1450,16 +1275,6 @@ export type Database = {
           p_old_value?: string
           p_new_value?: string
           p_user_name?: string
-        }
-        Returns: string
-      }
-      insert_system_log: {
-        Args: {
-          p_log_type?: string
-          p_category?: string
-          p_message?: string
-          p_details?: Json
-          p_user_id?: string
         }
         Returns: string
       }

@@ -1,4 +1,4 @@
 
-// This file has been removed as the scheduled_messages table was dropped
-// All scheduled message functionality has been removed from the system
+// Este arquivo foi removido pois as funcionalidades de WhatsApp foram removidas do sistema
+// Todas as tabelas e funções relacionadas a mensagens agendadas foram removidas
 export {};
