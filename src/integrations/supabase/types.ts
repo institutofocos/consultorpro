@@ -335,6 +335,79 @@ export type Database = {
           },
         ]
       }
+      gantt_tasks: {
+        Row: {
+          assigned_consultant_id: string | null
+          created_at: string
+          depends_on_task_id: string | null
+          duration_days: number
+          end_date: string
+          id: string
+          priority: string | null
+          progress_percentage: number | null
+          project_id: string
+          start_date: string
+          status: string | null
+          task_description: string | null
+          task_name: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_consultant_id?: string | null
+          created_at?: string
+          depends_on_task_id?: string | null
+          duration_days?: number
+          end_date: string
+          id?: string
+          priority?: string | null
+          progress_percentage?: number | null
+          project_id: string
+          start_date: string
+          status?: string | null
+          task_description?: string | null
+          task_name: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_consultant_id?: string | null
+          created_at?: string
+          depends_on_task_id?: string | null
+          duration_days?: number
+          end_date?: string
+          id?: string
+          priority?: string | null
+          progress_percentage?: number | null
+          project_id?: string
+          start_date?: string
+          status?: string | null
+          task_description?: string | null
+          task_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gantt_tasks_assigned_consultant_id_fkey"
+            columns: ["assigned_consultant_id"]
+            isOneToOne: false
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gantt_tasks_depends_on_task_id_fkey"
+            columns: ["depends_on_task_id"]
+            isOneToOne: false
+            referencedRelation: "gantt_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gantt_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       indicators: {
         Row: {
           category: string
@@ -1389,6 +1462,10 @@ export type Database = {
       is_project_fully_completed: {
         Args: { p_project_id: string }
         Returns: boolean
+      }
+      populate_gantt_from_project: {
+        Args: { p_project_id: string }
+        Returns: undefined
       }
     }
     Enums: {
