@@ -60,36 +60,51 @@ export type Database = {
         Row: {
           amount: number
           client_id: string | null
+          consultant_id: string | null
           created_at: string
           description: string
           due_date: string
           id: string
           payment_date: string | null
           project_id: string | null
+          project_name: string | null
+          stage_id: string | null
+          stage_name: string | null
+          stage_status: string | null
           status: string
           updated_at: string
         }
         Insert: {
           amount: number
           client_id?: string | null
+          consultant_id?: string | null
           created_at?: string
           description: string
           due_date: string
           id?: string
           payment_date?: string | null
           project_id?: string | null
+          project_name?: string | null
+          stage_id?: string | null
+          stage_name?: string | null
+          stage_status?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
           amount?: number
           client_id?: string | null
+          consultant_id?: string | null
           created_at?: string
           description?: string
           due_date?: string
           id?: string
           payment_date?: string | null
           project_id?: string | null
+          project_name?: string | null
+          stage_id?: string | null
+          stage_name?: string | null
+          stage_status?: string | null
           status?: string
           updated_at?: string
         }

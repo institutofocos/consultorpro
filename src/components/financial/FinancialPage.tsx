@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PlusCircle, AlertCircle } from 'lucide-react';
@@ -268,14 +267,14 @@ const FinancialPage = () => {
         onFilterReset={handleFilterReset}
       />
 
-      {/* Warning about automatic data */}
+      {/* Enhanced Warning about automatic data */}
       <Alert>
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Transações do Sistema</AlertTitle>
+        <AlertTitle>Contas a Receber Automáticas</AlertTitle>
         <AlertDescription>
-          As transações do sistema são geradas automaticamente a partir das etapas dos projetos. 
-          Para criar lançamentos manuais, use o botão "Novo Lançamento". Todas as alterações são automaticamente 
-          sincronizadas entre as seções de transações e contas a pagar/receber.
+          As contas a receber são criadas automaticamente quando você adiciona etapas aos projetos. 
+          Cada etapa gera uma entrada correspondente que pode ser marcada como "recebida" conforme os pagamentos são realizados.
+          Para transações manuais, use o botão "Novo Lançamento".
         </AlertDescription>
       </Alert>
 
@@ -294,7 +293,7 @@ const FinancialPage = () => {
         onDeleteManualTransaction={handleDeleteTransaction}
       />
 
-      {/* Accounts Payable/Receivable */}
+      {/* Accounts Payable/Receivable with enhanced functionality */}
       <AccountsPayableReceivable
         payables={{
           data: payables,

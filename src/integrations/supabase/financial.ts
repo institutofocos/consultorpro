@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export type FinancialTransaction = {
@@ -74,10 +73,15 @@ export type AccountsReceivable = {
   status: 'pending' | 'received' | 'canceled';
   client_id: string | null;
   project_id: string | null;
+  project_name?: string;
+  stage_name?: string;
+  stage_status?: string;
+  stage_id?: string;
+  consultant_id?: string;
   created_at: string;
   updated_at: string;
   client_name?: string;
-  project_name?: string;
+  consultant_name?: string;
 };
 
 export type FinancialFilter = {
@@ -429,7 +433,7 @@ export const fetchAccountsReceivable = async (filters: FinancialFilter = {}): Pr
     
     for (const receivable of (data || [])) {
       let clientName = '';
-      let projectName = '';
+      let consultantName = '';
       
       // Get client name
       if (receivable.client_id) {
@@ -444,23 +448,23 @@ export const fetchAccountsReceivable = async (filters: FinancialFilter = {}): Pr
         }
       }
       
-      // Get project name
-      if (receivable.project_id) {
-        const { data: projectData } = await supabase
-          .from('projects')
+      // Get consultant name
+      if (receivable.consultant_id) {
+        const { data: consultantData } = await supabase
+          .from('consultants')
           .select('name')
-          .eq('id', receivable.project_id)
+          .eq('id', receivable.consultant_id)
           .single();
           
-        if (projectData) {
-          projectName = projectData.name;
+        if (consultantData) {
+          consultantName = consultantData.name;
         }
       }
       
       receivables.push({
         ...receivable,
         client_name: clientName,
-        project_name: projectName
+        consultant_name: consultantName
       } as AccountsReceivable);
     }
     
@@ -486,6 +490,27 @@ export const updateTransactionStatus = async (id: string, status: 'pending' | 'c
 
   if (error) {
     console.error('Error updating transaction:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const updateAccountsReceivableStatus = async (id: string, status: 'pending' | 'received' | 'canceled', paymentDate?: string) => {
+  const updates: any = { status };
+  
+  if (paymentDate) {
+    updates.payment_date = paymentDate;
+  }
+
+  const { data, error } = await supabase
+    .from('accounts_receivable')
+    .update(updates)
+    .eq('id', id)
+    .select();
+
+  if (error) {
+    console.error('Error updating accounts receivable:', error);
     throw error;
   }
 
