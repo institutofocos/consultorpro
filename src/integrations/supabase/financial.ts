@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export type FinancialSummary = {
@@ -347,4 +346,97 @@ export const deleteManualTransaction = async (id: string) => {
   }
   
   return true;
+};
+
+export const cancelAccountsReceivable = async (id: string) => {
+  const { data, error } = await supabase
+    .from('accounts_receivable')
+    .update({ 
+      status: 'canceled',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select();
+
+  if (error) {
+    console.error('Error canceling accounts receivable:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const cancelAccountsPayable = async (id: string) => {
+  const { data, error } = await supabase
+    .from('accounts_payable')
+    .update({ 
+      status: 'canceled',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select();
+
+  if (error) {
+    console.error('Error canceling accounts payable:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const fetchAccountsHistory = async (filters: FinancialFilter = {}) => {
+  try {
+    const { startDate, endDate } = filters;
+    
+    // Buscar histórico de contas a receber
+    let receivablesQuery = supabase
+      .from('accounts_receivable')
+      .select('*, client_name:clients(name)')
+      .order('updated_at', { ascending: false });
+    
+    if (startDate) {
+      receivablesQuery = receivablesQuery.gte('due_date', startDate);
+    }
+    
+    if (endDate) {
+      receivablesQuery = receivablesQuery.lte('due_date', endDate);
+    }
+
+    // Buscar histórico de contas a pagar
+    let payablesQuery = supabase
+      .from('accounts_payable')
+      .select('*, consultant_name:consultants(name)')
+      .order('updated_at', { ascending: false });
+    
+    if (startDate) {
+      payablesQuery = payablesQuery.gte('due_date', startDate);
+    }
+    
+    if (endDate) {
+      payablesQuery = payablesQuery.lte('due_date', endDate);
+    }
+
+    const [receivablesData, payablesData] = await Promise.all([
+      receivablesQuery,
+      payablesQuery
+    ]);
+
+    const history = [
+      ...(receivablesData.data || []).map(item => ({
+        ...item,
+        type: 'receivable' as const,
+        entity_name: item.client_name?.name || '-'
+      })),
+      ...(payablesData.data || []).map(item => ({
+        ...item,
+        type: 'payable' as const,
+        entity_name: item.consultant_name?.name || '-'
+      }))
+    ].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+    return history;
+  } catch (error) {
+    console.error('Error fetching accounts history:', error);
+    return [];
+  }
 };

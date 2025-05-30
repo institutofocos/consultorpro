@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -19,11 +18,20 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { AccountsPayable, AccountsReceivable, updateAccountsReceivableStatus, updateAccountsPayableStatus } from '@/integrations/supabase/financial';
-import { CalendarIcon, CheckCircle, CreditCard } from 'lucide-react';
+import { 
+  AccountsPayable, 
+  AccountsReceivable, 
+  updateAccountsReceivableStatus, 
+  updateAccountsPayableStatus,
+  cancelAccountsReceivable,
+  cancelAccountsPayable,
+  fetchAccountsHistory
+} from '@/integrations/supabase/financial';
+import { CalendarIcon, CheckCircle, CreditCard, X, History } from 'lucide-react';
 import { toast } from 'sonner';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import MonthNavigation from "./MonthNavigation";
+import FinancialHistoryModal from "./FinancialHistoryModal";
 
 interface AccountsPayableReceivableProps {
   payables: {
@@ -50,6 +58,14 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
   const [isMarkingReceived, setIsMarkingReceived] = useState(false);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // Fetch history data
+  const { data: historyData, isLoading: historyLoading } = useQuery({
+    queryKey: ['accounts-history'],
+    queryFn: () => fetchAccountsHistory(),
+    enabled: showHistory,
+  });
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -97,6 +113,7 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
       toast.success("Status atualizado com sucesso");
       queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
     },
     onError: (error: any) => {
       toast.error("Erro ao atualizar status: " + error.message);
@@ -110,9 +127,36 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
       toast.success("Status atualizado com sucesso");
       queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
     },
     onError: (error: any) => {
       toast.error("Erro ao atualizar status: " + error.message);
+    },
+  });
+
+  const cancelReceivableMutation = useMutation({
+    mutationFn: cancelAccountsReceivable,
+    onSuccess: () => {
+      toast.success("Conta a receber cancelada com sucesso");
+      queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao cancelar conta a receber: " + error.message);
+    },
+  });
+
+  const cancelPayableMutation = useMutation({
+    mutationFn: cancelAccountsPayable,
+    onSuccess: () => {
+      toast.success("Conta a pagar cancelada com sucesso");
+      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao cancelar conta a pagar: " + error.message);
     },
   });
 
@@ -152,13 +196,36 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
     setSelectedPayable(null);
   };
 
+  const handleCancelReceivable = (id: string) => {
+    if (confirm("Tem certeza que deseja cancelar esta conta a receber?")) {
+      cancelReceivableMutation.mutate(id);
+    }
+  };
+
+  const handleCancelPayable = (id: string) => {
+    if (confirm("Tem certeza que deseja cancelar esta conta a pagar?")) {
+      cancelPayableMutation.mutate(id);
+    }
+  };
+
   return (
     <>
       <Tabs defaultValue="payable" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="payable">Contas a Pagar</TabsTrigger>
-          <TabsTrigger value="receivable">Contas a Receber</TabsTrigger>
-        </TabsList>
+        <div className="flex justify-between items-center mb-4">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="payable">Contas a Pagar</TabsTrigger>
+            <TabsTrigger value="receivable">Contas a Receber</TabsTrigger>
+          </TabsList>
+          
+          <Button
+            variant="outline"
+            onClick={() => setShowHistory(true)}
+            className="flex items-center gap-2"
+          >
+            <History className="h-4 w-4" />
+            Histórico
+          </Button>
+        </div>
         
         <TabsContent value="payable">
           <Card>
@@ -234,15 +301,26 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                         </TableCell>
                         <TableCell>
                           {payable.status === 'pending' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleMarkAsPaid(payable.id)}
-                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                            >
-                              <CreditCard className="h-4 w-4 mr-1" />
-                              Pago
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleMarkAsPaid(payable.id)}
+                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              >
+                                <CreditCard className="h-4 w-4 mr-1" />
+                                Pago
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleCancelPayable(payable.id)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <X className="h-4 w-4 mr-1" />
+                                Cancelar
+                              </Button>
+                            </div>
                           )}
                         </TableCell>
                       </TableRow>
@@ -332,15 +410,26 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                         </TableCell>
                         <TableCell>
                           {receivable.status === 'pending' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleMarkAsReceived(receivable.id)}
-                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Recebido
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleMarkAsReceived(receivable.id)}
+                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Recebido
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleCancelReceivable(receivable.id)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <X className="h-4 w-4 mr-1" />
+                                Cancelar
+                              </Button>
+                            </div>
                           )}
                         </TableCell>
                       </TableRow>
@@ -434,6 +523,14 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Financial History Modal */}
+      <FinancialHistoryModal
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+        history={historyData || []}
+        isLoading={historyLoading}
+      />
     </>
   );
 };
