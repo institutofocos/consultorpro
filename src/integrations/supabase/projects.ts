@@ -520,7 +520,8 @@ export const createProject = async (project: any) => {
         manager_approved: false,
         invoice_issued: false,
         payment_received: false,
-        consultants_settled: false
+        consultants_settled: false,
+        valor_de_repasse: Number(stage.valorDeRepasse) || 0
       }));
 
       console.log('Dados das etapas para inserção:', stagesData);
@@ -636,7 +637,8 @@ export const updateProject = async (project: any) => {
         manager_approved: stage.managerApproved || false,
         invoice_issued: stage.invoiceIssued || false,
         payment_received: stage.paymentReceived || false,
-        consultants_settled: stage.consultantsSettled || false
+        consultants_settled: stage.consultantsSettled || false,
+        valor_de_repasse: Number(stage.valorDeRepasse) || 0
       }));
 
       console.log('Dados das etapas para atualização:', stagesData);
