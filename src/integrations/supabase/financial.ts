@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export type FinancialSummary = {
@@ -36,7 +37,7 @@ export type AccountsPayable = {
   amount: number;
   due_date: string;
   payment_date: string | null;
-  status: 'pending' | 'paid' | 'canceled';
+  status: 'pending' | 'paid' | 'canceled' | 'deleted';
   consultant_id: string | null;
   project_id: string | null;
   project_name: string | null;
@@ -55,7 +56,7 @@ export type AccountsReceivable = {
   amount: number;
   due_date: string;
   payment_date: string | null;
-  status: 'pending' | 'received' | 'canceled';
+  status: 'pending' | 'received' | 'canceled' | 'deleted';
   client_id: string | null;
   project_id: string | null;
   project_name?: string;
