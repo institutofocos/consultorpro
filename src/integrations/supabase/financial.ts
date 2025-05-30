@@ -81,8 +81,8 @@ export const fetchFinancialSummary = async (filters: FinancialFilter = {}): Prom
     // Calcular resumo baseado em contas a pagar/receber
     const { startDate, endDate, consultantId } = filters;
     
-    let payableQuery = supabase.from('accounts_payable').select('*');
-    let receivableQuery = supabase.from('accounts_receivable').select('*');
+    let payableQuery = supabase.from('accounts_payable').select('*').neq('status', 'deleted');
+    let receivableQuery = supabase.from('accounts_receivable').select('*').neq('status', 'deleted');
     
     if (startDate) {
       payableQuery = payableQuery.gte('due_date', startDate);
@@ -107,7 +107,7 @@ export const fetchFinancialSummary = async (filters: FinancialFilter = {}): Prom
     const payables = payableData.data || [];
     const receivables = receivableData.data || [];
     
-    // Calcular totais
+    // Calcular totais - excluindo itens com status 'deleted'
     const totalExpected = receivables.reduce((sum, item) => sum + Number(item.amount), 0);
     const totalReceived = receivables.filter(item => item.status === 'received').reduce((sum, item) => sum + Number(item.amount), 0);
     const totalPending = receivables.filter(item => item.status === 'pending').reduce((sum, item) => sum + Number(item.amount), 0);
@@ -354,6 +354,42 @@ export const deleteManualTransaction = async (id: string) => {
   return true;
 };
 
+export const deleteAccountsReceivable = async (id: string) => {
+  const { data, error } = await supabase
+    .from('accounts_receivable')
+    .update({ 
+      status: 'deleted',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select();
+
+  if (error) {
+    console.error('Error deleting accounts receivable:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const deleteAccountsPayable = async (id: string) => {
+  const { data, error } = await supabase
+    .from('accounts_payable')
+    .update({ 
+      status: 'deleted',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select();
+
+  if (error) {
+    console.error('Error deleting accounts payable:', error);
+    throw error;
+  }
+
+  return data;
+};
+
 export const cancelAccountsReceivable = async (id: string) => {
   const { data, error } = await supabase
     .from('accounts_receivable')
@@ -396,7 +432,7 @@ export const fetchAccountsHistory = async (filters: FinancialFilter = {}) => {
     
     console.log('Fetching accounts history with filters:', { startDate, endDate, consultantId });
     
-    // Buscar todas as contas a receber (vinculadas a etapas e manuais)
+    // Buscar todas as contas a receber (incluindo excluídas para o histórico)
     let receivablesQuery = supabase
       .from('accounts_receivable')
       .select(`
@@ -417,7 +453,7 @@ export const fetchAccountsHistory = async (filters: FinancialFilter = {}) => {
       receivablesQuery = receivablesQuery.eq('consultant_id', consultantId);
     }
 
-    // Buscar todas as contas a pagar (vinculadas a etapas e manuais)
+    // Buscar todas as contas a pagar (incluindo excluídas para o histórico)
     let payablesQuery = supabase
       .from('accounts_payable')
       .select(`

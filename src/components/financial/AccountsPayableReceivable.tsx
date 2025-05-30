@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -26,6 +27,8 @@ import {
   updateAccountsPayableStatus,
   cancelAccountsReceivable,
   cancelAccountsPayable,
+  deleteAccountsReceivable,
+  deleteAccountsPayable,
   fetchAccountsHistory
 } from '@/integrations/supabase/financial';
 import { CalendarIcon, CheckCircle, CreditCard, X, History, Trash2 } from 'lucide-react';
@@ -85,6 +88,8 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
         return <Badge variant="outline" className="bg-green-100 text-green-800">Recebido</Badge>;
       case 'canceled':
         return <Badge variant="outline" className="bg-red-100 text-red-800">Cancelado</Badge>;
+      case 'deleted':
+        return <Badge variant="outline" className="bg-gray-100 text-gray-800">Excluído</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -180,6 +185,38 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
     },
   });
 
+  const deleteReceivableMutation = useMutation({
+    mutationFn: deleteAccountsReceivable,
+    onSuccess: () => {
+      toast.success("Conta a receber excluída com sucesso");
+      queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
+      if (showHistory) {
+        refetchHistory();
+      }
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao excluir conta a receber: " + error.message);
+    },
+  });
+
+  const deletePayableMutation = useMutation({
+    mutationFn: deleteAccountsPayable,
+    onSuccess: () => {
+      toast.success("Conta a pagar excluída com sucesso");
+      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
+      if (showHistory) {
+        refetchHistory();
+      }
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao excluir conta a pagar: " + error.message);
+    },
+  });
+
   const handleMarkAsReceived = (receivableId: string) => {
     setSelectedReceivable(receivableId);
     setIsMarkingReceived(true);
@@ -243,9 +280,9 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
     if (!deleteTarget) return;
 
     if (deleteTarget.type === 'receivable') {
-      cancelReceivableMutation.mutate(deleteTarget.id);
+      deleteReceivableMutation.mutate(deleteTarget.id);
     } else {
-      cancelPayableMutation.mutate(deleteTarget.id);
+      deletePayableMutation.mutate(deleteTarget.id);
     }
 
     setShowDeleteModal(false);
@@ -378,15 +415,17 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                                 </Button>
                               </>
                             )}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDeleteClick(payable.id, 'payable')}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
-                              title="Excluir"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {payable.status !== 'deleted' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteClick(payable.id, 'payable')}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
+                                title="Excluir"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -498,15 +537,17 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                                 </Button>
                               </>
                             )}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDeleteClick(receivable.id, 'receivable')}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
-                              title="Excluir"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {receivable.status !== 'deleted' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteClick(receivable.id, 'receivable')}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
+                                title="Excluir"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
