@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -80,8 +79,7 @@ const ProjectList: React.FC = () => {
     data: projects = [], 
     isLoading, 
     isError, 
-    refetch,
-    error
+    refetch 
   } = useQuery({
     queryKey: ['projects'],
     queryFn: fetchProjects,
@@ -101,11 +99,11 @@ const ProjectList: React.FC = () => {
     return completionStatuses.some(s => s.name === status) || status === 'concluido';
   };
 
-  const filteredProjects = (projects as Project[]).filter((project: Project) => {
+  const filteredProjects = projects.filter((project: Project) => {
     const matchesSearch = searchTerm === '' || 
       project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()));
-
+    
     // Lógica do filtro de status - incluindo entregas atrasadas
     let matchesStatus = false;
     if (statusFilter === '') {
@@ -154,7 +152,7 @@ const ProjectList: React.FC = () => {
 
   const handleDeleteProject = async (id: string) => {
     // Find the project to check its status
-    const project = (projects as Project[]).find(p => p.id === id);
+    const project = projects.find(p => p.id === id);
     
     if (!project) {
       toast.error("Projeto não encontrado.");
@@ -182,11 +180,13 @@ const ProjectList: React.FC = () => {
   };
 
   const handleEditProject = (project: any) => {
+    console.log('Editando projeto:', project);
     setEditingProject(project);
     setIsDialogOpen(true);
   };
 
   const handleNewProject = () => {
+    console.log('Criando novo projeto');
     setEditingProject(null);
     setIsDialogOpen(true);
   };
@@ -205,6 +205,9 @@ const ProjectList: React.FC = () => {
 
   const handleProjectSaved = async (savedProject?: Project) => {
     try {
+      console.log('=== PROJETO SALVO - ATUALIZANDO LISTA ===');
+      console.log('Projeto salvo:', savedProject);
+      
       // Force refetch data to ensure we get the latest
       await refetch();
       
@@ -212,6 +215,7 @@ const ProjectList: React.FC = () => {
       setIsDialogOpen(false);
       setEditingProject(null);
       
+      console.log('Lista de projetos atualizada com sucesso');
       toast.success("Projeto salvo e lista atualizada com sucesso!");
     } catch (error) {
       console.error('Erro ao atualizar lista de projetos:', error);
@@ -220,6 +224,7 @@ const ProjectList: React.FC = () => {
   };
 
   const handleDialogOpenChange = (open: boolean) => {
+    console.log('Dialog open change:', open);
     setIsDialogOpen(open);
     if (!open) {
       setEditingProject(null);
@@ -312,7 +317,10 @@ const ProjectList: React.FC = () => {
             <Input
               placeholder="Buscar projetos..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                console.log('Mudando termo de busca:', e.target.value);
+                setSearchTerm(e.target.value);
+              }}
             />
             
             {/* Filtro de status usando dados dinâmicos */}
@@ -413,20 +421,10 @@ const ProjectList: React.FC = () => {
       <Card className="overflow-hidden">
         <CardContent className="p-6 pt-6">
           {isLoading ? (
-            <div className="text-center py-8">
-              <p>Carregando projetos...</p>
-            </div>
+            <div className="text-center py-8">Carregando projetos...</div>
           ) : isError ? (
             <div className="text-center py-8 text-red-500">
-              <p>Erro ao carregar projetos:</p>
-              <p className="text-sm mt-2">{error?.message || 'Erro desconhecido'}</p>
-              <Button 
-                variant="outline" 
-                onClick={() => refetch()} 
-                className="mt-4"
-              >
-                Tentar novamente
-              </Button>
+              Erro ao carregar projetos. Por favor, tente novamente.
             </div>
           ) : (
             <ProjectsExpandedTable

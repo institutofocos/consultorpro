@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export type FinancialSummary = {

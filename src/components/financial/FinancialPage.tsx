@@ -60,22 +60,22 @@ const FinancialPage = () => {
   });
 
   // Fetch auxiliary data
-  const { data: consultants = [], isLoading: consultantsLoading } = useQuery({
+  const { data: consultants, isLoading: consultantsLoading } = useQuery({
     queryKey: ['consultants'],
     queryFn: fetchConsultants,
   });
 
-  const { data: services = [], isLoading: servicesLoading } = useQuery({
+  const { data: services, isLoading: servicesLoading } = useQuery({
     queryKey: ['services'],
     queryFn: fetchServices,
   });
 
-  const { data: clients = [], isLoading: clientsLoading } = useQuery({
+  const { data: clients, isLoading: clientsLoading } = useQuery({
     queryKey: ['clients'],
     queryFn: fetchClients,
   });
 
-  const { data: projects = [], isLoading: projectsLoading } = useQuery({
+  const { data: projects, isLoading: projectsLoading } = useQuery({
     queryKey: ['projects'],
     queryFn: fetchProjects,
   });
@@ -298,8 +298,8 @@ const FinancialPage = () => {
 
       {/* Filters */}
       <FinancialFilters
-        consultants={consultants}
-        services={services}
+        consultants={consultants || []}
+        services={services || []}
         filters={{
           startDate: filters.startDate ? new Date(filters.startDate) : undefined,
           endDate: filters.endDate ? new Date(filters.endDate) : undefined,
@@ -337,10 +337,10 @@ const FinancialPage = () => {
         }}
         onSubmit={handleAddTransaction}
         transaction={editingTransaction}
-        clients={clients}
-        consultants={consultants}
-        projects={projects}
-        tags={tags}
+        clients={clients || []}
+        consultants={consultants || []}
+        projects={projects || []}
+        tags={tags || []}
       />
     </div>
   );
