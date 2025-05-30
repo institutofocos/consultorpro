@@ -19,8 +19,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { AccountsPayable, AccountsReceivable, updateAccountsReceivableStatus } from '@/integrations/supabase/financial';
-import { CalendarIcon, CheckCircle } from 'lucide-react';
+import { AccountsPayable, AccountsReceivable, updateAccountsReceivableStatus, updateAccountsPayableStatus } from '@/integrations/supabase/financial';
+import { CalendarIcon, CheckCircle, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import MonthNavigation from "./MonthNavigation";
@@ -46,8 +46,10 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
 }) => {
   const queryClient = useQueryClient();
   const [selectedReceivable, setSelectedReceivable] = useState<string | null>(null);
+  const [selectedPayable, setSelectedPayable] = useState<string | null>(null);
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
   const [isMarkingReceived, setIsMarkingReceived] = useState(false);
+  const [isMarkingPaid, setIsMarkingPaid] = useState(false);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -101,9 +103,27 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
     },
   });
 
+  const updatePayableStatusMutation = useMutation({
+    mutationFn: ({ id, status, paymentDate }: { id: string, status: 'pending' | 'paid' | 'canceled', paymentDate?: string }) => 
+      updateAccountsPayableStatus(id, status, paymentDate),
+    onSuccess: () => {
+      toast.success("Status atualizado com sucesso");
+      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao atualizar status: " + error.message);
+    },
+  });
+
   const handleMarkAsReceived = (receivableId: string) => {
     setSelectedReceivable(receivableId);
     setIsMarkingReceived(true);
+  };
+
+  const handleMarkAsPaid = (payableId: string) => {
+    setSelectedPayable(payableId);
+    setIsMarkingPaid(true);
   };
 
   const handleConfirmReceived = async () => {
@@ -117,6 +137,19 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
     
     setIsMarkingReceived(false);
     setSelectedReceivable(null);
+  };
+
+  const handleConfirmPaid = async () => {
+    if (!selectedPayable) return;
+    
+    await updatePayableStatusMutation.mutate({
+      id: selectedPayable, 
+      status: 'paid',
+      paymentDate: paymentDate ? format(paymentDate, 'yyyy-MM-dd') : undefined
+    });
+    
+    setIsMarkingPaid(false);
+    setSelectedPayable(null);
   };
 
   return (
@@ -134,7 +167,7 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                 <div>
                   <CardTitle>Contas a Pagar</CardTitle>
                   <CardDescription>
-                    Pagamentos pendentes e realizados
+                    Pagamentos pendentes e realizados para consultores (incluindo repasses automáticos de etapas)
                   </CardDescription>
                 </div>
                 <MonthNavigation 
@@ -150,16 +183,19 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                     <TableHead>Vencimento</TableHead>
                     <TableHead>Descrição</TableHead>
                     <TableHead>Projeto</TableHead>
+                    <TableHead>Etapa</TableHead>
+                    <TableHead>Status da Etapa</TableHead>
                     <TableHead>Consultor</TableHead>
                     <TableHead>Valor</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {payables.isLoading ? (
                     Array.from({ length: 3 }).map((_, index) => (
                       <TableRow key={index}>
-                        {Array.from({ length: 6 }).map((_, cellIndex) => (
+                        {Array.from({ length: 9 }).map((_, cellIndex) => (
                           <TableCell key={cellIndex}>
                             <Skeleton className="h-5 w-full" />
                           </TableCell>
@@ -168,7 +204,7 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                     ))
                   ) : !payables.data || payables.data.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8">
+                      <TableCell colSpan={9} className="text-center py-8">
                         Nenhuma conta a pagar encontrada
                       </TableCell>
                     </TableRow>
@@ -180,6 +216,10 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                         </TableCell>
                         <TableCell>{payable.description}</TableCell>
                         <TableCell>{payable.project_name || '-'}</TableCell>
+                        <TableCell>{payable.stage_name || '-'}</TableCell>
+                        <TableCell>
+                          {getStageStatusBadge(payable.stage_status)}
+                        </TableCell>
                         <TableCell>{payable.consultant_name || '-'}</TableCell>
                         <TableCell className="font-medium">
                           {formatCurrency(payable.amount)}
@@ -190,6 +230,19 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                             <div className="text-xs text-muted-foreground">
                               Pago em: {format(new Date(payable.payment_date), 'dd/MM/yyyy')}
                             </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {payable.status === 'pending' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleMarkAsPaid(payable.id)}
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                            >
+                              <CreditCard className="h-4 w-4 mr-1" />
+                              Pago
+                            </Button>
                           )}
                         </TableCell>
                       </TableRow>
@@ -300,7 +353,7 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
         </TabsContent>
       </Tabs>
 
-      {/* Payment Dialog */}
+      {/* Payment Dialog for Receivables */}
       <Dialog open={isMarkingReceived} onOpenChange={setIsMarkingReceived}>
         <DialogContent>
           <DialogHeader>
@@ -337,6 +390,47 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsMarkingReceived(false)}>Cancelar</Button>
             <Button onClick={handleConfirmReceived}>Confirmar recebimento</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Dialog for Payables */}
+      <Dialog open={isMarkingPaid} onOpenChange={setIsMarkingPaid}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar pagamento</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">Data do pagamento</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !paymentDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {paymentDate ? format(paymentDate, "dd/MM/yyyy", { locale: ptBR }) : <span>Selecione uma data</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={paymentDate}
+                    onSelect={setPaymentDate}
+                    initialFocus
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsMarkingPaid(false)}>Cancelar</Button>
+            <Button onClick={handleConfirmPaid}>Confirmar pagamento</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

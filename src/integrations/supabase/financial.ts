@@ -40,10 +40,14 @@ export type AccountsPayable = {
   status: 'pending' | 'paid' | 'canceled';
   consultant_id: string | null;
   project_id: string | null;
+  project_name: string | null;
+  stage_id: string | null;
+  stage_name: string | null;
+  stage_status: string | null;
+  valor_de_repasse: number | null;
   created_at: string;
   updated_at: string;
   consultant_name?: string;
-  project_name?: string;
 };
 
 export type AccountsReceivable = {
@@ -160,7 +164,6 @@ export const fetchAccountsPayable = async (filters: FinancialFilter = {}): Promi
     
     for (const payable of (data || [])) {
       let consultantName = '';
-      let projectName = '';
       
       // Get consultant name
       if (payable.consultant_id) {
@@ -175,23 +178,9 @@ export const fetchAccountsPayable = async (filters: FinancialFilter = {}): Promi
         }
       }
       
-      // Get project name
-      if (payable.project_id) {
-        const { data: projectData } = await supabase
-          .from('projects')
-          .select('name')
-          .eq('id', payable.project_id)
-          .single();
-          
-        if (projectData) {
-          projectName = projectData.name;
-        }
-      }
-      
       payables.push({
         ...payable,
-        consultant_name: consultantName,
-        project_name: projectName
+        consultant_name: consultantName
       } as AccountsPayable);
     }
     
@@ -285,6 +274,27 @@ export const updateAccountsReceivableStatus = async (id: string, status: 'pendin
 
   if (error) {
     console.error('Error updating accounts receivable:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const updateAccountsPayableStatus = async (id: string, status: 'pending' | 'paid' | 'canceled', paymentDate?: string) => {
+  const updates: any = { status };
+  
+  if (paymentDate) {
+    updates.payment_date = paymentDate;
+  }
+
+  const { data, error } = await supabase
+    .from('accounts_payable')
+    .update(updates)
+    .eq('id', id)
+    .select();
+
+  if (error) {
+    console.error('Error updating accounts payable:', error);
     throw error;
   }
 

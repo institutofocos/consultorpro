@@ -19,8 +19,13 @@ export type Database = {
           id: string
           payment_date: string | null
           project_id: string | null
+          project_name: string | null
+          stage_id: string | null
+          stage_name: string | null
+          stage_status: string | null
           status: string
           updated_at: string
+          valor_de_repasse: number | null
         }
         Insert: {
           amount: number
@@ -31,8 +36,13 @@ export type Database = {
           id?: string
           payment_date?: string | null
           project_id?: string | null
+          project_name?: string | null
+          stage_id?: string | null
+          stage_name?: string | null
+          stage_status?: string | null
           status?: string
           updated_at?: string
+          valor_de_repasse?: number | null
         }
         Update: {
           amount?: number
@@ -43,8 +53,13 @@ export type Database = {
           id?: string
           payment_date?: string | null
           project_id?: string | null
+          project_name?: string | null
+          stage_id?: string | null
+          stage_name?: string | null
+          stage_status?: string | null
           status?: string
           updated_at?: string
+          valor_de_repasse?: number | null
         }
         Relationships: [
           {
