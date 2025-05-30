@@ -138,6 +138,17 @@ const ProjectStageForm: React.FC<ProjectStageFormProps> = ({ stages, onStagesCha
                 />
               </div>
 
+              <div className="md:col-span-2">
+                <Label htmlFor={`stage-description-${index}`}>Descrição</Label>
+                <Textarea
+                  id={`stage-description-${index}`}
+                  value={stage.description}
+                  onChange={(e) => updateStage(index, 'description', e.target.value)}
+                  placeholder="Descrição da etapa"
+                  rows={3}
+                />
+              </div>
+
               <div>
                 <Label htmlFor={`stage-valor-repasse-${index}`}>Valor de Repasse (R$) - Opcional</Label>
                 <Input
@@ -147,17 +158,6 @@ const ProjectStageForm: React.FC<ProjectStageFormProps> = ({ stages, onStagesCha
                   value={stage.valor_de_repasse || 0}
                   onChange={(e) => updateStage(index, 'valor_de_repasse', parseFloat(e.target.value) || 0)}
                   placeholder="0.00"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <Label htmlFor={`stage-description-${index}`}>Descrição</Label>
-                <Textarea
-                  id={`stage-description-${index}`}
-                  value={stage.description}
-                  onChange={(e) => updateStage(index, 'description', e.target.value)}
-                  placeholder="Descrição da etapa"
-                  rows={3}
                 />
               </div>
             </div>
