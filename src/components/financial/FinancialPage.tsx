@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PlusCircle } from 'lucide-react';
@@ -22,27 +21,43 @@ import FinancialSummary from "./FinancialSummary";
 import FinancialFilters from "./FinancialFilters";
 import AccountsPayableReceivable from "./AccountsPayableReceivable";
 import ManualTransactionForm from "./ManualTransactionForm";
+import MonthNavigation from "./MonthNavigation";
 
 const FinancialPage = () => {
   const queryClient = useQueryClient();
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [filters, setFilters] = useState<FinancialFilter>({});
   const [showAddTransaction, setShowAddTransaction] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<any>(null);
 
+  // Update filters when month changes
+  const getMonthFilters = () => {
+    const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    
+    return {
+      ...filters,
+      startDate: format(startOfMonth, 'yyyy-MM-dd'),
+      endDate: format(endOfMonth, 'yyyy-MM-dd')
+    };
+  };
+
+  const activeFilters = getMonthFilters();
+
   // Fetch financial data
   const { data: summary, isLoading: summaryLoading } = useQuery({
-    queryKey: ['financial-summary', filters],
-    queryFn: () => fetchFinancialSummary(filters),
+    queryKey: ['financial-summary', activeFilters],
+    queryFn: () => fetchFinancialSummary(activeFilters),
   });
 
   const { data: payables, isLoading: payablesLoading } = useQuery({
-    queryKey: ['accounts-payable', filters],
-    queryFn: () => fetchAccountsPayable(filters),
+    queryKey: ['accounts-payable', activeFilters],
+    queryFn: () => fetchAccountsPayable(activeFilters),
   });
 
   const { data: receivables, isLoading: receivablesLoading } = useQuery({
-    queryKey: ['accounts-receivable', filters],
-    queryFn: () => fetchAccountsReceivable(filters),
+    queryKey: ['accounts-receivable', activeFilters],
+    queryFn: () => fetchAccountsReceivable(activeFilters),
   });
 
   // Fetch auxiliary data
@@ -221,6 +236,10 @@ const FinancialPage = () => {
     setFilters({});
   };
 
+  const handleMonthChange = (newDate: Date) => {
+    setCurrentMonth(newDate);
+  };
+
   const handleAddTransaction = async (data: any) => {
     // Format dates correctly for the database
     const formattedData = {
@@ -260,14 +279,20 @@ const FinancialPage = () => {
           <h1 className="text-3xl font-bold">Financeiro</h1>
           <p className="text-muted-foreground">Controle de receitas e pagamentos</p>
         </div>
-        <Button
-          onClick={() => {
-            setEditingTransaction(null);
-            setShowAddTransaction(true);
-          }}
-        >
-          <PlusCircle className="mr-2 h-4 w-4" /> Novo Lançamento
-        </Button>
+        <div className="flex items-center gap-4">
+          <MonthNavigation 
+            currentDate={currentMonth}
+            onMonthChange={handleMonthChange}
+          />
+          <Button
+            onClick={() => {
+              setEditingTransaction(null);
+              setShowAddTransaction(true);
+            }}
+          >
+            <PlusCircle className="mr-2 h-4 w-4" /> Novo Lançamento
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
