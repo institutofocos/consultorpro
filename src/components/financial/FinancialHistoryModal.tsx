@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Table, 
   TableBody, 
@@ -87,6 +88,10 @@ const FinancialHistoryModal: React.FC<FinancialHistoryModalProps> = ({
     return filtered;
   }, [history, startDate, endDate, statusFilter, consultantFilter, consultants]);
 
+  // Separar os dados filtrados por tipo
+  const receivables = filteredHistory.filter(item => item.type === 'receivable');
+  const payables = filteredHistory.filter(item => item.type === 'payable');
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
@@ -106,17 +111,70 @@ const FinancialHistoryModal: React.FC<FinancialHistoryModalProps> = ({
     }
   };
 
-  const getTypeBadge = (type: string) => {
-    return type === 'receivable' 
-      ? <Badge className="bg-blue-100 text-blue-800 border-blue-300">A Receber</Badge>
-      : <Badge className="bg-orange-100 text-orange-800 border-orange-300">A Pagar</Badge>;
-  };
-
   const handleGeneratePDF = () => {
     // Implementação básica para gerar PDF
     toast.info("Função de gerar PDF será implementada em breve");
     console.log('Dados para PDF:', filteredHistory);
   };
+
+  const renderTable = (data: HistoryItem[], emptyMessage: string) => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Data</TableHead>
+          <TableHead>Descrição</TableHead>
+          <TableHead>Projeto/Etapa</TableHead>
+          <TableHead>Entidade</TableHead>
+          <TableHead>Valor</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Atualizado em</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {data.length === 0 ? (
+          <TableRow>
+            <TableCell colSpan={7} className="text-center py-8">
+              {emptyMessage}
+            </TableCell>
+          </TableRow>
+        ) : (
+          data.map(item => (
+            <TableRow key={`${item.type}-${item.id}`}>
+              <TableCell>
+                {format(new Date(item.due_date), 'dd/MM/yyyy')}
+              </TableCell>
+              <TableCell className="max-w-xs truncate">
+                {item.description}
+              </TableCell>
+              <TableCell>
+                {item.project_name && (
+                  <div className="font-medium">{item.project_name}</div>
+                )}
+                {item.stage_name && (
+                  <div className="text-sm text-muted-foreground">{item.stage_name}</div>
+                )}
+              </TableCell>
+              <TableCell>{item.entity_name}</TableCell>
+              <TableCell className="font-medium">
+                {formatCurrency(item.amount)}
+              </TableCell>
+              <TableCell>
+                {getStatusBadge(item.status)}
+                {item.payment_date && (
+                  <div className="text-xs text-muted-foreground">
+                    {format(new Date(item.payment_date), 'dd/MM/yyyy')}
+                  </div>
+                )}
+              </TableCell>
+              <TableCell>
+                {format(new Date(item.updated_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+              </TableCell>
+            </TableRow>
+          ))
+        )}
+      </TableBody>
+    </Table>
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -143,70 +201,40 @@ const FinancialHistoryModal: React.FC<FinancialHistoryModalProps> = ({
             {isLoading ? (
               <div className="text-center py-8">Carregando histórico...</div>
             ) : (
-              <div className="space-y-4">
-                <div className="text-sm text-muted-foreground">
-                  {filteredHistory.length} de {history.length} registros
-                </div>
-                
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Descrição</TableHead>
-                      <TableHead>Projeto/Etapa</TableHead>
-                      <TableHead>Entidade</TableHead>
-                      <TableHead>Valor</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Atualizado em</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredHistory.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8">
-                          Nenhum histórico encontrado com os filtros aplicados
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredHistory.map(item => (
-                        <TableRow key={`${item.type}-${item.id}`}>
-                          <TableCell>
-                            {format(new Date(item.due_date), 'dd/MM/yyyy')}
-                          </TableCell>
-                          <TableCell>{getTypeBadge(item.type)}</TableCell>
-                          <TableCell className="max-w-xs truncate">
-                            {item.description}
-                          </TableCell>
-                          <TableCell>
-                            {item.project_name && (
-                              <div className="font-medium">{item.project_name}</div>
-                            )}
-                            {item.stage_name && (
-                              <div className="text-sm text-muted-foreground">{item.stage_name}</div>
-                            )}
-                          </TableCell>
-                          <TableCell>{item.entity_name}</TableCell>
-                          <TableCell className="font-medium">
-                            {formatCurrency(item.amount)}
-                          </TableCell>
-                          <TableCell>
-                            {getStatusBadge(item.status)}
-                            {item.payment_date && (
-                              <div className="text-xs text-muted-foreground">
-                                {format(new Date(item.payment_date), 'dd/MM/yyyy')}
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {format(new Date(item.updated_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                          </TableCell>
-                        </TableRow>
-                      ))
+              <Tabs defaultValue="receivables" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="receivables" className="relative">
+                    Contas a Receber
+                    {receivables.length > 0 && (
+                      <Badge variant="secondary" className="ml-2 text-xs">
+                        {receivables.length}
+                      </Badge>
                     )}
-                  </TableBody>
-                </Table>
-              </div>
+                  </TabsTrigger>
+                  <TabsTrigger value="payables" className="relative">
+                    Contas a Pagar
+                    {payables.length > 0 && (
+                      <Badge variant="secondary" className="ml-2 text-xs">
+                        {payables.length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="receivables" className="space-y-4">
+                  <div className="text-sm text-muted-foreground">
+                    {receivables.length} de {history.filter(h => h.type === 'receivable').length} registros de contas a receber
+                  </div>
+                  {renderTable(receivables, "Nenhuma conta a receber encontrada com os filtros aplicados")}
+                </TabsContent>
+                
+                <TabsContent value="payables" className="space-y-4">
+                  <div className="text-sm text-muted-foreground">
+                    {payables.length} de {history.filter(h => h.type === 'payable').length} registros de contas a pagar
+                  </div>
+                  {renderTable(payables, "Nenhuma conta a pagar encontrada com os filtros aplicados")}
+                </TabsContent>
+              </Tabs>
             )}
           </div>
         </div>
