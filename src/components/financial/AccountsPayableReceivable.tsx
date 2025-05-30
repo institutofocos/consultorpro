@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -129,10 +130,18 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
         <TabsContent value="payable">
           <Card>
             <CardHeader>
-              <CardTitle>Contas a Pagar</CardTitle>
-              <CardDescription>
-                Pagamentos pendentes e realizados
-              </CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Contas a Pagar</CardTitle>
+                  <CardDescription>
+                    Pagamentos pendentes e realizados
+                  </CardDescription>
+                </div>
+                <MonthNavigation 
+                  currentDate={currentMonth}
+                  onMonthChange={onMonthChange}
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
