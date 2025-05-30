@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export interface ProjectData {
@@ -35,7 +34,6 @@ export const fetchProjects = async () => {
   
   try {
     console.log('Conectando ao Supabase...');
-    console.log('URL do Supabase:', supabase.supabaseUrl);
     console.log('Supabase client:', supabase);
     
     // Primeiro, vamos fazer uma query simples para ver se há dados na tabela
