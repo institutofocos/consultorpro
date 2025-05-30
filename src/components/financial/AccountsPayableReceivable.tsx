@@ -1,322 +1,131 @@
 
-import React, { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { cn } from "@/lib/utils";
-import { AccountsPayable, AccountsReceivable, updateAccountsReceivableStatus } from '@/integrations/supabase/financial';
-import { CalendarIcon, CheckCircle } from 'lucide-react';
-import { toast } from 'sonner';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { formatCurrency } from "@/lib/utils";
+import type { AccountsPayable, AccountsReceivable } from "@/integrations/supabase/financial";
 
 interface AccountsPayableReceivableProps {
   payables: {
-    data: AccountsPayable[] | null;
+    data: AccountsPayable[] | undefined;
     isLoading: boolean;
   };
   receivables: {
-    data: AccountsReceivable[] | null;
+    data: AccountsReceivable[] | undefined;
     isLoading: boolean;
   };
+  monthNavigation?: React.ReactNode;
 }
 
-const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({ payables, receivables }) => {
-  const queryClient = useQueryClient();
-  const [selectedReceivable, setSelectedReceivable] = useState<string | null>(null);
-  const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
-  const [isMarkingReceived, setIsMarkingReceived] = useState(false);
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  };
-
-  const getStatusBadge = (status: string, type: 'payable' | 'receivable') => {
-    switch(status) {
-      case 'pending':
-        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Pendente</Badge>;
-      case 'paid':
-        return <Badge variant="outline" className="bg-green-100 text-green-800">Pago</Badge>;
-      case 'received':
-        return <Badge variant="outline" className="bg-green-100 text-green-800">Recebido</Badge>;
-      case 'canceled':
-        return <Badge variant="outline" className="bg-red-100 text-red-800">Cancelado</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  const getStageStatusBadge = (status?: string) => {
-    if (!status) return null;
-    
-    const statusMap: Record<string, { label: string; className: string }> = {
-      'iniciar_projeto': { label: 'Iniciar Projeto', className: 'bg-blue-100 text-blue-800' },
-      'em_producao': { label: 'Em Produção', className: 'bg-orange-100 text-orange-800' },
-      'aguardando_aprovacao': { label: 'Aguardando Aprovação', className: 'bg-yellow-100 text-yellow-800' },
-      'aguardando_assinatura': { label: 'Aguardando Assinatura', className: 'bg-purple-100 text-purple-800' },
-      'concluido': { label: 'Concluído', className: 'bg-green-100 text-green-800' },
+const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
+  payables,
+  receivables,
+  monthNavigation
+}) => {
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      pending: { variant: 'destructive' as const, label: 'Pendente' },
+      paid: { variant: 'default' as const, label: 'Pago' },
+      received: { variant: 'default' as const, label: 'Recebido' },
+      canceled: { variant: 'secondary' as const, label: 'Cancelado' },
     };
 
-    const statusInfo = statusMap[status] || { label: status, className: 'bg-gray-100 text-gray-800' };
-    
-    return (
-      <Badge variant="outline" className={statusInfo.className}>
-        {statusInfo.label}
-      </Badge>
-    );
-  };
-
-  const updateReceivableStatusMutation = useMutation({
-    mutationFn: ({ id, status, paymentDate }: { id: string, status: 'pending' | 'received' | 'canceled', paymentDate?: string }) => 
-      updateAccountsReceivableStatus(id, status, paymentDate),
-    onSuccess: () => {
-      toast.success("Status atualizado com sucesso");
-      queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
-      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
-    },
-    onError: (error: any) => {
-      toast.error("Erro ao atualizar status: " + error.message);
-    },
-  });
-
-  const handleMarkAsReceived = (receivableId: string) => {
-    setSelectedReceivable(receivableId);
-    setIsMarkingReceived(true);
-  };
-
-  const handleConfirmReceived = async () => {
-    if (!selectedReceivable) return;
-    
-    await updateReceivableStatusMutation.mutate({
-      id: selectedReceivable, 
-      status: 'received',
-      paymentDate: paymentDate ? format(paymentDate, 'yyyy-MM-dd') : undefined
-    });
-    
-    setIsMarkingReceived(false);
-    setSelectedReceivable(null);
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
   return (
-    <>
-      <Tabs defaultValue="payable" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="payable">Contas a Pagar</TabsTrigger>
-          <TabsTrigger value="receivable">Contas a Receber</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="payable">
-          <Card>
-            <CardHeader>
-              <CardTitle>Contas a Pagar</CardTitle>
-              <CardDescription>
-                Pagamentos pendentes e realizados
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Vencimento</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Projeto</TableHead>
-                    <TableHead>Consultor</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payables.isLoading ? (
-                    Array.from({ length: 3 }).map((_, index) => (
-                      <TableRow key={index}>
-                        {Array.from({ length: 6 }).map((_, cellIndex) => (
-                          <TableCell key={cellIndex}>
-                            <Skeleton className="h-5 w-full" />
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  ) : !payables.data || payables.data.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8">
-                        Nenhuma conta a pagar encontrada
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    payables.data.map(payable => (
-                      <TableRow key={payable.id}>
-                        <TableCell>
-                          {format(new Date(payable.due_date), 'dd/MM/yyyy')}
-                        </TableCell>
-                        <TableCell>{payable.description}</TableCell>
-                        <TableCell>{payable.project_name || '-'}</TableCell>
-                        <TableCell>{payable.consultant_name || '-'}</TableCell>
-                        <TableCell className="font-medium">
-                          {formatCurrency(payable.amount)}
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(payable.status, 'payable')}
-                          {payable.payment_date && (
-                            <div className="text-xs text-muted-foreground">
-                              Pago em: {format(new Date(payable.payment_date), 'dd/MM/yyyy')}
-                            </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="receivable">
-          <Card>
-            <CardHeader>
-              <CardTitle>Contas a Receber</CardTitle>
-              <CardDescription>
-                Recebimentos pendentes e realizados das etapas dos projetos
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Vencimento</TableHead>
-                    <TableHead>Projeto</TableHead>
-                    <TableHead>Etapa</TableHead>
-                    <TableHead>Status da Etapa</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Consultor</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {receivables.isLoading ? (
-                    Array.from({ length: 3 }).map((_, index) => (
-                      <TableRow key={index}>
-                        {Array.from({ length: 9 }).map((_, cellIndex) => (
-                          <TableCell key={cellIndex}>
-                            <Skeleton className="h-5 w-full" />
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  ) : !receivables.data || receivables.data.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8">
-                        Nenhuma conta a receber encontrada
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    receivables.data.map(receivable => (
-                      <TableRow key={receivable.id}>
-                        <TableCell>
-                          {format(new Date(receivable.due_date), 'dd/MM/yyyy')}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {receivable.project_name || '-'}
-                        </TableCell>
-                        <TableCell>
-                          {receivable.stage_name || '-'}
-                        </TableCell>
-                        <TableCell>
-                          {getStageStatusBadge(receivable.stage_status)}
-                        </TableCell>
-                        <TableCell>{receivable.client_name || '-'}</TableCell>
-                        <TableCell>{receivable.consultant_name || '-'}</TableCell>
-                        <TableCell className="font-medium">
-                          {formatCurrency(receivable.amount)}
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(receivable.status, 'receivable')}
-                          {receivable.payment_date && (
-                            <div className="text-xs text-muted-foreground">
-                              Recebido em: {format(new Date(receivable.payment_date), 'dd/MM/yyyy')}
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {receivable.status === 'pending' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleMarkAsReceived(receivable.id)}
-                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Recebido
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Payment Dialog */}
-      <Dialog open={isMarkingReceived} onOpenChange={setIsMarkingReceived}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Registrar recebimento</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Data do recebimento</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !paymentDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {paymentDate ? format(paymentDate, "dd/MM/yyyy", { locale: ptBR }) : <span>Selecione uma data</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={paymentDate}
-                    onSelect={setPaymentDate}
-                    initialFocus
-                    locale={ptBR}
-                  />
-                </PopoverContent>
-              </Popover>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Accounts Payable */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Contas a Pagar</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {payables.isLoading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
             </div>
+          ) : (
+            <div className="space-y-4">
+              {payables.data && payables.data.length > 0 ? (
+                payables.data.map((payable) => (
+                  <div key={payable.id} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-medium">{payable.description}</h4>
+                      {getStatusBadge(payable.status)}
+                    </div>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p>Valor: {formatCurrency(payable.amount)}</p>
+                      <p>Vencimento: {new Date(payable.due_date).toLocaleDateString('pt-BR')}</p>
+                      {payable.consultant_name && (
+                        <p>Consultor: {payable.consultant_name}</p>
+                      )}
+                      {payable.project_name && (
+                        <p>Projeto: {payable.project_name}</p>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-muted-foreground text-center py-8">
+                  Nenhuma conta a pagar encontrada
+                </p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Accounts Receivable */}
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-lg">Contas a Receber</CardTitle>
+            {monthNavigation}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsMarkingReceived(false)}>Cancelar</Button>
-            <Button onClick={handleConfirmReceived}>Confirmar recebimento</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+        </CardHeader>
+        <CardContent>
+          {receivables.isLoading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {receivables.data && receivables.data.length > 0 ? (
+                receivables.data.map((receivable) => (
+                  <div key={receivable.id} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-medium">{receivable.description}</h4>
+                      {getStatusBadge(receivable.status)}
+                    </div>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p>Valor: {formatCurrency(receivable.amount)}</p>
+                      <p>Vencimento: {new Date(receivable.due_date).toLocaleDateString('pt-BR')}</p>
+                      {receivable.client_name && (
+                        <p>Cliente: {receivable.client_name}</p>
+                      )}
+                      {receivable.consultant_name && (
+                        <p>Consultor: {receivable.consultant_name}</p>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-muted-foreground text-center py-8">
+                  Nenhuma conta a receber encontrada
+                </p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
