@@ -32,7 +32,7 @@ import {
   reactivateAccountsPayable,
   fetchAccountsHistory
 } from '@/integrations/supabase/financial';
-import { CalendarIcon, CheckCircle, CreditCard, X, History, Trash2, RotateCcw } from 'lucide-react';
+import { CalendarIcon, CheckCircle, CreditCard, X, History, Trash2, RotateCcw, Undo } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import MonthNavigation from "./MonthNavigation";
@@ -66,10 +66,13 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
   const [showHistory, setShowHistory] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showReactivateModal, setShowReactivateModal] = useState(false);
+  const [showUndoModal, setShowUndoModal] = useState(false);
   const [deletePin, setDeletePin] = useState('');
   const [reactivatePin, setReactivatePin] = useState('');
+  const [undoPin, setUndoPin] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'payable' | 'receivable' } | null>(null);
   const [reactivateTarget, setReactivateTarget] = useState<{ id: string; type: 'payable' | 'receivable' } | null>(null);
+  const [undoTarget, setUndoTarget] = useState<{ id: string; type: 'payable' | 'receivable'; currentStatus: string } | null>(null);
 
   // Fetch history data - sempre que o modal for aberto
   const { data: historyData, isLoading: historyLoading, refetch: refetchHistory } = useQuery({
@@ -117,6 +120,33 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
         {statusInfo.label}
       </Badge>
     );
+  };
+
+  // Function to determine what the previous status should be for undo
+  const getPreviousStatus = (currentStatus: string, type: 'payable' | 'receivable') => {
+    if (type === 'receivable') {
+      switch (currentStatus) {
+        case 'received':
+          return 'pending';
+        case 'canceled':
+          return 'pending';
+        case 'deleted':
+          return 'pending';
+        default:
+          return 'pending';
+      }
+    } else {
+      switch (currentStatus) {
+        case 'paid':
+          return 'pending';
+        case 'canceled':
+          return 'pending';
+        case 'deleted':
+          return 'pending';
+        default:
+          return 'pending';
+      }
+    }
   };
 
   const updateReceivableStatusMutation = useMutation({
@@ -351,6 +381,39 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
     setReactivatePin('');
   };
 
+  const handleUndoClick = (id: string, type: 'payable' | 'receivable', currentStatus: string) => {
+    setUndoTarget({ id, type, currentStatus });
+    setUndoPin('');
+    setShowUndoModal(true);
+  };
+
+  const handleUndoConfirm = () => {
+    if (undoPin !== '9136') {
+      toast.error("PIN incorreto");
+      return;
+    }
+
+    if (!undoTarget) return;
+
+    const previousStatus = getPreviousStatus(undoTarget.currentStatus, undoTarget.type);
+
+    if (undoTarget.type === 'receivable') {
+      updateReceivableStatusMutation.mutate({
+        id: undoTarget.id,
+        status: previousStatus as 'pending' | 'received' | 'canceled'
+      });
+    } else {
+      updatePayableStatusMutation.mutate({
+        id: undoTarget.id,
+        status: previousStatus as 'pending' | 'paid' | 'canceled'
+      });
+    }
+
+    setShowUndoModal(false);
+    setUndoTarget(null);
+    setUndoPin('');
+  };
+
   // Função para abrir o histórico e forçar atualização
   const handleOpenHistory = () => {
     console.log('Opening history modal');
@@ -496,6 +559,17 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                                 <RotateCcw className="h-4 w-4" />
                               </Button>
                             )}
+                            {payable.status !== 'pending' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUndoClick(payable.id, 'payable', payable.status)}
+                                className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 p-2"
+                                title="Desfazer última ação"
+                              >
+                                <Undo className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -625,6 +699,17 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                                 title="Reativar"
                               >
                                 <RotateCcw className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {receivable.status !== 'pending' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUndoClick(receivable.id, 'receivable', receivable.status)}
+                                className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 p-2"
+                                title="Desfazer última ação"
+                              >
+                                <Undo className="h-4 w-4" />
                               </Button>
                             )}
                           </div>
@@ -783,6 +868,39 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
               disabled={reactivatePin.length !== 4}
             >
               Confirmar Reativação
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Undo Confirmation Modal */}
+      <Dialog open={showUndoModal} onOpenChange={setShowUndoModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Desfazer Ação</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Para confirmar que deseja desfazer a última ação, digite o PIN de segurança:
+            </p>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">PIN</label>
+              <Input
+                type="password"
+                value={undoPin}
+                onChange={(e) => setUndoPin(e.target.value)}
+                placeholder="Digite o PIN"
+                maxLength={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUndoModal(false)}>Cancelar</Button>
+            <Button 
+              onClick={handleUndoConfirm}
+              disabled={undoPin.length !== 4}
+            >
+              Confirmar Desfazer
             </Button>
           </DialogFooter>
         </DialogContent>
