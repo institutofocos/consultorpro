@@ -396,12 +396,12 @@ export const fetchAccountsHistory = async (filters: FinancialFilter = {}) => {
     
     console.log('Fetching accounts history with filters:', { startDate, endDate, consultantId });
     
-    // Buscar histórico completo de contas a receber com joins otimizados
+    // Buscar todas as contas a receber (vinculadas a etapas e manuais)
     let receivablesQuery = supabase
       .from('accounts_receivable')
       .select(`
         *,
-        clients!inner(name)
+        clients(name)
       `)
       .order('updated_at', { ascending: false });
     
@@ -417,12 +417,12 @@ export const fetchAccountsHistory = async (filters: FinancialFilter = {}) => {
       receivablesQuery = receivablesQuery.eq('consultant_id', consultantId);
     }
 
-    // Buscar histórico completo de contas a pagar com joins otimizados
+    // Buscar todas as contas a pagar (vinculadas a etapas e manuais)
     let payablesQuery = supabase
       .from('accounts_payable')
       .select(`
         *,
-        consultants!inner(name)
+        consultants(name)
       `)
       .order('updated_at', { ascending: false });
     
@@ -462,7 +462,7 @@ export const fetchAccountsHistory = async (filters: FinancialFilter = {}) => {
       stage_name: item.stage_name || ''
     }));
 
-    // Processar contas a pagar
+    // Processar contas a pagar - incluindo todas as entradas (manuais e vinculadas a etapas)
     const payablesHistory = (payablesData.data || []).map(item => ({
       id: item.id,
       type: 'payable' as const,
@@ -473,7 +473,7 @@ export const fetchAccountsHistory = async (filters: FinancialFilter = {}) => {
       payment_date: item.payment_date,
       created_at: item.created_at,
       updated_at: item.updated_at,
-      entity_name: item.consultants?.name || 'Consultor não informado',
+      entity_name: item.consultants?.name || 'Não informado',
       project_name: item.project_name || '',
       stage_name: item.stage_name || ''
     }));
