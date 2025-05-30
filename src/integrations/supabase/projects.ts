@@ -30,35 +30,7 @@ export interface ProjectData {
 }
 
 export const fetchProjects = async () => {
-  console.log('=== FETCHPROJECTS INICIADO ===');
-  
   try {
-    console.log('Conectando ao Supabase...');
-    console.log('Supabase client:', supabase);
-    
-    // Primeiro, vamos fazer uma query simples para ver se há dados na tabela
-    console.log('=== TESTE SIMPLES - CONTANDO REGISTROS ===');
-    const { count, error: countError } = await supabase
-      .from('projects')
-      .select('*', { count: 'exact', head: true });
-      
-    console.log('Contagem de registros na tabela projects:', count);
-    if (countError) {
-      console.error('Erro na contagem:', countError);
-    }
-
-    // Query simples sem joins para testar
-    console.log('=== TESTE SIMPLES - SEM JOINS ===');
-    const { data: simpleData, error: simpleError } = await supabase
-      .from('projects')
-      .select('*')
-      .limit(5);
-      
-    console.log('Dados simples (sem joins):', simpleData);
-    console.log('Erro simples:', simpleError);
-    
-    console.log('=== FAZENDO QUERY COMPLETA COM JOINS ===');
-    
     const { data, error } = await supabase
       .from('projects')
       .select(`
@@ -71,91 +43,20 @@ export const fetchProjects = async () => {
       `)
       .order('created_at', { ascending: false });
 
-    console.log('=== RESPOSTA COMPLETA DO SUPABASE ===');
-    console.log('Dados retornados:', data);
-    console.log('Erro retornado:', error);
-    console.log('Tipo de dados:', typeof data);
-    console.log('É array?', Array.isArray(data));
-    console.log('Tamanho do array:', data?.length);
-
     if (error) {
-      console.error('=== ERRO NA QUERY SUPABASE ===');
-      console.error('Código do erro:', error.code);
-      console.error('Mensagem do erro:', error.message);
-      console.error('Detalhes do erro:', error.details);
-      console.error('Dica do erro:', error.hint);
-      
-      // Se der erro na query complexa, vamos retornar os dados simples
-      if (simpleData && simpleData.length > 0) {
-        console.log('=== RETORNANDO DADOS SIMPLES DEVIDO AO ERRO ===');
-        return simpleData.map(project => ({
-          ...project,
-          // Mapeamento básico
-          mainConsultantCommission: project.main_consultant_commission || 0,
-          supportConsultantCommission: project.support_consultant_commission || 0,
-          startDate: project.start_date,
-          endDate: project.end_date,
-          totalValue: project.total_value || 0,
-          taxPercent: project.tax_percent || 16,
-          thirdPartyExpenses: project.third_party_expenses || 0,
-          consultantValue: project.main_consultant_value || 0,
-          supportConsultantValue: project.support_consultant_value || 0,
-          totalHours: project.total_hours || 0,
-          hourlyRate: project.hourly_rate || 0,
-          managerName: project.manager_name,
-          managerEmail: project.manager_email,
-          managerPhone: project.manager_phone,
-          clientId: project.client_id,
-          serviceId: project.service_id,
-          mainConsultantId: project.main_consultant_id,
-          supportConsultantId: project.support_consultant_id,
-          clientName: '',
-          serviceName: '',
-          mainConsultantName: '',
-          supportConsultantName: '',
-          stages: [],
-          tagIds: []
-        }));
-      }
-      
       throw error;
     }
 
     if (!data) {
-      console.log('=== DADOS NULOS RETORNADOS ===');
       return [];
     }
 
     if (data.length === 0) {
-      console.log('=== ARRAY VAZIO RETORNADO ===');
       return [];
     }
 
-    console.log('=== DADOS ENCONTRADOS ===');
-    console.log('Número de projetos encontrados:', data.length);
-    
-    // Log detalhado de cada projeto encontrado
-    data.forEach((project, index) => {
-      console.log(`=== PROJETO ${index + 1} (RAW) ===`);
-      console.log('ID:', project.id);
-      console.log('Nome:', project.name);
-      console.log('Status:', project.status);
-      console.log('Client ID:', project.client_id);
-      console.log('Service ID:', project.service_id);
-      console.log('Start Date:', project.start_date);
-      console.log('End Date:', project.end_date);
-      console.log('Total Value:', project.total_value);
-      console.log('Stages:', project.project_stages?.length || 0);
-      console.log('Cliente relacionado:', project.clients);
-      console.log('Serviço relacionado:', project.services);
-    });
-
-    console.log('=== INICIANDO TRANSFORMAÇÃO DOS DADOS ===');
-
     // Transform data to match expected format with proper camelCase mapping
-    const transformedData = (data || []).map((project, index) => {
-      console.log(`=== TRANSFORMANDO PROJETO ${index + 1}: ${project.name} ===`);
-      
+    const transformedData = (data || []).map((project) => {
       const transformed = {
         ...project,
         // Map snake_case to camelCase for required fields
@@ -210,30 +111,12 @@ export const fetchProjects = async () => {
         tagIds: [] // Will be populated from project_tag_relations if needed
       };
       
-      console.log(`=== PROJETO ${index + 1} TRANSFORMADO ===`);
-      console.log('ID:', transformed.id);
-      console.log('Nome:', transformed.name);
-      console.log('Status:', transformed.status);
-      console.log('Cliente ID:', transformed.clientId);
-      console.log('Cliente Nome:', transformed.clientName);
-      console.log('Start Date:', transformed.startDate);
-      console.log('End Date:', transformed.endDate);
-      console.log('Total Value:', transformed.totalValue);
-      console.log('Número de stages:', transformed.stages?.length || 0);
-      
       return transformed;
     });
 
-    console.log('=== TRANSFORMAÇÃO FINALIZADA ===');
-    console.log('Total de projetos transformados:', transformedData.length);
-    console.log('Projetos transformados:', transformedData.map(p => ({ id: p.id, name: p.name, status: p.status })));
-    
     return transformedData;
   } catch (error) {
-    console.error('=== ERRO CRÍTICO NO FETCHPROJECTS ===');
-    console.error('Tipo do erro:', typeof error);
-    console.error('Erro completo:', error);
-    console.error('Stack trace:', error?.stack);
+    console.error('Error fetching projects:', error);
     
     // Retornar array vazio ao invés de propagar o erro para evitar quebrar a UI
     return [];
@@ -378,9 +261,6 @@ export const fetchServices = async () => {
 };
 
 export const createProject = async (projectData: ProjectData) => {
-  console.log('=== CREATEPROJECT INICIADO ===');
-  console.log('Dados recebidos:', JSON.stringify(projectData, null, 2));
-
   try {
     // Preparar dados para a tabela projects (mapeamento para snake_case)
     const projectPayload = {
@@ -409,8 +289,6 @@ export const createProject = async (projectData: ProjectData) => {
       url: projectData.url || ''
     };
 
-    console.log('Payload do projeto (snake_case):', JSON.stringify(projectPayload, null, 2));
-
     // Criar o projeto
     const { data: project, error: projectError } = await supabase
       .from('projects')
@@ -419,19 +297,12 @@ export const createProject = async (projectData: ProjectData) => {
       .single();
 
     if (projectError) {
-      console.error('Erro ao criar projeto:', projectError);
       throw projectError;
     }
 
-    console.log('Projeto criado com sucesso:', project);
-
     // Criar as etapas se existirem
     if (projectData.stages && projectData.stages.length > 0) {
-      console.log('Criando etapas do projeto...');
-      
       for (const stage of projectData.stages) {
-        console.log('Processando etapa:', stage);
-        
         const stagePayload = {
           project_id: project.id,
           name: stage.name,
@@ -444,7 +315,7 @@ export const createProject = async (projectData: ProjectData) => {
           stage_order: Number(stage.stageOrder || 1),
           consultant_id: stage.consultantId || null,
           status: stage.status || 'iniciar_projeto',
-          valor_de_repasse: Number(stage.valorDeRepasse || 0), // Campo crítico para o valor de repasse
+          valor_de_repasse: Number(stage.valorDeRepasse || 0),
           completed: false,
           client_approved: false,
           manager_approved: false,
@@ -453,29 +324,18 @@ export const createProject = async (projectData: ProjectData) => {
           consultants_settled: false
         };
 
-        console.log('Payload da etapa:', JSON.stringify(stagePayload, null, 2));
-        console.log('valor_de_repasse sendo salvo:', stagePayload.valor_de_repasse);
-
-        const { data: createdStage, error: stageError } = await supabase
+        const { error: stageError } = await supabase
           .from('project_stages')
-          .insert(stagePayload)
-          .select()
-          .single();
+          .insert(stagePayload);
 
         if (stageError) {
-          console.error('Erro ao criar etapa:', stageError);
           throw stageError;
         }
-
-        console.log('Etapa criada com sucesso:', createdStage);
-        console.log('Valor de repasse salvo:', createdStage.valor_de_repasse);
       }
     }
 
     // Criar relações de tags se existirem
     if (projectData.tagIds && projectData.tagIds.length > 0) {
-      console.log('Criando relações de tags...');
-      
       const tagRelations = projectData.tagIds.map(tagId => ({
         project_id: project.id,
         tag_id: tagId
@@ -486,25 +346,20 @@ export const createProject = async (projectData: ProjectData) => {
         .insert(tagRelations);
 
       if (tagError) {
-        console.error('Erro ao criar relações de tags:', tagError);
+        console.error('Error creating tag relations:', tagError);
         // Não falhar por causa das tags, apenas logar
       }
     }
 
-    console.log('=== CREATEPROJECT FINALIZADO COM SUCESSO ===');
     return project;
 
   } catch (error) {
-    console.error('=== ERRO NO CREATEPROJECT ===');
-    console.error('Erro completo:', error);
+    console.error('Error creating project:', error);
     throw error;
   }
 };
 
 export const updateProject = async (projectData: ProjectData) => {
-  console.log('=== UPDATEPROJECT INICIADO ===');
-  console.log('Dados recebidos:', JSON.stringify(projectData, null, 2));
-
   try {
     if (!projectData.id) {
       throw new Error('ID do projeto é obrigatório para atualização');
@@ -538,8 +393,6 @@ export const updateProject = async (projectData: ProjectData) => {
       updated_at: new Date().toISOString()
     };
 
-    console.log('Payload do projeto (snake_case):', JSON.stringify(projectPayload, null, 2));
-
     // Atualizar o projeto
     const { data: project, error: projectError } = await supabase
       .from('projects')
@@ -549,16 +402,11 @@ export const updateProject = async (projectData: ProjectData) => {
       .single();
 
     if (projectError) {
-      console.error('Erro ao atualizar projeto:', projectError);
       throw projectError;
     }
 
-    console.log('Projeto atualizado com sucesso:', project);
-
     // Atualizar as etapas
     if (projectData.stages && projectData.stages.length > 0) {
-      console.log('Atualizando etapas do projeto...');
-
       // Primeiro, buscar etapas existentes
       const { data: existingStages } = await supabase
         .from('project_stages')
@@ -585,8 +433,6 @@ export const updateProject = async (projectData: ProjectData) => {
 
       // Criar ou atualizar etapas
       for (const stage of projectData.stages) {
-        console.log('Processando etapa:', stage);
-        
         const stagePayload = {
           project_id: projectData.id,
           name: stage.name,
@@ -599,7 +445,7 @@ export const updateProject = async (projectData: ProjectData) => {
           stage_order: Number(stage.stageOrder || 1),
           consultant_id: stage.consultantId || null,
           status: stage.status || 'iniciar_projeto',
-          valor_de_repasse: Number(stage.valorDeRepasse || 0), // Campo crítico para o valor de repasse
+          valor_de_repasse: Number(stage.valorDeRepasse || 0),
           completed: stage.completed || false,
           client_approved: stage.clientApproved || false,
           manager_approved: stage.managerApproved || false,
@@ -609,40 +455,25 @@ export const updateProject = async (projectData: ProjectData) => {
           updated_at: new Date().toISOString()
         };
 
-        console.log('Payload da etapa:', JSON.stringify(stagePayload, null, 2));
-        console.log('valor_de_repasse sendo salvo:', stagePayload.valor_de_repasse);
-
         if (stage.id && !stage.id.startsWith('temp-')) {
           // Atualizar etapa existente
-          const { data: updatedStage, error: stageError } = await supabase
+          const { error: stageError } = await supabase
             .from('project_stages')
             .update(stagePayload)
-            .eq('id', stage.id)
-            .select()
-            .single();
+            .eq('id', stage.id);
 
           if (stageError) {
-            console.error('Erro ao atualizar etapa:', stageError);
             throw stageError;
           }
-
-          console.log('Etapa atualizada com sucesso:', updatedStage);
-          console.log('Valor de repasse salvo:', updatedStage.valor_de_repasse);
         } else {
           // Criar nova etapa
-          const { data: createdStage, error: stageError } = await supabase
+          const { error: stageError } = await supabase
             .from('project_stages')
-            .insert(stagePayload)
-            .select()
-            .single();
+            .insert(stagePayload);
 
           if (stageError) {
-            console.error('Erro ao criar etapa:', stageError);
             throw stageError;
           }
-
-          console.log('Etapa criada com sucesso:', createdStage);
-          console.log('Valor de repasse salvo:', createdStage.valor_de_repasse);
         }
       }
     }
@@ -667,18 +498,16 @@ export const updateProject = async (projectData: ProjectData) => {
           .insert(tagRelations);
 
         if (tagError) {
-          console.error('Erro ao criar relações de tags:', tagError);
+          console.error('Error creating tag relations:', tagError);
           // Não falhar por causa das tags, apenas logar
         }
       }
     }
 
-    console.log('=== UPDATEPROJECT FINALIZADO COM SUCESSO ===');
     return project;
 
   } catch (error) {
-    console.error('=== ERRO NO UPDATEPROJECT ===');
-    console.error('Erro completo:', error);
+    console.error('Error updating project:', error);
     throw error;
   }
 };

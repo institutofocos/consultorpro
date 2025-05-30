@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -75,8 +76,6 @@ const ProjectList: React.FC = () => {
     fetchFilterData();
   }, []);
 
-  console.log('=== PROJECTLIST COMPONENT INICIADO ===');
-
   const { 
     data: projects = [], 
     isLoading, 
@@ -87,35 +86,6 @@ const ProjectList: React.FC = () => {
     queryKey: ['projects'],
     queryFn: fetchProjects,
   });
-
-  console.log('=== PROJECTLIST USEQUERY RESULTADO ===');
-  console.log('isLoading:', isLoading);
-  console.log('isError:', isError);
-  console.log('error:', error);
-  console.log('projects (raw):', projects);
-  console.log('projects type:', typeof projects);
-  console.log('projects is array:', Array.isArray(projects));
-  console.log('projects length:', projects?.length || 0);
-  
-  if (Array.isArray(projects) && projects.length > 0) {
-    console.log('=== DETALHES DOS PROJETOS RECEBIDOS ===');
-    projects.forEach((project, index) => {
-      console.log(`Projeto ${index + 1}:`, {
-        id: project.id,
-        name: project.name,
-        status: project.status,
-        clientName: project.clientName,
-        startDate: project.startDate,
-        endDate: project.endDate
-      });
-    });
-  }
-
-  console.log('=== PROJECTLIST RENDER ===');
-  console.log('isLoading:', isLoading);
-  console.log('isError:', isError);
-  console.log('projects:', projects);
-  console.log('projects.length:', projects?.length || 0);
 
   // Função helper para verificar se uma data está atrasada
   const isOverdue = (endDate: string | null) => {
@@ -132,30 +102,14 @@ const ProjectList: React.FC = () => {
   };
 
   const filteredProjects = (projects as Project[]).filter((project: Project) => {
-    console.log('=== FILTRANDO PROJETO ===');
-    console.log('Projeto:', project.name);
-    console.log('Filtros ativos:', {
-      searchTerm,
-      statusFilter,
-      clientFilter,
-      serviceFilter,
-      tagFilter,
-      consultantFilter,
-      startDateFilter,
-      endDateFilter
-    });
-    
     const matchesSearch = searchTerm === '' || 
       project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    console.log('matchesSearch:', matchesSearch);
 
     // Lógica do filtro de status - incluindo entregas atrasadas
     let matchesStatus = false;
     if (statusFilter === '') {
       matchesStatus = true; // Se não há filtro, incluir todos
-      console.log('Sem filtro de status - incluindo todos');
     } else if (statusFilter === 'entregas_atrasadas') {
       // Filtro especial para entregas atrasadas
       const projectOverdue = !isCompletedStatus(project.status) && isOverdue(project.endDate);
@@ -168,7 +122,6 @@ const ProjectList: React.FC = () => {
       );
       
       matchesStatus = projectOverdue || hasOverdueStages;
-      console.log('Filtro entregas atrasadas:', { projectOverdue, hasOverdueStages, matchesStatus });
     } else {
       // Verificar se o status do projeto corresponde
       const projectMatches = project.status === statusFilter;
@@ -178,7 +131,6 @@ const ProjectList: React.FC = () => {
       
       // O projeto deve aparecer se ele próprio ou alguma de suas etapas tiver o status filtrado
       matchesStatus = projectMatches || stageMatches;
-      console.log('Filtro de status normal:', { statusFilter, projectStatus: project.status, projectMatches, stageMatches, matchesStatus });
     }
     
     const matchesClient = clientFilter === '' || project.clientId === clientFilter;
@@ -196,28 +148,9 @@ const ProjectList: React.FC = () => {
     const matchesEndDate = endDateFilter === '' || 
       (project.endDate && project.endDate <= endDateFilter);
     
-    console.log('Resultados dos filtros:', {
-      matchesSearch,
-      matchesStatus,
-      matchesClient,
-      matchesService,
-      matchesConsultant,
-      matchesTags,
-      matchesStartDate,
-      matchesEndDate
-    });
-    
-    const result = matchesSearch && matchesStatus && matchesClient && matchesService && 
+    return matchesSearch && matchesStatus && matchesClient && matchesService && 
            matchesConsultant && matchesTags && matchesStartDate && matchesEndDate;
-    
-    console.log('Projeto', project.name, 'RESULTADO FINAL:', result);
-    
-    return result;
   });
-
-  console.log('=== PROJETOS FILTRADOS ===');
-  console.log('Total de projetos filtrados:', filteredProjects.length);
-  console.log('Projetos que passaram no filtro:', filteredProjects.map(p => p.name));
 
   const handleDeleteProject = async (id: string) => {
     // Find the project to check its status
@@ -249,13 +182,11 @@ const ProjectList: React.FC = () => {
   };
 
   const handleEditProject = (project: any) => {
-    console.log('Editando projeto:', project);
     setEditingProject(project);
     setIsDialogOpen(true);
   };
 
   const handleNewProject = () => {
-    console.log('Criando novo projeto');
     setEditingProject(null);
     setIsDialogOpen(true);
   };
@@ -274,9 +205,6 @@ const ProjectList: React.FC = () => {
 
   const handleProjectSaved = async (savedProject?: Project) => {
     try {
-      console.log('=== PROJETO SALVO - ATUALIZANDO LISTA ===');
-      console.log('Projeto salvo:', savedProject);
-      
       // Force refetch data to ensure we get the latest
       await refetch();
       
@@ -284,7 +212,6 @@ const ProjectList: React.FC = () => {
       setIsDialogOpen(false);
       setEditingProject(null);
       
-      console.log('Lista de projetos atualizada com sucesso');
       toast.success("Projeto salvo e lista atualizada com sucesso!");
     } catch (error) {
       console.error('Erro ao atualizar lista de projetos:', error);
@@ -293,7 +220,6 @@ const ProjectList: React.FC = () => {
   };
 
   const handleDialogOpenChange = (open: boolean) => {
-    console.log('Dialog open change:', open);
     setIsDialogOpen(open);
     if (!open) {
       setEditingProject(null);
@@ -386,10 +312,7 @@ const ProjectList: React.FC = () => {
             <Input
               placeholder="Buscar projetos..."
               value={searchTerm}
-              onChange={(e) => {
-                console.log('Mudando termo de busca:', e.target.value);
-                setSearchTerm(e.target.value);
-              }}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
             
             {/* Filtro de status usando dados dinâmicos */}
@@ -492,7 +415,6 @@ const ProjectList: React.FC = () => {
           {isLoading ? (
             <div className="text-center py-8">
               <p>Carregando projetos...</p>
-              <p className="text-sm text-muted-foreground mt-2">Verificando conexão com o banco de dados</p>
             </div>
           ) : isError ? (
             <div className="text-center py-8 text-red-500">
@@ -507,20 +429,12 @@ const ProjectList: React.FC = () => {
               </Button>
             </div>
           ) : (
-            <>
-              <div className="mb-4 p-4 bg-gray-50 rounded">
-                <h4 className="font-semibold mb-2">Status de Debug:</h4>
-                <p>Total de projetos carregados: {projects?.length || 0}</p>
-                <p>Total de projetos filtrados: {filteredProjects?.length || 0}</p>
-                <p>Filtros ativos: {JSON.stringify({ searchTerm, statusFilter, clientFilter })}</p>
-              </div>
-              <ProjectsExpandedTable
-                projects={filteredProjects}
-                onDeleteProject={handleDeleteProject}
-                onEditProject={handleEditProject}
-                onRefresh={refetch}
-              />
-            </>
+            <ProjectsExpandedTable
+              projects={filteredProjects}
+              onDeleteProject={handleDeleteProject}
+              onEditProject={handleEditProject}
+              onRefresh={refetch}
+            />
           )}
         </CardContent>
       </Card>
