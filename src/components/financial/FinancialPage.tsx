@@ -280,6 +280,10 @@ const FinancialPage = () => {
           <p className="text-muted-foreground">Controle de receitas e pagamentos</p>
         </div>
         <div className="flex items-center gap-4">
+          <MonthNavigation 
+            currentDate={currentMonth}
+            onMonthChange={handleMonthChange}
+          />
           <Button
             onClick={() => {
               setEditingTransaction(null);
@@ -315,7 +319,7 @@ const FinancialPage = () => {
         onFilterReset={handleFilterReset}
       />
 
-      {/* Accounts Payable/Receivable with Month Navigation */}
+      {/* Accounts Payable/Receivable */}
       <AccountsPayableReceivable
         payables={{
           data: payables,
@@ -325,12 +329,6 @@ const FinancialPage = () => {
           data: receivables,
           isLoading: receivablesLoading,
         }}
-        monthNavigation={
-          <MonthNavigation 
-            currentDate={currentMonth}
-            onMonthChange={handleMonthChange}
-          />
-        }
       />
 
       {/* Manual Transaction Form Dialog */}
