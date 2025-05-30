@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export interface ProjectData {
@@ -34,9 +35,31 @@ export const fetchProjects = async () => {
   
   try {
     console.log('Conectando ao Supabase...');
+    console.log('URL do Supabase:', supabase.supabaseUrl);
     console.log('Supabase client:', supabase);
     
-    console.log('Fazendo query no Supabase...');
+    // Primeiro, vamos fazer uma query simples para ver se há dados na tabela
+    console.log('=== TESTE SIMPLES - CONTANDO REGISTROS ===');
+    const { count, error: countError } = await supabase
+      .from('projects')
+      .select('*', { count: 'exact', head: true });
+      
+    console.log('Contagem de registros na tabela projects:', count);
+    if (countError) {
+      console.error('Erro na contagem:', countError);
+    }
+
+    // Query simples sem joins para testar
+    console.log('=== TESTE SIMPLES - SEM JOINS ===');
+    const { data: simpleData, error: simpleError } = await supabase
+      .from('projects')
+      .select('*')
+      .limit(5);
+      
+    console.log('Dados simples (sem joins):', simpleData);
+    console.log('Erro simples:', simpleError);
+    
+    console.log('=== FAZENDO QUERY COMPLETA COM JOINS ===');
     
     const { data, error } = await supabase
       .from('projects')
@@ -63,6 +86,40 @@ export const fetchProjects = async () => {
       console.error('Mensagem do erro:', error.message);
       console.error('Detalhes do erro:', error.details);
       console.error('Dica do erro:', error.hint);
+      
+      // Se der erro na query complexa, vamos retornar os dados simples
+      if (simpleData && simpleData.length > 0) {
+        console.log('=== RETORNANDO DADOS SIMPLES DEVIDO AO ERRO ===');
+        return simpleData.map(project => ({
+          ...project,
+          // Mapeamento básico
+          mainConsultantCommission: project.main_consultant_commission || 0,
+          supportConsultantCommission: project.support_consultant_commission || 0,
+          startDate: project.start_date,
+          endDate: project.end_date,
+          totalValue: project.total_value || 0,
+          taxPercent: project.tax_percent || 16,
+          thirdPartyExpenses: project.third_party_expenses || 0,
+          consultantValue: project.main_consultant_value || 0,
+          supportConsultantValue: project.support_consultant_value || 0,
+          totalHours: project.total_hours || 0,
+          hourlyRate: project.hourly_rate || 0,
+          managerName: project.manager_name,
+          managerEmail: project.manager_email,
+          managerPhone: project.manager_phone,
+          clientId: project.client_id,
+          serviceId: project.service_id,
+          mainConsultantId: project.main_consultant_id,
+          supportConsultantId: project.support_consultant_id,
+          clientName: '',
+          serviceName: '',
+          mainConsultantName: '',
+          supportConsultantName: '',
+          stages: [],
+          tagIds: []
+        }));
+      }
+      
       throw error;
     }
 
@@ -178,7 +235,7 @@ export const fetchProjects = async () => {
     console.error('=== ERRO CRÍTICO NO FETCHPROJECTS ===');
     console.error('Tipo do erro:', typeof error);
     console.error('Erro completo:', error);
-    console.error('Stack trace:', error.stack);
+    console.error('Stack trace:', error?.stack);
     
     // Retornar array vazio ao invés de propagar o erro para evitar quebrar a UI
     return [];
