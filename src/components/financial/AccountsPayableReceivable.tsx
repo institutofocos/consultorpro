@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -23,6 +22,7 @@ import { AccountsPayable, AccountsReceivable, updateAccountsReceivableStatus } f
 import { CalendarIcon, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import MonthNavigation from "./MonthNavigation";
 
 interface AccountsPayableReceivableProps {
   payables: {
@@ -33,9 +33,16 @@ interface AccountsPayableReceivableProps {
     data: AccountsReceivable[] | null;
     isLoading: boolean;
   };
+  currentMonth: Date;
+  onMonthChange: (date: Date) => void;
 }
 
-const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({ payables, receivables }) => {
+const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({ 
+  payables, 
+  receivables, 
+  currentMonth, 
+  onMonthChange 
+}) => {
   const queryClient = useQueryClient();
   const [selectedReceivable, setSelectedReceivable] = useState<string | null>(null);
   const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
@@ -188,10 +195,18 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({ p
         <TabsContent value="receivable">
           <Card>
             <CardHeader>
-              <CardTitle>Contas a Receber</CardTitle>
-              <CardDescription>
-                Recebimentos pendentes e realizados das etapas dos projetos
-              </CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Contas a Receber</CardTitle>
+                  <CardDescription>
+                    Recebimentos pendentes e realizados das etapas dos projetos
+                  </CardDescription>
+                </div>
+                <MonthNavigation 
+                  currentDate={currentMonth}
+                  onMonthChange={onMonthChange}
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <Table>

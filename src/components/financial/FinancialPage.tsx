@@ -21,7 +21,6 @@ import FinancialSummary from "./FinancialSummary";
 import FinancialFilters from "./FinancialFilters";
 import AccountsPayableReceivable from "./AccountsPayableReceivable";
 import ManualTransactionForm from "./ManualTransactionForm";
-import MonthNavigation from "./MonthNavigation";
 
 const FinancialPage = () => {
   const queryClient = useQueryClient();
@@ -280,10 +279,6 @@ const FinancialPage = () => {
           <p className="text-muted-foreground">Controle de receitas e pagamentos</p>
         </div>
         <div className="flex items-center gap-4">
-          <MonthNavigation 
-            currentDate={currentMonth}
-            onMonthChange={handleMonthChange}
-          />
           <Button
             onClick={() => {
               setEditingTransaction(null);
@@ -329,6 +324,8 @@ const FinancialPage = () => {
           data: receivables,
           isLoading: receivablesLoading,
         }}
+        currentMonth={currentMonth}
+        onMonthChange={handleMonthChange}
       />
 
       {/* Manual Transaction Form Dialog */}
