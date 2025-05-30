@@ -90,6 +90,7 @@ const ProjectStageForm: React.FC<ProjectStageFormProps> = ({ stages, onStagesCha
                 <Input
                   id={`stage-value-${index}`}
                   type="number"
+                  step="0.01"
                   value={stage.value}
                   onChange={(e) => updateStage(index, 'value', parseFloat(e.target.value) || 0)}
                   placeholder="0.00"
@@ -150,7 +151,10 @@ const ProjectStageForm: React.FC<ProjectStageFormProps> = ({ stages, onStagesCha
               </div>
 
               <div>
-                <Label htmlFor={`stage-valor-repasse-${index}`}>Valor de Repasse (R$) - Opcional</Label>
+                <Label htmlFor={`stage-valor-repasse-${index}`}>
+                  Valor de Repasse (R$)
+                  <span className="text-sm text-muted-foreground ml-1">- Valor a ser pago ao consultor</span>
+                </Label>
                 <Input
                   id={`stage-valor-repasse-${index}`}
                   type="number"
@@ -159,6 +163,14 @@ const ProjectStageForm: React.FC<ProjectStageFormProps> = ({ stages, onStagesCha
                   onChange={(e) => updateStage(index, 'valor_de_repasse', parseFloat(e.target.value) || 0)}
                   placeholder="0.00"
                 />
+              </div>
+
+              <div className="flex items-end">
+                <div className="text-sm text-muted-foreground p-2 bg-gray-50 rounded">
+                  <p><strong>Valor Total:</strong> R$ {stage.value.toFixed(2)}</p>
+                  <p><strong>Valor de Repasse:</strong> R$ {(stage.valor_de_repasse || 0).toFixed(2)}</p>
+                  <p><strong>Margem:</strong> R$ {(stage.value - (stage.valor_de_repasse || 0)).toFixed(2)}</p>
+                </div>
               </div>
             </div>
           </CardContent>

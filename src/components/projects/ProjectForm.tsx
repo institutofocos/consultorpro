@@ -17,6 +17,7 @@ import { createProject, updateProject, fetchProjectTags } from "@/integrations/s
 import { Project, Stage } from "./types";
 import SearchableSelect from "@/components/ui/searchable-select";
 import { Badge } from "@/components/ui/badge";
+import ProjectFormStageSection from "./ProjectFormStageSection";
 
 interface ProjectFormProps {
   project?: Project;
@@ -792,130 +793,13 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         </CardContent>
       </Card>
 
-      {/* Etapas do Projeto */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle>Etapas do Projeto</CardTitle>
-          <Button type="button" variant="outline" size="sm" onClick={addStage}>
-            <PlusIcon className="h-4 w-4 mr-2" />
-            Adicionar Etapa
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {formData.stages && formData.stages.length > 0 ? (
-            <div className="space-y-4">
-              {formData.stages.map((stage, index) => (
-                <div key={stage.id} className="border rounded-lg p-4 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <h4 className="font-medium">Etapa {index + 1}</h4>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeStage(index)}
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Nome da Etapa</Label>
-                      <Input
-                        value={stage.name}
-                        onChange={(e) => updateStage(index, 'name', e.target.value)}
-                        placeholder="Nome da etapa"
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Valor (R$)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={stage.value}
-                        onChange={(e) => updateStage(index, 'value', Number(e.target.value))}
-                        placeholder="0.00"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Descrição</Label>
-                    <Textarea
-                      value={stage.description}
-                      onChange={(e) => updateStage(index, 'description', e.target.value)}
-                      placeholder="Descrição da etapa"
-                      rows={2}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div>
-                      <Label>Dias</Label>
-                      <Input
-                        type="number"
-                        value={stage.days}
-                        onChange={(e) => updateStage(index, 'days', Number(e.target.value))}
-                        min="1"
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Horas</Label>
-                      <Input
-                        type="number"
-                        value={stage.hours}
-                        onChange={(e) => updateStage(index, 'hours', Number(e.target.value))}
-                        min="1"
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Data de Início</Label>
-                      <Input
-                        type="date"
-                        value={stage.startDate}
-                        onChange={(e) => updateStage(index, 'startDate', e.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Data de Término</Label>
-                      <Input
-                        type="date"
-                        value={stage.endDate}
-                        onChange={(e) => updateStage(index, 'endDate', e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Consultor Responsável</Label>
-                    <SearchableSelect
-                      options={[{ id: '', name: 'Nenhum' }, ...getConsultantOptions()]}
-                      value={stage.consultantId || ''}
-                      onValueChange={(value) => updateStage(index, 'consultantId', value as string)}
-                      placeholder="Selecione um consultor"
-                      searchPlaceholder="Pesquisar consultores..."
-                      emptyText="Nenhum consultor encontrado"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-8">
-              Nenhuma etapa adicionada. Clique em "Adicionar Etapa" para começar.
-            </p>
-          )}
-          {formData.startDate && (
-            <p className="text-xs text-muted-foreground mt-4">
-              As datas das etapas são calculadas automaticamente com base na data de início do projeto
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {/* Etapas do Projeto - Usando o novo componente */}
+      <ProjectFormStageSection
+        stages={formData.stages || []}
+        onStagesChange={(stages) => setFormData(prev => ({ ...prev, stages }))}
+        consultantOptions={getConsultantOptions()}
+        startDate={formData.startDate}
+      />
 
       {/* Valores Financeiros */}
       <Card>
