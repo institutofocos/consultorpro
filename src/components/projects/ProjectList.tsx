@@ -99,7 +99,7 @@ const ProjectList: React.FC = () => {
     return completionStatuses.some(s => s.name === status) || status === 'concluido';
   };
 
-  const filteredProjects = projects.filter((project: Project) => {
+  const filteredProjects = (projects as Project[]).filter((project: Project) => {
     const matchesSearch = searchTerm === '' || 
       project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -152,7 +152,7 @@ const ProjectList: React.FC = () => {
 
   const handleDeleteProject = async (id: string) => {
     // Find the project to check its status
-    const project = projects.find(p => p.id === id);
+    const project = (projects as Project[]).find(p => p.id === id);
     
     if (!project) {
       toast.error("Projeto não encontrado.");

@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export interface ProjectData {
@@ -28,6 +29,177 @@ export interface ProjectData {
   stages?: any[];
   url?: string;
 }
+
+export const fetchProjects = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        clients(id, name),
+        services(id, name),
+        consultants_main:consultants!main_consultant_id(id, name),
+        consultants_support:consultants!support_consultant_id(id, name),
+        project_stages(*)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Transform data to match expected format
+    const transformedData = (data || []).map(project => ({
+      ...project,
+      clientName: project.clients?.name || '',
+      serviceName: project.services?.name || '',
+      mainConsultantName: project.consultants_main?.name || '',
+      supportConsultantName: project.consultants_support?.name || '',
+      stages: project.project_stages || [],
+      tagIds: [] // Will be populated from project_tag_relations if needed
+    }));
+
+    return transformedData;
+  } catch (error) {
+    console.error('Error fetching projects:', error);
+    return [];
+  }
+};
+
+export const fetchDemandsWithoutConsultants = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        clients(id, name),
+        services(id, name)
+      `)
+      .is('main_consultant_id', null)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Transform data to match expected format
+    const transformedData = (data || []).map(project => ({
+      ...project,
+      clientName: project.clients?.name || '',
+      serviceName: project.services?.name || '',
+      totalDays: Math.ceil((new Date(project.end_date).getTime() - new Date(project.start_date).getTime()) / (1000 * 60 * 60 * 24)),
+      totalHours: project.total_hours || 0
+    }));
+
+    return transformedData;
+  } catch (error) {
+    console.error('Error fetching demands without consultants:', error);
+    return [];
+  }
+};
+
+export const assignConsultantsToDemand = async (
+  demandId: string,
+  mainConsultantId: string | null,
+  mainConsultantCommission: number,
+  supportConsultantId: string | null,
+  supportConsultantCommission: number
+) => {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .update({
+        main_consultant_id: mainConsultantId,
+        main_consultant_commission: mainConsultantCommission,
+        support_consultant_id: supportConsultantId,
+        support_consultant_commission: supportConsultantCommission,
+        status: 'active',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', demandId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error assigning consultants to demand:', error);
+    throw error;
+  }
+};
+
+export const deleteProject = async (id: string) => {
+  try {
+    // First delete related project stages
+    const { error: stagesError } = await supabase
+      .from('project_stages')
+      .delete()
+      .eq('project_id', id);
+
+    if (stagesError) throw stagesError;
+
+    // Delete project tag relations
+    const { error: tagRelationsError } = await supabase
+      .from('project_tag_relations')
+      .delete()
+      .eq('project_id', id);
+
+    if (tagRelationsError) throw tagRelationsError;
+
+    // Delete the project
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    throw error;
+  }
+};
+
+export const fetchTags = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('project_tags')
+      .select('*')
+      .order('name');
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching tags:', error);
+    return [];
+  }
+};
+
+export const fetchConsultants = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('consultants')
+      .select('id, name')
+      .order('name');
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching consultants:', error);
+    return [];
+  }
+};
+
+export const fetchServices = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('services')
+      .select('id, name')
+      .order('name');
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching services:', error);
+    return [];
+  }
+};
 
 export const createProject = async (projectData: ProjectData) => {
   console.log('=== CREATEPROJECT INICIADO ===');
