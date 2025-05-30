@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export interface ProjectData {
@@ -46,9 +45,29 @@ export const fetchProjects = async () => {
 
     if (error) throw error;
 
-    // Transform data to match expected format
+    // Transform data to match expected format with proper camelCase mapping
     const transformedData = (data || []).map(project => ({
       ...project,
+      // Map snake_case to camelCase for required fields
+      mainConsultantCommission: project.main_consultant_commission || 0,
+      supportConsultantCommission: project.support_consultant_commission || 0,
+      startDate: project.start_date,
+      endDate: project.end_date,
+      totalValue: project.total_value || 0,
+      taxPercent: project.tax_percent || 16,
+      thirdPartyExpenses: project.third_party_expenses || 0,
+      consultantValue: project.main_consultant_value || 0,
+      supportConsultantValue: project.support_consultant_value || 0,
+      totalHours: project.total_hours || 0,
+      hourlyRate: project.hourly_rate || 0,
+      managerName: project.manager_name,
+      managerEmail: project.manager_email,
+      managerPhone: project.manager_phone,
+      // Transform related data
+      clientId: project.client_id,
+      serviceId: project.service_id,
+      mainConsultantId: project.main_consultant_id,
+      supportConsultantId: project.support_consultant_id,
       clientName: project.clients?.name || '',
       serviceName: project.services?.name || '',
       mainConsultantName: project.consultants_main?.name || '',
