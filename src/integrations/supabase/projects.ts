@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export interface ProjectData {
@@ -31,7 +30,11 @@ export interface ProjectData {
 }
 
 export const fetchProjects = async () => {
+  console.log('=== FETCHPROJECTS INICIADO ===');
+  
   try {
+    console.log('Fazendo query no Supabase...');
+    
     const { data, error } = await supabase
       .from('projects')
       .select(`
@@ -44,66 +47,91 @@ export const fetchProjects = async () => {
       `)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    console.log('Resposta do Supabase:', { data, error });
+
+    if (error) {
+      console.error('Erro na query:', error);
+      throw error;
+    }
+
+    console.log('Dados retornados:', data?.length || 0, 'projetos');
+    console.log('Primeiro projeto (se existir):', data?.[0]);
 
     // Transform data to match expected format with proper camelCase mapping
-    const transformedData = (data || []).map(project => ({
-      ...project,
-      // Map snake_case to camelCase for required fields
-      mainConsultantCommission: project.main_consultant_commission || 0,
-      supportConsultantCommission: project.support_consultant_commission || 0,
-      startDate: project.start_date,
-      endDate: project.end_date,
-      totalValue: project.total_value || 0,
-      taxPercent: project.tax_percent || 16,
-      thirdPartyExpenses: project.third_party_expenses || 0,
-      consultantValue: project.main_consultant_value || 0,
-      supportConsultantValue: project.support_consultant_value || 0,
-      totalHours: project.total_hours || 0,
-      hourlyRate: project.hourly_rate || 0,
-      managerName: project.manager_name,
-      managerEmail: project.manager_email,
-      managerPhone: project.manager_phone,
-      // Transform related data
-      clientId: project.client_id,
-      serviceId: project.service_id,
-      mainConsultantId: project.main_consultant_id,
-      supportConsultantId: project.support_consultant_id,
-      clientName: project.clients?.name || '',
-      serviceName: project.services?.name || '',
-      mainConsultantName: project.consultants_main?.name || '',
-      supportConsultantName: project.consultants_support?.name || '',
-      // Transform stages array to match Stage interface
-      stages: (project.project_stages || []).map(stage => ({
-        id: stage.id,
-        projectId: stage.project_id,
-        name: stage.name,
-        description: stage.description || '',
-        days: stage.days,
-        hours: stage.hours,
-        value: stage.value,
-        startDate: stage.start_date,
-        endDate: stage.end_date,
-        consultantId: stage.consultant_id,
-        completed: stage.completed,
-        clientApproved: stage.client_approved,
-        managerApproved: stage.manager_approved,
-        invoiceIssued: stage.invoice_issued,
-        paymentReceived: stage.payment_received,
-        consultantsSettled: stage.consultants_settled,
-        attachment: stage.attachment,
-        stageOrder: stage.stage_order,
-        status: stage.status || 'iniciar_projeto',
-        valorDeRepasse: stage.valor_de_repasse,
-        createdAt: stage.created_at,
-        updatedAt: stage.updated_at
-      })),
-      tagIds: [] // Will be populated from project_tag_relations if needed
-    }));
+    const transformedData = (data || []).map(project => {
+      console.log('Transformando projeto:', project.name);
+      
+      const transformed = {
+        ...project,
+        // Map snake_case to camelCase for required fields
+        mainConsultantCommission: project.main_consultant_commission || 0,
+        supportConsultantCommission: project.support_consultant_commission || 0,
+        startDate: project.start_date,
+        endDate: project.end_date,
+        totalValue: project.total_value || 0,
+        taxPercent: project.tax_percent || 16,
+        thirdPartyExpenses: project.third_party_expenses || 0,
+        consultantValue: project.main_consultant_value || 0,
+        supportConsultantValue: project.support_consultant_value || 0,
+        totalHours: project.total_hours || 0,
+        hourlyRate: project.hourly_rate || 0,
+        managerName: project.manager_name,
+        managerEmail: project.manager_email,
+        managerPhone: project.manager_phone,
+        // Transform related data
+        clientId: project.client_id,
+        serviceId: project.service_id,
+        mainConsultantId: project.main_consultant_id,
+        supportConsultantId: project.support_consultant_id,
+        clientName: project.clients?.name || '',
+        serviceName: project.services?.name || '',
+        mainConsultantName: project.consultants_main?.name || '',
+        supportConsultantName: project.consultants_support?.name || '',
+        // Transform stages array to match Stage interface
+        stages: (project.project_stages || []).map(stage => ({
+          id: stage.id,
+          projectId: stage.project_id,
+          name: stage.name,
+          description: stage.description || '',
+          days: stage.days,
+          hours: stage.hours,
+          value: stage.value,
+          startDate: stage.start_date,
+          endDate: stage.end_date,
+          consultantId: stage.consultant_id,
+          completed: stage.completed,
+          clientApproved: stage.client_approved,
+          managerApproved: stage.manager_approved,
+          invoiceIssued: stage.invoice_issued,
+          paymentReceived: stage.payment_received,
+          consultantsSettled: stage.consultants_settled,
+          attachment: stage.attachment,
+          stageOrder: stage.stage_order,
+          status: stage.status || 'iniciar_projeto',
+          valorDeRepasse: stage.valor_de_repasse,
+          createdAt: stage.created_at,
+          updatedAt: stage.updated_at
+        })),
+        tagIds: [] // Will be populated from project_tag_relations if needed
+      };
+      
+      console.log('Projeto transformado:', transformed.name, {
+        id: transformed.id,
+        startDate: transformed.startDate,
+        endDate: transformed.endDate,
+        stages: transformed.stages?.length || 0
+      });
+      
+      return transformed;
+    });
 
+    console.log('=== FETCHPROJECTS FINALIZADO ===');
+    console.log('Total de projetos transformados:', transformedData.length);
+    
     return transformedData;
   } catch (error) {
-    console.error('Error fetching projects:', error);
+    console.error('=== ERRO NO FETCHPROJECTS ===');
+    console.error('Erro completo:', error);
     return [];
   }
 };

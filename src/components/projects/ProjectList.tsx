@@ -85,6 +85,12 @@ const ProjectList: React.FC = () => {
     queryFn: fetchProjects,
   });
 
+  console.log('=== PROJECTLIST RENDER ===');
+  console.log('isLoading:', isLoading);
+  console.log('isError:', isError);
+  console.log('projects:', projects);
+  console.log('projects.length:', projects?.length || 0);
+
   // Função helper para verificar se uma data está atrasada
   const isOverdue = (endDate: string | null) => {
     if (!endDate) return false;
@@ -100,6 +106,12 @@ const ProjectList: React.FC = () => {
   };
 
   const filteredProjects = (projects as Project[]).filter((project: Project) => {
+    console.log('Filtrando projeto:', project.name, {
+      searchTerm,
+      statusFilter,
+      clientFilter
+    });
+    
     const matchesSearch = searchTerm === '' || 
       project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -146,9 +158,15 @@ const ProjectList: React.FC = () => {
     const matchesEndDate = endDateFilter === '' || 
       (project.endDate && project.endDate <= endDateFilter);
     
-    return matchesSearch && matchesStatus && matchesClient && matchesService && 
+    const result = matchesSearch && matchesStatus && matchesClient && matchesService && 
            matchesConsultant && matchesTags && matchesStartDate && matchesEndDate;
+    
+    console.log('Projeto', project.name, 'passa nos filtros:', result);
+    
+    return result;
   });
+
+  console.log('Projetos filtrados:', filteredProjects.length);
 
   const handleDeleteProject = async (id: string) => {
     // Find the project to check its status
