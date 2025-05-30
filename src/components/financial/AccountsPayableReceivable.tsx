@@ -60,8 +60,8 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
-  // Fetch history data
-  const { data: historyData, isLoading: historyLoading } = useQuery({
+  // Fetch history data - sempre que o modal for aberto
+  const { data: historyData, isLoading: historyLoading, refetch: refetchHistory } = useQuery({
     queryKey: ['accounts-history'],
     queryFn: () => fetchAccountsHistory(),
     enabled: showHistory,
@@ -111,9 +111,14 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
       updateAccountsReceivableStatus(id, status, paymentDate),
     onSuccess: () => {
       toast.success("Status atualizado com sucesso");
+      // Invalidar múltiplas queries para garantir que todos os dados sejam atualizados
       queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
       queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
+      // Forçar atualização do histórico se o modal estiver aberto
+      if (showHistory) {
+        refetchHistory();
+      }
     },
     onError: (error: any) => {
       toast.error("Erro ao atualizar status: " + error.message);
@@ -125,9 +130,14 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
       updateAccountsPayableStatus(id, status, paymentDate),
     onSuccess: () => {
       toast.success("Status atualizado com sucesso");
+      // Invalidar múltiplas queries para garantir que todos os dados sejam atualizados
       queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
       queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
+      // Forçar atualização do histórico se o modal estiver aberto
+      if (showHistory) {
+        refetchHistory();
+      }
     },
     onError: (error: any) => {
       toast.error("Erro ao atualizar status: " + error.message);
@@ -141,6 +151,9 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
       queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
       queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
+      if (showHistory) {
+        refetchHistory();
+      }
     },
     onError: (error: any) => {
       toast.error("Erro ao cancelar conta a receber: " + error.message);
@@ -154,6 +167,9 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
       queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
       queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
+      if (showHistory) {
+        refetchHistory();
+      }
     },
     onError: (error: any) => {
       toast.error("Erro ao cancelar conta a pagar: " + error.message);
@@ -208,6 +224,16 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
     }
   };
 
+  // Função para abrir o histórico e forçar atualização
+  const handleOpenHistory = () => {
+    console.log('Opening history modal');
+    setShowHistory(true);
+    // Força buscar os dados mais recentes
+    setTimeout(() => {
+      refetchHistory();
+    }, 100);
+  };
+
   return (
     <>
       <Tabs defaultValue="payable" className="w-full">
@@ -219,7 +245,7 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
           
           <Button
             variant="outline"
-            onClick={() => setShowHistory(true)}
+            onClick={handleOpenHistory}
             className="flex items-center gap-2"
           >
             <History className="h-4 w-4" />

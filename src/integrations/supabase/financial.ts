@@ -259,7 +259,10 @@ export const fetchAccountsReceivable = async (filters: FinancialFilter = {}): Pr
 };
 
 export const updateAccountsReceivableStatus = async (id: string, status: 'pending' | 'received' | 'canceled', paymentDate?: string) => {
-  const updates: any = { status };
+  const updates: any = { 
+    status,
+    updated_at: new Date().toISOString()
+  };
   
   if (paymentDate) {
     updates.payment_date = paymentDate;
@@ -280,7 +283,10 @@ export const updateAccountsReceivableStatus = async (id: string, status: 'pendin
 };
 
 export const updateAccountsPayableStatus = async (id: string, status: 'pending' | 'paid' | 'canceled', paymentDate?: string) => {
-  const updates: any = { status };
+  const updates: any = { 
+    status,
+    updated_at: new Date().toISOString()
+  };
   
   if (paymentDate) {
     updates.payment_date = paymentDate;
@@ -388,10 +394,15 @@ export const fetchAccountsHistory = async (filters: FinancialFilter = {}) => {
   try {
     const { startDate, endDate } = filters;
     
-    // Buscar histórico de contas a receber
+    console.log('Fetching accounts history with filters:', { startDate, endDate });
+    
+    // Buscar histórico completo de contas a receber com joins otimizados
     let receivablesQuery = supabase
       .from('accounts_receivable')
-      .select('*, client_name:clients(name)')
+      .select(`
+        *,
+        clients!inner(name)
+      `)
       .order('updated_at', { ascending: false });
     
     if (startDate) {
@@ -402,10 +413,13 @@ export const fetchAccountsHistory = async (filters: FinancialFilter = {}) => {
       receivablesQuery = receivablesQuery.lte('due_date', endDate);
     }
 
-    // Buscar histórico de contas a pagar
+    // Buscar histórico completo de contas a pagar com joins otimizados
     let payablesQuery = supabase
       .from('accounts_payable')
-      .select('*, consultant_name:consultants(name)')
+      .select(`
+        *,
+        consultants!inner(name)
+      `)
       .order('updated_at', { ascending: false });
     
     if (startDate) {
@@ -421,20 +435,49 @@ export const fetchAccountsHistory = async (filters: FinancialFilter = {}) => {
       payablesQuery
     ]);
 
-    const history = [
-      ...(receivablesData.data || []).map(item => ({
-        ...item,
-        type: 'receivable' as const,
-        entity_name: item.client_name?.name || '-'
-      })),
-      ...(payablesData.data || []).map(item => ({
-        ...item,
-        type: 'payable' as const,
-        entity_name: item.consultant_name?.name || '-'
-      }))
-    ].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    console.log('Raw receivables data:', receivablesData.data?.length || 0, 'items');
+    console.log('Raw payables data:', payablesData.data?.length || 0, 'items');
 
-    return history;
+    // Processar contas a receber
+    const receivablesHistory = (receivablesData.data || []).map(item => ({
+      id: item.id,
+      type: 'receivable' as const,
+      description: item.description,
+      amount: item.amount,
+      status: item.status,
+      due_date: item.due_date,
+      payment_date: item.payment_date,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+      entity_name: item.clients?.name || 'Cliente não informado',
+      project_name: item.project_name || '',
+      stage_name: item.stage_name || ''
+    }));
+
+    // Processar contas a pagar
+    const payablesHistory = (payablesData.data || []).map(item => ({
+      id: item.id,
+      type: 'payable' as const,
+      description: item.description,
+      amount: item.amount,
+      status: item.status,
+      due_date: item.due_date,
+      payment_date: item.payment_date,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+      entity_name: item.consultants?.name || 'Consultor não informado',
+      project_name: item.project_name || '',
+      stage_name: item.stage_name || ''
+    }));
+
+    // Combinar e ordenar por data de atualização mais recente
+    const combinedHistory = [...receivablesHistory, ...payablesHistory]
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+    console.log('Combined history:', combinedHistory.length, 'total items');
+    console.log('Sample items:', combinedHistory.slice(0, 3));
+
+    return combinedHistory;
   } catch (error) {
     console.error('Error fetching accounts history:', error);
     return [];
