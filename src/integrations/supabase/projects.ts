@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export interface ProjectData {
@@ -73,31 +72,8 @@ export const fetchProjects = async () => {
       serviceName: project.services?.name || '',
       mainConsultantName: project.consultants_main?.name || '',
       supportConsultantName: project.consultants_support?.name || '',
-      // Transform stages array to match Stage interface
-      stages: (project.project_stages || []).map(stage => ({
-        id: stage.id,
-        projectId: stage.project_id,
-        name: stage.name,
-        description: stage.description || '',
-        days: stage.days,
-        hours: stage.hours,
-        value: stage.value,
-        startDate: stage.start_date,
-        endDate: stage.end_date,
-        consultantId: stage.consultant_id,
-        completed: stage.completed,
-        clientApproved: stage.client_approved,
-        managerApproved: stage.manager_approved,
-        invoiceIssued: stage.invoice_issued,
-        paymentReceived: stage.payment_received,
-        consultantsSettled: stage.consultants_settled,
-        attachment: stage.attachment,
-        stageOrder: stage.stage_order,
-        status: stage.status || 'iniciar_projeto',
-        valorDeRepasse: stage.valor_de_repasse,
-        createdAt: stage.created_at,
-        updatedAt: stage.updated_at
-      })),
+      // Keep stages simple - just pass the raw data
+      stages: project.project_stages || [],
       tagIds: [] // Will be populated from project_tag_relations if needed
     }));
 
