@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -30,6 +31,7 @@ export const fetchProjects = async () => {
           payment_received,
           consultants_settled,
           attachment,
+          valor_de_repasse,
           created_at,
           updated_at,
           consultant:consultants!consultant_id(id, name)
@@ -101,6 +103,7 @@ export const fetchProjects = async () => {
           attachment: stage.attachment,
           stageOrder: stage.stage_order || 1,
           status: stage.status || 'iniciar_projeto',
+          valorDeRepasse: Number(stage.valor_de_repasse) || 0,
           createdAt: stage.created_at,
           updatedAt: stage.updated_at
         })) || [],
