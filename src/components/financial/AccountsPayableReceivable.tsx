@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -29,9 +28,11 @@ import {
   cancelAccountsPayable,
   deleteAccountsReceivable,
   deleteAccountsPayable,
+  reactivateAccountsReceivable,
+  reactivateAccountsPayable,
   fetchAccountsHistory
 } from '@/integrations/supabase/financial';
-import { CalendarIcon, CheckCircle, CreditCard, X, History, Trash2 } from 'lucide-react';
+import { CalendarIcon, CheckCircle, CreditCard, X, History, Trash2, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import MonthNavigation from "./MonthNavigation";
@@ -64,8 +65,11 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showReactivateModal, setShowReactivateModal] = useState(false);
   const [deletePin, setDeletePin] = useState('');
+  const [reactivatePin, setReactivatePin] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'payable' | 'receivable' } | null>(null);
+  const [reactivateTarget, setReactivateTarget] = useState<{ id: string; type: 'payable' | 'receivable' } | null>(null);
 
   // Fetch history data - sempre que o modal for aberto
   const { data: historyData, isLoading: historyLoading, refetch: refetchHistory } = useQuery({
@@ -217,6 +221,38 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
     },
   });
 
+  const reactivateReceivableMutation = useMutation({
+    mutationFn: reactivateAccountsReceivable,
+    onSuccess: () => {
+      toast.success("Conta a receber reativada com sucesso");
+      queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
+      if (showHistory) {
+        refetchHistory();
+      }
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao reativar conta a receber: " + error.message);
+    },
+  });
+
+  const reactivatePayableMutation = useMutation({
+    mutationFn: reactivateAccountsPayable,
+    onSuccess: () => {
+      toast.success("Conta a pagar reativada com sucesso");
+      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
+      if (showHistory) {
+        refetchHistory();
+      }
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao reativar conta a pagar: " + error.message);
+    },
+  });
+
   const handleMarkAsReceived = (receivableId: string) => {
     setSelectedReceivable(receivableId);
     setIsMarkingReceived(true);
@@ -288,6 +324,31 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
     setShowDeleteModal(false);
     setDeleteTarget(null);
     setDeletePin('');
+  };
+
+  const handleReactivateClick = (id: string, type: 'payable' | 'receivable') => {
+    setReactivateTarget({ id, type });
+    setReactivatePin('');
+    setShowReactivateModal(true);
+  };
+
+  const handleReactivateConfirm = () => {
+    if (reactivatePin !== '9136') {
+      toast.error("PIN incorreto");
+      return;
+    }
+
+    if (!reactivateTarget) return;
+
+    if (reactivateTarget.type === 'receivable') {
+      reactivateReceivableMutation.mutate(reactivateTarget.id);
+    } else {
+      reactivatePayableMutation.mutate(reactivateTarget.id);
+    }
+
+    setShowReactivateModal(false);
+    setReactivateTarget(null);
+    setReactivatePin('');
   };
 
   // Função para abrir o histórico e forçar atualização
@@ -413,17 +474,26 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                                 >
                                   <X className="h-4 w-4" />
                                 </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeleteClick(payable.id, 'payable')}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
+                                  title="Excluir"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               </>
                             )}
-                            {payable.status !== 'deleted' && (
+                            {payable.status === 'deleted' && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleDeleteClick(payable.id, 'payable')}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
-                                title="Excluir"
+                                onClick={() => handleReactivateClick(payable.id, 'payable')}
+                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-2"
+                                title="Reativar"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <RotateCcw className="h-4 w-4" />
                               </Button>
                             )}
                           </div>
@@ -535,17 +605,26 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                                 >
                                   <X className="h-4 w-4" />
                                 </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeleteClick(receivable.id, 'receivable')}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
+                                  title="Excluir"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               </>
                             )}
-                            {receivable.status !== 'deleted' && (
+                            {receivable.status === 'deleted' && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleDeleteClick(receivable.id, 'receivable')}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
-                                title="Excluir"
+                                onClick={() => handleReactivateClick(receivable.id, 'receivable')}
+                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-2"
+                                title="Reativar"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <RotateCcw className="h-4 w-4" />
                               </Button>
                             )}
                           </div>
@@ -671,6 +750,39 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
               disabled={deletePin.length !== 4}
             >
               Confirmar Exclusão
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reactivate Confirmation Modal */}
+      <Dialog open={showReactivateModal} onOpenChange={setShowReactivateModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Reativação</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Para confirmar a reativação, digite o PIN de segurança:
+            </p>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">PIN</label>
+              <Input
+                type="password"
+                value={reactivatePin}
+                onChange={(e) => setReactivatePin(e.target.value)}
+                placeholder="Digite o PIN"
+                maxLength={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReactivateModal(false)}>Cancelar</Button>
+            <Button 
+              onClick={handleReactivateConfirm}
+              disabled={reactivatePin.length !== 4}
+            >
+              Confirmar Reativação
             </Button>
           </DialogFooter>
         </DialogContent>

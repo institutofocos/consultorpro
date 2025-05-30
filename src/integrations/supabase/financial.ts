@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export type FinancialSummary = {
@@ -421,6 +420,42 @@ export const cancelAccountsPayable = async (id: string) => {
 
   if (error) {
     console.error('Error canceling accounts payable:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const reactivateAccountsReceivable = async (id: string) => {
+  const { data, error } = await supabase
+    .from('accounts_receivable')
+    .update({ 
+      status: 'pending',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select();
+
+  if (error) {
+    console.error('Error reactivating accounts receivable:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const reactivateAccountsPayable = async (id: string) => {
+  const { data, error } = await supabase
+    .from('accounts_payable')
+    .update({ 
+      status: 'pending',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select();
+
+  if (error) {
+    console.error('Error reactivating accounts payable:', error);
     throw error;
   }
 
