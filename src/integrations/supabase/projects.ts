@@ -33,6 +33,9 @@ export const fetchProjects = async () => {
   console.log('=== FETCHPROJECTS INICIADO ===');
   
   try {
+    console.log('Conectando ao Supabase...');
+    console.log('Supabase client:', supabase);
+    
     console.log('Fazendo query no Supabase...');
     
     const { data, error } = await supabase
@@ -47,19 +50,56 @@ export const fetchProjects = async () => {
       `)
       .order('created_at', { ascending: false });
 
-    console.log('Resposta do Supabase:', { data, error });
+    console.log('=== RESPOSTA COMPLETA DO SUPABASE ===');
+    console.log('Dados retornados:', data);
+    console.log('Erro retornado:', error);
+    console.log('Tipo de dados:', typeof data);
+    console.log('É array?', Array.isArray(data));
+    console.log('Tamanho do array:', data?.length);
 
     if (error) {
-      console.error('Erro na query:', error);
+      console.error('=== ERRO NA QUERY SUPABASE ===');
+      console.error('Código do erro:', error.code);
+      console.error('Mensagem do erro:', error.message);
+      console.error('Detalhes do erro:', error.details);
+      console.error('Dica do erro:', error.hint);
       throw error;
     }
 
-    console.log('Dados retornados:', data?.length || 0, 'projetos');
-    console.log('Primeiro projeto (se existir):', data?.[0]);
+    if (!data) {
+      console.log('=== DADOS NULOS RETORNADOS ===');
+      return [];
+    }
+
+    if (data.length === 0) {
+      console.log('=== ARRAY VAZIO RETORNADO ===');
+      return [];
+    }
+
+    console.log('=== DADOS ENCONTRADOS ===');
+    console.log('Número de projetos encontrados:', data.length);
+    
+    // Log detalhado de cada projeto encontrado
+    data.forEach((project, index) => {
+      console.log(`=== PROJETO ${index + 1} (RAW) ===`);
+      console.log('ID:', project.id);
+      console.log('Nome:', project.name);
+      console.log('Status:', project.status);
+      console.log('Client ID:', project.client_id);
+      console.log('Service ID:', project.service_id);
+      console.log('Start Date:', project.start_date);
+      console.log('End Date:', project.end_date);
+      console.log('Total Value:', project.total_value);
+      console.log('Stages:', project.project_stages?.length || 0);
+      console.log('Cliente relacionado:', project.clients);
+      console.log('Serviço relacionado:', project.services);
+    });
+
+    console.log('=== INICIANDO TRANSFORMAÇÃO DOS DADOS ===');
 
     // Transform data to match expected format with proper camelCase mapping
-    const transformedData = (data || []).map(project => {
-      console.log('Transformando projeto:', project.name);
+    const transformedData = (data || []).map((project, index) => {
+      console.log(`=== TRANSFORMANDO PROJETO ${index + 1}: ${project.name} ===`);
       
       const transformed = {
         ...project,
@@ -115,23 +155,32 @@ export const fetchProjects = async () => {
         tagIds: [] // Will be populated from project_tag_relations if needed
       };
       
-      console.log('Projeto transformado:', transformed.name, {
-        id: transformed.id,
-        startDate: transformed.startDate,
-        endDate: transformed.endDate,
-        stages: transformed.stages?.length || 0
-      });
+      console.log(`=== PROJETO ${index + 1} TRANSFORMADO ===`);
+      console.log('ID:', transformed.id);
+      console.log('Nome:', transformed.name);
+      console.log('Status:', transformed.status);
+      console.log('Cliente ID:', transformed.clientId);
+      console.log('Cliente Nome:', transformed.clientName);
+      console.log('Start Date:', transformed.startDate);
+      console.log('End Date:', transformed.endDate);
+      console.log('Total Value:', transformed.totalValue);
+      console.log('Número de stages:', transformed.stages?.length || 0);
       
       return transformed;
     });
 
-    console.log('=== FETCHPROJECTS FINALIZADO ===');
+    console.log('=== TRANSFORMAÇÃO FINALIZADA ===');
     console.log('Total de projetos transformados:', transformedData.length);
+    console.log('Projetos transformados:', transformedData.map(p => ({ id: p.id, name: p.name, status: p.status })));
     
     return transformedData;
   } catch (error) {
-    console.error('=== ERRO NO FETCHPROJECTS ===');
+    console.error('=== ERRO CRÍTICO NO FETCHPROJECTS ===');
+    console.error('Tipo do erro:', typeof error);
     console.error('Erro completo:', error);
+    console.error('Stack trace:', error.stack);
+    
+    // Retornar array vazio ao invés de propagar o erro para evitar quebrar a UI
     return [];
   }
 };
