@@ -75,38 +75,32 @@ export type FinancialFilter = {
 
 export const fetchFinancialSummary = async (filters: FinancialFilter = {}): Promise<FinancialSummary> => {
   try {
-    // Calcular resumo baseado em lançamentos manuais e contas a pagar/receber
+    // Calcular resumo baseado em contas a pagar/receber
     const { startDate, endDate, consultantId } = filters;
     
-    let manualQuery = supabase.from('manual_transactions').select('*');
     let payableQuery = supabase.from('accounts_payable').select('*');
     let receivableQuery = supabase.from('accounts_receivable').select('*');
     
     if (startDate) {
-      manualQuery = manualQuery.gte('due_date', startDate);
       payableQuery = payableQuery.gte('due_date', startDate);
       receivableQuery = receivableQuery.gte('due_date', startDate);
     }
     
     if (endDate) {
-      manualQuery = manualQuery.lte('due_date', endDate);
       payableQuery = payableQuery.lte('due_date', endDate);
       receivableQuery = receivableQuery.lte('due_date', endDate);
     }
     
     if (consultantId) {
-      manualQuery = manualQuery.eq('consultant_id', consultantId);
       payableQuery = payableQuery.eq('consultant_id', consultantId);
       receivableQuery = receivableQuery.eq('consultant_id', consultantId);
     }
     
-    const [manualData, payableData, receivableData] = await Promise.all([
-      manualQuery,
+    const [payableData, receivableData] = await Promise.all([
       payableQuery,
       receivableQuery
     ]);
     
-    const manualTransactions = manualData.data || [];
     const payables = payableData.data || [];
     const receivables = receivableData.data || [];
     
@@ -133,108 +127,6 @@ export const fetchFinancialSummary = async (filters: FinancialFilter = {}): Prom
       consultant_payments_made: 0, 
       consultant_payments_pending: 0 
     };
-  }
-};
-
-export const fetchManualTransactions = async (filters: FinancialFilter = {}): Promise<ManualTransaction[]> => {
-  try {
-    const { startDate, endDate, consultantId } = filters;
-    
-    let query = supabase.from('manual_transactions').select();
-    
-    if (startDate) {
-      query = query.gte('due_date', startDate);
-    }
-    
-    if (endDate) {
-      query = query.lte('due_date', endDate);
-    }
-    
-    if (consultantId) {
-      query = query.eq('consultant_id', consultantId);
-    }
-    
-    query = query.order('due_date', { ascending: true });
-    
-    const { data, error } = await query;
-    
-    if (error) {
-      throw error;
-    }
-    
-    const transactions: ManualTransaction[] = [];
-    
-    for (const transaction of (data || [])) {
-      let clientName = '';
-      let consultantName = '';
-      let projectName = '';
-      let tagName = '';
-      
-      // Get client name
-      if (transaction.client_id) {
-        const { data: clientData } = await supabase
-          .from('clients')
-          .select('name')
-          .eq('id', transaction.client_id)
-          .single();
-          
-        if (clientData) {
-          clientName = clientData.name;
-        }
-      }
-      
-      // Get consultant name
-      if (transaction.consultant_id) {
-        const { data: consultantData } = await supabase
-          .from('consultants')
-          .select('name')
-          .eq('id', transaction.consultant_id)
-          .single();
-          
-        if (consultantData) {
-          consultantName = consultantData.name;
-        }
-      }
-      
-      // Get project name
-      if (transaction.project_id) {
-        const { data: projectData } = await supabase
-          .from('projects')
-          .select('name')
-          .eq('id', transaction.project_id)
-          .single();
-          
-        if (projectData) {
-          projectName = projectData.name;
-        }
-      }
-      
-      // Get tag name
-      if (transaction.tag_id) {
-        const { data: tagData } = await supabase
-          .from('tags')
-          .select('name')
-          .eq('id', transaction.tag_id)
-          .single();
-          
-        if (tagData) {
-          tagName = tagData.name;
-        }
-      }
-      
-      transactions.push({
-        ...transaction,
-        client_name: clientName,
-        consultant_name: consultantName,
-        project_name: projectName,
-        tag_name: tagName
-      } as ManualTransaction);
-    }
-    
-    return transactions;
-  } catch (error) {
-    console.error('Error in fetchManualTransactions:', error);
-    return [];
   }
 };
 

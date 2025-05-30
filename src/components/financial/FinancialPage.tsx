@@ -1,13 +1,12 @@
 
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { PlusCircle, AlertCircle } from 'lucide-react';
+import { PlusCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { toast } from 'sonner';
 import { 
   fetchFinancialSummary,
-  fetchManualTransactions, 
   fetchAccountsPayable,
   fetchAccountsReceivable,
   createManualTransaction,
@@ -19,10 +18,8 @@ import { fetchConsultants } from "@/integrations/supabase/consultants";
 import { fetchServices } from "@/integrations/supabase/services";
 import { fetchClients } from "@/integrations/supabase/clients";
 import { fetchProjects } from "@/integrations/supabase/projects";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import FinancialSummary from "./FinancialSummary";
 import FinancialFilters from "./FinancialFilters";
-import FinancialTabs from "./FinancialTabs";
 import AccountsPayableReceivable from "./AccountsPayableReceivable";
 import ManualTransactionForm from "./ManualTransactionForm";
 
@@ -36,11 +33,6 @@ const FinancialPage = () => {
   const { data: summary, isLoading: summaryLoading } = useQuery({
     queryKey: ['financial-summary', filters],
     queryFn: () => fetchFinancialSummary(filters),
-  });
-
-  const { data: manualTransactions, isLoading: manualTransactionsLoading } = useQuery({
-    queryKey: ['manual-transactions', filters],
-    queryFn: () => fetchManualTransactions(filters),
   });
 
   const { data: payables, isLoading: payablesLoading } = useQuery({
@@ -122,8 +114,7 @@ const FinancialPage = () => {
     },
     onSuccess: () => {
       toast.success("Transação criada com sucesso");
-      // Invalidar todas as queries relacionadas ao financeiro para sincronizar
-      queryClient.invalidateQueries({ queryKey: ['manual-transactions'] });
+      // Invalidar apenas as queries das contas a pagar/receber e resumo financeiro
       queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
       queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
@@ -150,7 +141,7 @@ const FinancialPage = () => {
             status: data.status === 'received' ? 'received' : 'pending',
             payment_date: data.payment_date
           })
-          .eq('description', data.description); // Usar descrição como referência
+          .eq('description', data.description);
       }
       
       if (data.type === 'expense') {
@@ -163,15 +154,13 @@ const FinancialPage = () => {
             status: data.status === 'paid' ? 'paid' : 'pending',
             payment_date: data.payment_date
           })
-          .eq('description', data.description); // Usar descrição como referência
+          .eq('description', data.description);
       }
       
       return result;
     },
     onSuccess: () => {
       toast.success("Transação atualizada com sucesso");
-      // Invalidar todas as queries relacionadas ao financeiro para sincronizar
-      queryClient.invalidateQueries({ queryKey: ['manual-transactions'] });
       queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
       queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
@@ -214,8 +203,6 @@ const FinancialPage = () => {
     },
     onSuccess: () => {
       toast.success("Transação excluída com sucesso");
-      // Invalidar todas as queries relacionadas ao financeiro para sincronizar
-      queryClient.invalidateQueries({ queryKey: ['manual-transactions'] });
       queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
       queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
@@ -305,26 +292,6 @@ const FinancialPage = () => {
         }}
         onFilterChange={handleFilterChange}
         onFilterReset={handleFilterReset}
-      />
-
-      {/* Enhanced info about manual transactions */}
-      <Alert>
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Lançamentos Manuais</AlertTitle>
-        <AlertDescription>
-          Os lançamentos manuais são automaticamente categorizados em "Contas a Pagar" (despesas) ou "Contas a Receber" (receitas) 
-          baseado no tipo da transação. Use o botão "Novo Lançamento" para adicionar transações.
-        </AlertDescription>
-      </Alert>
-
-      {/* Manual Transactions Table */}
-      <FinancialTabs
-        manualTransactions={{
-          data: manualTransactions,
-          isLoading: manualTransactionsLoading,
-        }}
-        onEditManualTransaction={handleEditTransaction}
-        onDeleteManualTransaction={handleDeleteTransaction}
       />
 
       {/* Accounts Payable/Receivable */}
