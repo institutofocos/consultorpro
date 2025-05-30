@@ -1,17 +1,15 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PlusCircle, AlertCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { format } from "date-fns";
 import { toast } from 'sonner';
 import { 
   fetchFinancialSummary,
-  fetchFinancialTransactions,
   fetchManualTransactions, 
   fetchAccountsPayable,
   fetchAccountsReceivable,
-  updateTransactionStatus,
   createManualTransaction,
   updateManualTransaction,
   deleteManualTransaction,
@@ -21,10 +19,6 @@ import { fetchConsultants } from "@/integrations/supabase/consultants";
 import { fetchServices } from "@/integrations/supabase/services";
 import { fetchClients } from "@/integrations/supabase/clients";
 import { fetchProjects } from "@/integrations/supabase/projects";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import FinancialSummary from "./FinancialSummary";
 import FinancialFilters from "./FinancialFilters";
@@ -35,9 +29,6 @@ import ManualTransactionForm from "./ManualTransactionForm";
 const FinancialPage = () => {
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<FinancialFilter>({});
-  const [selectedTransaction, setSelectedTransaction] = useState<string | null>(null);
-  const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
-  const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [showAddTransaction, setShowAddTransaction] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<any>(null);
 
@@ -45,11 +36,6 @@ const FinancialPage = () => {
   const { data: summary, isLoading: summaryLoading } = useQuery({
     queryKey: ['financial-summary', filters],
     queryFn: () => fetchFinancialSummary(filters),
-  });
-
-  const { data: transactions, isLoading: transactionsLoading } = useQuery({
-    queryKey: ['financial-transactions', filters],
-    queryFn: () => fetchFinancialTransactions(filters),
   });
 
   const { data: manualTransactions, isLoading: manualTransactionsLoading } = useQuery({
@@ -98,25 +84,42 @@ const FinancialPage = () => {
   });
 
   // Mutations
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status, paymentDate }: { id: string, status: 'completed' | 'pending' | 'canceled', paymentDate?: string }) => 
-      updateTransactionStatus(id, status, paymentDate),
-    onSuccess: () => {
-      toast.success("Status atualizado com sucesso");
-      // Invalidar todas as queries relacionadas ao financeiro para sincronizar
-      queryClient.invalidateQueries({ queryKey: ['financial-transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
-      queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
-      queryClient.invalidateQueries({ queryKey: ['manual-transactions'] });
-    },
-    onError: (error) => {
-      toast.error("Erro ao atualizar status: " + error.message);
-    },
-  });
-
   const createManualTransactionMutation = useMutation({
-    mutationFn: createManualTransaction,
+    mutationFn: async (transaction: any) => {
+      // Criar a transação manual
+      const result = await createManualTransaction(transaction);
+      
+      // Se for receita, criar entrada em accounts_receivable
+      if (transaction.type === 'income') {
+        const { supabase } = await import('@/integrations/supabase/client');
+        await supabase.from('accounts_receivable').insert({
+          description: transaction.description,
+          amount: transaction.amount,
+          due_date: transaction.due_date,
+          status: transaction.status === 'received' ? 'received' : 'pending',
+          client_id: transaction.client_id,
+          project_id: transaction.project_id,
+          consultant_id: transaction.consultant_id,
+          payment_date: transaction.payment_date
+        });
+      }
+      
+      // Se for despesa, criar entrada em accounts_payable
+      if (transaction.type === 'expense') {
+        const { supabase } = await import('@/integrations/supabase/client');
+        await supabase.from('accounts_payable').insert({
+          description: transaction.description,
+          amount: transaction.amount,
+          due_date: transaction.due_date,
+          status: transaction.status === 'paid' ? 'paid' : 'pending',
+          consultant_id: transaction.consultant_id,
+          project_id: transaction.project_id,
+          payment_date: transaction.payment_date
+        });
+      }
+      
+      return result;
+    },
     onSuccess: () => {
       toast.success("Transação criada com sucesso");
       // Invalidar todas as queries relacionadas ao financeiro para sincronizar
@@ -124,7 +127,6 @@ const FinancialPage = () => {
       queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
       queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['financial-transactions'] });
     },
     onError: (error) => {
       toast.error("Erro ao criar transação: " + error.message);
@@ -132,7 +134,40 @@ const FinancialPage = () => {
   });
 
   const updateManualTransactionMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string, data: any }) => updateManualTransaction(id, data),
+    mutationFn: async ({ id, data }: { id: string, data: any }) => {
+      const result = await updateManualTransaction(id, data);
+      
+      // Atualizar também as entradas relacionadas em accounts_payable/receivable
+      const { supabase } = await import('@/integrations/supabase/client');
+      
+      if (data.type === 'income') {
+        await supabase
+          .from('accounts_receivable')
+          .update({
+            description: data.description,
+            amount: data.amount,
+            due_date: data.due_date,
+            status: data.status === 'received' ? 'received' : 'pending',
+            payment_date: data.payment_date
+          })
+          .eq('description', data.description); // Usar descrição como referência
+      }
+      
+      if (data.type === 'expense') {
+        await supabase
+          .from('accounts_payable')
+          .update({
+            description: data.description,
+            amount: data.amount,
+            due_date: data.due_date,
+            status: data.status === 'paid' ? 'paid' : 'pending',
+            payment_date: data.payment_date
+          })
+          .eq('description', data.description); // Usar descrição como referência
+      }
+      
+      return result;
+    },
     onSuccess: () => {
       toast.success("Transação atualizada com sucesso");
       // Invalidar todas as queries relacionadas ao financeiro para sincronizar
@@ -140,7 +175,6 @@ const FinancialPage = () => {
       queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
       queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['financial-transactions'] });
     },
     onError: (error) => {
       toast.error("Erro ao atualizar transação: " + error.message);
@@ -148,7 +182,36 @@ const FinancialPage = () => {
   });
 
   const deleteManualTransactionMutation = useMutation({
-    mutationFn: deleteManualTransaction,
+    mutationFn: async (id: string) => {
+      // Buscar a transação antes de deletar para saber qual entrada remover
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: transaction } = await supabase
+        .from('manual_transactions')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      const result = await deleteManualTransaction(id);
+      
+      if (transaction) {
+        // Remover entrada correspondente em accounts_payable/receivable
+        if (transaction.type === 'income') {
+          await supabase
+            .from('accounts_receivable')
+            .delete()
+            .eq('description', transaction.description);
+        }
+        
+        if (transaction.type === 'expense') {
+          await supabase
+            .from('accounts_payable')
+            .delete()
+            .eq('description', transaction.description);
+        }
+      }
+      
+      return result;
+    },
     onSuccess: () => {
       toast.success("Transação excluída com sucesso");
       // Invalidar todas as queries relacionadas ao financeiro para sincronizar
@@ -156,7 +219,6 @@ const FinancialPage = () => {
       queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
       queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['financial-transactions'] });
     },
     onError: (error) => {
       toast.error("Erro ao excluir transação: " + error.message);
@@ -170,28 +232,6 @@ const FinancialPage = () => {
 
   const handleFilterReset = () => {
     setFilters({});
-  };
-
-  const handleStatusChange = (id: string, status: 'completed' | 'pending' | 'canceled') => {
-    if (status === 'completed') {
-      setSelectedTransaction(id);
-      setIsMarkingPaid(true);
-    } else {
-      updateStatusMutation.mutate({ id, status });
-    }
-  };
-
-  const handleConfirmPayment = async () => {
-    if (!selectedTransaction) return;
-    
-    await updateStatusMutation.mutate({
-      id: selectedTransaction, 
-      status: 'completed',
-      paymentDate: paymentDate ? format(paymentDate, 'yyyy-MM-dd') : undefined
-    });
-    
-    setIsMarkingPaid(false);
-    setSelectedTransaction(null);
   };
 
   const handleAddTransaction = async (data: any) => {
@@ -267,33 +307,27 @@ const FinancialPage = () => {
         onFilterReset={handleFilterReset}
       />
 
-      {/* Enhanced Warning about automatic data */}
+      {/* Enhanced info about manual transactions */}
       <Alert>
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Contas a Receber Automáticas</AlertTitle>
+        <AlertTitle>Lançamentos Manuais</AlertTitle>
         <AlertDescription>
-          As contas a receber são criadas automaticamente quando você adiciona etapas aos projetos. 
-          Cada etapa gera uma entrada correspondente que pode ser marcada como "recebida" conforme os pagamentos são realizados.
-          Para transações manuais, use o botão "Novo Lançamento".
+          Os lançamentos manuais são automaticamente categorizados em "Contas a Pagar" (despesas) ou "Contas a Receber" (receitas) 
+          baseado no tipo da transação. Use o botão "Novo Lançamento" para adicionar transações.
         </AlertDescription>
       </Alert>
 
-      {/* Transactions Tables */}
+      {/* Manual Transactions Table */}
       <FinancialTabs
-        automatedTransactions={{
-          data: transactions,
-          isLoading: transactionsLoading,
-        }}
         manualTransactions={{
           data: manualTransactions,
           isLoading: manualTransactionsLoading,
         }}
-        onStatusChange={handleStatusChange}
         onEditManualTransaction={handleEditTransaction}
         onDeleteManualTransaction={handleDeleteTransaction}
       />
 
-      {/* Accounts Payable/Receivable with enhanced functionality */}
+      {/* Accounts Payable/Receivable */}
       <AccountsPayableReceivable
         payables={{
           data: payables,
@@ -304,46 +338,6 @@ const FinancialPage = () => {
           isLoading: receivablesLoading,
         }}
       />
-
-      {/* Payment Dialog */}
-      <Dialog open={isMarkingPaid} onOpenChange={setIsMarkingPaid}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Registrar pagamento</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Data do pagamento</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !paymentDate && "text-muted-foreground"
-                    )}
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {paymentDate ? format(paymentDate, "dd/MM/yyyy") : <span>Selecione uma data</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={paymentDate}
-                    onSelect={setPaymentDate}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsMarkingPaid(false)}>Cancelar</Button>
-            <Button onClick={handleConfirmPayment}>Confirmar pagamento</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Manual Transaction Form Dialog */}
       <ManualTransactionForm

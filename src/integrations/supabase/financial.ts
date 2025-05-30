@@ -1,23 +1,5 @@
-import { supabase } from "./client";
 
-export type FinancialTransaction = {
-  id: string;
-  project_id: string;
-  transaction_type: 'expected_income' | 'received_payment' | 'consultant_payment' | 'canceled';
-  amount: number;
-  net_amount: number;
-  due_date: string;
-  payment_date: string | null;
-  stage_name: string;
-  consultant_id: string | null;
-  is_support_consultant: boolean;
-  status: 'pending' | 'completed' | 'canceled';
-  created_at: string;
-  updated_at: string;
-  project_name?: string;
-  consultant_name?: string;
-  client_name?: string;
-};
+import { supabase } from "./client";
 
 export type FinancialSummary = {
   total_expected: number;
@@ -93,29 +75,55 @@ export type FinancialFilter = {
 
 export const fetchFinancialSummary = async (filters: FinancialFilter = {}): Promise<FinancialSummary> => {
   try {
-    const { startDate, endDate, consultantId, serviceId } = filters;
+    // Calcular resumo baseado em lançamentos manuais e contas a pagar/receber
+    const { startDate, endDate, consultantId } = filters;
     
-    const { data, error } = await supabase.rpc('calculate_financial_summary', {
-      start_date: startDate || null,
-      end_date: endDate || null,
-      consultant_filter: consultantId || null,
-      service_filter: serviceId || null
-    });
-
-    if (error) {
-      console.error('Error fetching financial summary:', error);
-      throw error;
+    let manualQuery = supabase.from('manual_transactions').select('*');
+    let payableQuery = supabase.from('accounts_payable').select('*');
+    let receivableQuery = supabase.from('accounts_receivable').select('*');
+    
+    if (startDate) {
+      manualQuery = manualQuery.gte('due_date', startDate);
+      payableQuery = payableQuery.gte('due_date', startDate);
+      receivableQuery = receivableQuery.gte('due_date', startDate);
     }
+    
+    if (endDate) {
+      manualQuery = manualQuery.lte('due_date', endDate);
+      payableQuery = payableQuery.lte('due_date', endDate);
+      receivableQuery = receivableQuery.lte('due_date', endDate);
+    }
+    
+    if (consultantId) {
+      manualQuery = manualQuery.eq('consultant_id', consultantId);
+      payableQuery = payableQuery.eq('consultant_id', consultantId);
+      receivableQuery = receivableQuery.eq('consultant_id', consultantId);
+    }
+    
+    const [manualData, payableData, receivableData] = await Promise.all([
+      manualQuery,
+      payableQuery,
+      receivableQuery
+    ]);
+    
+    const manualTransactions = manualData.data || [];
+    const payables = payableData.data || [];
+    const receivables = receivableData.data || [];
+    
+    // Calcular totais
+    const totalExpected = receivables.reduce((sum, item) => sum + Number(item.amount), 0);
+    const totalReceived = receivables.filter(item => item.status === 'received').reduce((sum, item) => sum + Number(item.amount), 0);
+    const totalPending = receivables.filter(item => item.status === 'pending').reduce((sum, item) => sum + Number(item.amount), 0);
+    const consultantPaymentsMade = payables.filter(item => item.status === 'paid').reduce((sum, item) => sum + Number(item.amount), 0);
+    const consultantPaymentsPending = payables.filter(item => item.status === 'pending').reduce((sum, item) => sum + Number(item.amount), 0);
 
-    return data && data.length > 0 
-      ? data[0] as FinancialSummary 
-      : { 
-          total_expected: 0, 
-          total_received: 0, 
-          total_pending: 0, 
-          consultant_payments_made: 0, 
-          consultant_payments_pending: 0 
-        };
+    return {
+      total_expected: totalExpected,
+      total_received: totalReceived,
+      total_pending: totalPending,
+      consultant_payments_made: consultantPaymentsMade,
+      consultant_payments_pending: consultantPaymentsPending
+    };
   } catch (error) {
     console.error('Error in fetchFinancialSummary:', error);
     return { 
@@ -125,111 +133,6 @@ export const fetchFinancialSummary = async (filters: FinancialFilter = {}): Prom
       consultant_payments_made: 0, 
       consultant_payments_pending: 0 
     };
-  }
-};
-
-export const fetchFinancialTransactions = async (filters: FinancialFilter = {}): Promise<FinancialTransaction[]> => {
-  try {
-    const { startDate, endDate, consultantId, serviceId } = filters;
-    
-    // Use a simpler query format first 
-    let query = supabase
-      .from('financial_transactions')
-      .select();
-    
-    // Apply date filters if provided
-    if (startDate) {
-      query = query.gte('due_date', startDate);
-    }
-    
-    if (endDate) {
-      query = query.lte('due_date', endDate);
-    }
-    
-    if (consultantId) {
-      query = query.eq('consultant_id', consultantId);
-    }
-
-    // Sort by date
-    query = query.order('due_date', { ascending: true });
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('Error fetching financial transactions:', error);
-      throw error;
-    }
-
-    // Fetch additional data for each transaction
-    const transactions: FinancialTransaction[] = [];
-    
-    for (const transaction of (data || [])) {
-      let projectName = '';
-      let consultantName = '';
-      let clientName = '';
-      
-      // Get project details if project_id exists
-      if (transaction.project_id) {
-        const projectQuery = supabase
-          .from('projects')
-          .select('name, client_id, service_id')
-          .eq('id', transaction.project_id)
-          .single();
-          
-        const { data: projectData, error: projectError } = await projectQuery;
-          
-        if (projectData && !projectError) {
-          projectName = projectData.name;
-          
-          // Get client name if client_id exists
-          if (projectData.client_id) {
-            const clientQuery = supabase
-              .from('clients')
-              .select('name')
-              .eq('id', projectData.client_id)
-              .single();
-              
-            const { data: clientData } = await clientQuery;
-              
-            if (clientData) {
-              clientName = clientData.name;
-            }
-          }
-          
-          // Filter by service if needed
-          if (serviceId && projectData.service_id !== serviceId) {
-            continue; // Skip this transaction if service doesn't match
-          }
-        }
-      }
-      
-      // Get consultant name if consultant_id exists
-      if (transaction.consultant_id) {
-        const consultantQuery = supabase
-          .from('consultants')
-          .select('name')
-          .eq('id', transaction.consultant_id)
-          .single();
-          
-        const { data: consultantData } = await consultantQuery;
-          
-        if (consultantData) {
-          consultantName = consultantData.name;
-        }
-      }
-      
-      transactions.push({
-        ...transaction,
-        project_name: projectName,
-        consultant_name: consultantName,
-        client_name: clientName
-      } as FinancialTransaction);
-    }
-
-    return transactions;
-  } catch (error) {
-    console.error('Error in fetchFinancialTransactions:', error);
-    return [];
   }
 };
 
@@ -473,27 +376,6 @@ export const fetchAccountsReceivable = async (filters: FinancialFilter = {}): Pr
     console.error('Error in fetchAccountsReceivable:', error);
     return [];
   }
-};
-
-export const updateTransactionStatus = async (id: string, status: 'pending' | 'completed' | 'canceled', paymentDate?: string) => {
-  const updates: any = { status };
-  
-  if (paymentDate) {
-    updates.payment_date = paymentDate;
-  }
-
-  const { data, error } = await supabase
-    .from('financial_transactions')
-    .update(updates)
-    .eq('id', id)
-    .select();
-
-  if (error) {
-    console.error('Error updating transaction:', error);
-    throw error;
-  }
-
-  return data;
 };
 
 export const updateAccountsReceivableStatus = async (id: string, status: 'pending' | 'received' | 'canceled', paymentDate?: string) => {
