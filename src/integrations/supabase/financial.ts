@@ -392,9 +392,9 @@ export const cancelAccountsPayable = async (id: string) => {
 
 export const fetchAccountsHistory = async (filters: FinancialFilter = {}) => {
   try {
-    const { startDate, endDate } = filters;
+    const { startDate, endDate, consultantId } = filters;
     
-    console.log('Fetching accounts history with filters:', { startDate, endDate });
+    console.log('Fetching accounts history with filters:', { startDate, endDate, consultantId });
     
     // Buscar histórico completo de contas a receber com joins otimizados
     let receivablesQuery = supabase
@@ -413,6 +413,10 @@ export const fetchAccountsHistory = async (filters: FinancialFilter = {}) => {
       receivablesQuery = receivablesQuery.lte('due_date', endDate);
     }
 
+    if (consultantId) {
+      receivablesQuery = receivablesQuery.eq('consultant_id', consultantId);
+    }
+
     // Buscar histórico completo de contas a pagar com joins otimizados
     let payablesQuery = supabase
       .from('accounts_payable')
@@ -428,6 +432,10 @@ export const fetchAccountsHistory = async (filters: FinancialFilter = {}) => {
     
     if (endDate) {
       payablesQuery = payablesQuery.lte('due_date', endDate);
+    }
+
+    if (consultantId) {
+      payablesQuery = payablesQuery.eq('consultant_id', consultantId);
     }
 
     const [receivablesData, payablesData] = await Promise.all([
