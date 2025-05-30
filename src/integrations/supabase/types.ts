@@ -699,6 +699,7 @@ export type Database = {
           start_time: string | null
           status: string | null
           updated_at: string | null
+          valor_de_repasse: number | null
           value: number
         }
         Insert: {
@@ -725,6 +726,7 @@ export type Database = {
           start_time?: string | null
           status?: string | null
           updated_at?: string | null
+          valor_de_repasse?: number | null
           value?: number
         }
         Update: {
@@ -751,6 +753,7 @@ export type Database = {
           start_time?: string | null
           status?: string | null
           updated_at?: string | null
+          valor_de_repasse?: number | null
           value?: number
         }
         Relationships: [

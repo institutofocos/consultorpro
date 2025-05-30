@@ -16,6 +16,7 @@ interface ProjectStage {
   days: number;
   start_date: string;
   end_date: string;
+  valor_de_repasse?: number;
 }
 
 interface ProjectStageFormProps {
@@ -32,7 +33,8 @@ const ProjectStageForm: React.FC<ProjectStageFormProps> = ({ stages, onStagesCha
       hours: 8,
       days: 1,
       start_date: '',
-      end_date: ''
+      end_date: '',
+      valor_de_repasse: 0
     };
     onStagesChange([...stages, newStage]);
   };
@@ -133,6 +135,18 @@ const ProjectStageForm: React.FC<ProjectStageFormProps> = ({ stages, onStagesCha
                   value={stage.days}
                   onChange={(e) => updateStage(index, 'days', parseInt(e.target.value) || 1)}
                   placeholder="1"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor={`stage-valor-repasse-${index}`}>Valor de Repasse (R$) - Opcional</Label>
+                <Input
+                  id={`stage-valor-repasse-${index}`}
+                  type="number"
+                  step="0.01"
+                  value={stage.valor_de_repasse || 0}
+                  onChange={(e) => updateStage(index, 'valor_de_repasse', parseFloat(e.target.value) || 0)}
+                  placeholder="0.00"
                 />
               </div>
 

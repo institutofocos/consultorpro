@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Circle, Calendar, User, DollarSign, Zap } from 'lucide-react';
+import { CheckCircle, Circle, Calendar, User, DollarSign, Zap, Banknote } from 'lucide-react';
 import { Project } from './types';
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { useProjectHistory } from '@/hooks/useProjectHistory';
@@ -179,7 +179,7 @@ const ProjectStagesList: React.FC<ProjectStagesListProps> = ({
                 )}
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                 <div className="flex items-center gap-2">
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                   <div>
@@ -187,6 +187,16 @@ const ProjectStagesList: React.FC<ProjectStagesListProps> = ({
                     <div className="font-medium">{formatCurrency(stage.value)}</div>
                   </div>
                 </div>
+
+                {stage.valorDeRepasse && stage.valorDeRepasse > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Banknote className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-muted-foreground">Repasse</div>
+                      <div className="font-medium">{formatCurrency(stage.valorDeRepasse)}</div>
+                    </div>
+                  </div>
+                )}
                 
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />

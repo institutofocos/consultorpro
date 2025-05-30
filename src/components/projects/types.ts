@@ -19,6 +19,7 @@ export interface Stage {
   attachment?: string;
   stageOrder: number;
   status: 'iniciar_projeto' | 'em_producao' | 'aguardando_assinatura' | 'aguardando_aprovacao' | 'aguardando_nota_fiscal' | 'aguardando_pagamento' | 'aguardando_repasse' | 'finalizados' | 'cancelados' | string;
+  valorDeRepasse?: number;
   createdAt?: string;
   updatedAt?: string;
 }
