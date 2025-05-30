@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -27,7 +28,7 @@ import {
   cancelAccountsPayable,
   fetchAccountsHistory
 } from '@/integrations/supabase/financial';
-import { CalendarIcon, CheckCircle, CreditCard, X, History } from 'lucide-react';
+import { CalendarIcon, CheckCircle, CreditCard, X, History, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import MonthNavigation from "./MonthNavigation";
@@ -59,6 +60,9 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
   const [isMarkingReceived, setIsMarkingReceived] = useState(false);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePin, setDeletePin] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'payable' | 'receivable' } | null>(null);
 
   // Fetch history data - sempre que o modal for aberto
   const { data: historyData, isLoading: historyLoading, refetch: refetchHistory } = useQuery({
@@ -224,6 +228,31 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
     }
   };
 
+  const handleDeleteClick = (id: string, type: 'payable' | 'receivable') => {
+    setDeleteTarget({ id, type });
+    setDeletePin('');
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deletePin !== '9136') {
+      toast.error("PIN incorreto");
+      return;
+    }
+
+    if (!deleteTarget) return;
+
+    if (deleteTarget.type === 'receivable') {
+      cancelReceivableMutation.mutate(deleteTarget.id);
+    } else {
+      cancelPayableMutation.mutate(deleteTarget.id);
+    }
+
+    setShowDeleteModal(false);
+    setDeleteTarget(null);
+    setDeletePin('');
+  };
+
   // Função para abrir o histórico e forçar atualização
   const handleOpenHistory = () => {
     console.log('Opening history modal');
@@ -326,28 +355,39 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                           )}
                         </TableCell>
                         <TableCell>
-                          {payable.status === 'pending' && (
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleMarkAsPaid(payable.id)}
-                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                              >
-                                <CreditCard className="h-4 w-4 mr-1" />
-                                Pago
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleCancelPayable(payable.id)}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <X className="h-4 w-4 mr-1" />
-                                Cancelar
-                              </Button>
-                            </div>
-                          )}
+                          <div className="flex gap-1">
+                            {payable.status === 'pending' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleMarkAsPaid(payable.id)}
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-50 p-2"
+                                  title="Marcar como pago"
+                                >
+                                  <CreditCard className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCancelPayable(payable.id)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
+                                  title="Cancelar"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeleteClick(payable.id, 'payable')}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
+                              title="Excluir"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -435,28 +475,39 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                           )}
                         </TableCell>
                         <TableCell>
-                          {receivable.status === 'pending' && (
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleMarkAsReceived(receivable.id)}
-                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                              >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Recebido
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleCancelReceivable(receivable.id)}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <X className="h-4 w-4 mr-1" />
-                                Cancelar
-                              </Button>
-                            </div>
-                          )}
+                          <div className="flex gap-1">
+                            {receivable.status === 'pending' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleMarkAsReceived(receivable.id)}
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-50 p-2"
+                                  title="Marcar como recebido"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCancelReceivable(receivable.id)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
+                                  title="Cancelar"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeleteClick(receivable.id, 'receivable')}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
+                              title="Excluir"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -546,6 +597,40 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsMarkingPaid(false)}>Cancelar</Button>
             <Button onClick={handleConfirmPaid}>Confirmar pagamento</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Exclusão</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Para confirmar a exclusão, digite o PIN de segurança:
+            </p>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">PIN</label>
+              <Input
+                type="password"
+                value={deletePin}
+                onChange={(e) => setDeletePin(e.target.value)}
+                placeholder="Digite o PIN"
+                maxLength={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>Cancelar</Button>
+            <Button 
+              onClick={handleDeleteConfirm}
+              variant="destructive"
+              disabled={deletePin.length !== 4}
+            >
+              Confirmar Exclusão
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
