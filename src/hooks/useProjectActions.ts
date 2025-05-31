@@ -21,9 +21,12 @@ export const useProjectActions = () => {
 
       if (error) {
         console.error('Erro ao atualizar status do projeto:', error);
+        toast.error('Erro ao atualizar status do projeto');
         throw error;
       }
+      
       console.log('Status do projeto atualizado com sucesso');
+      toast.success('Status do projeto atualizado com sucesso');
     } catch (error) {
       console.error('Erro ao atualizar status do projeto:', error);
       throw error;
@@ -47,9 +50,12 @@ export const useProjectActions = () => {
 
       if (error) {
         console.error('Erro ao atualizar status da etapa:', error);
+        toast.error('Erro ao atualizar status da etapa');
         throw error;
       }
+      
       console.log('Status da etapa atualizado com sucesso');
+      toast.success('Status da etapa atualizado com sucesso');
     } catch (error) {
       console.error('Erro ao atualizar status da etapa:', error);
       throw error;
@@ -73,9 +79,12 @@ export const useProjectActions = () => {
 
       if (error) {
         console.error('Erro ao concluir projeto:', error);
+        toast.error('Erro ao concluir projeto');
         throw error;
       }
+      
       console.log('Projeto concluído com sucesso');
+      toast.success('Projeto concluído com sucesso');
     } catch (error) {
       console.error('Erro ao concluir projeto:', error);
       throw error;
@@ -101,9 +110,12 @@ export const useProjectActions = () => {
 
       if (error) {
         console.error('Erro ao concluir etapa:', error);
+        toast.error('Erro ao concluir etapa');
         throw error;
       }
+      
       console.log('Etapa concluída com sucesso');
+      toast.success('Etapa concluída com sucesso');
     } catch (error) {
       console.error('Erro ao concluir etapa:', error);
       throw error;
@@ -129,9 +141,12 @@ export const useProjectActions = () => {
 
       if (error) {
         console.error('Erro ao desfazer conclusão da etapa:', error);
+        toast.error('Erro ao desfazer conclusão da etapa');
         throw error;
       }
+      
       console.log('Conclusão da etapa desfeita com sucesso');
+      toast.success('Conclusão da etapa desfeita com sucesso');
     } catch (error) {
       console.error('Erro ao desfazer conclusão da etapa:', error);
       throw error;
@@ -155,9 +170,12 @@ export const useProjectActions = () => {
 
       if (error) {
         console.error('Erro ao cancelar projeto:', error);
+        toast.error('Erro ao cancelar projeto');
         throw error;
       }
+      
       console.log('Projeto cancelado com sucesso');
+      toast.success('Projeto cancelado com sucesso');
     } catch (error) {
       console.error('Erro ao cancelar projeto:', error);
       throw error;
@@ -175,10 +193,12 @@ export const useProjectActions = () => {
 
       if (error) {
         console.error('Erro ao excluir etapa:', error);
+        toast.error('Erro ao excluir etapa');
         throw error;
       }
       
       console.log('Etapa excluída com sucesso');
+      toast.success('Etapa excluída com sucesso');
       return true;
     } catch (error) {
       console.error('Erro ao excluir etapa:', error);
