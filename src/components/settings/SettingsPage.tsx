@@ -3,7 +3,6 @@ import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TimezoneSettings from './TimezoneSettings';
 import WebhookManagement from './WebhookManagement';
-import WebhookSettings from './WebhookSettings';
 import UserManagement from './UserManagement';
 import ProjectRulesManager from './ProjectRulesManager';
 import APIKeyManager from './APIKeyManager';
@@ -20,12 +19,11 @@ const SettingsPage = () => {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid grid-cols-5 lg:grid-cols-9">
+        <TabsList className="grid grid-cols-4 lg:grid-cols-8">
           <TabsTrigger value="users">Usuários</TabsTrigger>
           <TabsTrigger value="project-rules">Regras</TabsTrigger>
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
-          <TabsTrigger value="webhook-config">Config Webhook</TabsTrigger>
           <TabsTrigger value="timezone">Horário</TabsTrigger>
           <TabsTrigger value="tags">Tags</TabsTrigger>
           <TabsTrigger value="docs">Docs</TabsTrigger>
@@ -46,10 +44,6 @@ const SettingsPage = () => {
 
         <TabsContent value="webhooks">
           <WebhookManagement />
-        </TabsContent>
-
-        <TabsContent value="webhook-config">
-          <WebhookSettings />
         </TabsContent>
 
         <TabsContent value="timezone">
