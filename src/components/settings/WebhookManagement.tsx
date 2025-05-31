@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -42,13 +41,9 @@ const WebhookManagement: React.FC = () => {
     projects: true,
     services: true,
     project_stages: true,
-    notes: true,
     financial_transactions: true,
     accounts_payable: true,
     accounts_receivable: true,
-    manual_transactions: true,
-    chat_messages: true,
-    chat_rooms: true,
     system_settings: true
   });
 
@@ -332,8 +327,6 @@ const WebhookManagement: React.FC = () => {
                 <p>• <strong>Serviços:</strong> Novos serviços e modificações</p>
                 <p>• <strong>Etapas:</strong> Progresso de projetos e conclusões</p>
                 <p>• <strong>Financeiro:</strong> Transações, contas a pagar/receber</p>
-                <p>• <strong>Tarefas:</strong> Criação e atualização de notas/tarefas</p>
-                <p>• <strong>Chat:</strong> Mensagens e criação de salas</p>
               </div>
             </div>
             <Button 
@@ -419,13 +412,9 @@ const WebhookManagement: React.FC = () => {
                 projects: 'Projetos/Demandas',
                 services: 'Serviços',
                 project_stages: 'Etapas de Projetos',
-                notes: 'Tarefas/Notas',
                 financial_transactions: 'Transações Financeiras',
                 accounts_payable: 'Contas a Pagar',
                 accounts_receivable: 'Contas a Receber',
-                manual_transactions: 'Transações Manuais',
-                chat_messages: 'Mensagens do Chat',
-                chat_rooms: 'Salas de Chat',
                 system_settings: 'Configurações do Sistema'
               }).map(([key, label]) => (
                 <div key={key} className="flex items-center space-x-2">
