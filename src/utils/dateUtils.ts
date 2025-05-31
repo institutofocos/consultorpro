@@ -95,16 +95,29 @@ export const formatDateTimeFromSeparate = (date: string | null | undefined, time
 };
 
 /**
- * Get current date and time formatted in Brazilian timezone
+ * Get current date and time formatted in Brazilian timezone using built-in toLocaleString
  * Returns object with separate date and time strings
  */
 export const getCurrentDateTimeBR = (): { date: string; time: string } => {
-  // Use o fuso horário do Brasil (UTC-3)
   const now = new Date();
   
+  // Use toLocaleString with Brazilian timezone
+  const brazilTime = now.toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  
+  // Parse the result: "31/05/2025 11:31"
+  const [datePart, timePart] = brazilTime.split(' ');
+  
   return {
-    date: format(now, BR_DATE_FORMAT, { locale: ptBR }),
-    time: format(now, BR_TIME_FORMAT, { locale: ptBR })
+    date: datePart,
+    time: timePart
   };
 };
 
@@ -235,7 +248,7 @@ export const formatDateBRSimple = (date: string | Date | null | undefined): stri
 };
 
 /**
- * Simple Deno-compatible datetime formatting for edge functions
+ * Simple Deno-compatible datetime formatting for edge functions using toLocaleString
  * Returns object with separate date and time strings - NOW WITH CORRECT TIMEZONE
  */
 export const formatDateTimeBRSimple = (date: string | Date | null | undefined): { date: string; time: string } => {
@@ -247,21 +260,23 @@ export const formatDateTimeBRSimple = (date: string | Date | null | undefined): 
     // Check if date is valid
     if (isNaN(dateObj.getTime())) return { date: '', time: '' };
     
-    // Apply Brazil timezone offset (UTC-3)
-    const brazilOffset = -3; // Brazil is UTC-3
-    const utc = dateObj.getTime() + (dateObj.getTimezoneOffset() * 60000);
-    const brazilTime = new Date(utc + (brazilOffset * 3600000));
+    // Use toLocaleString para obter o horário correto do Brasil
+    const brazilTime = dateObj.toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
     
-    // Format to Brazilian datetime format DD/MM/YYYY HH:mm
-    const day = String(brazilTime.getDate()).padStart(2, '0');
-    const month = String(brazilTime.getMonth() + 1).padStart(2, '0');
-    const year = brazilTime.getFullYear();
-    const hours = String(brazilTime.getHours()).padStart(2, '0');
-    const minutes = String(brazilTime.getMinutes()).padStart(2, '0');
+    // Parse the result: "31/05/2025 11:31"
+    const [datePart, timePart] = brazilTime.split(' ');
     
     return {
-      date: `${day}/${month}/${year}`,
-      time: `${hours}:${minutes}`
+      date: datePart || '',
+      time: timePart || ''
     };
   } catch (error) {
     console.error('Error formatting datetime:', error);
@@ -270,29 +285,29 @@ export const formatDateTimeBRSimple = (date: string | Date | null | undefined): 
 };
 
 /**
- * Get current Brazil time formatted properly
+ * Get current Brazil time formatted properly using toLocaleString
  */
 export const getCurrentBrazilDateTime = (): { date: string; time: string; combined: string } => {
   const now = new Date();
   
-  // Apply Brazil timezone offset (UTC-3)
-  const brazilOffset = -3;
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const brazilTime = new Date(utc + (brazilOffset * 3600000));
+  // Use toLocaleString with Brazilian timezone for accurate time
+  const brazilTime = now.toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
   
-  const day = String(brazilTime.getDate()).padStart(2, '0');
-  const month = String(brazilTime.getMonth() + 1).padStart(2, '0');
-  const year = brazilTime.getFullYear();
-  const hours = String(brazilTime.getHours()).padStart(2, '0');
-  const minutes = String(brazilTime.getMinutes()).padStart(2, '0');
-  
-  const date = `${day}/${month}/${year}`;
-  const time = `${hours}:${minutes}`;
+  // Parse the result: "31/05/2025 11:31"
+  const [datePart, timePart] = brazilTime.split(' ');
   
   return {
-    date,
-    time,
-    combined: `${date} ${time}`
+    date: datePart,
+    time: timePart,
+    combined: `${datePart} ${timePart}`
   };
 };
 
