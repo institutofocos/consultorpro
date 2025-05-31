@@ -8,6 +8,7 @@ import UserManagement from './UserManagement';
 import ProjectRulesManager from './ProjectRulesManager';
 import APIKeyManager from './APIKeyManager';
 import SwaggerDocs from './SwaggerDocs';
+import SystemReset from './SystemReset';
 import TagList from '../tags/TagList';
 
 const SettingsPage = () => {
@@ -19,7 +20,7 @@ const SettingsPage = () => {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid grid-cols-4 lg:grid-cols-8">
+        <TabsList className="grid grid-cols-5 lg:grid-cols-9">
           <TabsTrigger value="users">Usuários</TabsTrigger>
           <TabsTrigger value="project-rules">Regras</TabsTrigger>
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
@@ -28,6 +29,7 @@ const SettingsPage = () => {
           <TabsTrigger value="timezone">Horário</TabsTrigger>
           <TabsTrigger value="tags">Tags</TabsTrigger>
           <TabsTrigger value="docs">Docs</TabsTrigger>
+          <TabsTrigger value="system">Sistema</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users">
@@ -60,6 +62,10 @@ const SettingsPage = () => {
 
         <TabsContent value="docs">
           <SwaggerDocs />
+        </TabsContent>
+
+        <TabsContent value="system">
+          <SystemReset />
         </TabsContent>
       </Tabs>
     </div>
