@@ -53,9 +53,12 @@ interface WebhookLog {
   event_type: string;
   table_name: string;
   success: boolean;
-  response_status: number;
-  created_at: string;
+  response_status: number | null;
+  response_body: string | null;
+  error_message: string | null;
   attempt_count: number;
+  created_at: string;
+  updated_at: string;
 }
 
 const WebhookManagement: React.FC = () => {
@@ -177,16 +180,37 @@ const WebhookManagement: React.FC = () => {
 
   const fetchWebhookLogs = async () => {
     try {
+      // Use a raw SQL query since the table might not be in the generated types yet
       const { data: logs, error } = await supabase
-        .from('webhook_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .rpc('execute_sql', { 
+          query: 'SELECT * FROM webhook_logs ORDER BY created_at DESC LIMIT 50' 
+        });
 
-      if (error) throw error;
-      setWebhookLogs(logs || []);
+      if (error) {
+        console.error("Error loading webhook logs:", error);
+        // Don't show error toast for logs as it's not critical
+        return;
+      }
+      
+      // Transform the data to match our interface
+      const formattedLogs: WebhookLog[] = (logs || []).map((log: any) => ({
+        id: log.id,
+        webhook_id: log.webhook_id,
+        event_type: log.event_type,
+        table_name: log.table_name,
+        success: log.success,
+        response_status: log.response_status,
+        response_body: log.response_body,
+        error_message: log.error_message,
+        attempt_count: log.attempt_count || 1,
+        created_at: log.created_at,
+        updated_at: log.updated_at
+      }));
+      
+      setWebhookLogs(formattedLogs);
     } catch (error) {
       console.error("Error loading webhook logs:", error);
+      // Don't show error toast for logs as it's not critical
     }
   };
 
