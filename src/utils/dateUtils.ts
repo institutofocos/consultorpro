@@ -101,11 +101,10 @@ export const formatDateTimeFromSeparate = (date: string | null | undefined, time
 export const getCurrentDateTimeBR = (): { date: string; time: string } => {
   // Use o fuso horário do Brasil (UTC-3)
   const now = new Date();
-  const brazilTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
   
   return {
-    date: format(brazilTime, BR_DATE_FORMAT, { locale: ptBR }),
-    time: format(brazilTime, BR_TIME_FORMAT, { locale: ptBR })
+    date: format(now, BR_DATE_FORMAT, { locale: ptBR }),
+    time: format(now, BR_TIME_FORMAT, { locale: ptBR })
   };
 };
 
@@ -206,10 +205,9 @@ export const parseTimeForDB = (timeString: string | null | undefined): string | 
 export const getCurrentTimestampBR = (): string => {
   // Criar timestamp no fuso horário do Brasil
   const now = new Date();
-  const brazilTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
   
   // Retornar no formato ISO mas ajustado para o Brasil
-  return brazilTime.toISOString();
+  return now.toISOString();
 };
 
 /**
@@ -238,7 +236,7 @@ export const formatDateBRSimple = (date: string | Date | null | undefined): stri
 
 /**
  * Simple Deno-compatible datetime formatting for edge functions
- * Returns object with separate date and time strings
+ * Returns object with separate date and time strings - NOW WITH CORRECT TIMEZONE
  */
 export const formatDateTimeBRSimple = (date: string | Date | null | undefined): { date: string; time: string } => {
   if (!date) return { date: '', time: '' };
@@ -249,12 +247,17 @@ export const formatDateTimeBRSimple = (date: string | Date | null | undefined): 
     // Check if date is valid
     if (isNaN(dateObj.getTime())) return { date: '', time: '' };
     
+    // Apply Brazil timezone offset (UTC-3)
+    const brazilOffset = -3; // Brazil is UTC-3
+    const utc = dateObj.getTime() + (dateObj.getTimezoneOffset() * 60000);
+    const brazilTime = new Date(utc + (brazilOffset * 3600000));
+    
     // Format to Brazilian datetime format DD/MM/YYYY HH:mm
-    const day = String(dateObj.getDate()).padStart(2, '0');
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const year = dateObj.getFullYear();
-    const hours = String(dateObj.getHours()).padStart(2, '0');
-    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+    const day = String(brazilTime.getDate()).padStart(2, '0');
+    const month = String(brazilTime.getMonth() + 1).padStart(2, '0');
+    const year = brazilTime.getFullYear();
+    const hours = String(brazilTime.getHours()).padStart(2, '0');
+    const minutes = String(brazilTime.getMinutes()).padStart(2, '0');
     
     return {
       date: `${day}/${month}/${year}`,
@@ -264,6 +267,33 @@ export const formatDateTimeBRSimple = (date: string | Date | null | undefined): 
     console.error('Error formatting datetime:', error);
     return { date: '', time: '' };
   }
+};
+
+/**
+ * Get current Brazil time formatted properly
+ */
+export const getCurrentBrazilDateTime = (): { date: string; time: string; combined: string } => {
+  const now = new Date();
+  
+  // Apply Brazil timezone offset (UTC-3)
+  const brazilOffset = -3;
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const brazilTime = new Date(utc + (brazilOffset * 3600000));
+  
+  const day = String(brazilTime.getDate()).padStart(2, '0');
+  const month = String(brazilTime.getMonth() + 1).padStart(2, '0');
+  const year = brazilTime.getFullYear();
+  const hours = String(brazilTime.getHours()).padStart(2, '0');
+  const minutes = String(brazilTime.getMinutes()).padStart(2, '0');
+  
+  const date = `${day}/${month}/${year}`;
+  const time = `${hours}:${minutes}`;
+  
+  return {
+    date,
+    time,
+    combined: `${date} ${time}`
+  };
 };
 
 /**
