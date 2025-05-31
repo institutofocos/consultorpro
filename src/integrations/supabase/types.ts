@@ -1172,6 +1172,7 @@ export type Database = {
           error_message: string | null
           event_type: string
           id: string
+          payload: Json | null
           response_body: string | null
           response_status: number | null
           success: boolean
@@ -1185,6 +1186,7 @@ export type Database = {
           error_message?: string | null
           event_type: string
           id?: string
+          payload?: Json | null
           response_body?: string | null
           response_status?: number | null
           success?: boolean
@@ -1198,6 +1200,7 @@ export type Database = {
           error_message?: string | null
           event_type?: string
           id?: string
+          payload?: Json | null
           response_body?: string | null
           response_status?: number | null
           success?: boolean

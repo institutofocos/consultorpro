@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { getCurrentTimestampBR } from '@/utils/dateUtils';
 
 export const useProjectActions = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -11,11 +10,12 @@ export const useProjectActions = () => {
     setIsLoading(true);
     try {
       console.log('Atualizando status do projeto:', projectId, 'para:', status);
+      
       const { error } = await supabase
         .from('projects')
         .update({ 
           status,
-          updated_at: getCurrentTimestampBR()
+          updated_at: new Date().toISOString()
         })
         .eq('id', projectId);
 
@@ -36,11 +36,12 @@ export const useProjectActions = () => {
     setIsLoading(true);
     try {
       console.log('Atualizando status da etapa:', stageId, 'para:', status);
+      
       const { error } = await supabase
         .from('project_stages')
         .update({ 
           status,
-          updated_at: getCurrentTimestampBR()
+          updated_at: new Date().toISOString()
         })
         .eq('id', stageId);
 
@@ -61,11 +62,12 @@ export const useProjectActions = () => {
     setIsLoading(true);
     try {
       console.log('Concluindo projeto:', projectId);
+      
       const { error } = await supabase
         .from('projects')
         .update({ 
           status: 'concluido',
-          updated_at: getCurrentTimestampBR()
+          updated_at: new Date().toISOString()
         })
         .eq('id', projectId);
 
@@ -86,13 +88,14 @@ export const useProjectActions = () => {
     setIsLoading(true);
     try {
       console.log('Concluindo etapa:', stageId);
+      
       const { error } = await supabase
         .from('project_stages')
         .update({ 
           completed: true, 
           status: 'concluido',
-          completed_at: getCurrentTimestampBR(),
-          updated_at: getCurrentTimestampBR()
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .eq('id', stageId);
 
@@ -113,13 +116,14 @@ export const useProjectActions = () => {
     setIsLoading(true);
     try {
       console.log('Desfazendo conclusão da etapa:', stageId);
+      
       const { error } = await supabase
         .from('project_stages')
         .update({ 
           completed: false, 
           status: 'em_producao',
           completed_at: null,
-          updated_at: getCurrentTimestampBR()
+          updated_at: new Date().toISOString()
         })
         .eq('id', stageId);
 
@@ -140,11 +144,12 @@ export const useProjectActions = () => {
     setIsLoading(true);
     try {
       console.log('Cancelando projeto:', projectId);
+      
       const { error } = await supabase
         .from('projects')
         .update({ 
           status: 'cancelado',
-          updated_at: getCurrentTimestampBR()
+          updated_at: new Date().toISOString()
         })
         .eq('id', projectId);
 
