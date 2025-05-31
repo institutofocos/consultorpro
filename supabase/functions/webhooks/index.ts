@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
@@ -7,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Brazilian date formatting utility - simplified for Deno
+// Brazilian date formatting utility - corrected for proper timezone
 const formatDateBR = (date: string | Date | null | undefined): string => {
   if (!date) return '-';
   
@@ -17,19 +16,22 @@ const formatDateBR = (date: string | Date | null | undefined): string => {
     // Check if date is valid
     if (isNaN(dateObj.getTime())) return '-';
     
-    // Format to Brazilian date format DD/MM/YYYY
-    const day = String(dateObj.getDate()).padStart(2, '0');
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const year = dateObj.getFullYear();
+    // Use toLocaleString with Brazilian timezone for accurate time
+    const brazilDate = dateObj.toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
     
-    return `${day}/${month}/${year}`;
+    return brazilDate; // Already in DD/MM/YYYY format
   } catch (error) {
     console.error('Error formatting date:', error);
     return '-';
   }
 };
 
-// Brazilian datetime formatting utility - simplified for Deno  
+// Brazilian datetime formatting utility - corrected for proper timezone
 const formatDateTimeBR = (date: string | Date | null | undefined): string => {
   if (!date) return '-';
   
@@ -39,14 +41,18 @@ const formatDateTimeBR = (date: string | Date | null | undefined): string => {
     // Check if date is valid
     if (isNaN(dateObj.getTime())) return '-';
     
-    // Format to Brazilian datetime format DD/MM/YYYY HH:mm
-    const day = String(dateObj.getDate()).padStart(2, '0');
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const year = dateObj.getFullYear();
-    const hours = String(dateObj.getHours()).padStart(2, '0');
-    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+    // Use toLocaleString with Brazilian timezone for accurate time
+    const brazilDateTime = dateObj.toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
     
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
+    return brazilDateTime; // Format: DD/MM/YYYY HH:mm
   } catch (error) {
     console.error('Error formatting datetime:', error);
     return '-';
@@ -777,6 +783,56 @@ serve(async (req) => {
       }
     }
 
+    if (action === "toggle_active") {
+      const { id, is_active } = requestBody;
+      console.log('Toggling webhook status:', { id, is_active });
+      
+      if (!id) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: "Webhook ID is required" 
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 400 
+          }
+        );
+      }
+      
+      const { error } = await supabaseClient
+        .from('webhooks')
+        .update({ is_active })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error toggling webhook:', error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: error.message 
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500 
+          }
+        );
+      }
+
+      console.log('Webhook status toggled successfully');
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: `Webhook ${is_active ? 'ativado' : 'desativado'} com sucesso` 
+        }),
+        { 
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200 
+        }
+      );
+    }
+
     return new Response(
       JSON.stringify({ 
         success: false, 
@@ -841,7 +897,6 @@ async function enrichWebhookPayload(log: any, supabaseClient: any) {
       }
     }
 
-    // Enrich based on table type
     switch (log.table_name) {
       case 'projects':
         if (log.payload?.client_id || log.payload?.new?.client_id) {
