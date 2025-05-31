@@ -28,7 +28,6 @@ import {
   History,
   AlertTriangle,
   Settings,
-  Save,
   Globe
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -73,6 +72,7 @@ const WebhookManagement: React.FC = () => {
     message: '' 
   });
 
+  // Local webhook config state (no database persistence)
   const [webhookConfig, setWebhookConfig] = useState<WebhookConfig>({
     interval_seconds: 5,
     enabled: true
@@ -97,14 +97,12 @@ const WebhookManagement: React.FC = () => {
     user_profiles: true,
     project_status_settings: true,
     webhooks: true,
-    system_settings: true,
     project_tags: true
   });
 
   useEffect(() => {
     fetchWebhooks();
     fetchWebhookLogs();
-    loadWebhookSettings();
   }, []);
 
   // Real-time URL validation
@@ -211,50 +209,6 @@ const WebhookManagement: React.FC = () => {
     } catch (error) {
       console.error("Error loading webhook logs:", error);
       // Don't show error toast for logs as it's not critical
-    }
-  };
-
-  const loadWebhookSettings = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('system_settings')
-        .select('setting_value')
-        .eq('setting_key', 'webhook_interval')
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error;
-
-      if (data) {
-        setWebhookConfig(data.setting_value as unknown as WebhookConfig);
-      }
-    } catch (error) {
-      console.error('Error loading webhook settings:', error);
-    }
-  };
-
-  const saveWebhookSettings = async () => {
-    try {
-      setIsLoading(true);
-
-      const { error } = await supabase
-        .from('system_settings')
-        .upsert({
-          setting_key: 'webhook_interval',
-          setting_value: webhookConfig as any
-        });
-
-      if (error) throw error;
-
-      toast.success("Configurações salvas com sucesso", {
-        icon: <CheckCircle2 className="h-5 w-5 text-green-600" />
-      });
-    } catch (error) {
-      console.error('Error saving webhook settings:', error);
-      toast.error("Erro ao salvar configurações", {
-        icon: <AlertCircle className="h-5 w-5 text-red-600" />
-      });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -551,14 +505,12 @@ const WebhookManagement: React.FC = () => {
               </p>
             </div>
 
-            <Button onClick={saveWebhookSettings} disabled={isLoading} className="w-full">
-              {isLoading ? (
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
-              Salvar Configurações
-            </Button>
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-800">
+                <strong>Nota:</strong> As configurações são mantidas apenas durante a sessão atual. 
+                Para configurações persistentes, use as configurações do sistema de webhook.
+              </p>
+            </div>
           </CardContent>
         </Card>
 
@@ -580,8 +532,8 @@ const WebhookManagement: React.FC = () => {
                 <p>• <strong>Serviços:</strong> Gestão completa</p>
                 <p>• <strong>Financeiro:</strong> Transações e contas</p>
                 <p>• <strong>Usuários:</strong> Perfis e permissões</p>
-                <p>• <strong>Sistema:</strong> Configurações e regras</p>
                 <p>• <strong>Tags:</strong> Organização e categorização</p>
+                <p>• <strong>Webhooks:</strong> Sistema de notificações</p>
               </div>
             </div>
             <Button 
@@ -686,7 +638,6 @@ const WebhookManagement: React.FC = () => {
                   user_profiles: 'Perfis de Usuários',
                   project_status_settings: 'Configurações de Status',
                   webhooks: 'Webhooks',
-                  system_settings: 'Configurações do Sistema',
                   project_tags: 'Tags'
                 }).map(([key, label]) => (
                   <div key={key} className="flex items-center space-x-3">
