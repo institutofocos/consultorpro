@@ -3,11 +3,13 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Search, Calendar as CalendarIcon, Pin, Hourglass } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Calendar as CalendarIcon, Pin, Hourglass, Filter } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, addMonths, subMonths, addWeeks, subWeeks } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from "@/integrations/supabase/client";
 import TaskModal from './TaskModal';
+import SearchableSelect from "@/components/ui/searchable-select";
+import { useConsultants } from "@/hooks/useConsultants";
 
 type ViewMode = 'day' | 'week' | 'month';
 
@@ -26,12 +28,18 @@ interface Task {
   consultant_id: string;
   consultant_name: string;
   project_name: string;
+  service_name: string;
 }
 
 interface TaskEvent {
   task: Task;
   type: 'start' | 'end';
   date: Date;
+}
+
+interface Service {
+  id: string;
+  name: string;
 }
 
 const CalendarPage: React.FC = () => {
@@ -43,21 +51,57 @@ const CalendarPage: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedConsultantId, setSelectedConsultantId] = useState<string>('');
+  const [selectedServiceId, setSelectedServiceId] = useState<string>('');
+  const [services, setServices] = useState<Service[]>([]);
+
+  const { data: consultants = [] } = useConsultants();
 
   useEffect(() => {
     fetchTasks();
+    fetchServices();
   }, []);
 
   useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredTasks(tasks);
-    } else {
-      const filtered = tasks.filter(task => 
+    let filtered = tasks;
+
+    // Filter by search term (project name)
+    if (searchTerm.trim() !== '') {
+      filtered = filtered.filter(task => 
         task.project_name.toLowerCase().includes(searchTerm.toLowerCase())
       );
-      setFilteredTasks(filtered);
     }
-  }, [searchTerm, tasks]);
+
+    // Filter by consultant
+    if (selectedConsultantId) {
+      filtered = filtered.filter(task => task.consultant_id === selectedConsultantId);
+    }
+
+    // Filter by service
+    if (selectedServiceId) {
+      filtered = filtered.filter(task => {
+        // We'll need to get service info from the project
+        return true; // For now, we'll implement this once we have service data in tasks
+      });
+    }
+
+    setFilteredTasks(filtered);
+  }, [searchTerm, selectedConsultantId, selectedServiceId, tasks]);
+
+  const fetchServices = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('services')
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+
+      setServices(data || []);
+    } catch (error) {
+      console.error('Erro ao buscar serviços:', error);
+    }
+  };
 
   const fetchTasks = async () => {
     setIsLoading(true);
@@ -83,14 +127,14 @@ const CalendarPage: React.FC = () => {
 
       if (error) throw error;
 
-      // Fetch project and consultant data separately to avoid relationship ambiguity
+      // Fetch project, consultant and service data separately to avoid relationship ambiguity
       const projectIds = [...new Set(data?.map(stage => stage.project_id).filter(Boolean))];
       const consultantIds = [...new Set(data?.map(stage => stage.consultant_id).filter(Boolean))];
 
       const [projectsData, consultantsData] = await Promise.all([
         projectIds.length > 0 ? supabase
           .from('projects')
-          .select('id, name')
+          .select('id, name, service_id')
           .in('id', projectIds) : Promise.resolve({ data: [] }),
         consultantIds.length > 0 ? supabase
           .from('consultants')
@@ -98,29 +142,45 @@ const CalendarPage: React.FC = () => {
           .in('id', consultantIds) : Promise.resolve({ data: [] })
       ]);
 
-      const projectsMap = new Map<string, string>(
-        (projectsData.data || []).map(p => [p.id, p.name] as [string, string])
+      // Get service data for projects
+      const serviceIds = [...new Set((projectsData.data || []).map(p => p.service_id).filter(Boolean))];
+      const servicesData = serviceIds.length > 0 ? await supabase
+        .from('services')
+        .select('id, name')
+        .in('id', serviceIds) : { data: [] };
+
+      const projectsMap = new Map<string, { name: string; service_id: string }>(
+        (projectsData.data || []).map(p => [p.id, { name: p.name, service_id: p.service_id }])
       );
       const consultantsMap = new Map<string, string>(
         (consultantsData.data || []).map(c => [c.id, c.name] as [string, string])
       );
+      const servicesMap = new Map<string, string>(
+        (servicesData.data || []).map(s => [s.id, s.name] as [string, string])
+      );
 
-      const formattedTasks: Task[] = data?.map(task => ({
-        id: task.id,
-        name: task.name,
-        description: task.description || '',
-        start_date: task.start_date,
-        end_date: task.end_date,
-        status: task.status || 'iniciar_projeto',
-        value: task.value || 0,
-        valor_de_repasse: task.valor_de_repasse || 0,
-        hours: task.hours || 0,
-        days: task.days || 1,
-        project_id: task.project_id,
-        consultant_id: task.consultant_id,
-        consultant_name: consultantsMap.get(task.consultant_id) || 'Não atribuído',
-        project_name: projectsMap.get(task.project_id) || 'Projeto sem nome'
-      })) || [];
+      const formattedTasks: Task[] = data?.map(task => {
+        const projectInfo = projectsMap.get(task.project_id);
+        const serviceName = projectInfo?.service_id ? servicesMap.get(projectInfo.service_id) || 'Serviço não definido' : 'Serviço não definido';
+        
+        return {
+          id: task.id,
+          name: task.name,
+          description: task.description || '',
+          start_date: task.start_date,
+          end_date: task.end_date,
+          status: task.status || 'iniciar_projeto',
+          value: task.value || 0,
+          valor_de_repasse: task.valor_de_repasse || 0,
+          hours: task.hours || 0,
+          days: task.days || 1,
+          project_id: task.project_id,
+          consultant_id: task.consultant_id,
+          consultant_name: consultantsMap.get(task.consultant_id) || 'Não atribuído',
+          project_name: projectInfo?.name || 'Projeto sem nome',
+          service_name: serviceName
+        };
+      }) || [];
 
       setTasks(formattedTasks);
     } catch (error) {
@@ -231,6 +291,12 @@ const CalendarPage: React.FC = () => {
   const handleTaskEventClick = (taskEvent: TaskEvent) => {
     setSelectedTask(taskEvent.task);
     setIsModalOpen(true);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedConsultantId('');
+    setSelectedServiceId('');
   };
 
   const renderMonthView = () => {
@@ -439,16 +505,49 @@ const CalendarPage: React.FC = () => {
               <CalendarIcon className="h-6 w-6" />
               Calendário de Tarefas
             </CardTitle>
-            <div className="flex items-center gap-4">
-              <div className="relative">
+          </div>
+          
+          {/* Filters Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="relative flex-1 min-w-[200px]">
                 <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <Input
                   placeholder="Pesquisar por projeto..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64"
+                  className="pl-10"
                 />
               </div>
+              
+              <div className="min-w-[200px]">
+                <SearchableSelect
+                  options={consultants.map(consultant => ({ id: consultant.id, name: consultant.name }))}
+                  value={selectedConsultantId}
+                  onValueChange={(value) => setSelectedConsultantId(value as string)}
+                  placeholder="Filtrar por consultor..."
+                  searchPlaceholder="Pesquisar consultor..."
+                  emptyText="Nenhum consultor encontrado"
+                />
+              </div>
+              
+              <div className="min-w-[200px]">
+                <SearchableSelect
+                  options={services}
+                  value={selectedServiceId}
+                  onValueChange={(value) => setSelectedServiceId(value as string)}
+                  placeholder="Filtrar por serviço..."
+                  searchPlaceholder="Pesquisar serviço..."
+                  emptyText="Nenhum serviço encontrado"
+                />
+              </div>
+              
+              {(searchTerm || selectedConsultantId || selectedServiceId) && (
+                <Button variant="outline" size="sm" onClick={clearFilters}>
+                  <Filter className="h-4 w-4 mr-2" />
+                  Limpar Filtros
+                </Button>
+              )}
             </div>
           </div>
           
