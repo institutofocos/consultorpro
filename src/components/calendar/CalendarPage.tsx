@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, ChevronRight, Search, Calendar as CalendarIcon } from 'lucide-react';
+import { Badge } from "@/components/ui/badge";
+import { ChevronLeft, ChevronRight, Search, Calendar as CalendarIcon, Pin, Hourglass } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, addMonths, subMonths, addWeeks, subWeeks } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from "@/integrations/supabase/client";
@@ -25,6 +26,12 @@ interface Task {
   consultant_id: string;
   consultant_name: string;
   project_name: string;
+}
+
+interface TaskEvent {
+  task: Task;
+  type: 'start' | 'end';
+  date: Date;
 }
 
 const CalendarPage: React.FC = () => {
@@ -147,11 +154,21 @@ const CalendarPage: React.FC = () => {
     return colorMap[status] || 'bg-gray-100 text-gray-700';
   };
 
-  const formatTaskDisplay = (task: Task) => {
-    const taskWords = task.name.split(' ').slice(0, 2).join(' ');
-    const consultantFirstName = task.consultant_name.split(' ')[0];
-    const status = getStatusDisplay(task.status);
-    return `[${status}] ${taskWords} - ${consultantFirstName}`;
+  const getEventTypeColor = (eventType: 'start' | 'end') => {
+    return eventType === 'start' 
+      ? 'border-l-4 border-blue-500 bg-blue-50' 
+      : 'border-l-4 border-orange-500 bg-orange-50';
+  };
+
+  const formatTaskEventDisplay = (taskEvent: TaskEvent) => {
+    const taskWords = taskEvent.task.name.split(' ').slice(0, 2).join(' ');
+    const consultantFirstName = taskEvent.task.consultant_name.split(' ')[0];
+    const status = getStatusDisplay(taskEvent.task.status);
+    
+    const icon = taskEvent.type === 'start' ? '📌' : '⏳';
+    const actionText = taskEvent.type === 'start' ? 'Iniciar' : 'Finalizar';
+    
+    return `${icon} ${actionText}: [${status}] ${taskWords} - ${consultantFirstName}`;
   };
 
   const navigatePrevious = () => {
@@ -182,16 +199,37 @@ const CalendarPage: React.FC = () => {
     }
   };
 
-  const getTasksForDate = (date: Date) => {
-    return filteredTasks.filter(task => {
+  const getTaskEventsForDate = (date: Date): TaskEvent[] => {
+    const events: TaskEvent[] = [];
+    
+    filteredTasks.forEach(task => {
       const startDate = new Date(task.start_date);
       const endDate = new Date(task.end_date);
-      return isSameDay(date, startDate) || isSameDay(date, endDate);
+      
+      // Adicionar evento de início
+      if (isSameDay(date, startDate)) {
+        events.push({
+          task,
+          type: 'start',
+          date: startDate
+        });
+      }
+      
+      // Adicionar evento de fim (apenas se não for no mesmo dia do início)
+      if (isSameDay(date, endDate) && !isSameDay(startDate, endDate)) {
+        events.push({
+          task,
+          type: 'end',
+          date: endDate
+        });
+      }
     });
+    
+    return events;
   };
 
-  const handleTaskClick = (task: Task) => {
-    setSelectedTask(task);
+  const handleTaskEventClick = (taskEvent: TaskEvent) => {
+    setSelectedTask(taskEvent.task);
     setIsModalOpen(true);
   };
 
@@ -213,7 +251,7 @@ const CalendarPage: React.FC = () => {
       for (let i = 0; i < 7; i++) {
         const formattedDate = format(day, dateFormat);
         const cloneDay = day;
-        const dayTasks = getTasksForDate(day);
+        const dayTaskEvents = getTaskEventsForDate(day);
         
         days.push(
           <div
@@ -224,14 +262,23 @@ const CalendarPage: React.FC = () => {
           >
             <span className="text-sm font-medium">{formattedDate}</span>
             <div className="mt-1 space-y-1">
-              {dayTasks.map(task => (
+              {dayTaskEvents.map((taskEvent, index) => (
                 <div
-                  key={task.id}
-                  onClick={() => handleTaskClick(task)}
-                  className={`text-xs p-1 rounded cursor-pointer hover:opacity-80 ${getStatusColor(task.status)}`}
-                  title={formatTaskDisplay(task)}
+                  key={`${taskEvent.task.id}-${taskEvent.type}-${index}`}
+                  onClick={() => handleTaskEventClick(taskEvent)}
+                  className={`text-xs p-1 rounded cursor-pointer hover:opacity-80 ${getEventTypeColor(taskEvent.type)} ${getStatusColor(taskEvent.task.status)}`}
+                  title={formatTaskEventDisplay(taskEvent)}
                 >
-                  {formatTaskDisplay(task)}
+                  <div className="flex items-center gap-1">
+                    {taskEvent.type === 'start' ? (
+                      <Pin className="h-3 w-3 text-blue-600" />
+                    ) : (
+                      <Hourglass className="h-3 w-3 text-orange-600" />
+                    )}
+                    <span className="truncate">
+                      {formatTaskEventDisplay(taskEvent)}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -267,7 +314,7 @@ const CalendarPage: React.FC = () => {
     
     for (let i = 0; i < 7; i++) {
       const day = addDays(weekStart, i);
-      const dayTasks = getTasksForDate(day);
+      const dayTaskEvents = getTaskEventsForDate(day);
       
       days.push(
         <div key={day.toString()} className="flex-1 border border-gray-200 p-4 min-h-[400px]">
@@ -278,13 +325,31 @@ const CalendarPage: React.FC = () => {
             </div>
           </div>
           <div className="space-y-2">
-            {dayTasks.map(task => (
+            {dayTaskEvents.map((taskEvent, index) => (
               <div
-                key={task.id}
-                onClick={() => handleTaskClick(task)}
-                className={`text-sm p-2 rounded cursor-pointer hover:opacity-80 ${getStatusColor(task.status)}`}
+                key={`${taskEvent.task.id}-${taskEvent.type}-${index}`}
+                onClick={() => handleTaskEventClick(taskEvent)}
+                className={`text-sm p-2 rounded cursor-pointer hover:opacity-80 ${getEventTypeColor(taskEvent.type)}`}
               >
-                {formatTaskDisplay(task)}
+                <div className="flex items-center gap-2 mb-1">
+                  {taskEvent.type === 'start' ? (
+                    <Pin className="h-4 w-4 text-blue-600" />
+                  ) : (
+                    <Hourglass className="h-4 w-4 text-orange-600" />
+                  )}
+                  <Badge 
+                    variant="outline" 
+                    className={getStatusColor(taskEvent.task.status)}
+                  >
+                    {getStatusDisplay(taskEvent.task.status)}
+                  </Badge>
+                </div>
+                <div className="font-medium">
+                  {taskEvent.type === 'start' ? '📌 Iniciar' : '⏳ Finalizar'}: {taskEvent.task.name}
+                </div>
+                <div className="text-xs text-gray-600">
+                  {taskEvent.task.project_name} - {taskEvent.task.consultant_name}
+                </div>
               </div>
             ))}
           </div>
@@ -296,7 +361,7 @@ const CalendarPage: React.FC = () => {
   };
 
   const renderDayView = () => {
-    const dayTasks = getTasksForDate(currentDate);
+    const dayTaskEvents = getTaskEventsForDate(currentDate);
     
     return (
       <div className="p-6">
@@ -306,20 +371,35 @@ const CalendarPage: React.FC = () => {
           </h3>
         </div>
         <div className="space-y-3">
-          {dayTasks.length === 0 ? (
+          {dayTaskEvents.length === 0 ? (
             <div className="text-center text-gray-500 py-8">
               Nenhuma tarefa para este dia
             </div>
           ) : (
-            dayTasks.map(task => (
+            dayTaskEvents.map((taskEvent, index) => (
               <div
-                key={task.id}
-                onClick={() => handleTaskClick(task)}
-                className={`p-4 rounded-lg cursor-pointer hover:opacity-80 ${getStatusColor(task.status)}`}
+                key={`${taskEvent.task.id}-${taskEvent.type}-${index}`}
+                onClick={() => handleTaskEventClick(taskEvent)}
+                className={`p-4 rounded-lg cursor-pointer hover:opacity-80 ${getEventTypeColor(taskEvent.type)}`}
               >
-                <div className="font-semibold">{task.name}</div>
+                <div className="flex items-center gap-3 mb-2">
+                  {taskEvent.type === 'start' ? (
+                    <Pin className="h-5 w-5 text-blue-600" />
+                  ) : (
+                    <Hourglass className="h-5 w-5 text-orange-600" />
+                  )}
+                  <Badge 
+                    variant="outline" 
+                    className={getStatusColor(taskEvent.task.status)}
+                  >
+                    {getStatusDisplay(taskEvent.task.status)}
+                  </Badge>
+                </div>
+                <div className="font-semibold text-lg">
+                  {taskEvent.type === 'start' ? '📌 Iniciar' : '⏳ Finalizar'}: {taskEvent.task.name}
+                </div>
                 <div className="text-sm opacity-75 mt-1">
-                  {task.project_name} - {task.consultant_name}
+                  {taskEvent.task.project_name} - {taskEvent.task.consultant_name}
                 </div>
               </div>
             ))
@@ -407,6 +487,18 @@ const CalendarPage: React.FC = () => {
               <Button variant="outline" size="sm" onClick={navigateNext}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
+            </div>
+          </div>
+
+          {/* Legenda para ajudar o usuário */}
+          <div className="flex items-center gap-4 mt-4 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2 text-sm">
+              <Pin className="h-4 w-4 text-blue-600" />
+              <span>📌 Iniciar tarefa</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Hourglass className="h-4 w-4 text-orange-600" />
+              <span>⏳ Finalizar tarefa</span>
             </div>
           </div>
         </CardHeader>
