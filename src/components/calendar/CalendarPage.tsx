@@ -37,11 +37,6 @@ interface TaskEvent {
   date: Date;
 }
 
-interface Service {
-  id: string;
-  name: string;
-}
-
 const CalendarPage: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('month');
@@ -52,14 +47,11 @@ const CalendarPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedConsultantId, setSelectedConsultantId] = useState<string>('');
-  const [selectedServiceId, setSelectedServiceId] = useState<string>('');
-  const [services, setServices] = useState<Service[]>([]);
 
   const { data: consultants = [] } = useConsultants();
 
   useEffect(() => {
     fetchTasks();
-    fetchServices();
   }, []);
 
   useEffect(() => {
@@ -77,31 +69,8 @@ const CalendarPage: React.FC = () => {
       filtered = filtered.filter(task => task.consultant_id === selectedConsultantId);
     }
 
-    // Filter by service
-    if (selectedServiceId) {
-      filtered = filtered.filter(task => {
-        // We'll need to get service info from the project
-        return true; // For now, we'll implement this once we have service data in tasks
-      });
-    }
-
     setFilteredTasks(filtered);
-  }, [searchTerm, selectedConsultantId, selectedServiceId, tasks]);
-
-  const fetchServices = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('services')
-        .select('id, name')
-        .order('name');
-
-      if (error) throw error;
-
-      setServices(data || []);
-    } catch (error) {
-      console.error('Erro ao buscar serviços:', error);
-    }
-  };
+  }, [searchTerm, selectedConsultantId, tasks]);
 
   const fetchTasks = async () => {
     setIsLoading(true);
@@ -296,7 +265,6 @@ const CalendarPage: React.FC = () => {
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedConsultantId('');
-    setSelectedServiceId('');
   };
 
   const renderMonthView = () => {
@@ -531,18 +499,7 @@ const CalendarPage: React.FC = () => {
                 />
               </div>
               
-              <div className="min-w-[200px]">
-                <SearchableSelect
-                  options={services}
-                  value={selectedServiceId}
-                  onValueChange={(value) => setSelectedServiceId(value as string)}
-                  placeholder="Filtrar por serviço..."
-                  searchPlaceholder="Pesquisar serviço..."
-                  emptyText="Nenhum serviço encontrado"
-                />
-              </div>
-              
-              {(searchTerm || selectedConsultantId || selectedServiceId) && (
+              {(searchTerm || selectedConsultantId) && (
                 <Button variant="outline" size="sm" onClick={clearFilters}>
                   <Filter className="h-4 w-4 mr-2" />
                   Limpar Filtros
