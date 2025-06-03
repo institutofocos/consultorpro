@@ -91,8 +91,12 @@ const CalendarPage: React.FC = () => {
           .in('id', consultantIds) : Promise.resolve({ data: [] })
       ]);
 
-      const projectsMap = new Map(projectsData.data?.map(p => [p.id, p.name]) || []);
-      const consultantsMap = new Map(consultantsData.data?.map(c => [c.id, c.name]) || []);
+      const projectsMap = new Map<string, string>(
+        (projectsData.data || []).map(p => [p.id, p.name] as [string, string])
+      );
+      const consultantsMap = new Map<string, string>(
+        (consultantsData.data || []).map(c => [c.id, c.name] as [string, string])
+      );
 
       const formattedTasks: Task[] = data?.map(task => ({
         id: task.id,
