@@ -20,6 +20,7 @@ import ClientList from "./components/clients/ClientList";
 import FinancialPage from "./components/financial/FinancialPage";
 import DemandsList from "./components/demands/DemandsList";
 import Dashboard from "./components/dashboard/Dashboard";
+import CalendarPage from "./components/calendar/CalendarPage";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,10 @@ const App = () => (
             
             <Route path="/demands" element={
               <Layout><DemandsList /></Layout>
+            } />
+            
+            <Route path="/calendar" element={
+              <Layout><CalendarPage /></Layout>
             } />
             
             <Route path="/financial" element={
