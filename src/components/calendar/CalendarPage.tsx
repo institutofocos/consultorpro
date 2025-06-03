@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -70,14 +69,30 @@ const CalendarPage: React.FC = () => {
           hours,
           days,
           project_id,
-          consultant_id,
-          projects:project_id (name),
-          consultants:consultant_id (name)
+          consultant_id
         `)
         .not('start_date', 'is', null)
         .not('end_date', 'is', null);
 
       if (error) throw error;
+
+      // Fetch project and consultant data separately to avoid relationship ambiguity
+      const projectIds = [...new Set(data?.map(stage => stage.project_id).filter(Boolean))];
+      const consultantIds = [...new Set(data?.map(stage => stage.consultant_id).filter(Boolean))];
+
+      const [projectsData, consultantsData] = await Promise.all([
+        projectIds.length > 0 ? supabase
+          .from('projects')
+          .select('id, name')
+          .in('id', projectIds) : Promise.resolve({ data: [] }),
+        consultantIds.length > 0 ? supabase
+          .from('consultants')
+          .select('id, name')
+          .in('id', consultantIds) : Promise.resolve({ data: [] })
+      ]);
+
+      const projectsMap = new Map(projectsData.data?.map(p => [p.id, p.name]) || []);
+      const consultantsMap = new Map(consultantsData.data?.map(c => [c.id, c.name]) || []);
 
       const formattedTasks: Task[] = data?.map(task => ({
         id: task.id,
@@ -92,8 +107,8 @@ const CalendarPage: React.FC = () => {
         days: task.days || 1,
         project_id: task.project_id,
         consultant_id: task.consultant_id,
-        consultant_name: task.consultants?.name || 'Não atribuído',
-        project_name: task.projects?.name || 'Projeto sem nome'
+        consultant_name: consultantsMap.get(task.consultant_id) || 'Não atribuído',
+        project_name: projectsMap.get(task.project_id) || 'Projeto sem nome'
       })) || [];
 
       setTasks(formattedTasks);
