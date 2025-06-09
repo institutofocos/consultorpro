@@ -471,7 +471,7 @@ const WebhookManagement: React.FC = () => {
             <Switch
               checked={webhookConfig.enabled}
               onCheckedChange={(enabled) => 
-                setWebhookConfig(prev => ({ ...prev, enabled }))
+                setWebhookConfig({ ...webhookConfig, enabled })
               }
             />
           </div>
@@ -483,10 +483,10 @@ const WebhookManagement: React.FC = () => {
               min="10"
               max="300"
               value={webhookConfig.interval_seconds}
-              onChange={(e) => setWebhookConfig(prev => ({
-                ...prev,
+              onChange={(e) => setWebhookConfig({
+                ...webhookConfig,
                 interval_seconds: Math.max(10, parseInt(e.target.value) || 30)
-              }))}
+              })}
             />
           </div>
 
