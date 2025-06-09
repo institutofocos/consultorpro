@@ -18,7 +18,7 @@ const SystemSettingsTab = () => {
       
       <Tabs defaultValue="webhooks" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+          <TabsTrigger value="webhooks">Webhooks Consolidados</TabsTrigger>
           <TabsTrigger value="monitor">Monitor</TabsTrigger>
           <TabsTrigger value="timezone">Timezone</TabsTrigger>
           <TabsTrigger value="reset">Reset</TabsTrigger>

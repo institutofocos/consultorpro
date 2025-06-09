@@ -1,820 +1,320 @@
+
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  CardHeader, 
-  CardTitle, 
-  CardContent 
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { toast } from "sonner";
-import { 
-  AlertCircle, 
-  CheckCircle2, 
-  X, 
-  RefreshCw, 
-  TestTube, 
-  Zap, 
-  Database, 
-  Shield, 
-  Activity,
-  Clock,
-  History,
-  AlertTriangle,
-  Settings,
-  Globe,
-  PlayCircle,
-  Timer,
-  CheckSquare,
-  Package
-} from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useWebhookProcessor } from "@/hooks/useWebhookProcessor";
+import { Webhook, Plus, Trash2, TestTube, Eye, EyeOff } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import WebhookStatus from './WebhookStatus';
 
-interface Webhook {
+interface WebhookRecord {
   id: string;
   url: string;
   events: string[];
   tables: string[];
   is_active: boolean;
+  secret_key?: string;
   created_at: string;
 }
 
-interface WebhookLog {
-  id: string;
-  webhook_id: string;
-  event_type: string;
-  table_name: string;
-  success: boolean;
-  response_status: number | null;
-  response_body: string | null;
-  error_message: string | null;
-  attempt_count: number;
-  created_at: string;
-  updated_at: string;
-}
-
-const WebhookManagement: React.FC = () => {
-  const [webhookUrl, setWebhookUrl] = useState<string>('');
-  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
-  const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isTesting, setIsTesting] = useState<string>('');
-  const [isSettingUpTriggers, setIsSettingUpTriggers] = useState<boolean>(false);
-  const [urlValidation, setUrlValidation] = useState<{ isValid: boolean; message: string }>({ 
-    isValid: true, 
-    message: '' 
+const WebhookManagement = () => {
+  const [webhooks, setWebhooks] = useState<WebhookRecord[]>([]);
+  const [newWebhook, setNewWebhook] = useState({
+    url: '',
+    secretKey: ''
   });
-
-  // Hook do processador automático
-  const { 
-    config: webhookConfig, 
-    setConfig: setWebhookConfig, 
-    isProcessing, 
-    processImmediately,
-    processForced,
-    processForProjectCreation
-  } = useWebhookProcessor();
-
-  const [selectedEvents, setSelectedEvents] = useState<Record<string, boolean>>({
-    INSERT: true,
-    UPDATE: true,
-    DELETE: false
-  });
-
-  const [selectedTables, setSelectedTables] = useState<Record<string, boolean>>({
-    projects: true,
-    project_stages: true,
-    clients: false,
-    consultants: false,
-    services: false
-  });
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     fetchWebhooks();
-    fetchWebhookLogs();
   }, []);
-
-  // Recarregar logs quando não estiver processando
-  useEffect(() => {
-    if (!isProcessing) {
-      const timer = setTimeout(fetchWebhookLogs, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [isProcessing]);
-
-  // Validação de URL em tempo real
-  useEffect(() => {
-    const validateUrl = async () => {
-      if (!webhookUrl.trim()) {
-        setUrlValidation({ isValid: true, message: '' });
-        return;
-      }
-
-      try {
-        const url = new URL(webhookUrl);
-        if (!['http:', 'https:'].includes(url.protocol)) {
-          setUrlValidation({ 
-            isValid: false, 
-            message: 'URL deve usar protocolo HTTP ou HTTPS' 
-          });
-          return;
-        }
-        setUrlValidation({ isValid: true, message: 'URL válida ✓' });
-      } catch {
-        setUrlValidation({ 
-          isValid: false, 
-          message: 'Formato de URL inválido' 
-        });
-      }
-    };
-
-    const timeoutId = setTimeout(validateUrl, 500);
-    return () => clearTimeout(timeoutId);
-  }, [webhookUrl]);
-
-  const callWebhookFunction = async (action: string, data: any = {}) => {
-    console.log(`🔧 Chamando função webhook: ${action}`, data);
-    
-    try {
-      const { data: result, error } = await supabase.functions.invoke('webhooks', {
-        body: { action, ...data }
-      });
-
-      if (error) {
-        console.error('❌ Erro na função webhook:', error);
-        throw new Error(error.message || 'Falha na função webhook');
-      }
-
-      if (!result || result.success === false) {
-        throw new Error(result?.message || 'Operação webhook falhou');
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('💥 Erro ao chamar função webhook:', error);
-      throw error;
-    }
-  };
-
-  const fetchWebhookLogs = async () => {
-    try {
-      const { data: logs, error } = await supabase
-        .from('webhook_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) {
-        console.error("Erro ao carregar logs:", error);
-        return;
-      }
-      
-      setWebhookLogs(logs || []);
-    } catch (error) {
-      console.error("Erro ao carregar logs:", error);
-    }
-  };
 
   const fetchWebhooks = async () => {
     try {
-      setIsLoading(true);
-      const result = await callWebhookFunction('list');
-      setWebhooks(result.webhooks || []);
-    } catch (error) {
-      console.error("Erro ao carregar webhooks:", error);
-      toast.error("Erro ao carregar webhooks", {
-        description: error instanceof Error ? error.message : "Falha ao carregar webhooks",
-        icon: <AlertCircle className="h-5 w-5 text-destructive" />
+      const { data, error } = await supabase.functions.invoke('webhooks', {
+        body: { action: 'list' }
       });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  const setupDatabaseTriggers = async () => {
-    try {
-      setIsSettingUpTriggers(true);
-      console.log('🛠️ Configurando triggers consolidados...');
-      
-      toast.info("Configurando sistema", {
-        description: "Criando triggers consolidados para webhooks de projeto"
-      });
-      
-      const result = await callWebhookFunction('setup_triggers');
-      
-      if (result.success) {
-        toast.success("Sistema configurado!", {
-          description: "Triggers consolidados criados com sucesso",
-          icon: <CheckCircle2 className="h-5 w-5 text-success" />
-        });
-        
-        // Processar após configurar
-        setTimeout(processForProjectCreation, 2000);
+      if (error) {
+        console.error('Erro ao buscar webhooks:', error);
+        toast.error('Erro ao carregar webhooks');
+        return;
       }
-      
+
+      if (data?.success && data?.webhooks) {
+        setWebhooks(data.webhooks);
+        console.log('📋 Webhooks carregados:', data.webhooks.length);
+      }
     } catch (error) {
-      console.error("Erro na configuração:", error);
-      toast.error("Erro na configuração", {
-        description: error instanceof Error ? error.message : "Falha ao configurar sistema",
-        icon: <AlertCircle className="h-5 w-5 text-destructive" />
-      });
-    } finally {
-      setIsSettingUpTriggers(false);
+      console.error('Erro ao buscar webhooks:', error);
+      toast.error('Erro ao carregar webhooks');
     }
   };
 
-  const handleRegisterWebhook = async () => {
-    if (!urlValidation.isValid) {
-      toast.error("URL inválida", {
-        description: urlValidation.message,
-        icon: <AlertCircle className="h-5 w-5 text-destructive" />
-      });
-      return;
-    }
-
-    const events = Object.keys(selectedEvents).filter(key => selectedEvents[key]);
-    const tables = Object.keys(selectedTables).filter(key => selectedTables[key]);
-
-    if (events.length === 0 || tables.length === 0) {
-      toast.error("Seleção incompleta", {
-        description: "Selecione pelo menos um evento e uma tabela",
-        icon: <AlertCircle className="h-5 w-5 text-destructive" />
-      });
+  const handleAddWebhook = async () => {
+    if (!newWebhook.url) {
+      toast.error('URL do webhook é obrigatória');
       return;
     }
 
     setIsLoading(true);
-
     try {
-      await callWebhookFunction('register', {
-        url: webhookUrl,
-        events,
-        tables
-      });
-
-      toast.success("Webhook registrado!", {
-        description: "Webhook consolidado configurado com sucesso",
-        icon: <CheckCircle2 className="h-5 w-5 text-success" />
-      });
-
-      setWebhookUrl('');
-      await fetchWebhooks();
-      setTimeout(processForProjectCreation, 1000);
+      console.log('➕ Adicionando webhook consolidado:', newWebhook.url);
       
-    } catch (error) {
-      console.error("Erro ao registrar:", error);
-      toast.error("Falha no registro", {
-        description: error instanceof Error ? error.message : "Falha ao registrar webhook",
-        icon: <AlertCircle className="h-5 w-5 text-destructive" />
+      const { data, error } = await supabase.functions.invoke('webhooks', {
+        body: {
+          action: 'register',
+          url: newWebhook.url,
+          events: ['INSERT'], // Apenas INSERT para webhooks consolidados
+          tables: ['projects'], // Apenas projetos para webhooks consolidados
+          secret_key: newWebhook.secretKey || undefined
+        }
       });
+
+      if (error) {
+        console.error('Erro ao registrar webhook:', error);
+        toast.error('Erro ao registrar webhook: ' + error.message);
+        return;
+      }
+
+      if (data?.success) {
+        toast.success('Webhook consolidado registrado com sucesso!');
+        setNewWebhook({ url: '', secretKey: '' });
+        await fetchWebhooks();
+      } else {
+        toast.error(data?.message || 'Erro ao registrar webhook');
+      }
+    } catch (error) {
+      console.error('Erro ao registrar webhook:', error);
+      toast.error('Erro ao registrar webhook');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleTestWebhook = async (webhook: WebhookRecord) => {
+    setIsLoading(true);
+    try {
+      console.log('🧪 Testando webhook consolidado:', webhook.url);
+      
+      const { data, error } = await supabase.functions.invoke('webhooks', {
+        body: {
+          action: 'test',
+          url: webhook.url
+        }
+      });
+
+      if (error) {
+        console.error('Erro ao testar webhook:', error);
+        toast.error('Erro ao testar webhook: ' + error.message);
+        return;
+      }
+
+      if (data?.success) {
+        toast.success('Teste consolidado enviado com sucesso! Verifique o destino.');
+      } else {
+        toast.error(data?.message || 'Teste consolidado falhou');
+      }
+    } catch (error) {
+      console.error('Erro ao testar webhook:', error);
+      toast.error('Erro ao testar webhook');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleToggleActive = async (webhookId: string, isActive: boolean) => {
+    try {
+      console.log(`🔄 ${isActive ? 'Ativando' : 'Desativando'} webhook:`, webhookId);
+      
+      const { data, error } = await supabase.functions.invoke('webhooks', {
+        body: {
+          action: 'toggle_active',
+          id: webhookId,
+          is_active: isActive
+        }
+      });
+
+      if (error) {
+        console.error('Erro ao alterar status:', error);
+        toast.error('Erro ao alterar status do webhook');
+        return;
+      }
+
+      if (data?.success) {
+        toast.success(data.message);
+        await fetchWebhooks();
+      }
+    } catch (error) {
+      console.error('Erro ao alterar status:', error);
+      toast.error('Erro ao alterar status do webhook');
     }
   };
 
   const handleDeleteWebhook = async (webhookId: string) => {
-    try {
-      await callWebhookFunction('delete', { id: webhookId });
-      
-      toast.success("Webhook removido", {
-        description: "O webhook foi removido com sucesso"
-      });
-      
-      await fetchWebhooks();
-    } catch (error) {
-      console.error("Error deleting webhook:", error);
-      toast.error("Falha ao excluir", {
-        description: error instanceof Error ? error.message : "Falha ao excluir webhook",
-        icon: <AlertCircle className="h-5 w-5 text-destructive" />
-      });
+    if (!confirm('Tem certeza que deseja excluir este webhook?')) {
+      return;
     }
-  };
 
-  const testWebhook = async (url: string) => {
     try {
-      setIsTesting(url);
+      console.log('🗑️ Excluindo webhook:', webhookId);
       
-      toast.info("Testando webhook", {
-        description: "Enviando dados consolidados de teste..."
+      const { data, error } = await supabase.functions.invoke('webhooks', {
+        body: {
+          action: 'delete',
+          id: webhookId
+        }
       });
-      
-      const result = await callWebhookFunction('test', { url });
-      
-      if (result.success) {
-        toast.success("Teste bem-sucedido!", {
-          description: `Webhook respondeu com status ${result.status}`,
-          icon: <CheckCircle2 className="h-5 w-5 text-success" />
-        });
-      } else {
-        toast.error("Teste falhou", {
-          description: result.message || "Falha ao testar webhook",
-          icon: <AlertCircle className="h-5 w-5 text-destructive" />
-        });
+
+      if (error) {
+        console.error('Erro ao excluir webhook:', error);
+        toast.error('Erro ao excluir webhook');
+        return;
       }
-      
-      await fetchWebhookLogs();
-      
-    } catch (error) {
-      console.error("Error testing webhook:", error);
-      toast.error("Teste falhou", {
-        description: error instanceof Error ? error.message : "Falha ao testar webhook",
-        icon: <AlertCircle className="h-5 w-5 text-destructive" />
-      });
-    } finally {
-      setIsTesting('');
-    }
-  };
 
-  const triggerTestEvents = async () => {
-    try {
-      setIsLoading(true);
-      
-      toast.info("Gerando eventos consolidados de teste", {
-        description: "Criando eventos de teste para webhooks consolidados"
-      });
-      
-      const result = await callWebhookFunction('trigger_test');
-      
-      if (result.success) {
-        toast.success("Eventos consolidados criados!", {
-          description: result.message,
-          icon: <CheckCircle2 className="h-5 w-5 text-success" />
-        });
-        
-        // Processar consolidados após criar eventos de teste
-        setTimeout(() => {
-          processForProjectCreation();
-        }, 1000);
+      if (data?.success) {
+        toast.success('Webhook excluído com sucesso');
+        await fetchWebhooks();
       }
-      
-      await fetchWebhookLogs();
-      
     } catch (error) {
-      console.error("Error triggering test events:", error);
-      toast.error("Erro nos eventos de teste", {
-        description: error instanceof Error ? error.message : "Falha ao criar eventos de teste consolidados",
-        icon: <AlertCircle className="h-5 w-5 text-destructive" />
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const toggleWebhookActive = async (webhookId: string, currentStatus: boolean) => {
-    try {
-      await callWebhookFunction('toggle_active', { 
-        id: webhookId, 
-        is_active: !currentStatus 
-      });
-      
-      toast.success(`Webhook ${!currentStatus ? 'ativado' : 'desativado'}`, {
-        description: `O webhook foi ${!currentStatus ? 'ativado' : 'desativado'} com sucesso`
-      });
-      
-      await fetchWebhooks();
-    } catch (error) {
-      console.error("Error toggling webhook:", error);
-      toast.error("Falha ao alterar status", {
-        description: error instanceof Error ? error.message : "Falha ao alterar status do webhook",
-        icon: <AlertCircle className="h-5 w-5 text-destructive" />
-      });
+      console.error('Erro ao excluir webhook:', error);
+      toast.error('Erro ao excluir webhook');
     }
   };
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div className="text-center space-y-2">
-        <h1 className="text-4xl font-bold flex items-center justify-center gap-3">
-          <Package className="h-8 w-8 text-blue-600" />
-          Sistema de Webhooks Consolidados
-        </h1>
-        <p className="text-muted-foreground text-lg">
-          ✅ Webhooks consolidados | ✅ Projetos completos em uma requisição | ✅ Performance otimizada
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">Gerenciamento de Webhooks</h2>
+        <p className="text-muted-foreground">
+          Configure webhooks consolidados para receber notificações quando projetos forem criados
         </p>
       </div>
 
-      {/* Status Overview */}
-      <Card className="shadow-lg border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
+      <WebhookStatus />
+
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CheckSquare className="h-5 w-5 text-green-600" />
-            Sistema Consolidado Funcionando
-            {isProcessing && (
-              <Badge variant="secondary" className="animate-pulse">
-                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                Processando
-              </Badge>
-            )}
+          <CardTitle className="flex items-center space-x-2">
+            <Plus className="h-5 w-5" />
+            <span>Adicionar Webhook Consolidado</span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-white rounded-lg border">
-              <div className="text-2xl font-bold text-blue-600">{webhooks.length}</div>
-              <div className="text-sm text-muted-foreground">Webhooks Consolidados</div>
-            </div>
-            <div className="text-center p-4 bg-white rounded-lg border">
-              <div className="text-2xl font-bold text-green-600">
-                {webhookLogs.filter(l => l.success).length}
-              </div>
-              <div className="text-sm text-muted-foreground">Sucessos</div>
-            </div>
-            <div className="text-center p-4 bg-white rounded-lg border">
-              <div className="text-2xl font-bold text-orange-600">
-                {webhookLogs.filter(l => !l.success && l.attempt_count < 3).length}
-              </div>
-              <div className="text-sm text-muted-foreground">Pendentes</div>
-            </div>
-            <div className="text-center p-4 bg-white rounded-lg border">
-              <div className="text-2xl font-bold text-purple-600">
-                {webhookLogs.filter(l => l.event_type === 'project_created_consolidated').length}
-              </div>
-              <div className="text-sm text-muted-foreground">Consolidados</div>
-            </div>
+        <CardContent className="space-y-4">
+          <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded border border-blue-200">
+            <div className="font-medium mb-1">ℹ️ Webhooks Consolidados</div>
+            <div>Os webhooks consolidados enviam todos os dados do projeto (cliente, serviço, consultor, etapas) em uma única requisição quando um projeto é criado.</div>
           </div>
-          
-          <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
-            <div className="flex items-center gap-2 text-green-800 font-medium mb-2">
-              <Package className="h-4 w-4" />
-              Funcionalidades Consolidadas
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-green-700">
-              <div>✅ Webhook único por projeto criado</div>
-              <div>✅ Dados completos (projeto + cliente + serviço + consultores + etapas)</div>
-              <div>✅ Performance otimizada</div>
-              <div>✅ Processamento inteligente com retry automático</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Configuration and Setup */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Processor Config */}
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              Processamento Consolidado
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-              <div>
-                <Label>Sistema Ativo</Label>
-                <p className="text-sm text-muted-foreground">
-                  Processamento automático de webhooks consolidados
-                </p>
-              </div>
-              <Switch
-                checked={webhookConfig.enabled}
-                onCheckedChange={(enabled) => 
-                  setWebhookConfig(prev => ({ ...prev, enabled }))
-                }
-              />
-            </div>
-
-            <div className="space-y-3">
-              <Label>Intervalo (segundos)</Label>
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <Label htmlFor="webhook-url">URL do Webhook *</Label>
               <Input
-                type="number"
-                min="5"
-                max="300"
-                value={webhookConfig.interval_seconds}
-                onChange={(e) => setWebhookConfig(prev => ({
-                  ...prev,
-                  interval_seconds: Math.max(5, parseInt(e.target.value) || 5)
-                }))}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <Button 
-                onClick={processImmediately}
-                disabled={isProcessing}
-                variant="outline"
-                size="sm"
-              >
-                {isProcessing ? (
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Timer className="h-4 w-4 mr-2" />
-                )}
-                Processar
-              </Button>
-              
-              <Button 
-                onClick={processForProjectCreation}
-                disabled={isProcessing}
-                variant="secondary"
-                size="sm"
-              >
-                <Package className="h-4 w-4 mr-2" />
-                Consolidados
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* System Setup */}
-        <Card className="shadow-lg border-blue-200 bg-blue-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Configuração Consolidada
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 bg-white rounded-lg border">
-              <p className="text-sm mb-3">
-                <strong>Sistema Consolidado:</strong> Triggers otimizados para enviar um único webhook com todos os dados do projeto (cliente, serviço, consultores, etapas) em uma única requisição.
-              </p>
-            </div>
-            <Button 
-              onClick={setupDatabaseTriggers}
-              disabled={isSettingUpTriggers}
-              className="w-full bg-blue-600 hover:bg-blue-700"
-            >
-              {isSettingUpTriggers ? (
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Shield className="h-4 w-4 mr-2" />
-              )}
-              Configurar Triggers Consolidados
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Register New Webhook */}
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5" />
-            Registrar Webhook Consolidado
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-3">
-            <Label htmlFor="webhook-url">URL do Webhook</Label>
-            <div className="relative">
-              <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
                 id="webhook-url"
-                type="url" 
-                placeholder="https://seu-endpoint.com/webhook" 
-                value={webhookUrl}
-                onChange={(e) => setWebhookUrl(e.target.value)}
-                className={`pl-10 ${
-                  webhookUrl && !urlValidation.isValid 
-                    ? 'border-red-300 focus:border-red-500' 
-                    : webhookUrl && urlValidation.isValid 
-                    ? 'border-green-300 focus:border-green-500' 
-                    : ''
-                }`}
+                placeholder="https://seu-site.com/webhook"
+                value={newWebhook.url}
+                onChange={(e) => setNewWebhook({ ...newWebhook, url: e.target.value })}
               />
             </div>
-            {webhookUrl && (
-              <div className={`flex items-center gap-2 text-sm ${
-                urlValidation.isValid ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {urlValidation.isValid ? (
-                  <CheckCircle2 className="h-4 w-4" />
-                ) : (
-                  <AlertTriangle className="h-4 w-4" />
-                )}
-                {urlValidation.message}
-              </div>
-            )}
-          </div>
-          
-          <Separator />
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <h3 className="font-medium">Eventos Consolidados</h3>
-              <div className="space-y-3">
-                {Object.entries({
-                  INSERT: 'Criação Consolidada (INSERT)',
-                  UPDATE: 'Atualização (UPDATE)', 
-                  DELETE: 'Exclusão (DELETE)'
-                }).map(([key, label]) => (
-                  <div key={key} className="flex items-center space-x-3">
-                    <Checkbox 
-                      id={`event-${key}`}
-                      checked={selectedEvents[key]}
-                      onCheckedChange={(checked) => 
-                        setSelectedEvents({...selectedEvents, [key]: !!checked})
-                      }
-                    />
-                    <label htmlFor={`event-${key}`} className="text-sm font-medium">
-                      {label}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              <h3 className="font-medium">Entidades Consolidadas</h3>
-              <div className="space-y-2">
-                {Object.entries({
-                  projects: 'Projetos (dados completos)',
-                  project_stages: 'Etapas do projeto',
-                  clients: 'Dados do cliente',
-                  consultants: 'Dados dos consultores',
-                  services: 'Dados do serviço'
-                }).map(([key, label]) => (
-                  <div key={key} className="flex items-center space-x-3">
-                    <Checkbox 
-                      id={`table-${key}`}
-                      checked={selectedTables[key]}
-                      onCheckedChange={(checked) => 
-                        setSelectedTables({...selectedTables, [key]: !!checked})
-                      }
-                    />
-                    <label htmlFor={`table-${key}`} className="text-sm">
-                      {label}
-                    </label>
-                  </div>
-                ))}
-              </div>
+            <div>
+              <Label htmlFor="secret-key">Chave Secreta (Opcional)</Label>
+              <Input
+                id="secret-key"
+                type="password"
+                placeholder="Chave para autenticação"
+                value={newWebhook.secretKey}
+                onChange={(e) => setNewWebhook({ ...newWebhook, secretKey: e.target.value })}
+              />
             </div>
           </div>
 
           <Button 
-            onClick={handleRegisterWebhook} 
-            disabled={isLoading || !urlValidation.isValid || !webhookUrl}
+            onClick={handleAddWebhook} 
+            disabled={isLoading || !newWebhook.url}
             className="w-full"
-            size="lg"
           >
-            {isLoading && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-            <Package className="mr-2 h-4 w-4" />
-            Registrar Webhook Consolidado
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar Webhook Consolidado
           </Button>
         </CardContent>
       </Card>
 
-      {/* Active Webhooks */}
-      <Card className="shadow-lg">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5" />
-            Webhooks Consolidados Registrados
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Webhook className="h-5 w-5" />
+            <span>Webhooks Registrados ({webhooks.length})</span>
           </CardTitle>
-          <div className="flex gap-2">
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={triggerTestEvents}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <TestTube className="h-4 w-4 mr-2" />
-              )}
-              Testar Consolidados
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={fetchWebhooks}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
-              Atualizar
-            </Button>
-          </div>
         </CardHeader>
         <CardContent>
           {webhooks.length === 0 ? (
-            <div className="text-center text-muted-foreground py-12">
-              <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg mb-2">Nenhum webhook consolidado registrado</p>
-              <p className="text-sm">Configure um webhook acima para receber notificações consolidadas automáticas</p>
+            <div className="text-center py-8 text-muted-foreground">
+              <Webhook className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhum webhook registrado</p>
             </div>
           ) : (
             <div className="space-y-4">
               {webhooks.map((webhook) => (
-                <div key={webhook.id} className="p-6 bg-secondary/20 rounded-lg border hover:shadow-md transition-shadow">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="space-y-2 flex-1">
-                      <div className="flex items-center gap-3">
-                        <p className="font-medium text-lg break-all">{webhook.url}</p>
-                        <Switch
-                          checked={webhook.is_active}
-                          onCheckedChange={() => toggleWebhookActive(webhook.id, webhook.is_active)}
-                        />
+                <div key={webhook.id} className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="font-medium text-sm break-all">
+                        {webhook.url}
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Badge variant={webhook.is_active ? "default" : "secondary"}>
-                          {webhook.is_active ? 'Ativo' : 'Inativo'}
-                        </Badge>
-                        <Badge variant="outline">
-                          Eventos: {webhook.events.join(', ')}
-                        </Badge>
-                        <Badge variant="outline">
-                          {webhook.tables.length} entidades
-                        </Badge>
-                        <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                          <Package className="h-3 w-3 mr-1" />
-                          Consolidado
-                        </Badge>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Criado em: {new Date(webhook.created_at).toLocaleString('pt-BR')}
                       </div>
                     </div>
-                    <div className="flex gap-2 ml-4">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => testWebhook(webhook.url)}
-                        disabled={isTesting === webhook.url}
-                      >
-                        {isTesting === webhook.url ? (
-                          <RefreshCw className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <TestTube className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        onClick={() => handleDeleteWebhook(webhook.id)}
-                      >
-                        <X className="h-4 w-4 text-muted-foreground" />
-                      </Button>
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        checked={webhook.is_active}
+                        onCheckedChange={(checked) => handleToggleActive(webhook.id, checked)}
+                      />
+                      <Badge variant={webhook.is_active ? "default" : "secondary"}>
+                        {webhook.is_active ? "Ativo" : "Inativo"}
+                      </Badge>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Webhook Logs */}
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <History className="h-5 w-5" />
-            Histórico de Webhooks Consolidados
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {webhookLogs.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>Nenhum log consolidado disponível</p>
-            </div>
-          ) : (
-            <div className="space-y-3 max-h-80 overflow-y-auto">
-              {webhookLogs.slice(0, 20).map((log) => (
-                <div key={log.id} className="flex items-center justify-between p-3 bg-muted/30 rounded border">
-                  <div className="flex items-center gap-3">
-                    {log.success ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4 text-red-600" />
-                    )}
-                    <div>
-                      <p className="text-sm font-medium">
-                        {log.event_type} em {log.table_name}
-                        {log.event_type === 'project_created_consolidated' && (
-                          <Badge variant="secondary" className="ml-2 bg-purple-100 text-purple-800">
-                            <Package className="h-3 w-3 mr-1" />
-                            Consolidado
-                          </Badge>
-                        )}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(log.created_at).toLocaleString('pt-BR')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <Badge variant={log.success ? "default" : "destructive"}>
-                      {log.success ? 'Sucesso' : 'Erro'}
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className="text-xs">
+                      📡 Eventos: {webhook.events.join(', ')}
                     </Badge>
-                    {log.response_status && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Status: {log.response_status}
-                      </p>
+                    <Badge variant="outline" className="text-xs">
+                      📋 Tabelas: {webhook.tables.join(', ')}
+                    </Badge>
+                    {webhook.secret_key && (
+                      <Badge variant="outline" className="text-xs">
+                        🔐 Com autenticação
+                      </Badge>
                     )}
-                    {log.attempt_count > 1 && (
-                      <p className="text-xs text-orange-600 mt-1">
-                        Tentativa: {log.attempt_count}
-                      </p>
-                    )}
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex justify-between">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleTestWebhook(webhook)}
+                      disabled={isLoading}
+                    >
+                      <TestTube className="h-4 w-4 mr-2" />
+                      Testar Consolidado
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteWebhook(webhook.id)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir
+                    </Button>
                   </div>
                 </div>
               ))}
