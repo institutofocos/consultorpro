@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -28,9 +27,11 @@ import {
   History,
   AlertTriangle,
   Settings,
-  Globe
+  Globe,
+  PlayCircle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useWebhookProcessor } from "@/hooks/useWebhookProcessor";
 
 interface Webhook {
   id: string;
@@ -39,11 +40,6 @@ interface Webhook {
   tables: string[];
   is_active: boolean;
   created_at: string;
-}
-
-interface WebhookConfig {
-  interval_seconds: number;
-  enabled: boolean;
 }
 
 interface WebhookLog {
@@ -72,11 +68,13 @@ const WebhookManagement: React.FC = () => {
     message: '' 
   });
 
-  // Local webhook config state (no database persistence)
-  const [webhookConfig, setWebhookConfig] = useState<WebhookConfig>({
-    interval_seconds: 5,
-    enabled: true
-  });
+  // Hook do processador automático
+  const { 
+    config: webhookConfig, 
+    setConfig: setWebhookConfig, 
+    isProcessing, 
+    processImmediately 
+  } = useWebhookProcessor();
 
   const [selectedEvents, setSelectedEvents] = useState<Record<string, boolean>>({
     INSERT: true,
@@ -104,6 +102,16 @@ const WebhookManagement: React.FC = () => {
     fetchWebhooks();
     fetchWebhookLogs();
   }, []);
+
+  // Recarregar logs automaticamente quando há processamento
+  useEffect(() => {
+    if (!isProcessing) {
+      const timer = setTimeout(() => {
+        fetchWebhookLogs();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isProcessing]);
 
   // Real-time URL validation
   useEffect(() => {
@@ -178,37 +186,20 @@ const WebhookManagement: React.FC = () => {
 
   const fetchWebhookLogs = async () => {
     try {
-      // Use a raw SQL query since the table might not be in the generated types yet
       const { data: logs, error } = await supabase
-        .rpc('execute_sql', { 
-          query: 'SELECT * FROM webhook_logs ORDER BY created_at DESC LIMIT 50' 
-        });
+        .from('webhook_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
 
       if (error) {
         console.error("Error loading webhook logs:", error);
-        // Don't show error toast for logs as it's not critical
         return;
       }
       
-      // Transform the data to match our interface
-      const formattedLogs: WebhookLog[] = (logs || []).map((log: any) => ({
-        id: log.id,
-        webhook_id: log.webhook_id,
-        event_type: log.event_type,
-        table_name: log.table_name,
-        success: log.success,
-        response_status: log.response_status,
-        response_body: log.response_body,
-        error_message: log.error_message,
-        attempt_count: log.attempt_count || 1,
-        created_at: log.created_at,
-        updated_at: log.updated_at
-      }));
-      
-      setWebhookLogs(formattedLogs);
+      setWebhookLogs(logs || []);
     } catch (error) {
       console.error("Error loading webhook logs:", error);
-      // Don't show error toast for logs as it's not critical
     }
   };
 
@@ -232,6 +223,11 @@ const WebhookManagement: React.FC = () => {
             description: `${successTriggers.length} triggers criados com sucesso`,
             icon: <CheckCircle2 className="h-5 w-5 text-success" />
           });
+          
+          // Processar imediatamente após configurar triggers
+          setTimeout(() => {
+            processImmediately();
+          }, 2000);
         }
         
         if (errorTriggers.length > 0) {
@@ -297,6 +293,11 @@ const WebhookManagement: React.FC = () => {
 
       setWebhookUrl('');
       await fetchWebhooks();
+      
+      // Processar imediatamente após registrar
+      setTimeout(() => {
+        processImmediately();
+      }, 1000);
       
     } catch (error) {
       console.error("Error registering webhook:", error);
@@ -377,6 +378,11 @@ const WebhookManagement: React.FC = () => {
           description: result.message,
           icon: <CheckCircle2 className="h-5 w-5 text-success" />
         });
+        
+        // Processar imediatamente após criar eventos de teste
+        setTimeout(() => {
+          processImmediately();
+        }, 1000);
       }
       
       await fetchWebhookLogs();
@@ -431,6 +437,12 @@ const WebhookManagement: React.FC = () => {
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />
             Status do Sistema
+            {isProcessing && (
+              <Badge variant="secondary" className="animate-pulse">
+                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                Processando
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -505,10 +517,26 @@ const WebhookManagement: React.FC = () => {
               </p>
             </div>
 
+            <div className="space-y-3">
+              <Button 
+                onClick={processImmediately}
+                disabled={isProcessing}
+                className="w-full"
+                variant="outline"
+              >
+                {isProcessing ? (
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <PlayCircle className="h-4 w-4 mr-2" />
+                )}
+                Processar Fila Agora
+              </Button>
+            </div>
+
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-sm text-blue-800">
-                <strong>Nota:</strong> As configurações são mantidas apenas durante a sessão atual. 
-                Para configurações persistentes, use as configurações do sistema de webhook.
+                <strong>Status:</strong> {webhookConfig.enabled ? 'Processamento automático ativo' : 'Processamento automático desativado'}
+                {webhookConfig.enabled && ` - A cada ${webhookConfig.interval_seconds} segundos`}
               </p>
             </div>
           </CardContent>
