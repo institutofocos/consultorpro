@@ -136,12 +136,19 @@ export const useWebhookProcessor = () => {
     await processWebhookQueue(true);
   }, [processWebhookQueue]);
 
+  // Função específica para criação de projetos
+  const processForProjectCreation = useCallback(async () => {
+    console.log('🎯 Processamento consolidado para criação de projeto solicitado');
+    await processWebhookQueue(true);
+  }, [processWebhookQueue]);
+
   return {
     config,
     setConfig,
     isProcessing,
     processImmediately,
     processForced,
-    processWebhookQueue
+    processWebhookQueue,
+    processForProjectCreation
   };
 };
