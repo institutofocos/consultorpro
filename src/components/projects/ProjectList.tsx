@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -197,34 +198,6 @@ const ProjectList: React.FC = () => {
     setStartDateFilter('');
     setEndDateFilter('');
     toast.success('Filtros limpos com sucesso!');
-  };
-
-  const handleProjectSaved = async (savedProject?: Project) => {
-    try {
-      console.log('=== PROJETO SALVO - ATUALIZANDO LISTA ===');
-      console.log('Projeto salvo:', savedProject);
-      
-      // Force refetch data to ensure we get the latest
-      await refetch();
-      
-      // Close sheet and clear editing state
-      setIsSheetOpen(false);
-      setEditingProject(null);
-      
-      console.log('Lista de projetos atualizada com sucesso');
-      toast.success("Projeto salvo e lista atualizada com sucesso!");
-    } catch (error) {
-      console.error('Erro ao atualizar lista de projetos:', error);
-      toast.error('Erro ao atualizar lista de projetos');
-    }
-  };
-
-  const handleSheetOpenChange = (open: boolean) => {
-    console.log('Sheet open change:', open);
-    setIsSheetOpen(open);
-    if (!open) {
-      setEditingProject(null);
-    }
   };
 
   // Preparar opções de status dinamicamente
