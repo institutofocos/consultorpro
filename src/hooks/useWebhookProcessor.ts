@@ -10,7 +10,7 @@ interface WebhookConfig {
 export const useWebhookProcessor = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [config, setConfig] = useState<WebhookConfig>({
-    interval_seconds: 30,
+    interval_seconds: 5,
     enabled: true
   });
 

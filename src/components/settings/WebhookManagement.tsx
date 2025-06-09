@@ -160,22 +160,6 @@ const WebhookManagement: React.FC = () => {
     }
   };
 
-  const fetchWebhooks = async () => {
-    try {
-      setIsLoading(true);
-      const result = await callWebhookFunction('list');
-      setWebhooks(result.webhooks || []);
-    } catch (error) {
-      console.error("Erro ao carregar webhooks:", error);
-      toast.error("Erro ao carregar webhooks", {
-        description: error instanceof Error ? error.message : "Falha ao carregar webhooks",
-        icon: <AlertCircle className="h-5 w-5 text-destructive" />
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const fetchWebhookLogs = async () => {
     try {
       const { data: logs, error } = await supabase
@@ -192,6 +176,22 @@ const WebhookManagement: React.FC = () => {
       setWebhookLogs(logs || []);
     } catch (error) {
       console.error("Erro ao carregar logs:", error);
+    }
+  };
+
+  const fetchWebhooks = async () => {
+    try {
+      setIsLoading(true);
+      const result = await callWebhookFunction('list');
+      setWebhooks(result.webhooks || []);
+    } catch (error) {
+      console.error("Erro ao carregar webhooks:", error);
+      toast.error("Erro ao carregar webhooks", {
+        description: error instanceof Error ? error.message : "Falha ao carregar webhooks",
+        icon: <AlertCircle className="h-5 w-5 text-destructive" />
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -482,12 +482,12 @@ const WebhookManagement: React.FC = () => {
               <Label>Intervalo (segundos)</Label>
               <Input
                 type="number"
-                min="10"
+                min="5"
                 max="300"
                 value={webhookConfig.interval_seconds}
                 onChange={(e) => setWebhookConfig(prev => ({
                   ...prev,
-                  interval_seconds: Math.max(10, parseInt(e.target.value) || 30)
+                  interval_seconds: Math.max(5, parseInt(e.target.value) || 5)
                 }))}
               />
             </div>
