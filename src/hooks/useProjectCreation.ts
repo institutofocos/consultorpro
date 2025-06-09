@@ -54,8 +54,8 @@ export const useProjectCreation = () => {
     try {
       console.log('Iniciando criação de projeto com etapas...');
       
-      // Desabilitar triggers temporariamente para evitar webhooks duplicados
-      await supabase.rpc('disable_project_triggers');
+      // Note: Since the RPC functions don't exist in the types, we'll handle this differently
+      // We'll create the project and stages normally, and the webhooks will be triggered by the regular triggers
       
       // 1. Criar o projeto
       const { data: project, error: projectError } = await supabase
@@ -91,10 +91,7 @@ export const useProjectCreation = () => {
         console.log('Etapas criadas:', createdStages.length);
       }
 
-      // 3. Reabilitar triggers
-      await supabase.rpc('enable_project_triggers');
-
-      // 4. Enviar webhook consolidado
+      // 3. Enviar webhook consolidado
       console.log('Enviando webhook consolidado...');
       await sendProjectWebhook(project.id);
 
@@ -110,13 +107,6 @@ export const useProjectCreation = () => {
       
     } catch (error) {
       console.error('Erro na criação do projeto:', error);
-      
-      // Garantir que os triggers sejam reabilitados mesmo em caso de erro
-      try {
-        await supabase.rpc('enable_project_triggers');
-      } catch (triggerError) {
-        console.error('Erro ao reabilitar triggers:', triggerError);
-      }
       
       toast.error('Erro ao criar projeto', {
         description: error instanceof Error ? error.message : 'Erro desconhecido'

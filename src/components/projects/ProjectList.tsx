@@ -34,7 +34,7 @@ const ProjectList: React.FC = () => {
   const [consultants, setConsultants] = useState<Array<{id: string, name: string}>>([]);
   const [services, setServices] = useState<Array<{id: string, name: string}>>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<any>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   // Hook para buscar status dinâmicos
   const { statuses } = useProjectStatuses();
@@ -179,7 +179,7 @@ const ProjectList: React.FC = () => {
     }
   };
 
-  const handleEditProject = (project: any) => {
+  const handleEditProject = (project: Project) => {
     console.log('Editando projeto:', project);
     setEditingProject(project);
     setIsDialogOpen(true);
@@ -302,8 +302,8 @@ const ProjectList: React.FC = () => {
               </DialogHeader>
               <ProjectForm
                 project={editingProject}
-                onProjectSaved={handleProjectSaved}
-                onCancel={() => setIsDialogOpen(false)}
+                onSave={handleProjectSaved}
+                onClose={() => setIsDialogOpen(false)}
               />
             </DialogContent>
           </Dialog>

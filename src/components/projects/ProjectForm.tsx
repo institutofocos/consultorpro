@@ -11,11 +11,12 @@ import { Loader2 } from "lucide-react";
 import SearchableSelect from "@/components/ui/searchable-select";
 import ProjectFormStageSection from "./ProjectFormStageSection";
 import { useProjectCreation } from "@/hooks/useProjectCreation";
-import { Stage } from "./types";
+import { Stage, Project } from "./types";
 
 interface ProjectFormProps {
   onClose: () => void;
   onSave: () => void;
+  project?: Project;
 }
 
 interface Client {
@@ -28,7 +29,7 @@ interface Service {
   name: string;
 }
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ onClose, onSave }) => {
+const ProjectForm: React.FC<ProjectFormProps> = ({ onClose, onSave, project }) => {
   const { consultants } = useConsultants();
   const { createProjectWithStages, isCreating } = useProjectCreation();
   
@@ -37,29 +38,29 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onClose, onSave }) => {
   const [stages, setStages] = useState<Stage[]>([]);
   
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    clientId: '',
-    serviceId: '',
-    mainConsultantId: '',
-    supportConsultantId: '',
-    startDate: '',
-    endDate: '',
-    totalValue: 0,
-    totalHours: 0,
-    hourlyRate: 0,
-    taxPercent: 16,
-    thirdPartyExpenses: 0,
-    mainConsultantValue: 0,
-    supportConsultantValue: 0,
-    mainConsultantCommission: 0,
-    supportConsultantCommission: 0,
-    managerName: '',
-    managerEmail: '',
-    managerPhone: '',
-    url: '',
-    projectId: '',
-    status: 'planned'
+    name: project?.name || '',
+    description: project?.description || '',
+    clientId: project?.clientId || '',
+    serviceId: project?.serviceId || '',
+    mainConsultantId: project?.mainConsultantId || '',
+    supportConsultantId: project?.supportConsultantId || '',
+    startDate: project?.startDate || '',
+    endDate: project?.endDate || '',
+    totalValue: project?.totalValue || 0,
+    totalHours: project?.totalHours || 0,
+    hourlyRate: project?.hourlyRate || 0,
+    taxPercent: project?.taxPercent || 16,
+    thirdPartyExpenses: project?.thirdPartyExpenses || 0,
+    mainConsultantValue: project?.mainConsultantValue || 0,
+    supportConsultantValue: project?.supportConsultantValue || 0,
+    mainConsultantCommission: project?.mainConsultantCommission || 0,
+    supportConsultantCommission: project?.supportConsultantCommission || 0,
+    managerName: project?.managerName || '',
+    managerEmail: project?.managerEmail || '',
+    managerPhone: project?.managerPhone || '',
+    url: project?.url || '',
+    projectId: project?.projectId || '',
+    status: project?.status || 'planned'
   });
 
   useEffect(() => {
@@ -87,6 +88,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onClose, onSave }) => {
     fetchServices();
   }, []);
 
+  useEffect(() => {
+    if (project?.stages) {
+      setStages(project.stages);
+    }
+  }, [project]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -103,6 +110,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onClose, onSave }) => {
     try {
       console.log('Enviando dados do projeto:', formData);
       console.log('Etapas do projeto:', stages);
+
+      if (project) {
+        // Update existing project logic would go here
+        toast.error('Edição de projetos ainda não implementada');
+        return;
+      }
 
       // Preparar dados do projeto
       const projectData = {
@@ -180,7 +193,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onClose, onSave }) => {
       <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Novo Projeto</h2>
+            <h2 className="text-2xl font-bold">{project ? 'Editar Projeto' : 'Novo Projeto'}</h2>
             <Button variant="outline" onClick={onClose}>
               Cancelar
             </Button>
@@ -475,7 +488,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onClose, onSave }) => {
               </Button>
               <Button type="submit" disabled={isCreating}>
                 {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Salvar Projeto
+                {project ? 'Atualizar Projeto' : 'Salvar Projeto'}
               </Button>
             </div>
           </form>
