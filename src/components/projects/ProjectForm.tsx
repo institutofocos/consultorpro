@@ -18,6 +18,7 @@ import { Project, Stage } from "./types";
 import SearchableSelect from "@/components/ui/searchable-select";
 import { Badge } from "@/components/ui/badge";
 import ProjectFormStageSection from "./ProjectFormStageSection";
+import { useWebhookProcessor } from "@/hooks/useWebhookProcessor";
 
 interface ProjectFormProps {
   project?: Project;
@@ -26,6 +27,9 @@ interface ProjectFormProps {
 }
 
 export default function ProjectForm({ project, onProjectSaved, onCancel }: ProjectFormProps) {
+  // Adicionar o hook do webhook processor
+  const { processForProjectCreation } = useWebhookProcessor();
+
   const [formData, setFormData] = useState<Partial<Project>>({
     name: '',
     description: '',
@@ -422,6 +426,10 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         console.log('Criando novo projeto');
         savedProject = await createProject(safeProjectData);
         toast.success('Projeto criado com sucesso!');
+        
+        // *** NOVO: Disparar processamento consolidado de webhook para criação ***
+        console.log('🔄 Iniciando processamento consolidado de webhook para criação de projeto');
+        processForProjectCreation();
       }
 
       console.log('Projeto salvo no banco:', savedProject);
