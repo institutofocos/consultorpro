@@ -28,7 +28,9 @@ import {
   AlertTriangle,
   Settings,
   Globe,
-  PlayCircle
+  PlayCircle,
+  Timer,
+  Layers
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWebhookProcessor } from "@/hooks/useWebhookProcessor";
@@ -73,7 +75,8 @@ const WebhookManagement: React.FC = () => {
     config: webhookConfig, 
     setConfig: setWebhookConfig, 
     isProcessing, 
-    processImmediately 
+    processImmediately,
+    processForced
   } = useWebhookProcessor();
 
   const [selectedEvents, setSelectedEvents] = useState<Record<string, boolean>>({
@@ -206,10 +209,10 @@ const WebhookManagement: React.FC = () => {
   const setupDatabaseTriggers = async () => {
     try {
       setIsSettingUpTriggers(true);
-      console.log('Configurando triggers automáticos avançados...');
+      console.log('Configurando triggers automáticos otimizados...');
       
-      toast.info("Configurando sistema automático", {
-        description: "Criando triggers para todas as tabelas do sistema"
+      toast.info("Configurando sistema otimizado", {
+        description: "Criando triggers otimizados para reduzir disparos múltiplos"
       });
       
       const result = await callWebhookFunction('setup_triggers');
@@ -219,12 +222,12 @@ const WebhookManagement: React.FC = () => {
         const errorTriggers = result.results.filter((r: any) => r.status === 'error');
         
         if (successTriggers.length > 0) {
-          toast.success("Sistema automático configurado!", {
-            description: `${successTriggers.length} triggers criados com sucesso`,
+          toast.success("Sistema otimizado configurado!", {
+            description: `${successTriggers.length} triggers otimizados criados com sucesso`,
             icon: <CheckCircle2 className="h-5 w-5 text-success" />
           });
           
-          // Processar imediatamente após configurar triggers
+          // Processar com debounce após configurar triggers
           setTimeout(() => {
             processImmediately();
           }, 2000);
@@ -240,8 +243,8 @@ const WebhookManagement: React.FC = () => {
       
     } catch (error) {
       console.error("Error setting up database triggers:", error);
-      toast.error("Erro na configuração automática", {
-        description: error instanceof Error ? error.message : "Falha ao configurar sistema automático",
+      toast.error("Erro na configuração otimizada", {
+        description: error instanceof Error ? error.message : "Falha ao configurar sistema otimizado",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
     } finally {
@@ -294,7 +297,7 @@ const WebhookManagement: React.FC = () => {
       setWebhookUrl('');
       await fetchWebhooks();
       
-      // Processar imediatamente após registrar
+      // Processar com debounce após registrar
       setTimeout(() => {
         processImmediately();
       }, 1000);
@@ -379,7 +382,7 @@ const WebhookManagement: React.FC = () => {
           icon: <CheckCircle2 className="h-5 w-5 text-success" />
         });
         
-        // Processar imediatamente após criar eventos de teste
+        // Processar com debounce após criar eventos de teste
         setTimeout(() => {
           processImmediately();
         }, 1000);
@@ -424,10 +427,10 @@ const WebhookManagement: React.FC = () => {
       <div className="text-center space-y-2">
         <h1 className="text-4xl font-bold flex items-center justify-center gap-3">
           <Zap className="h-8 w-8 text-blue-600" />
-          Sistema de Webhooks
+          Sistema de Webhooks Otimizado
         </h1>
         <p className="text-muted-foreground text-lg">
-          Configure webhooks para receber notificações automáticas de alterações no sistema em tempo real
+          Configure webhooks com sistema anti-duplicação e processamento inteligente em lotes
         </p>
       </div>
 
@@ -436,11 +439,11 @@ const WebhookManagement: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />
-            Status do Sistema
+            Status do Sistema Otimizado
             {isProcessing && (
               <Badge variant="secondary" className="animate-pulse">
                 <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                Processando
+                Processando com Debounce
               </Badge>
             )}
           </CardTitle>
@@ -470,6 +473,20 @@ const WebhookManagement: React.FC = () => {
               <div className="text-sm text-muted-foreground">Envios com Erro</div>
             </div>
           </div>
+          
+          {/* Otimizações ativas */}
+          <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
+            <div className="flex items-center gap-2 text-green-800 font-medium mb-2">
+              <Layers className="h-4 w-4" />
+              Otimizações Ativas
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-green-700">
+              <div>• Debounce de 30 segundos para operações similares</div>
+              <div>• Processamento em lotes para reduzir duplicação</div>
+              <div>• Intervalo mínimo de 10 segundos entre processamentos</div>
+              <div>• Agrupamento inteligente por contexto de operação</div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -480,15 +497,15 @@ const WebhookManagement: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Settings className="h-5 w-5" />
-              Configurações Gerais
+              Configurações Otimizadas
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
               <div className="space-y-1">
-                <Label>Processamento Automático</Label>
+                <Label>Processamento Automático com Debounce</Label>
                 <p className="text-sm text-muted-foreground">
-                  Ativar/desativar o processamento automático de webhooks
+                  Sistema inteligente que evita disparos múltiplos
                 </p>
               </div>
               <Switch
@@ -503,17 +520,17 @@ const WebhookManagement: React.FC = () => {
               <Label>Intervalo de Processamento (segundos)</Label>
               <Input
                 type="number"
-                min="1"
+                min="10"
                 max="3600"
                 value={webhookConfig.interval_seconds}
                 onChange={(e) => setWebhookConfig(prev => ({
                   ...prev,
-                  interval_seconds: parseInt(e.target.value) || 5
+                  interval_seconds: Math.max(10, parseInt(e.target.value) || 30)
                 }))}
-                placeholder="5"
+                placeholder="30"
               />
               <p className="text-sm text-muted-foreground">
-                Intervalo entre processamentos automáticos (1-3600 segundos)
+                Intervalo entre processamentos automáticos (mínimo 10 segundos para evitar sobrecarga)
               </p>
             </div>
 
@@ -527,16 +544,30 @@ const WebhookManagement: React.FC = () => {
                 {isProcessing ? (
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
+                  <Timer className="h-4 w-4 mr-2" />
+                )}
+                Processar com Debounce
+              </Button>
+              
+              <Button 
+                onClick={processForced}
+                disabled={isProcessing}
+                className="w-full"
+                variant="secondary"
+              >
+                {isProcessing ? (
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
                   <PlayCircle className="h-4 w-4 mr-2" />
                 )}
-                Processar Fila Agora
+                Processar Forçado (Urgente)
               </Button>
             </div>
 
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-sm text-blue-800">
-                <strong>Status:</strong> {webhookConfig.enabled ? 'Processamento automático ativo' : 'Processamento automático desativado'}
-                {webhookConfig.enabled && ` - A cada ${webhookConfig.interval_seconds} segundos`}
+                <strong>Status:</strong> {webhookConfig.enabled ? 'Sistema otimizado ativo' : 'Sistema otimizado desativado'}
+                {webhookConfig.enabled && ` - Processamento a cada ${webhookConfig.interval_seconds} segundos com debounce inteligente`}
               </p>
             </div>
           </CardContent>
@@ -547,21 +578,19 @@ const WebhookManagement: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Shield className="h-5 w-5" />
-              Configuração Automática
+              Configuração Automática Otimizada
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="p-4 bg-white rounded-lg border">
-              <h4 className="font-medium mb-2">Sistema de Captura Completo:</h4>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <p>• <strong>Consultores:</strong> Todas as operações</p>
-                <p>• <strong>Clientes:</strong> CRUD completo</p>
-                <p>• <strong>Projetos:</strong> Inclusão, alteração, exclusão</p>
-                <p>• <strong>Serviços:</strong> Gestão completa</p>
-                <p>• <strong>Financeiro:</strong> Transações e contas</p>
-                <p>• <strong>Usuários:</strong> Perfis e permissões</p>
-                <p>• <strong>Tags:</strong> Organização e categorização</p>
-                <p>• <strong>Webhooks:</strong> Sistema de notificações</p>
+              <h4 className="font-medium mb-2">Sistema Anti-Duplicação:</h4>
+              <div className="grid grid-cols-1 gap-2 text-sm">
+                <p>• <strong>Batching Inteligente:</strong> Agrupa operações relacionadas</p>
+                <p>• <strong>Debounce Automático:</strong> Evita disparos múltiplos</p>
+                <p>• <strong>Detecção de Similaridade:</strong> Identifica operações repetidas</p>
+                <p>• <strong>Processamento em Lotes:</strong> Reduz carga de processamento</p>
+                <p>• <strong>Controle de Frequência:</strong> Intervalo mínimo entre operações</p>
+                <p>• <strong>Logs Otimizados:</strong> Rastreamento eficiente de operações</p>
               </div>
             </div>
             <Button 
@@ -575,7 +604,7 @@ const WebhookManagement: React.FC = () => {
               ) : (
                 <Shield className="h-4 w-4 mr-2" />
               )}
-              Configurar Triggers Automáticos
+              Configurar Sistema Otimizado
             </Button>
           </CardContent>
         </Card>
@@ -692,7 +721,7 @@ const WebhookManagement: React.FC = () => {
             size="lg"
           >
             {isLoading && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-            Registrar Webhook
+            Registrar Webhook Otimizado
           </Button>
         </CardContent>
       </Card>
@@ -738,7 +767,7 @@ const WebhookManagement: React.FC = () => {
             <div className="text-center text-muted-foreground py-12">
               <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-lg mb-2">Nenhum webhook registrado</p>
-              <p className="text-sm">Configure um webhook acima para receber notificações automáticas</p>
+              <p className="text-sm">Configure um webhook acima para receber notificações automáticas otimizadas</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -762,6 +791,9 @@ const WebhookManagement: React.FC = () => {
                         </Badge>
                         <Badge variant="outline">
                           {webhook.tables.length} entidades
+                        </Badge>
+                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          Sistema Otimizado
                         </Badge>
                       </div>
                     </div>
@@ -799,7 +831,7 @@ const WebhookManagement: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <History className="h-5 w-5" />
-            Histórico de Envios
+            Histórico de Envios Otimizado
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -834,6 +866,11 @@ const WebhookManagement: React.FC = () => {
                     {log.response_status && (
                       <p className="text-xs text-muted-foreground mt-1">
                         Status: {log.response_status}
+                      </p>
+                    )}
+                    {log.attempt_count > 1 && (
+                      <p className="text-xs text-orange-600 mt-1">
+                        Tentativa: {log.attempt_count}
                       </p>
                     )}
                   </div>

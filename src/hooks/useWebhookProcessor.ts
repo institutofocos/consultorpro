@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -11,16 +11,31 @@ interface WebhookConfig {
 export const useWebhookProcessor = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [config, setConfig] = useState<WebhookConfig>({
-    interval_seconds: 5,
+    interval_seconds: 30, // Aumentado de 5 para 30 segundos
     enabled: true
   });
 
-  // Função para processar a fila de webhooks
-  const processWebhookQueue = useCallback(async () => {
-    if (!config.enabled || isProcessing) return;
+  // Ref para controle de debounce
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastProcessTimeRef = useRef<number>(0);
+
+  // Função para processar a fila de webhooks com debounce
+  const processWebhookQueue = useCallback(async (force = false) => {
+    if (!config.enabled || (isProcessing && !force)) return;
+    
+    // Implementar debounce - evitar processamento muito frequente
+    const now = Date.now();
+    const timeSinceLastProcess = now - lastProcessTimeRef.current;
+    const minInterval = 10000; // Mínimo de 10 segundos entre processamentos
+    
+    if (!force && timeSinceLastProcess < minInterval) {
+      console.log(`Processamento em debounce - aguardando ${minInterval - timeSinceLastProcess}ms`);
+      return;
+    }
     
     setIsProcessing(true);
-    console.log('Processando fila de webhooks automaticamente...');
+    lastProcessTimeRef.current = now;
+    console.log('Processando fila de webhooks com debounce...');
     
     try {
       const { data, error } = await supabase.functions.invoke('webhooks', {
@@ -45,7 +60,8 @@ export const useWebhookProcessor = () => {
               details: {
                 processed_count: data.processed_count,
                 timestamp: new Date().toISOString(),
-                auto_processed: true
+                auto_processed: true,
+                debounced: !force
               }
             });
         }
@@ -68,29 +84,50 @@ export const useWebhookProcessor = () => {
     }
   }, [config.enabled, isProcessing]);
 
-  // Configurar intervalo automático de processamento
+  // Função de processamento com debounce inteligente
+  const debouncedProcess = useCallback(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Aguardar 5 segundos antes de processar para agrupar operações relacionadas
+    debounceTimeoutRef.current = setTimeout(() => {
+      processWebhookQueue();
+    }, 5000);
+  }, [processWebhookQueue]);
+
+  // Configurar intervalo automático de processamento (menos frequente)
   useEffect(() => {
     if (!config.enabled) return;
 
-    // Processar imediatamente na inicialização
-    processWebhookQueue();
+    // Processar imediatamente na inicialização (mas com debounce)
+    debouncedProcess();
 
     const interval = setInterval(() => {
       processWebhookQueue();
     }, config.interval_seconds * 1000);
 
-    console.log(`Processamento automático de webhooks iniciado a cada ${config.interval_seconds} segundos`);
+    console.log(`Processamento automático de webhooks iniciado a cada ${config.interval_seconds} segundos com debounce`);
 
     return () => {
       clearInterval(interval);
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
       console.log('Processamento automático de webhooks parado');
     };
-  }, [config.interval_seconds, config.enabled, processWebhookQueue]);
+  }, [config.interval_seconds, config.enabled, debouncedProcess, processWebhookQueue]);
 
-  // Processar imediatamente quando há mudanças críticas
+  // Processar imediatamente quando há mudanças críticas (com debounce)
   const processImmediately = useCallback(async () => {
-    console.log('Processamento imediato de webhooks solicitado');
-    await processWebhookQueue();
+    console.log('Processamento imediato de webhooks solicitado com debounce');
+    debouncedProcess();
+  }, [debouncedProcess]);
+
+  // Processar forçado (sem debounce) para casos urgentes
+  const processForced = useCallback(async () => {
+    console.log('Processamento forçado de webhooks solicitado');
+    await processWebhookQueue(true);
   }, [processWebhookQueue]);
 
   return {
@@ -98,6 +135,7 @@ export const useWebhookProcessor = () => {
     setConfig,
     isProcessing,
     processImmediately,
-    processWebhookQueue
+    processForced,
+    processWebhookQueue: debouncedProcess
   };
 };
