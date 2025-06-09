@@ -86,6 +86,28 @@ serve(async (req) => {
         );
       }
       
+      // Verificar se já existe um webhook com esta URL
+      const { data: existingWebhook } = await supabaseClient
+        .from('webhooks')
+        .select('id, url')
+        .eq('url', url)
+        .single();
+
+      if (existingWebhook) {
+        console.log('Webhook with this URL already exists:', existingWebhook);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: "Um webhook com esta URL já está registrado. Cada URL pode ter apenas um webhook ativo.",
+            existing_webhook_id: existingWebhook.id
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 409 // Conflict
+          }
+        );
+      }
+      
       const { data, error } = await supabaseClient
         .from('webhooks')
         .insert({
@@ -99,6 +121,21 @@ serve(async (req) => {
 
       if (error) {
         console.error('Error registering consolidated webhook:', error);
+        
+        // Se o erro for de violação de constraint única, retornar mensagem específica
+        if (error.code === '23505' && error.message.includes('webhooks_url_unique')) {
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              message: "Um webhook com esta URL já está registrado. Cada URL pode ter apenas um webhook ativo."
+            }),
+            { 
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 409
+            }
+          );
+        }
+        
         return new Response(
           JSON.stringify({ 
             success: false, 
@@ -345,7 +382,7 @@ serve(async (req) => {
     }
 
     if (action === "process") {
-      console.log('Processing consolidated webhook queue - VERSÃO CORRIGIDA');
+      console.log('Processing consolidated webhook queue - COM URLS ÚNICAS');
       
       // Buscar webhooks consolidados pendentes
       const { data: logs, error } = await supabaseClient
@@ -380,12 +417,12 @@ serve(async (req) => {
       let successCount = 0;
       let consolidatedCount = 0;
 
-      // Para cada log consolidado, enviar para TODOS os webhooks ativos
+      // Para cada log consolidado, enviar para TODOS os webhooks ativos únicos
       for (const log of logs || []) {
         try {
-          console.log(`Processando webhook consolidado ${log.id} - distribuindo para todos os webhooks ativos`);
+          console.log(`Processando webhook consolidado ${log.id} - distribuindo para webhooks únicos`);
           
-          // Buscar TODOS os webhooks ativos para projetos
+          // Buscar TODOS os webhooks ativos para projetos (agora com URLs únicas)
           const { data: allWebhooks } = await supabaseClient
             .from('webhooks')
             .select('*')
@@ -400,7 +437,7 @@ serve(async (req) => {
 
           let webhookSuccessCount = 0;
           
-          // Enviar para TODOS os webhooks ativos
+          // Enviar para TODOS os webhooks ativos únicos
           for (const webhook of allWebhooks) {
             try {
               // Enriquecer payload com formatação brasileira
@@ -415,8 +452,8 @@ serve(async (req) => {
                   source: 'ConsultorPRO System',
                   webhook_type: 'consolidated',
                   processed_at: formatDateTimeBR(new Date()),
-                  version: 'consolidated_unique_2.0',
-                  distributed_to_all: true
+                  version: 'consolidated_unique_urls_3.0',
+                  distributed_to_unique_urls: true
                 }
               };
               
@@ -429,12 +466,12 @@ serve(async (req) => {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  'User-Agent': 'Supabase-Webhook-Consolidated-Unique/2.0',
+                  'User-Agent': 'Supabase-Webhook-Consolidated-Unique-URLs/3.0',
                   'X-Webhook-Event': log.event_type,
                   'X-Webhook-Table': log.table_name,
                   'X-Webhook-Timestamp': log.created_at,
-                  'X-Webhook-Type': 'consolidated_unique',
-                  'X-Distribution-Type': 'all_active_webhooks',
+                  'X-Webhook-Type': 'consolidated_unique_urls',
+                  'X-Distribution-Type': 'unique_active_webhooks',
                   ...(webhook.secret_key && {
                     'Authorization': `Bearer ${webhook.secret_key}`,
                     'X-Webhook-Secret': webhook.secret_key
@@ -446,7 +483,7 @@ serve(async (req) => {
               const success = response.ok;
               if (success) webhookSuccessCount++;
 
-              console.log(`Webhook ${webhook.id} (${webhook.url}) processado: ${success ? 'SUCCESS' : 'FAILED'} (${response.status})`);
+              console.log(`Webhook único ${webhook.id} (${webhook.url}) processado: ${success ? 'SUCCESS' : 'FAILED'} (${response.status})`);
               
             } catch (webhookError) {
               console.error(`Erro ao processar webhook ${webhook.id}:`, webhookError);
@@ -461,7 +498,7 @@ serve(async (req) => {
             .update({
               success: overallSuccess,
               response_status: overallSuccess ? 200 : 500,
-              response_body: `Distribuído para ${allWebhooks.length} webhooks, ${webhookSuccessCount} sucessos`,
+              response_body: `Distribuído para ${allWebhooks.length} webhooks únicos, ${webhookSuccessCount} sucessos`,
               attempt_count: log.attempt_count + 1
             })
             .eq('id', log.id);
@@ -470,7 +507,7 @@ serve(async (req) => {
           if (overallSuccess) successCount++;
           consolidatedCount++;
 
-          console.log(`Webhook consolidado ${log.id} processado: distribuído para ${allWebhooks.length} webhooks (${webhookSuccessCount} sucessos)`);
+          console.log(`Webhook consolidado ${log.id} processado: distribuído para ${allWebhooks.length} webhooks únicos (${webhookSuccessCount} sucessos)`);
           
         } catch (error) {
           console.error(`Error processing consolidated webhook ${log.id}:`, error);
@@ -494,7 +531,7 @@ serve(async (req) => {
           processed_count: processedCount,
           success_count: successCount,
           consolidated_count: consolidatedCount,
-          distribution_type: 'all_active_webhooks'
+          distribution_type: 'unique_active_webhooks'
         }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -510,7 +547,7 @@ serve(async (req) => {
       
       const testProjectData = {
         event_type: 'project_created_consolidated',
-        timestamp: formatDateTimeBR(currentDate),
+        timestamp: formatDateBR(currentDate),
         project_id: 'test-project-consolidated-' + Date.now(),
         project: {
           id: 'test-project-id',
@@ -612,7 +649,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: `${logsCreated} eventos consolidados de teste criados para ${webhooks.length} webhook(s) ativos` 
+          message: `${logsCreated} eventos consolidados de teste criados para ${webhooks.length} webhook(s) únicos ativos` 
         }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },
