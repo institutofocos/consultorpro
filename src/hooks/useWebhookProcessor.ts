@@ -68,6 +68,58 @@ export const useWebhookProcessor = () => {
     }
   }, [config.enabled, isProcessing]);
 
+  // Função para enviar webhook consolidado de projeto
+  const sendProjectWebhook = useCallback(async (projectId: string) => {
+    try {
+      console.log('Enviando webhook consolidado para projeto:', projectId);
+      
+      const { data, error } = await supabase.functions.invoke('webhooks', {
+        body: { 
+          action: 'send_project_webhook',
+          project_id: projectId
+        }
+      });
+
+      if (error) {
+        console.error('Erro ao enviar webhook de projeto:', error);
+        return false;
+      }
+
+      if (data?.success) {
+        console.log('Webhook de projeto enviado com sucesso:', data.message);
+        await supabase
+          .from('system_logs')
+          .insert({
+            log_type: 'success',
+            category: 'project_webhook',
+            message: `Webhook consolidado enviado para projeto ${projectId}`,
+            details: {
+              project_id: projectId,
+              timestamp: new Date().toISOString()
+            }
+          });
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Erro no envio de webhook de projeto:', error);
+      await supabase
+        .from('system_logs')
+        .insert({
+          log_type: 'error',
+          category: 'project_webhook',
+          message: 'Erro no envio de webhook de projeto: ' + (error instanceof Error ? error.message : 'Erro desconhecido'),
+          details: {
+            project_id: projectId,
+            error: error instanceof Error ? error.message : 'Erro desconhecido',
+            timestamp: new Date().toISOString()
+          }
+        });
+      return false;
+    }
+  }, []);
+
   // Configurar intervalo automático de processamento
   useEffect(() => {
     if (!config.enabled) return;
@@ -98,6 +150,7 @@ export const useWebhookProcessor = () => {
     setConfig,
     isProcessing,
     processImmediately,
-    processWebhookQueue
+    processWebhookQueue,
+    sendProjectWebhook
   };
 };
