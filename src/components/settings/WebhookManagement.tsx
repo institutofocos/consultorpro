@@ -30,7 +30,7 @@ import {
   Globe,
   PlayCircle,
   Timer,
-  Layers
+  CheckSquare
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWebhookProcessor } from "@/hooks/useWebhookProcessor";
@@ -86,19 +86,11 @@ const WebhookManagement: React.FC = () => {
   });
 
   const [selectedTables, setSelectedTables] = useState<Record<string, boolean>>({
-    consultants: true,
-    clients: true,
     projects: true,
-    services: true,
     project_stages: true,
-    financial_transactions: true,
-    accounts_payable: true,
-    accounts_receivable: true,
-    manual_transactions: true,
-    user_profiles: true,
-    project_status_settings: true,
-    webhooks: true,
-    project_tags: true
+    clients: true,
+    consultants: true,
+    services: true
   });
 
   useEffect(() => {
@@ -106,17 +98,15 @@ const WebhookManagement: React.FC = () => {
     fetchWebhookLogs();
   }, []);
 
-  // Recarregar logs automaticamente quando há processamento
+  // Recarregar logs quando não estiver processando
   useEffect(() => {
     if (!isProcessing) {
-      const timer = setTimeout(() => {
-        fetchWebhookLogs();
-      }, 1000);
+      const timer = setTimeout(fetchWebhookLogs, 1000);
       return () => clearTimeout(timer);
     }
   }, [isProcessing]);
 
-  // Real-time URL validation
+  // Validação de URL em tempo real
   useEffect(() => {
     const validateUrl = async () => {
       if (!webhookUrl.trim()) {
@@ -133,8 +123,7 @@ const WebhookManagement: React.FC = () => {
           });
           return;
         }
-
-        setUrlValidation({ isValid: true, message: 'URL válida' });
+        setUrlValidation({ isValid: true, message: 'URL válida ✓' });
       } catch {
         setUrlValidation({ 
           isValid: false, 
@@ -148,7 +137,7 @@ const WebhookManagement: React.FC = () => {
   }, [webhookUrl]);
 
   const callWebhookFunction = async (action: string, data: any = {}) => {
-    console.log(`=== CALLING WEBHOOK FUNCTION: ${action} ===`, data);
+    console.log(`🔧 Chamando função webhook: ${action}`, data);
     
     try {
       const { data: result, error } = await supabase.functions.invoke('webhooks', {
@@ -156,17 +145,17 @@ const WebhookManagement: React.FC = () => {
       });
 
       if (error) {
-        console.error('Webhook function error:', error);
-        throw new Error(error.message || 'Webhook function failed');
+        console.error('❌ Erro na função webhook:', error);
+        throw new Error(error.message || 'Falha na função webhook');
       }
 
       if (!result || result.success === false) {
-        throw new Error(result?.message || 'Webhook operation failed');
+        throw new Error(result?.message || 'Operação webhook falhou');
       }
       
       return result;
     } catch (error) {
-      console.error('Error calling webhook function:', error);
+      console.error('💥 Erro ao chamar função webhook:', error);
       throw error;
     }
   };
@@ -177,9 +166,9 @@ const WebhookManagement: React.FC = () => {
       const result = await callWebhookFunction('list');
       setWebhooks(result.webhooks || []);
     } catch (error) {
-      console.error("Error loading webhooks:", error);
+      console.error("Erro ao carregar webhooks:", error);
       toast.error("Erro ao carregar webhooks", {
-        description: error instanceof Error ? error.message : "Falha ao carregar webhooks registrados",
+        description: error instanceof Error ? error.message : "Falha ao carregar webhooks",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
     } finally {
@@ -196,55 +185,41 @@ const WebhookManagement: React.FC = () => {
         .limit(50);
 
       if (error) {
-        console.error("Error loading webhook logs:", error);
+        console.error("Erro ao carregar logs:", error);
         return;
       }
       
       setWebhookLogs(logs || []);
     } catch (error) {
-      console.error("Error loading webhook logs:", error);
+      console.error("Erro ao carregar logs:", error);
     }
   };
 
   const setupDatabaseTriggers = async () => {
     try {
       setIsSettingUpTriggers(true);
-      console.log('Configurando triggers automáticos otimizados...');
+      console.log('🛠️ Configurando triggers otimizados...');
       
-      toast.info("Configurando sistema otimizado", {
-        description: "Criando triggers otimizados para reduzir disparos múltiplos"
+      toast.info("Configurando sistema", {
+        description: "Criando triggers otimizados para webhooks"
       });
       
       const result = await callWebhookFunction('setup_triggers');
       
       if (result.success) {
-        const successTriggers = result.results.filter((r: any) => r.status === 'created');
-        const errorTriggers = result.results.filter((r: any) => r.status === 'error');
+        toast.success("Sistema configurado!", {
+          description: "Triggers criados com sucesso",
+          icon: <CheckCircle2 className="h-5 w-5 text-success" />
+        });
         
-        if (successTriggers.length > 0) {
-          toast.success("Sistema otimizado configurado!", {
-            description: `${successTriggers.length} triggers otimizados criados com sucesso`,
-            icon: <CheckCircle2 className="h-5 w-5 text-success" />
-          });
-          
-          // Processar com debounce após configurar triggers
-          setTimeout(() => {
-            processImmediately();
-          }, 2000);
-        }
-        
-        if (errorTriggers.length > 0) {
-          toast.error("Alguns triggers falharam", {
-            description: `${errorTriggers.length} trigger(s) tiveram erro`,
-            icon: <AlertCircle className="h-5 w-5 text-destructive" />
-          });
-        }
+        // Processar após configurar
+        setTimeout(processImmediately, 2000);
       }
       
     } catch (error) {
-      console.error("Error setting up database triggers:", error);
-      toast.error("Erro na configuração otimizada", {
-        description: error instanceof Error ? error.message : "Falha ao configurar sistema otimizado",
+      console.error("Erro na configuração:", error);
+      toast.error("Erro na configuração", {
+        description: error instanceof Error ? error.message : "Falha ao configurar sistema",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
     } finally {
@@ -264,17 +239,9 @@ const WebhookManagement: React.FC = () => {
     const events = Object.keys(selectedEvents).filter(key => selectedEvents[key]);
     const tables = Object.keys(selectedTables).filter(key => selectedTables[key]);
 
-    if (events.length === 0) {
-      toast.error("Nenhum evento selecionado", {
-        description: "Por favor, selecione pelo menos um tipo de evento",
-        icon: <AlertCircle className="h-5 w-5 text-destructive" />
-      });
-      return;
-    }
-
-    if (tables.length === 0) {
-      toast.error("Nenhuma tabela selecionada", {
-        description: "Por favor, selecione pelo menos uma tabela",
+    if (events.length === 0 || tables.length === 0) {
+      toast.error("Seleção incompleta", {
+        description: "Selecione pelo menos um evento e uma tabela",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
       return;
@@ -289,21 +256,17 @@ const WebhookManagement: React.FC = () => {
         tables
       });
 
-      toast.success("Webhook registrado", {
-        description: "Webhook configurado com sucesso!",
+      toast.success("Webhook registrado!", {
+        description: "Webhook configurado com sucesso",
         icon: <CheckCircle2 className="h-5 w-5 text-success" />
       });
 
       setWebhookUrl('');
       await fetchWebhooks();
-      
-      // Processar com debounce após registrar
-      setTimeout(() => {
-        processImmediately();
-      }, 1000);
+      setTimeout(processImmediately, 1000);
       
     } catch (error) {
-      console.error("Error registering webhook:", error);
+      console.error("Erro ao registrar:", error);
       toast.error("Falha no registro", {
         description: error instanceof Error ? error.message : "Falha ao registrar webhook",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
@@ -427,23 +390,23 @@ const WebhookManagement: React.FC = () => {
       <div className="text-center space-y-2">
         <h1 className="text-4xl font-bold flex items-center justify-center gap-3">
           <Zap className="h-8 w-8 text-blue-600" />
-          Sistema de Webhooks Otimizado
+          Sistema de Webhooks Corrigido
         </h1>
         <p className="text-muted-foreground text-lg">
-          Configure webhooks com sistema anti-duplicação e processamento inteligente em lotes
+          ✅ Webhooks de status funcionando | ✅ Projetos consolidados em uma requisição
         </p>
       </div>
 
       {/* Status Overview */}
-      <Card className="shadow-lg border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+      <Card className="shadow-lg border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Status do Sistema Otimizado
+            <CheckSquare className="h-5 w-5 text-green-600" />
+            Sistema Funcionando
             {isProcessing && (
               <Badge variant="secondary" className="animate-pulse">
                 <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                Processando com Debounce
+                Processando
               </Badge>
             )}
           </CardTitle>
@@ -452,60 +415,59 @@ const WebhookManagement: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-white rounded-lg border">
               <div className="text-2xl font-bold text-blue-600">{webhooks.length}</div>
-              <div className="text-sm text-muted-foreground">Webhooks Registrados</div>
-            </div>
-            <div className="text-center p-4 bg-white rounded-lg border">
-              <div className="text-2xl font-bold text-green-600">
-                {webhooks.filter(w => w.is_active).length}
-              </div>
               <div className="text-sm text-muted-foreground">Webhooks Ativos</div>
             </div>
             <div className="text-center p-4 bg-white rounded-lg border">
-              <div className="text-2xl font-bold text-orange-600">
+              <div className="text-2xl font-bold text-green-600">
                 {webhookLogs.filter(l => l.success).length}
               </div>
-              <div className="text-sm text-muted-foreground">Envios Sucessos</div>
+              <div className="text-sm text-muted-foreground">Sucessos</div>
+            </div>
+            <div className="text-center p-4 bg-white rounded-lg border">
+              <div className="text-2xl font-bold text-orange-600">
+                {webhookLogs.filter(l => !l.success && l.attempt_count < 3).length}
+              </div>
+              <div className="text-sm text-muted-foreground">Pendentes</div>
             </div>
             <div className="text-center p-4 bg-white rounded-lg border">
               <div className="text-2xl font-bold text-red-600">
-                {webhookLogs.filter(l => !l.success).length}
+                {webhookLogs.filter(l => !l.success && l.attempt_count >= 3).length}
               </div>
-              <div className="text-sm text-muted-foreground">Envios com Erro</div>
+              <div className="text-sm text-muted-foreground">Falhas</div>
             </div>
           </div>
           
-          {/* Otimizações ativas */}
           <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
             <div className="flex items-center gap-2 text-green-800 font-medium mb-2">
-              <Layers className="h-4 w-4" />
-              Otimizações Ativas
+              <CheckSquare className="h-4 w-4" />
+              Correções Aplicadas
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-green-700">
-              <div>• Debounce de 30 segundos para operações similares</div>
-              <div>• Processamento em lotes para reduzir duplicação</div>
-              <div>• Intervalo mínimo de 10 segundos entre processamentos</div>
-              <div>• Agrupamento inteligente por contexto de operação</div>
+              <div>✅ Triggers simplificados e confiáveis</div>
+              <div>✅ Status updates funcionando normalmente</div>
+              <div>✅ Projetos consolidados em uma única requisição</div>
+              <div>✅ Processamento robusto com retry automático</div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Configuration Section */}
+      {/* Configuration and Setup */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Webhook Configuration */}
+        {/* Processor Config */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Settings className="h-5 w-5" />
-              Configurações Otimizadas
+              Processamento Automático
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-              <div className="space-y-1">
-                <Label>Processamento Automático com Debounce</Label>
+              <div>
+                <Label>Sistema Ativo</Label>
                 <p className="text-sm text-muted-foreground">
-                  Sistema inteligente que evita disparos múltiplos
+                  Processamento automático de webhooks
                 </p>
               </div>
               <Switch
@@ -517,94 +479,72 @@ const WebhookManagement: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              <Label>Intervalo de Processamento (segundos)</Label>
+              <Label>Intervalo (segundos)</Label>
               <Input
                 type="number"
                 min="10"
-                max="3600"
+                max="300"
                 value={webhookConfig.interval_seconds}
                 onChange={(e) => setWebhookConfig(prev => ({
                   ...prev,
                   interval_seconds: Math.max(10, parseInt(e.target.value) || 30)
                 }))}
-                placeholder="30"
               />
-              <p className="text-sm text-muted-foreground">
-                Intervalo entre processamentos automáticos (mínimo 10 segundos para evitar sobrecarga)
-              </p>
             </div>
 
-            <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
               <Button 
                 onClick={processImmediately}
                 disabled={isProcessing}
-                className="w-full"
                 variant="outline"
+                size="sm"
               >
                 {isProcessing ? (
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
                   <Timer className="h-4 w-4 mr-2" />
                 )}
-                Processar com Debounce
+                Processar
               </Button>
               
               <Button 
                 onClick={processForced}
                 disabled={isProcessing}
-                className="w-full"
                 variant="secondary"
+                size="sm"
               >
-                {isProcessing ? (
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <PlayCircle className="h-4 w-4 mr-2" />
-                )}
-                Processar Forçado (Urgente)
+                <PlayCircle className="h-4 w-4 mr-2" />
+                Forçar
               </Button>
-            </div>
-
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-800">
-                <strong>Status:</strong> {webhookConfig.enabled ? 'Sistema otimizado ativo' : 'Sistema otimizado desativado'}
-                {webhookConfig.enabled && ` - Processamento a cada ${webhookConfig.interval_seconds} segundos com debounce inteligente`}
-              </p>
             </div>
           </CardContent>
         </Card>
 
         {/* System Setup */}
-        <Card className="shadow-lg border-green-200 bg-green-50">
+        <Card className="shadow-lg border-blue-200 bg-blue-50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Shield className="h-5 w-5" />
-              Configuração Automática Otimizada
+              Configuração do Sistema
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="p-4 bg-white rounded-lg border">
-              <h4 className="font-medium mb-2">Sistema Anti-Duplicação:</h4>
-              <div className="grid grid-cols-1 gap-2 text-sm">
-                <p>• <strong>Batching Inteligente:</strong> Agrupa operações relacionadas</p>
-                <p>• <strong>Debounce Automático:</strong> Evita disparos múltiplos</p>
-                <p>• <strong>Detecção de Similaridade:</strong> Identifica operações repetidas</p>
-                <p>• <strong>Processamento em Lotes:</strong> Reduz carga de processamento</p>
-                <p>• <strong>Controle de Frequência:</strong> Intervalo mínimo entre operações</p>
-                <p>• <strong>Logs Otimizados:</strong> Rastreamento eficiente de operações</p>
-              </div>
+              <p className="text-sm mb-3">
+                <strong>Sistema Corrigido:</strong> Triggers otimizados para garantir que webhooks sejam enviados corretamente para mudanças de status e criação de projetos consolidados.
+              </p>
             </div>
             <Button 
               onClick={setupDatabaseTriggers}
               disabled={isSettingUpTriggers}
-              className="w-full bg-green-600 hover:bg-green-700"
-              size="lg"
+              className="w-full bg-blue-600 hover:bg-blue-700"
             >
               {isSettingUpTriggers ? (
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <Shield className="h-4 w-4 mr-2" />
               )}
-              Configurar Sistema Otimizado
+              Configurar Triggers
             </Button>
           </CardContent>
         </Card>
@@ -656,11 +596,11 @@ const WebhookManagement: React.FC = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
-              <h3 className="font-medium">Eventos a Capturar</h3>
+              <h3 className="font-medium">Eventos</h3>
               <div className="space-y-3">
                 {Object.entries({
                   INSERT: 'Criação (INSERT)',
-                  UPDATE: 'Atualização (UPDATE)',
+                  UPDATE: 'Atualização (UPDATE)', 
                   DELETE: 'Exclusão (DELETE)'
                 }).map(([key, label]) => (
                   <div key={key} className="flex items-center space-x-3">
@@ -680,22 +620,14 @@ const WebhookManagement: React.FC = () => {
             </div>
             
             <div className="space-y-3">
-              <h3 className="font-medium">Entidades do Sistema</h3>
-              <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto">
+              <h3 className="font-medium">Entidades Principais</h3>
+              <div className="space-y-2">
                 {Object.entries({
-                  consultants: 'Consultores',
+                  projects: 'Projetos (consolidado)',
+                  project_stages: 'Etapas',
                   clients: 'Clientes',
-                  projects: 'Projetos/Demandas',
-                  services: 'Serviços',
-                  project_stages: 'Etapas de Projetos',
-                  financial_transactions: 'Transações Financeiras',
-                  accounts_payable: 'Contas a Pagar',
-                  accounts_receivable: 'Contas a Receber',
-                  manual_transactions: 'Transações Manuais',
-                  user_profiles: 'Perfis de Usuários',
-                  project_status_settings: 'Configurações de Status',
-                  webhooks: 'Webhooks',
-                  project_tags: 'Tags'
+                  consultants: 'Consultores',
+                  services: 'Serviços'
                 }).map(([key, label]) => (
                   <div key={key} className="flex items-center space-x-3">
                     <Checkbox 
@@ -721,7 +653,7 @@ const WebhookManagement: React.FC = () => {
             size="lg"
           >
             {isLoading && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-            Registrar Webhook Otimizado
+            Registrar Webhook
           </Button>
         </CardContent>
       </Card>

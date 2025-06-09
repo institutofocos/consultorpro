@@ -10,31 +10,31 @@ interface WebhookConfig {
 export const useWebhookProcessor = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [config, setConfig] = useState<WebhookConfig>({
-    interval_seconds: 30, // Reduzido para processamento mais frequente
+    interval_seconds: 30,
     enabled: true
   });
 
-  // Refs para controle de debounce
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Refs para controle
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastProcessTimeRef = useRef<number>(0);
 
   // Função principal para processar a fila de webhooks
   const processWebhookQueue = useCallback(async (force = false) => {
     if (!config.enabled || (isProcessing && !force)) return;
     
-    // Implementar debounce para evitar processamento excessivo
+    // Controle de frequência mínima (5 segundos)
     const now = Date.now();
     const timeSinceLastProcess = now - lastProcessTimeRef.current;
-    const minInterval = 5000; // Mínimo de 5 segundos entre processamentos
+    const minInterval = 5000;
     
     if (!force && timeSinceLastProcess < minInterval) {
-      console.log(`Processamento em debounce - aguardando ${minInterval - timeSinceLastProcess}ms`);
+      console.log(`Aguardando ${minInterval - timeSinceLastProcess}ms antes do próximo processamento`);
       return;
     }
     
     setIsProcessing(true);
     lastProcessTimeRef.current = now;
-    console.log('Processando fila de webhooks...');
+    console.log('=== PROCESSANDO FILA DE WEBHOOKS ===');
     
     try {
       const { data, error } = await supabase.functions.invoke('webhooks', {
@@ -46,14 +46,17 @@ export const useWebhookProcessor = () => {
 
       if (error) {
         console.error('Erro ao processar fila de webhooks:', error);
+        
+        // Log do erro no sistema
         await supabase
           .from('system_logs')
           .insert({
             log_type: 'error',
-            category: 'webhook_processor',
-            message: 'Erro no processamento de webhooks: ' + error.message,
+            category: 'webhook_processor_error',
+            message: 'Erro no processamento: ' + error.message,
             details: {
               error: error.message,
+              context: error.context || {},
               timestamp: new Date().toISOString()
             }
           });
@@ -61,34 +64,37 @@ export const useWebhookProcessor = () => {
       }
 
       if (data?.success) {
-        console.log('Fila de webhooks processada:', data.message);
-        // Log de sucesso apenas se houver webhooks processados
+        console.log('✅ Fila processada com sucesso:', data.message);
+        
         if (data.processed_count && data.processed_count > 0) {
+          console.log(`📊 Processados: ${data.processed_count} webhooks`);
+          
           await supabase
             .from('system_logs')
             .insert({
               log_type: 'success',
-              category: 'webhook_processor',
-              message: `${data.processed_count} webhooks processados`,
+              category: 'webhook_processor_success',
+              message: `${data.processed_count} webhooks processados com sucesso`,
               details: {
                 processed_count: data.processed_count,
                 consolidated_operations: data.consolidated_operations || 0,
-                timestamp: new Date().toISOString(),
-                auto_processed: true
+                timestamp: new Date().toISOString()
               }
             });
         }
       }
     } catch (error) {
-      console.error('Erro no processamento de webhooks:', error);
+      console.error('💥 Erro crítico no processamento:', error);
+      
       await supabase
         .from('system_logs')
         .insert({
           log_type: 'error',
-          category: 'webhook_processor',
-          message: 'Erro no processamento de webhooks: ' + (error instanceof Error ? error.message : 'Erro desconhecido'),
+          category: 'webhook_processor_critical',
+          message: 'Erro crítico: ' + (error instanceof Error ? error.message : 'Erro desconhecido'),
           details: {
             error: error instanceof Error ? error.message : 'Erro desconhecido',
+            stack: error instanceof Error ? error.stack : undefined,
             timestamp: new Date().toISOString()
           }
         });
@@ -97,59 +103,53 @@ export const useWebhookProcessor = () => {
     }
   }, [config.enabled, isProcessing]);
 
-  // Função de processamento com debounce
-  const debouncedProcess = useCallback(() => {
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
+  // Configurar intervalo automático
+  useEffect(() => {
+    if (!config.enabled) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
     }
 
-    // Aguardar 3 segundos antes de processar para agrupar operações relacionadas
-    debounceTimeoutRef.current = setTimeout(() => {
-      processWebhookQueue();
-    }, 3000);
-  }, [processWebhookQueue]);
+    // Processar imediatamente na inicialização
+    processWebhookQueue();
 
-  // Configurar intervalo automático de processamento
-  useEffect(() => {
-    if (!config.enabled) return;
-
-    // Processar imediatamente na inicialização (mas com debounce)
-    debouncedProcess();
-
-    const interval = setInterval(() => {
+    // Configurar intervalo
+    intervalRef.current = setInterval(() => {
       processWebhookQueue();
     }, config.interval_seconds * 1000);
 
-    console.log(`Processamento automático de webhooks iniciado a cada ${config.interval_seconds} segundos`);
+    console.log(`🔄 Processamento automático iniciado (${config.interval_seconds}s)`);
 
     return () => {
-      clearInterval(interval);
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
-      console.log('Processamento automático de webhooks parado');
+      console.log('⏹️ Processamento automático parado');
     };
-  }, [config.interval_seconds, config.enabled, debouncedProcess, processWebhookQueue]);
+  }, [config.interval_seconds, config.enabled, processWebhookQueue]);
 
-  // Processar imediatamente para criação de projeto
-  const processForProjectCreation = useCallback(async () => {
-    console.log('Processamento específico para criação de projeto solicitado');
-    // Para criação de projeto, aguardar um pouco mais para consolidação
-    setTimeout(() => {
-      processWebhookQueue();
-    }, 5000);
+  // Processar imediatamente
+  const processImmediately = useCallback(async () => {
+    console.log('🚀 Processamento imediato solicitado');
+    await processWebhookQueue();
   }, [processWebhookQueue]);
 
-  // Processar imediatamente quando há mudanças críticas
-  const processImmediately = useCallback(async () => {
-    console.log('Processamento imediato de webhooks solicitado');
-    debouncedProcess();
-  }, [debouncedProcess]);
-
-  // Processar forçado (sem debounce) para casos urgentes
+  // Processar forçado (ignora debounce)
   const processForced = useCallback(async () => {
-    console.log('Processamento forçado de webhooks solicitado');
+    console.log('⚡ Processamento forçado solicitado');
     await processWebhookQueue(true);
+  }, [processWebhookQueue]);
+
+  // Processar para criação de projeto (aguarda um pouco)
+  const processForProjectCreation = useCallback(async () => {
+    console.log('🏗️ Processamento para criação de projeto');
+    setTimeout(() => {
+      processWebhookQueue();
+    }, 3000); // 3 segundos para consolidar
   }, [processWebhookQueue]);
 
   return {
@@ -159,6 +159,6 @@ export const useWebhookProcessor = () => {
     processImmediately,
     processForced,
     processForProjectCreation,
-    processWebhookQueue: debouncedProcess
+    processWebhookQueue
   };
 };
