@@ -30,7 +30,8 @@ import {
   Globe,
   PlayCircle,
   Timer,
-  CheckSquare
+  CheckSquare,
+  Package
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWebhookProcessor } from "@/hooks/useWebhookProcessor";
@@ -76,21 +77,22 @@ const WebhookManagement: React.FC = () => {
     setConfig: setWebhookConfig, 
     isProcessing, 
     processImmediately,
-    processForced
+    processForced,
+    processForProjectCreation
   } = useWebhookProcessor();
 
   const [selectedEvents, setSelectedEvents] = useState<Record<string, boolean>>({
     INSERT: true,
     UPDATE: true,
-    DELETE: true
+    DELETE: false
   });
 
   const [selectedTables, setSelectedTables] = useState<Record<string, boolean>>({
     projects: true,
     project_stages: true,
-    clients: true,
-    consultants: true,
-    services: true
+    clients: false,
+    consultants: false,
+    services: false
   });
 
   useEffect(() => {
@@ -198,22 +200,22 @@ const WebhookManagement: React.FC = () => {
   const setupDatabaseTriggers = async () => {
     try {
       setIsSettingUpTriggers(true);
-      console.log('🛠️ Configurando triggers otimizados...');
+      console.log('🛠️ Configurando triggers consolidados...');
       
       toast.info("Configurando sistema", {
-        description: "Criando triggers otimizados para webhooks"
+        description: "Criando triggers consolidados para webhooks de projeto"
       });
       
       const result = await callWebhookFunction('setup_triggers');
       
       if (result.success) {
         toast.success("Sistema configurado!", {
-          description: "Triggers criados com sucesso",
+          description: "Triggers consolidados criados com sucesso",
           icon: <CheckCircle2 className="h-5 w-5 text-success" />
         });
         
         // Processar após configurar
-        setTimeout(processImmediately, 2000);
+        setTimeout(processForProjectCreation, 2000);
       }
       
     } catch (error) {
@@ -257,13 +259,13 @@ const WebhookManagement: React.FC = () => {
       });
 
       toast.success("Webhook registrado!", {
-        description: "Webhook configurado com sucesso",
+        description: "Webhook consolidado configurado com sucesso",
         icon: <CheckCircle2 className="h-5 w-5 text-success" />
       });
 
       setWebhookUrl('');
       await fetchWebhooks();
-      setTimeout(processImmediately, 1000);
+      setTimeout(processForProjectCreation, 1000);
       
     } catch (error) {
       console.error("Erro ao registrar:", error);
@@ -299,7 +301,7 @@ const WebhookManagement: React.FC = () => {
       setIsTesting(url);
       
       toast.info("Testando webhook", {
-        description: "Enviando dados de teste..."
+        description: "Enviando dados consolidados de teste..."
       });
       
       const result = await callWebhookFunction('test', { url });
@@ -333,21 +335,21 @@ const WebhookManagement: React.FC = () => {
     try {
       setIsLoading(true);
       
-      toast.info("Gerando eventos de teste", {
-        description: "Criando eventos de teste para todos os webhooks ativos"
+      toast.info("Gerando eventos consolidados de teste", {
+        description: "Criando eventos de teste para webhooks consolidados"
       });
       
       const result = await callWebhookFunction('trigger_test');
       
       if (result.success) {
-        toast.success("Eventos de teste criados!", {
+        toast.success("Eventos consolidados criados!", {
           description: result.message,
           icon: <CheckCircle2 className="h-5 w-5 text-success" />
         });
         
-        // Processar com debounce após criar eventos de teste
+        // Processar consolidados após criar eventos de teste
         setTimeout(() => {
-          processImmediately();
+          processForProjectCreation();
         }, 1000);
       }
       
@@ -356,7 +358,7 @@ const WebhookManagement: React.FC = () => {
     } catch (error) {
       console.error("Error triggering test events:", error);
       toast.error("Erro nos eventos de teste", {
-        description: error instanceof Error ? error.message : "Falha ao criar eventos de teste",
+        description: error instanceof Error ? error.message : "Falha ao criar eventos de teste consolidados",
         icon: <AlertCircle className="h-5 w-5 text-destructive" />
       });
     } finally {
@@ -389,11 +391,11 @@ const WebhookManagement: React.FC = () => {
     <div className="space-y-8 animate-fade-in">
       <div className="text-center space-y-2">
         <h1 className="text-4xl font-bold flex items-center justify-center gap-3">
-          <Zap className="h-8 w-8 text-blue-600" />
-          Sistema de Webhooks Corrigido
+          <Package className="h-8 w-8 text-blue-600" />
+          Sistema de Webhooks Consolidados
         </h1>
         <p className="text-muted-foreground text-lg">
-          ✅ Webhooks de status funcionando | ✅ Projetos consolidados em uma requisição
+          ✅ Webhooks consolidados | ✅ Projetos completos em uma requisição | ✅ Performance otimizada
         </p>
       </div>
 
@@ -402,7 +404,7 @@ const WebhookManagement: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CheckSquare className="h-5 w-5 text-green-600" />
-            Sistema Funcionando
+            Sistema Consolidado Funcionando
             {isProcessing && (
               <Badge variant="secondary" className="animate-pulse">
                 <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
@@ -415,7 +417,7 @@ const WebhookManagement: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-white rounded-lg border">
               <div className="text-2xl font-bold text-blue-600">{webhooks.length}</div>
-              <div className="text-sm text-muted-foreground">Webhooks Ativos</div>
+              <div className="text-sm text-muted-foreground">Webhooks Consolidados</div>
             </div>
             <div className="text-center p-4 bg-white rounded-lg border">
               <div className="text-2xl font-bold text-green-600">
@@ -430,23 +432,23 @@ const WebhookManagement: React.FC = () => {
               <div className="text-sm text-muted-foreground">Pendentes</div>
             </div>
             <div className="text-center p-4 bg-white rounded-lg border">
-              <div className="text-2xl font-bold text-red-600">
-                {webhookLogs.filter(l => !l.success && l.attempt_count >= 3).length}
+              <div className="text-2xl font-bold text-purple-600">
+                {webhookLogs.filter(l => l.event_type === 'project_created_consolidated').length}
               </div>
-              <div className="text-sm text-muted-foreground">Falhas</div>
+              <div className="text-sm text-muted-foreground">Consolidados</div>
             </div>
           </div>
           
           <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
             <div className="flex items-center gap-2 text-green-800 font-medium mb-2">
-              <CheckSquare className="h-4 w-4" />
-              Correções Aplicadas
+              <Package className="h-4 w-4" />
+              Funcionalidades Consolidadas
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-green-700">
-              <div>✅ Triggers simplificados e confiáveis</div>
-              <div>✅ Status updates funcionando normalmente</div>
-              <div>✅ Projetos consolidados em uma única requisição</div>
-              <div>✅ Processamento robusto com retry automático</div>
+              <div>✅ Webhook único por projeto criado</div>
+              <div>✅ Dados completos (projeto + cliente + serviço + consultores + etapas)</div>
+              <div>✅ Performance otimizada</div>
+              <div>✅ Processamento inteligente com retry automático</div>
             </div>
           </div>
         </CardContent>
@@ -459,7 +461,7 @@ const WebhookManagement: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Settings className="h-5 w-5" />
-              Processamento Automático
+              Processamento Consolidado
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -467,7 +469,7 @@ const WebhookManagement: React.FC = () => {
               <div>
                 <Label>Sistema Ativo</Label>
                 <p className="text-sm text-muted-foreground">
-                  Processamento automático de webhooks
+                  Processamento automático de webhooks consolidados
                 </p>
               </div>
               <Switch
@@ -508,13 +510,13 @@ const WebhookManagement: React.FC = () => {
               </Button>
               
               <Button 
-                onClick={processForced}
+                onClick={processForProjectCreation}
                 disabled={isProcessing}
                 variant="secondary"
                 size="sm"
               >
-                <PlayCircle className="h-4 w-4 mr-2" />
-                Forçar
+                <Package className="h-4 w-4 mr-2" />
+                Consolidados
               </Button>
             </div>
           </CardContent>
@@ -525,13 +527,13 @@ const WebhookManagement: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Shield className="h-5 w-5" />
-              Configuração do Sistema
+              Configuração Consolidada
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="p-4 bg-white rounded-lg border">
               <p className="text-sm mb-3">
-                <strong>Sistema Corrigido:</strong> Triggers otimizados para garantir que webhooks sejam enviados corretamente para mudanças de status e criação de projetos consolidados.
+                <strong>Sistema Consolidado:</strong> Triggers otimizados para enviar um único webhook com todos os dados do projeto (cliente, serviço, consultores, etapas) em uma única requisição.
               </p>
             </div>
             <Button 
@@ -544,7 +546,7 @@ const WebhookManagement: React.FC = () => {
               ) : (
                 <Shield className="h-4 w-4 mr-2" />
               )}
-              Configurar Triggers
+              Configurar Triggers Consolidados
             </Button>
           </CardContent>
         </Card>
@@ -555,7 +557,7 @@ const WebhookManagement: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Database className="h-5 w-5" />
-            Registrar Novo Webhook
+            Registrar Webhook Consolidado
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -596,10 +598,10 @@ const WebhookManagement: React.FC = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
-              <h3 className="font-medium">Eventos</h3>
+              <h3 className="font-medium">Eventos Consolidados</h3>
               <div className="space-y-3">
                 {Object.entries({
-                  INSERT: 'Criação (INSERT)',
+                  INSERT: 'Criação Consolidada (INSERT)',
                   UPDATE: 'Atualização (UPDATE)', 
                   DELETE: 'Exclusão (DELETE)'
                 }).map(([key, label]) => (
@@ -620,14 +622,14 @@ const WebhookManagement: React.FC = () => {
             </div>
             
             <div className="space-y-3">
-              <h3 className="font-medium">Entidades Principais</h3>
+              <h3 className="font-medium">Entidades Consolidadas</h3>
               <div className="space-y-2">
                 {Object.entries({
-                  projects: 'Projetos (consolidado)',
-                  project_stages: 'Etapas',
-                  clients: 'Clientes',
-                  consultants: 'Consultores',
-                  services: 'Serviços'
+                  projects: 'Projetos (dados completos)',
+                  project_stages: 'Etapas do projeto',
+                  clients: 'Dados do cliente',
+                  consultants: 'Dados dos consultores',
+                  services: 'Dados do serviço'
                 }).map(([key, label]) => (
                   <div key={key} className="flex items-center space-x-3">
                     <Checkbox 
@@ -653,7 +655,8 @@ const WebhookManagement: React.FC = () => {
             size="lg"
           >
             {isLoading && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-            Registrar Webhook
+            <Package className="mr-2 h-4 w-4" />
+            Registrar Webhook Consolidado
           </Button>
         </CardContent>
       </Card>
@@ -663,7 +666,7 @@ const WebhookManagement: React.FC = () => {
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle className="flex items-center gap-2">
             <Database className="h-5 w-5" />
-            Webhooks Registrados
+            Webhooks Consolidados Registrados
           </CardTitle>
           <div className="flex gap-2">
             <Button 
@@ -677,7 +680,7 @@ const WebhookManagement: React.FC = () => {
               ) : (
                 <TestTube className="h-4 w-4 mr-2" />
               )}
-              Testar Sistema
+              Testar Consolidados
             </Button>
             <Button 
               size="sm" 
@@ -697,9 +700,9 @@ const WebhookManagement: React.FC = () => {
         <CardContent>
           {webhooks.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
-              <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg mb-2">Nenhum webhook registrado</p>
-              <p className="text-sm">Configure um webhook acima para receber notificações automáticas otimizadas</p>
+              <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p className="text-lg mb-2">Nenhum webhook consolidado registrado</p>
+              <p className="text-sm">Configure um webhook acima para receber notificações consolidadas automáticas</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -724,8 +727,9 @@ const WebhookManagement: React.FC = () => {
                         <Badge variant="outline">
                           {webhook.tables.length} entidades
                         </Badge>
-                        <Badge variant="secondary" className="bg-green-100 text-green-800">
-                          Sistema Otimizado
+                        <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                          <Package className="h-3 w-3 mr-1" />
+                          Consolidado
                         </Badge>
                       </div>
                     </div>
@@ -763,14 +767,14 @@ const WebhookManagement: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <History className="h-5 w-5" />
-            Histórico de Envios Otimizado
+            Histórico de Webhooks Consolidados
           </CardTitle>
         </CardHeader>
         <CardContent>
           {webhookLogs.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>Nenhum log disponível</p>
+              <p>Nenhum log consolidado disponível</p>
             </div>
           ) : (
             <div className="space-y-3 max-h-80 overflow-y-auto">
@@ -785,6 +789,12 @@ const WebhookManagement: React.FC = () => {
                     <div>
                       <p className="text-sm font-medium">
                         {log.event_type} em {log.table_name}
+                        {log.event_type === 'project_created_consolidated' && (
+                          <Badge variant="secondary" className="ml-2 bg-purple-100 text-purple-800">
+                            <Package className="h-3 w-3 mr-1" />
+                            Consolidado
+                          </Badge>
+                        )}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(log.created_at).toLocaleString('pt-BR')}

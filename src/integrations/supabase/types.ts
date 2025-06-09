@@ -1381,6 +1381,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_project_consolidated_data: {
+        Args: { p_project_id: string }
+        Returns: Json
+      }
       insert_project_history: {
         Args: {
           p_project_id: string

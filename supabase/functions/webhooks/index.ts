@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
@@ -67,11 +68,11 @@ serve(async (req) => {
   try {
     const requestBody = await req.json();
     const { action } = requestBody;
-    console.log(`=== WEBHOOK ACTION: ${action} ===`);
+    console.log(`=== WEBHOOK ACTION CONSOLIDADO: ${action} ===`);
     
     if (action === "register") {
       const { url, events, tables } = requestBody;
-      console.log('Registering webhook:', { url, events, tables });
+      console.log('Registering consolidated webhook:', { url, events, tables });
       
       if (!url || !events || !tables || events.length === 0 || tables.length === 0) {
         return new Response(
@@ -98,7 +99,7 @@ serve(async (req) => {
         .single();
 
       if (error) {
-        console.error('Error registering webhook:', error);
+        console.error('Error registering consolidated webhook:', error);
         return new Response(
           JSON.stringify({ 
             success: false, 
@@ -111,12 +112,12 @@ serve(async (req) => {
         );
       }
 
-      console.log('Webhook registered successfully:', data);
+      console.log('Consolidated webhook registered successfully:', data);
       
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: "Webhook registered successfully",
+          message: "Webhook consolidado registrado com sucesso",
           webhook: data
         }),
         { 
@@ -127,7 +128,7 @@ serve(async (req) => {
     }
     
     if (action === "list") {
-      console.log('Fetching webhooks list');
+      console.log('Fetching consolidated webhooks list');
       
       const { data, error } = await supabaseClient
         .from('webhooks')
@@ -135,7 +136,7 @@ serve(async (req) => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching webhooks:', error);
+        console.error('Error fetching consolidated webhooks:', error);
         return new Response(
           JSON.stringify({ 
             success: false, 
@@ -148,7 +149,7 @@ serve(async (req) => {
         );
       }
 
-      console.log('Webhooks fetched:', data?.length || 0);
+      console.log('Consolidated webhooks fetched:', data?.length || 0);
       
       return new Response(
         JSON.stringify({ 
@@ -164,7 +165,7 @@ serve(async (req) => {
     
     if (action === "test") {
       const { url } = requestBody;
-      console.log('Testing webhook:', url);
+      console.log('Testing consolidated webhook:', url);
       
       if (!url) {
         return new Response(
@@ -181,27 +182,71 @@ serve(async (req) => {
       
       const currentDate = new Date();
       const testPayload = {
-        event_type: 'TEST',
-        table_name: 'test',
+        event_type: 'project_created_consolidated',
         timestamp: formatDateTimeBR(currentDate),
-        data: {
-          message: 'Teste do sistema de webhook - versão simplificada funcionando!',
+        project_id: 'test-project-id',
+        project: {
+          id: 'test-project-id',
+          name: 'Projeto de Teste Consolidado',
+          description: 'Teste do sistema de webhook consolidado',
+          status: 'planned',
+          total_value: 15000,
+          created_at: formatDateBR(currentDate)
+        },
+        client: {
+          id: 'test-client-id',
+          name: 'Cliente de Teste',
+          email: 'cliente@teste.com'
+        },
+        service: {
+          id: 'test-service-id',
+          name: 'Serviço de Teste',
+          total_value: 15000
+        },
+        main_consultant: {
+          id: 'test-consultant-id',
+          name: 'Consultor Principal de Teste',
+          email: 'consultor@teste.com'
+        },
+        stages: [
+          {
+            id: 'test-stage-1',
+            name: 'Etapa 1 - Análise',
+            value: 5000,
+            status: 'iniciar_projeto'
+          },
+          {
+            id: 'test-stage-2',
+            name: 'Etapa 2 - Desenvolvimento',
+            value: 7000,
+            status: 'iniciar_projeto'
+          },
+          {
+            id: 'test-stage-3',
+            name: 'Etapa 3 - Entrega',
+            value: 3000,
+            status: 'iniciar_projeto'
+          }
+        ],
+        system_info: {
+          source: 'ConsultorPRO System',
+          consolidation_type: 'project_creation',
+          processed_at: formatDateTimeBR(currentDate),
           test: true,
-          sistema_corrigido: true,
-          data_sistema: formatDateBR(currentDate),
-          hora_sistema: formatDateTimeBR(currentDate)
+          webhook_consolidado: true
         }
       };
 
       try {
-        console.log('Sending test payload to:', url);
+        console.log('Sending consolidated test payload to:', url);
         
         const response = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'User-Agent': 'Supabase-Webhook-Test/1.0',
-            'X-Test-Event': 'true'
+            'User-Agent': 'Supabase-Webhook-Consolidated/1.0',
+            'X-Test-Event': 'true',
+            'X-Webhook-Type': 'consolidated'
           },
           body: JSON.stringify(testPayload)
         });
@@ -215,7 +260,7 @@ serve(async (req) => {
           responseText = 'Unable to read response body';
         }
         
-        console.log('Webhook test result:', { 
+        console.log('Consolidated webhook test result:', { 
           success, 
           status: response.status, 
           responseBody: responseText
@@ -224,7 +269,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success, 
-            message: success ? "Teste enviado com sucesso!" : `Teste falhou: ${response.status}`,
+            message: success ? "Teste consolidado enviado com sucesso!" : `Teste consolidado falhou: ${response.status}`,
             status: response.status,
             responseBody: responseText
           }),
@@ -234,12 +279,12 @@ serve(async (req) => {
           }
         );
       } catch (error) {
-        console.error('Error testing webhook:', error);
+        console.error('Error testing consolidated webhook:', error);
         const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
         return new Response(
           JSON.stringify({ 
             success: false, 
-            message: "Teste falhou: " + errorMessage,
+            message: "Teste consolidado falhou: " + errorMessage,
             error: errorMessage
           }),
           { 
@@ -252,7 +297,7 @@ serve(async (req) => {
     
     if (action === "delete") {
       const { id } = requestBody;
-      console.log('Deleting webhook:', id);
+      console.log('Deleting consolidated webhook:', id);
       
       if (!id) {
         return new Response(
@@ -273,7 +318,7 @@ serve(async (req) => {
         .eq('id', id);
 
       if (error) {
-        console.error('Error deleting webhook:', error);
+        console.error('Error deleting consolidated webhook:', error);
         return new Response(
           JSON.stringify({ 
             success: false, 
@@ -286,12 +331,12 @@ serve(async (req) => {
         );
       }
 
-      console.log('Webhook deleted successfully');
+      console.log('Consolidated webhook deleted successfully');
       
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: "Webhook deleted successfully" 
+          message: "Webhook consolidado excluído com sucesso" 
         }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -301,9 +346,9 @@ serve(async (req) => {
     }
 
     if (action === "process") {
-      console.log('Processing webhook queue - versão simplificada');
+      console.log('Processing consolidated webhook queue');
       
-      // Buscar webhooks pendentes
+      // Buscar webhooks pendentes (incluindo consolidados)
       const { data: logs, error } = await supabaseClient
         .from('webhook_logs')
         .select(`
@@ -316,7 +361,7 @@ serve(async (req) => {
         .limit(20);
 
       if (error) {
-        console.error('Error fetching webhook logs:', error);
+        console.error('Error fetching consolidated webhook logs:', error);
         return new Response(
           JSON.stringify({ 
             success: false, 
@@ -329,14 +374,23 @@ serve(async (req) => {
         );
       }
 
-      console.log(`Processando ${logs?.length || 0} webhook logs`);
+      console.log(`Processando ${logs?.length || 0} webhook logs consolidados`);
 
       let processedCount = 0;
       let successCount = 0;
+      let consolidatedCount = 0;
 
       for (const log of logs || []) {
         try {
           console.log(`Processando webhook log ${log.id} para ${log.webhooks.url}`);
+          
+          // Identificar se é um webhook consolidado
+          const isConsolidated = log.event_type === 'project_created_consolidated' || 
+                                log.table_name === 'projects_consolidated';
+          
+          if (isConsolidated) {
+            consolidatedCount++;
+          }
           
           // Enriquecer payload com formatação brasileira
           const enrichedPayload = {
@@ -346,8 +400,12 @@ serve(async (req) => {
             webhook_id: log.webhook_id,
             attempt: log.attempt_count + 1,
             data: log.payload,
-            sistema_corrigido: true,
-            versao: 'simplificada_2.0'
+            system_info: {
+              source: 'ConsultorPRO System',
+              webhook_type: isConsolidated ? 'consolidated' : 'standard',
+              processed_at: formatDateTimeBR(new Date()),
+              version: 'consolidated_2.0'
+            }
           };
           
           // Formatar datas no payload
@@ -359,10 +417,11 @@ serve(async (req) => {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'User-Agent': 'Supabase-Webhook/2.0',
+              'User-Agent': 'Supabase-Webhook-Consolidated/2.0',
               'X-Webhook-Event': log.event_type,
               'X-Webhook-Table': log.table_name,
               'X-Webhook-Timestamp': log.created_at,
+              'X-Webhook-Type': isConsolidated ? 'consolidated' : 'standard',
               ...(log.webhooks.secret_key && {
                 'Authorization': `Bearer ${log.webhooks.secret_key}`,
                 'X-Webhook-Secret': log.webhooks.secret_key
@@ -388,7 +447,7 @@ serve(async (req) => {
           processedCount++;
           if (success) successCount++;
 
-          console.log(`Webhook ${log.id} processado: ${success ? 'SUCCESS' : 'FAILED'} (${response.status})`);
+          console.log(`Webhook ${log.id} processado: ${success ? 'SUCCESS' : 'FAILED'} (${response.status}) ${isConsolidated ? '[CONSOLIDATED]' : ''}`);
         } catch (error) {
           console.error(`Error processing webhook ${log.id}:`, error);
           
@@ -407,9 +466,10 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: `Processados ${processedCount} webhooks (${successCount} sucessos)`,
+          message: `Processados ${processedCount} webhooks (${successCount} sucessos, ${consolidatedCount} consolidados)`,
           processed_count: processedCount,
-          success_count: successCount
+          success_count: successCount,
+          consolidated_count: consolidatedCount
         }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -419,28 +479,75 @@ serve(async (req) => {
     }
 
     if (action === "trigger_test") {
-      console.log('Triggering test webhook events');
+      console.log('Triggering consolidated test webhook events');
       
       const currentDate = new Date();
       
       const testProjectData = {
-        id: crypto.randomUUID(),
-        name: 'Projeto de Teste Webhook - Sistema Corrigido',
-        description: 'Teste do sistema simplificado',
-        status: 'planned',
-        total_value: 5000,
-        created_at: formatDateTimeBR(currentDate),
-        sistema_corrigido: true
-      };
-
-      const testStageData = {
-        id: crypto.randomUUID(),
-        project_id: testProjectData.id,
-        name: 'Etapa de Teste',
-        status: 'in_progress',
-        value: 1000,
-        created_at: formatDateTimeBR(currentDate),
-        sistema_corrigido: true
+        event_type: 'project_created_consolidated',
+        timestamp: formatDateTimeBR(currentDate),
+        project_id: 'test-project-consolidated-' + Date.now(),
+        project: {
+          id: 'test-project-id',
+          name: 'Projeto de Teste Consolidado - Sistema Atualizado',
+          description: 'Teste do sistema consolidado funcionando',
+          status: 'planned',
+          total_value: 25000,
+          created_at: formatDateBR(currentDate)
+        },
+        client: {
+          id: 'test-client-id',
+          name: 'Cliente Teste Consolidado',
+          email: 'cliente@consolidado.com',
+          phone: '(11) 99999-9999'
+        },
+        service: {
+          id: 'test-service-id',
+          name: 'Serviço Consolidado de Teste',
+          total_value: 25000,
+          description: 'Serviço de teste para webhook consolidado'
+        },
+        main_consultant: {
+          id: 'test-consultant-main',
+          name: 'Consultor Principal Consolidado',
+          email: 'principal@consolidado.com'
+        },
+        support_consultant: {
+          id: 'test-consultant-support',
+          name: 'Consultor de Apoio Consolidado',
+          email: 'apoio@consolidado.com'
+        },
+        stages: [
+          {
+            id: 'stage-1',
+            name: 'Análise Inicial',
+            value: 8000,
+            status: 'iniciar_projeto',
+            days: 5
+          },
+          {
+            id: 'stage-2',
+            name: 'Desenvolvimento',
+            value: 12000,
+            status: 'iniciar_projeto',
+            days: 10
+          },
+          {
+            id: 'stage-3',
+            name: 'Testes e Entrega',
+            value: 5000,
+            status: 'iniciar_projeto',
+            days: 3
+          }
+        ],
+        system_info: {
+          source: 'ConsultorPRO System',
+          consolidation_type: 'project_creation',
+          processed_at: formatDateTimeBR(currentDate),
+          test: true,
+          webhook_consolidado: true,
+          total_stages: 3
+        }
       };
 
       const { data: webhooks } = await supabaseClient
@@ -452,7 +559,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            message: "Nenhum webhook ativo encontrado" 
+            message: "Nenhum webhook consolidado ativo encontrado" 
           }),
           { 
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -469,24 +576,9 @@ serve(async (req) => {
             .from('webhook_logs')
             .insert({
               webhook_id: webhook.id,
-              event_type: 'INSERT',
-              table_name: 'projects',
+              event_type: 'project_created_consolidated',
+              table_name: 'projects_consolidated',
               payload: testProjectData
-            });
-          logsCreated++;
-        }
-
-        if (webhook.tables.includes('project_stages') && webhook.events.includes('UPDATE')) {
-          await supabaseClient
-            .from('webhook_logs')
-            .insert({
-              webhook_id: webhook.id,
-              event_type: 'UPDATE',
-              table_name: 'project_stages',
-              payload: {
-                old: { ...testStageData, status: 'planned' },
-                new: testStageData
-              }
             });
           logsCreated++;
         }
@@ -495,7 +587,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: `${logsCreated} eventos de teste criados para ${webhooks.length} webhook(s) ativos` 
+          message: `${logsCreated} eventos consolidados de teste criados para ${webhooks.length} webhook(s) ativos` 
         }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -505,43 +597,43 @@ serve(async (req) => {
     }
 
     if (action === "setup_triggers") {
-      console.log('Setting up simplified database triggers');
+      console.log('Setting up consolidated database triggers');
       
       try {
-        const { error } = await supabaseClient.rpc('execute_sql', { 
-          query: `
-            -- Recriar triggers simples
-            DROP TRIGGER IF EXISTS project_webhooks_trigger ON projects;
-            DROP TRIGGER IF EXISTS project_stages_webhooks_trigger ON project_stages;
-            
-            CREATE TRIGGER project_webhooks_trigger
-            AFTER INSERT OR UPDATE OR DELETE ON projects
-            FOR EACH ROW EXECUTE FUNCTION trigger_webhooks();
-            
-            CREATE TRIGGER project_stages_webhooks_trigger
-            AFTER INSERT OR UPDATE OR DELETE ON project_stages
-            FOR EACH ROW EXECUTE FUNCTION trigger_webhooks();
-          `
-        });
+        // Verificar se os triggers consolidados já estão configurados
+        const { data: settings } = await supabaseClient
+          .from('system_settings')
+          .select('*')
+          .eq('setting_key', 'webhook_consolidation_enabled')
+          .single();
 
-        if (error) {
-          console.error('Error setting up triggers:', error);
+        if (settings && settings.setting_value === 'true') {
+          console.log('Consolidated triggers already configured');
           return new Response(
             JSON.stringify({ 
-              success: false, 
-              message: `Error setting up triggers: ${error.message}` 
+              success: true, 
+              message: "Triggers consolidados já estão configurados e funcionando!"
             }),
             { 
               headers: { ...corsHeaders, "Content-Type": "application/json" },
-              status: 500 
+              status: 200 
             }
           );
         }
 
+        // Se não estiver configurado, ativar
+        await supabaseClient
+          .from('system_settings')
+          .upsert({
+            setting_key: 'webhook_consolidation_enabled',
+            setting_value: 'true',
+            description: 'Habilita o envio de webhooks consolidados para criação de projetos'
+          });
+
         return new Response(
           JSON.stringify({ 
             success: true, 
-            message: "Triggers configurados com sucesso - sistema simplificado funcionando"
+            message: "Triggers consolidados ativados com sucesso! Sistema de webhooks consolidados funcionando."
           }),
           { 
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -550,11 +642,11 @@ serve(async (req) => {
         );
 
       } catch (error) {
-        console.error('Error in trigger setup:', error);
+        console.error('Error in consolidated trigger setup:', error);
         return new Response(
           JSON.stringify({ 
             success: false, 
-            message: `Erro na configuração: ${error.message}`
+            message: `Erro na configuração consolidada: ${error.message}`
           }),
           { 
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -566,7 +658,7 @@ serve(async (req) => {
 
     if (action === "toggle_active") {
       const { id, is_active } = requestBody;
-      console.log('Toggling webhook status:', { id, is_active });
+      console.log('Toggling consolidated webhook status:', { id, is_active });
       
       if (!id) {
         return new Response(
@@ -587,7 +679,7 @@ serve(async (req) => {
         .eq('id', id);
 
       if (error) {
-        console.error('Error toggling webhook:', error);
+        console.error('Error toggling consolidated webhook:', error);
         return new Response(
           JSON.stringify({ 
             success: false, 
@@ -600,12 +692,12 @@ serve(async (req) => {
         );
       }
 
-      console.log('Webhook status toggled successfully');
+      console.log('Consolidated webhook status toggled successfully');
       
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: `Webhook ${is_active ? 'ativado' : 'desativado'} com sucesso` 
+          message: `Webhook consolidado ${is_active ? 'ativado' : 'desativado'} com sucesso` 
         }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -617,7 +709,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        message: "Invalid action" 
+        message: "Invalid action for consolidated webhooks" 
       }),
       { 
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -626,7 +718,7 @@ serve(async (req) => {
     );
     
   } catch (error) {
-    console.error("Webhook error:", error);
+    console.error("Consolidated webhook error:", error);
     
     return new Response(
       JSON.stringify({ 
@@ -644,7 +736,7 @@ serve(async (req) => {
 function formatPayloadDates(obj: any): void {
   if (!obj || typeof obj !== 'object') return;
   
-  const dateFields = ['created_at', 'updated_at', 'due_date', 'start_date', 'end_date', 'completed_at'];
+  const dateFields = ['created_at', 'updated_at', 'due_date', 'start_date', 'end_date', 'completed_at', 'timestamp'];
   
   for (const key in obj) {
     if (obj.hasOwnProperty(key)) {

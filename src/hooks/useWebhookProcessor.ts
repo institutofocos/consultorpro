@@ -17,7 +17,7 @@ export const useWebhookProcessor = () => {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastProcessTimeRef = useRef<number>(0);
 
-  // Função principal para processar a fila de webhooks
+  // Função principal para processar a fila de webhooks incluindo consolidados
   const processWebhookQueue = useCallback(async (force = false) => {
     if (!config.enabled || (isProcessing && !force)) return;
     
@@ -33,7 +33,7 @@ export const useWebhookProcessor = () => {
     
     setIsProcessing(true);
     lastProcessTimeRef.current = now;
-    console.log('=== PROCESSANDO FILA DE WEBHOOKS ===');
+    console.log('=== PROCESSANDO FILA DE WEBHOOKS CONSOLIDADOS ===');
     
     try {
       const { data, error } = await supabase.functions.invoke('webhooks', {
@@ -68,9 +68,10 @@ export const useWebhookProcessor = () => {
             .insert({
               log_type: 'success',
               category: 'webhook_processor_success',
-              message: `${data.processed_count} webhooks processados com sucesso`,
+              message: `${data.processed_count} webhooks processados com sucesso (incluindo consolidados)`,
               details: {
                 processed_count: data.processed_count,
+                consolidated_count: data.consolidated_count || 0,
                 timestamp: new Date().toISOString()
               }
             });
@@ -113,7 +114,7 @@ export const useWebhookProcessor = () => {
       processWebhookQueue();
     }, config.interval_seconds * 1000);
 
-    console.log(`🔄 Processamento automático iniciado (${config.interval_seconds}s)`);
+    console.log(`🔄 Processamento automático iniciado (${config.interval_seconds}s) - Webhooks consolidados habilitados`);
 
     return () => {
       if (intervalRef.current) {
@@ -126,17 +127,17 @@ export const useWebhookProcessor = () => {
 
   // Processar imediatamente
   const processImmediately = useCallback(async () => {
-    console.log('🚀 Processamento imediato solicitado');
+    console.log('🚀 Processamento imediato solicitado (consolidados inclusos)');
     await processWebhookQueue();
   }, [processWebhookQueue]);
 
   // Processar forçado (ignora debounce)
   const processForced = useCallback(async () => {
-    console.log('⚡ Processamento forçado solicitado');
+    console.log('⚡ Processamento forçado solicitado (consolidados inclusos)');
     await processWebhookQueue(true);
   }, [processWebhookQueue]);
 
-  // Função específica para criação de projetos
+  // Função específica para criação de projetos consolidados
   const processForProjectCreation = useCallback(async () => {
     console.log('🎯 Processamento consolidado para criação de projeto solicitado');
     await processWebhookQueue(true);
