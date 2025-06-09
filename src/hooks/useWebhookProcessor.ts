@@ -14,7 +14,6 @@ export const useWebhookProcessor = () => {
     enabled: true
   });
 
-  // Refs para controle
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastProcessTimeRef = useRef<number>(0);
 
@@ -38,16 +37,12 @@ export const useWebhookProcessor = () => {
     
     try {
       const { data, error } = await supabase.functions.invoke('webhooks', {
-        body: { 
-          action: 'process_grouped',
-          consolidate_project_operations: true 
-        }
+        body: { action: 'process' }
       });
 
       if (error) {
         console.error('Erro ao processar fila de webhooks:', error);
         
-        // Log do erro no sistema
         await supabase
           .from('system_logs')
           .insert({
@@ -56,7 +51,6 @@ export const useWebhookProcessor = () => {
             message: 'Erro no processamento: ' + error.message,
             details: {
               error: error.message,
-              context: error.context || {},
               timestamp: new Date().toISOString()
             }
           });
@@ -77,7 +71,6 @@ export const useWebhookProcessor = () => {
               message: `${data.processed_count} webhooks processados com sucesso`,
               details: {
                 processed_count: data.processed_count,
-                consolidated_operations: data.consolidated_operations || 0,
                 timestamp: new Date().toISOString()
               }
             });
@@ -94,7 +87,6 @@ export const useWebhookProcessor = () => {
           message: 'Erro crítico: ' + (error instanceof Error ? error.message : 'Erro desconhecido'),
           details: {
             error: error instanceof Error ? error.message : 'Erro desconhecido',
-            stack: error instanceof Error ? error.stack : undefined,
             timestamp: new Date().toISOString()
           }
         });
@@ -144,21 +136,12 @@ export const useWebhookProcessor = () => {
     await processWebhookQueue(true);
   }, [processWebhookQueue]);
 
-  // Processar para criação de projeto (aguarda um pouco)
-  const processForProjectCreation = useCallback(async () => {
-    console.log('🏗️ Processamento para criação de projeto');
-    setTimeout(() => {
-      processWebhookQueue();
-    }, 3000); // 3 segundos para consolidar
-  }, [processWebhookQueue]);
-
   return {
     config,
     setConfig,
     isProcessing,
     processImmediately,
     processForced,
-    processForProjectCreation,
     processWebhookQueue
   };
 };
