@@ -66,38 +66,6 @@ const WebhookStatus = () => {
     }
   };
 
-  const activateConsolidatedSystem = async () => {
-    setIsLoading(true);
-    try {
-      console.log('🔧 Ativando sistema de webhook consolidado único');
-      
-      // Ativar configurações
-      await supabase
-        .from('system_settings')
-        .upsert({
-          setting_key: 'webhook_consolidation_enabled',
-          setting_value: 'true',
-          description: 'Habilita o envio de webhooks consolidados únicos'
-        });
-
-      await supabase
-        .from('system_settings')
-        .upsert({
-          setting_key: 'webhook_only_consolidated',
-          setting_value: 'true',
-          description: 'Processar apenas webhooks consolidados únicos'
-        });
-
-      toast.success('Sistema configurado para webhooks consolidados únicos!');
-      await fetchStatus();
-    } catch (error) {
-      console.error('Erro ao ativar sistema:', error);
-      toast.error('Erro ao ativar sistema consolidado');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const processQueue = async () => {
     try {
       console.log('🚀 Processando fila de webhooks consolidados únicos');
@@ -119,14 +87,14 @@ const WebhookStatus = () => {
       return (
         <Badge variant="default" className="bg-green-500">
           <CheckCircle className="h-3 w-3 mr-1" />
-          Sistema Consolidado Único Ativo
+          Sistema Consolidado Único Ativo (Padrão)
         </Badge>
       );
     } else {
       return (
         <Badge variant="destructive">
           <AlertCircle className="h-3 w-3 mr-1" />
-          Sistema Padrão (Múltiplos Webhooks)
+          Configuração Incompleta
         </Badge>
       );
     }
@@ -161,13 +129,13 @@ const WebhookStatus = () => {
           <div className="space-y-1">
             <div className="text-xs text-muted-foreground">Consolidação Habilitada</div>
             <Badge variant={status.consolidationEnabled ? "default" : "outline"}>
-              {status.consolidationEnabled ? "✅ Sim" : "❌ Não"}
+              {status.consolidationEnabled ? "✅ Ativo" : "❌ Inativo"}
             </Badge>
           </div>
           <div className="space-y-1">
             <div className="text-xs text-muted-foreground">Apenas Consolidados</div>
             <Badge variant={status.onlyConsolidated ? "default" : "outline"}>
-              {status.onlyConsolidated ? "✅ Sim" : "❌ Não"}
+              {status.onlyConsolidated ? "✅ Ativo" : "❌ Inativo"}
             </Badge>
           </div>
         </div>
@@ -185,28 +153,19 @@ const WebhookStatus = () => {
           </div>
         </div>
 
-        {!status.systemReady && (
-          <div className="space-y-3">
-            <div className="text-xs text-red-600 bg-red-50 p-3 rounded border border-red-200">
-              <div className="font-medium mb-1">⚠️ Sistema Não Configurado</div>
-              <div>O sistema ainda está enviando múltiplos webhooks. Clique no botão abaixo para ativar o sistema de webhook único consolidado.</div>
+        {status.systemReady && (
+          <div className="text-xs text-green-600 bg-green-50 p-3 rounded border border-green-200">
+            <div className="font-medium mb-1">✅ Sistema Otimizado e Funcionando</div>
+            <div>
+              <strong>Configuração Padrão Ativa:</strong> O sistema agora está configurado por padrão para enviar APENAS UM webhook consolidado contendo todas as informações do projeto (cliente, serviço, consultor, etapas) em uma única requisição quando um novo projeto é criado.
             </div>
-            
-            <Button
-              onClick={activateConsolidatedSystem}
-              disabled={isLoading}
-              className="w-full bg-blue-500 hover:bg-blue-600"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Ativar Sistema de Webhook Único
-            </Button>
           </div>
         )}
 
-        {status.systemReady && (
-          <div className="text-xs text-green-600 bg-green-50 p-3 rounded border border-green-200">
-            <div className="font-medium mb-1">✅ Sistema Otimizado e Único</div>
-            <div>O sistema está configurado para enviar APENAS UM webhook consolidado contendo todas as informações do projeto (cliente, serviço, consultor, etapas) em uma única requisição.</div>
+        {!status.systemReady && (
+          <div className="text-xs text-amber-600 bg-amber-50 p-3 rounded border border-amber-200">
+            <div className="font-medium mb-1">⚠️ Atenção</div>
+            <div>O sistema deve estar configurado automaticamente. Clique em "Atualizar" para verificar o status mais recente.</div>
           </div>
         )}
 

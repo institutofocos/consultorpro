@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Webhook, Plus, Trash2, TestTube, Eye, EyeOff } from 'lucide-react';
+import { Webhook, Plus, Trash2, TestTube, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import WebhookStatus from './WebhookStatus';
@@ -128,7 +127,7 @@ const WebhookManagement = () => {
     }
   };
 
-  const handleToggleActive = async (webhookId: string, isActive: boolean) => {
+  async function handleToggleActive(webhookId: string, isActive: boolean) {
     try {
       console.log(`🔄 ${isActive ? 'Ativando' : 'Desativando'} webhook:`, webhookId);
       
@@ -154,9 +153,9 @@ const WebhookManagement = () => {
       console.error('Erro ao alterar status:', error);
       toast.error('Erro ao alterar status do webhook');
     }
-  };
+  }
 
-  const handleDeleteWebhook = async (webhookId: string) => {
+  async function handleDeleteWebhook(webhookId: string) {
     if (!confirm('Tem certeza que deseja excluir este webhook?')) {
       return;
     }
@@ -185,14 +184,14 @@ const WebhookManagement = () => {
       console.error('Erro ao excluir webhook:', error);
       toast.error('Erro ao excluir webhook');
     }
-  };
+  }
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Gerenciamento de Webhooks</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Gerenciamento de Webhooks Consolidados</h2>
         <p className="text-muted-foreground">
-          Configure webhooks consolidados para receber notificações quando projetos forem criados
+          Configure webhooks consolidados únicos para receber notificações completas quando projetos forem criados
         </p>
       </div>
 
@@ -202,13 +201,18 @@ const WebhookManagement = () => {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Plus className="h-5 w-5" />
-            <span>Adicionar Webhook Consolidado</span>
+            <span>Adicionar Webhook Consolidado Único</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded border border-blue-200">
-            <div className="font-medium mb-1">ℹ️ Webhooks Consolidados</div>
-            <div>Os webhooks consolidados enviam todos os dados do projeto (cliente, serviço, consultor, etapas) em uma única requisição quando um projeto é criado.</div>
+          <div className="text-sm text-green-600 bg-green-50 p-3 rounded border border-green-200">
+            <div className="font-medium mb-1 flex items-center">
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Sistema Configurado com Webhook Único
+            </div>
+            <div>
+              <strong>Configuração Padrão:</strong> O sistema agora envia automaticamente APENAS UM webhook consolidado contendo todos os dados do projeto (cliente, serviço, consultor, etapas) em uma única requisição quando um projeto é criado.
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4">
@@ -239,7 +243,7 @@ const WebhookManagement = () => {
             className="w-full"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Adicionar Webhook Consolidado
+            Adicionar Webhook Consolidado Único
           </Button>
         </CardContent>
       </Card>
@@ -256,6 +260,7 @@ const WebhookManagement = () => {
             <div className="text-center py-8 text-muted-foreground">
               <Webhook className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>Nenhum webhook registrado</p>
+              <p className="text-xs mt-2">Configure um webhook para receber dados consolidados de projetos</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -282,6 +287,9 @@ const WebhookManagement = () => {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
+                    <Badge variant="default" className="text-xs bg-green-500">
+                      🎯 Webhook Único Consolidado
+                    </Badge>
                     <Badge variant="outline" className="text-xs">
                       📡 Eventos: {webhook.events.join(', ')}
                     </Badge>
@@ -305,7 +313,7 @@ const WebhookManagement = () => {
                       disabled={isLoading}
                     >
                       <TestTube className="h-4 w-4 mr-2" />
-                      Testar Consolidado
+                      Testar Webhook Único
                     </Button>
                     <Button
                       variant="destructive"
