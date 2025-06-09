@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, AlertCircle, RefreshCw, Webhook } from 'lucide-react';
+import { CheckCircle, AlertCircle, RefreshCw, Webhook, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWebhookProcessor } from '@/hooks/useWebhookProcessor';
 import { toast } from 'sonner';
@@ -39,11 +39,12 @@ const WebhookStatus = () => {
         .select('id')
         .eq('is_active', true);
       
-      // Contar logs pendentes
+      // Contar logs pendentes APENAS consolidados
       const { data: logs } = await supabase
         .from('webhook_logs')
         .select('id')
         .eq('success', false)
+        .eq('event_type', 'project_created_consolidated')
         .lt('attempt_count', 3);
       
       const newStatus = {
@@ -56,7 +57,7 @@ const WebhookStatus = () => {
       
       setStatus(newStatus);
       
-      console.log('📊 Status dos webhooks atualizado:', newStatus);
+      console.log('📊 Status dos webhooks únicos atualizado:', newStatus);
     } catch (error) {
       console.error('Erro ao buscar status:', error);
       toast.error('Erro ao carregar status dos webhooks');
@@ -65,12 +66,44 @@ const WebhookStatus = () => {
     }
   };
 
+  const activateConsolidatedSystem = async () => {
+    setIsLoading(true);
+    try {
+      console.log('🔧 Ativando sistema de webhook consolidado único');
+      
+      // Ativar configurações
+      await supabase
+        .from('system_settings')
+        .upsert({
+          setting_key: 'webhook_consolidation_enabled',
+          setting_value: 'true',
+          description: 'Habilita o envio de webhooks consolidados únicos'
+        });
+
+      await supabase
+        .from('system_settings')
+        .upsert({
+          setting_key: 'webhook_only_consolidated',
+          setting_value: 'true',
+          description: 'Processar apenas webhooks consolidados únicos'
+        });
+
+      toast.success('Sistema configurado para webhooks consolidados únicos!');
+      await fetchStatus();
+    } catch (error) {
+      console.error('Erro ao ativar sistema:', error);
+      toast.error('Erro ao ativar sistema consolidado');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const processQueue = async () => {
     try {
-      console.log('🚀 Processando fila de webhooks manualmente');
+      console.log('🚀 Processando fila de webhooks consolidados únicos');
       await processForced();
-      toast.success('Fila de webhooks processada com sucesso');
-      await fetchStatus(); // Atualizar status após processar
+      toast.success('Fila de webhooks únicos processada');
+      await fetchStatus();
     } catch (error) {
       console.error('Erro ao processar fila:', error);
       toast.error('Erro ao processar fila de webhooks');
@@ -86,21 +119,14 @@ const WebhookStatus = () => {
       return (
         <Badge variant="default" className="bg-green-500">
           <CheckCircle className="h-3 w-3 mr-1" />
-          Sistema Consolidado Ativo
-        </Badge>
-      );
-    } else if (status.consolidationEnabled) {
-      return (
-        <Badge variant="secondary">
-          <AlertCircle className="h-3 w-3 mr-1" />
-          Configuração Parcial
+          Sistema Consolidado Único Ativo
         </Badge>
       );
     } else {
       return (
         <Badge variant="destructive">
           <AlertCircle className="h-3 w-3 mr-1" />
-          Sistema Padrão
+          Sistema Padrão (Múltiplos Webhooks)
         </Badge>
       );
     }
@@ -112,7 +138,7 @@ const WebhookStatus = () => {
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Webhook className="h-5 w-5" />
-            <span>Status dos Webhooks</span>
+            <span>Status - Webhook Único Consolidado</span>
           </div>
           <Button
             variant="outline"
@@ -152,24 +178,35 @@ const WebhookStatus = () => {
             <Badge variant="outline">{status.activeWebhooks}</Badge>
           </div>
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">Logs Pendentes</div>
+            <div className="text-xs text-muted-foreground">Logs Consolidados Pendentes</div>
             <Badge variant={status.pendingLogs > 0 ? "secondary" : "outline"}>
               {status.pendingLogs}
             </Badge>
           </div>
         </div>
 
-        {status.systemReady && (
-          <div className="text-xs text-green-600 bg-green-50 p-3 rounded border border-green-200">
-            <div className="font-medium mb-1">✅ Sistema Otimizado</div>
-            <div>O sistema está configurado para enviar webhooks consolidados contendo todos os dados do projeto em uma única requisição, evitando múltiplos webhooks.</div>
+        {!status.systemReady && (
+          <div className="space-y-3">
+            <div className="text-xs text-red-600 bg-red-50 p-3 rounded border border-red-200">
+              <div className="font-medium mb-1">⚠️ Sistema Não Configurado</div>
+              <div>O sistema ainda está enviando múltiplos webhooks. Clique no botão abaixo para ativar o sistema de webhook único consolidado.</div>
+            </div>
+            
+            <Button
+              onClick={activateConsolidatedSystem}
+              disabled={isLoading}
+              className="w-full bg-blue-500 hover:bg-blue-600"
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Ativar Sistema de Webhook Único
+            </Button>
           </div>
         )}
 
-        {!status.systemReady && (
-          <div className="text-xs text-amber-600 bg-amber-50 p-3 rounded border border-amber-200">
-            <div className="font-medium mb-1">⚠️ Configuração Incompleta</div>
-            <div>O sistema ainda não está totalmente configurado para webhooks consolidados. Verifique as configurações.</div>
+        {status.systemReady && (
+          <div className="text-xs text-green-600 bg-green-50 p-3 rounded border border-green-200">
+            <div className="font-medium mb-1">✅ Sistema Otimizado e Único</div>
+            <div>O sistema está configurado para enviar APENAS UM webhook consolidado contendo todas as informações do projeto (cliente, serviço, consultor, etapas) em uma única requisição.</div>
           </div>
         )}
 
@@ -182,7 +219,7 @@ const WebhookStatus = () => {
               className="w-full"
             >
               <Webhook className="h-4 w-4 mr-2" />
-              Processar Fila ({status.pendingLogs} pendentes)
+              Processar Fila Consolidada ({status.pendingLogs} pendentes)
             </Button>
           </div>
         )}

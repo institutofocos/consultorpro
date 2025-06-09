@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -33,7 +32,7 @@ export const useWebhookProcessor = () => {
     
     setIsProcessing(true);
     lastProcessTimeRef.current = now;
-    console.log('=== PROCESSANDO FILA DE WEBHOOKS CONSOLIDADOS ===');
+    console.log('=== PROCESSANDO FILA DE WEBHOOKS CONSOLIDADOS ÚNICOS ===');
     
     try {
       const { data, error } = await supabase.functions.invoke('webhooks', {
@@ -48,52 +47,55 @@ export const useWebhookProcessor = () => {
           .insert({
             log_type: 'error',
             category: 'webhook_processor_error',
-            message: 'Erro no processamento consolidado: ' + error.message,
+            message: 'Erro no processamento consolidado único: ' + error.message,
             details: {
               error: error.message,
               timestamp: new Date().toISOString(),
-              consolidation_enabled: true
+              consolidation_enabled: true,
+              webhook_unico: true
             }
           });
         return;
       }
 
       if (data?.success) {
-        console.log('✅ Fila consolidada processada com sucesso:', data.message);
+        console.log('✅ Fila consolidada única processada com sucesso:', data.message);
         
         if (data.processed_count && data.processed_count > 0) {
-          console.log(`📊 Webhooks consolidados processados: ${data.processed_count}`);
+          console.log(`📊 Webhooks consolidados únicos processados: ${data.processed_count}`);
           
           await supabase
             .from('system_logs')
             .insert({
               log_type: 'success',
-              category: 'webhook_processor_success',
-              message: `${data.processed_count} webhooks consolidados processados com sucesso`,
+              category: 'webhook_consolidado_unico_success',
+              message: `${data.processed_count} webhooks consolidados únicos processados com sucesso`,
               details: {
                 processed_count: data.processed_count,
                 consolidated_count: data.consolidated_count || 0,
                 timestamp: new Date().toISOString(),
-                consolidation_enabled: true
+                consolidation_enabled: true,
+                webhook_unico: true
               }
             });
         } else {
-          console.log('📭 Nenhum webhook consolidado pendente para processar');
+          console.log('📭 Nenhum webhook consolidado único pendente para processar');
         }
       }
     } catch (error) {
-      console.error('💥 Erro crítico no processamento consolidado:', error);
+      console.error('💥 Erro crítico no processamento consolidado único:', error);
       
       await supabase
         .from('system_logs')
         .insert({
           log_type: 'error',
-          category: 'webhook_processor_critical',
-          message: 'Erro crítico no processamento consolidado: ' + (error instanceof Error ? error.message : 'Erro desconhecido'),
+          category: 'webhook_consolidado_unico_critical',
+          message: 'Erro crítico no processamento consolidado único: ' + (error instanceof Error ? error.message : 'Erro desconhecido'),
           details: {
             error: error instanceof Error ? error.message : 'Erro desconhecido',
             timestamp: new Date().toISOString(),
-            consolidation_enabled: true
+            consolidation_enabled: true,
+            webhook_unico: true
           }
         });
     } finally {
@@ -148,7 +150,7 @@ export const useWebhookProcessor = () => {
     await processWebhookQueue(true);
   }, [processWebhookQueue]);
 
-  // Verificar status dos webhooks consolidados
+  // Verificar status dos webhooks consolidados únicos
   const checkConsolidationStatus = useCallback(async () => {
     try {
       const { data: settings } = await supabase
@@ -160,15 +162,16 @@ export const useWebhookProcessor = () => {
       const consolidationEnabled = settings?.find(s => s.setting_key === 'webhook_consolidation_enabled')?.setting_value === 'true';
       const onlyConsolidated = settings?.find(s => s.setting_key === 'webhook_only_consolidated')?.setting_value === 'true';
       
-      console.log('📊 Status dos webhooks consolidados:', {
+      console.log('📊 Status dos webhooks consolidados únicos:', {
         consolidationEnabled,
         onlyConsolidated,
-        systemReady: consolidationEnabled && onlyConsolidated
+        systemReady: consolidationEnabled && onlyConsolidated,
+        webhookUnico: true
       });
       
       return { consolidationEnabled, onlyConsolidated };
     } catch (error) {
-      console.error('Erro ao verificar status da consolidação:', error);
+      console.error('Erro ao verificar status da consolidação única:', error);
       return { consolidationEnabled: false, onlyConsolidated: false };
     }
   }, []);
