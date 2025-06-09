@@ -1402,6 +1402,10 @@ export type Database = {
         Args: { p_project_id: string }
         Returns: undefined
       }
+      process_webhook_queue: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
