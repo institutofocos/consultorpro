@@ -131,7 +131,7 @@ BEGIN
   JOIN projects p ON p.support_consultant_id = cons.id
   WHERE p.id = p_project_id;
   
-  -- Buscar TODAS as etapas com TODOS os campos das etapas
+  -- Buscar TODAS as etapas com TODOS os campos das etapas, INCLUINDO as datas e consultor responsável
   SELECT jsonb_agg(
     jsonb_build_object(
       'id', ps.id,
@@ -159,18 +159,40 @@ BEGIN
       'completed_at', ps.completed_at,
       'created_at', ps.created_at,
       'updated_at', ps.updated_at,
-      -- Incluir dados do consultor responsável pela etapa
-      'consultant_info', CASE 
+      -- Incluir dados COMPLETOS do consultor responsável pela etapa
+      'consultant_responsible', CASE 
         WHEN ps.consultant_id IS NOT NULL THEN
           jsonb_build_object(
             'id', cons_stage.id,
             'name', cons_stage.name,
             'email', cons_stage.email,
             'phone', cons_stage.phone,
-            'pix_key', cons_stage.pix_key
+            'pix_key', cons_stage.pix_key,
+            'commission_percentage', cons_stage.commission_percentage
           )
         ELSE NULL
-      END
+      END,
+      -- Formatação amigável das datas
+      'formatted_dates', jsonb_build_object(
+        'start_date_br', CASE 
+          WHEN ps.start_date IS NOT NULL THEN to_char(ps.start_date, 'DD/MM/YYYY')
+          ELSE NULL
+        END,
+        'end_date_br', CASE 
+          WHEN ps.end_date IS NOT NULL THEN to_char(ps.end_date, 'DD/MM/YYYY')
+          ELSE NULL
+        END
+      ),
+      -- Informações financeiras da etapa
+      'financial_info', jsonb_build_object(
+        'stage_value', ps.value,
+        'valor_de_repasse', COALESCE(ps.valor_de_repasse, 0),
+        'margin', ps.value - COALESCE(ps.valor_de_repasse, 0),
+        'margin_percentage', CASE 
+          WHEN ps.value > 0 THEN ROUND(((ps.value - COALESCE(ps.valor_de_repasse, 0)) / ps.value) * 100, 2)
+          ELSE 0
+        END
+      )
     )
     ORDER BY ps.stage_order ASC
   ) INTO stages_data
@@ -190,7 +212,7 @@ BEGIN
   JOIN project_tags pt ON ptr.tag_id = pt.id
   WHERE ptr.project_id = p_project_id;
   
-  -- Montar payload consolidado COMPLETO
+  -- Montar payload consolidado COMPLETO com TODOS os campos
   consolidated_payload := jsonb_build_object(
     'event_type', 'project_created_consolidated',
     'timestamp', NOW(),
@@ -218,6 +240,16 @@ BEGIN
         FROM project_stages ps
         WHERE ps.project_id = p_project_id
       ),
+      'total_valor_de_repasse', (
+        SELECT COALESCE(SUM(ps.valor_de_repasse), 0)
+        FROM project_stages ps
+        WHERE ps.project_id = p_project_id
+      ),
+      'total_margin', (
+        SELECT COALESCE(SUM(ps.value - COALESCE(ps.valor_de_repasse, 0)), 0)
+        FROM project_stages ps
+        WHERE ps.project_id = p_project_id
+      ),
       'tax_amount', (project_data->>'total_value')::numeric * (project_data->>'tax_percent')::numeric / 100,
       'net_value', (
         (project_data->>'total_value')::numeric - 
@@ -231,10 +263,14 @@ BEGIN
       'source', 'ConsultorPRO System',
       'consolidation_type', 'project_creation_complete',
       'processed_at', NOW(),
-      'webhook_version', '2.0_complete',
+      'webhook_version', '3.0_complete_with_all_stage_fields',
       'includes_all_fields', true,
       'includes_all_stages', true,
-      'includes_calculated_totals', true
+      'includes_stage_dates', true,
+      'includes_stage_consultant', true,
+      'includes_valor_de_repasse', true,
+      'includes_calculated_totals', true,
+      'includes_financial_breakdown', true
     )
   );
   
@@ -242,23 +278,24 @@ BEGIN
 END;
 $$;
 
--- Log de confirmação
+-- Log de confirmação da atualização
 INSERT INTO public.system_logs (log_type, category, message, details)
 VALUES (
   'success', 
-  'webhook_payload_completo', 
-  'Função atualizada para incluir TODOS os campos do projeto e etapas',
+  'webhook_payload_completo_v3', 
+  'Função atualizada para incluir TODOS os campos das etapas incluindo datas, consultor e valor de repasse',
   jsonb_build_object(
     'timestamp', NOW(),
-    'campos_incluidos', jsonb_build_array(
-      'todos_campos_projeto',
-      'todos_campos_cliente', 
-      'todos_campos_servico',
-      'todos_campos_consultores',
-      'todas_etapas_completas',
-      'tags_projeto',
-      'totais_calculados'
+    'campos_adicionados', jsonb_build_array(
+      'start_date',
+      'end_date', 
+      'consultant_responsible',
+      'valor_de_repasse',
+      'formatted_dates',
+      'financial_info',
+      'margin_calculations'
     ),
-    'webhook_version', '2.0_complete'
+    'webhook_version', '3.0_complete_with_all_stage_fields',
+    'versao_anterior', '2.0_complete'
   )
 );
