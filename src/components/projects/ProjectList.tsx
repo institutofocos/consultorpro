@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -15,13 +14,13 @@ import {
   fetchServices 
 } from '@/integrations/supabase/projects';
 import ProjectsExpandedTable from './ProjectsExpandedTable';
+import ProjectForm from './ProjectForm';
 import SearchableSelect from '@/components/ui/searchable-select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Project } from './types';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
-import { useNavigate } from 'react-router-dom';
 
 const ProjectList: React.FC = () => {
-  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [clientFilter, setClientFilter] = useState<string>('');
@@ -34,6 +33,8 @@ const ProjectList: React.FC = () => {
   const [tags, setTags] = useState<Array<{id: string, name: string}>>([]);
   const [consultants, setConsultants] = useState<Array<{id: string, name: string}>>([]);
   const [services, setServices] = useState<Array<{id: string, name: string}>>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<any>(null);
 
   // Hook para buscar status dinâmicos
   const { statuses } = useProjectStatuses();
@@ -178,14 +179,16 @@ const ProjectList: React.FC = () => {
     }
   };
 
-  const handleEditProject = (project: Project) => {
+  const handleEditProject = (project: any) => {
     console.log('Editando projeto:', project);
-    navigate(`/projects/edit/${project.id}`);
+    setEditingProject(project);
+    setIsDialogOpen(true);
   };
 
   const handleNewProject = () => {
     console.log('Criando novo projeto');
-    navigate('/projects/new');
+    setEditingProject(null);
+    setIsDialogOpen(true);
   };
 
   const clearFilters = () => {
@@ -198,6 +201,34 @@ const ProjectList: React.FC = () => {
     setStartDateFilter('');
     setEndDateFilter('');
     toast.success('Filtros limpos com sucesso!');
+  };
+
+  const handleProjectSaved = async (savedProject?: Project) => {
+    try {
+      console.log('=== PROJETO SALVO - ATUALIZANDO LISTA ===');
+      console.log('Projeto salvo:', savedProject);
+      
+      // Force refetch data to ensure we get the latest
+      await refetch();
+      
+      // Close dialog and clear editing state
+      setIsDialogOpen(false);
+      setEditingProject(null);
+      
+      console.log('Lista de projetos atualizada com sucesso');
+      toast.success("Projeto salvo e lista atualizada com sucesso!");
+    } catch (error) {
+      console.error('Erro ao atualizar lista de projetos:', error);
+      toast.error('Erro ao atualizar lista de projetos');
+    }
+  };
+
+  const handleDialogOpenChange = (open: boolean) => {
+    console.log('Dialog open change:', open);
+    setIsDialogOpen(open);
+    if (!open) {
+      setEditingProject(null);
+    }
   };
 
   // Preparar opções de status dinamicamente
@@ -251,15 +282,31 @@ const ProjectList: React.FC = () => {
           <p className="text-muted-foreground">Gerenciamento de projetos</p>
         </div>
         <div className="flex items-center">
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="ml-auto gap-1"
-            onClick={handleNewProject}
-          >
-            <Plus className="h-4 w-4" />
-            <span>Novo Projeto</span>
-          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
+            <DialogTrigger asChild>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="ml-auto gap-1"
+                onClick={handleNewProject}
+              >
+                <Plus className="h-4 w-4" />
+                <span>Novo Projeto</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent size="full" className="max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingProject ? 'Editar Projeto' : 'Novo Projeto'}
+                </DialogTitle>
+              </DialogHeader>
+              <ProjectForm
+                project={editingProject}
+                onProjectSaved={handleProjectSaved}
+                onCancel={() => setIsDialogOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 

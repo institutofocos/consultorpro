@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export const useConsultants = () => {
-  const query = useQuery({
+  return useQuery({
     queryKey: ['consultants'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -19,9 +19,4 @@ export const useConsultants = () => {
       return data || [];
     },
   });
-
-  return {
-    ...query,
-    consultants: query.data || []
-  };
 };
