@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -15,13 +14,13 @@ import {
   fetchServices 
 } from '@/integrations/supabase/projects';
 import ProjectsExpandedTable from './ProjectsExpandedTable';
-import ProjectForm from './ProjectForm';
 import SearchableSelect from '@/components/ui/searchable-select';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Project } from './types';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
+import { useNavigate } from 'react-router-dom';
 
 const ProjectList: React.FC = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [clientFilter, setClientFilter] = useState<string>('');
@@ -34,8 +33,6 @@ const ProjectList: React.FC = () => {
   const [tags, setTags] = useState<Array<{id: string, name: string}>>([]);
   const [consultants, setConsultants] = useState<Array<{id: string, name: string}>>([]);
   const [services, setServices] = useState<Array<{id: string, name: string}>>([]);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   // Hook para buscar status dinâmicos
   const { statuses } = useProjectStatuses();
@@ -182,14 +179,12 @@ const ProjectList: React.FC = () => {
 
   const handleEditProject = (project: Project) => {
     console.log('Editando projeto:', project);
-    setEditingProject(project);
-    setIsSheetOpen(true);
+    navigate(`/projects/edit/${project.id}`);
   };
 
   const handleNewProject = () => {
     console.log('Criando novo projeto');
-    setEditingProject(null);
-    setIsSheetOpen(true);
+    navigate('/projects/new');
   };
 
   const clearFilters = () => {
@@ -283,33 +278,15 @@ const ProjectList: React.FC = () => {
           <p className="text-muted-foreground">Gerenciamento de projetos</p>
         </div>
         <div className="flex items-center">
-          <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
-            <SheetTrigger asChild>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="ml-auto gap-1"
-                onClick={handleNewProject}
-              >
-                <Plus className="h-4 w-4" />
-                <span>Novo Projeto</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-[900px] max-w-[90vw] overflow-y-auto">
-              <SheetHeader>
-                <SheetTitle>
-                  {editingProject ? 'Editar Projeto' : 'Novo Projeto'}
-                </SheetTitle>
-              </SheetHeader>
-              <div className="mt-6">
-                <ProjectForm
-                  project={editingProject}
-                  onSave={handleProjectSaved}
-                  onClose={() => setIsSheetOpen(false)}
-                />
-              </div>
-            </SheetContent>
-          </Sheet>
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="ml-auto gap-1"
+            onClick={handleNewProject}
+          >
+            <Plus className="h-4 w-4" />
+            <span>Novo Projeto</span>
+          </Button>
         </div>
       </div>
 
