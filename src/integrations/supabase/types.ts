@@ -1385,6 +1385,18 @@ export type Database = {
         Args: { p_project_id: string }
         Returns: Json
       }
+      get_project_status_change_data: {
+        Args: {
+          p_project_id: string
+          p_old_status: string
+          p_new_status: string
+        }
+        Returns: Json
+      }
+      get_stage_status_change_data: {
+        Args: { p_stage_id: string; p_old_status: string; p_new_status: string }
+        Returns: Json
+      }
       insert_project_history: {
         Args: {
           p_project_id: string

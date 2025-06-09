@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 
 interface WebhookSystemStatus {
   consolidationEnabled: boolean;
-  onlyConsolidated: boolean;
+  statusChangeEnabled: boolean;
   activeWebhooks: number;
   pendingLogs: number;
   systemReady: boolean;
@@ -19,7 +19,7 @@ interface WebhookSystemStatus {
 const WebhookStatus = () => {
   const [status, setStatus] = useState<WebhookSystemStatus>({
     consolidationEnabled: false,
-    onlyConsolidated: false,
+    statusChangeEnabled: false,
     activeWebhooks: 0,
     pendingLogs: 0,
     systemReady: false
@@ -31,7 +31,7 @@ const WebhookStatus = () => {
     setIsLoading(true);
     try {
       // Verificar configurações do sistema
-      const { consolidationEnabled, onlyConsolidated } = await checkConsolidationStatus();
+      const { consolidationEnabled, statusChangeEnabled } = await checkConsolidationStatus();
       
       // Contar webhooks ativos
       const { data: webhooks } = await supabase
@@ -39,25 +39,25 @@ const WebhookStatus = () => {
         .select('id')
         .eq('is_active', true);
       
-      // Contar logs pendentes APENAS consolidados
+      // Contar logs pendentes (todos os tipos)
       const { data: logs } = await supabase
         .from('webhook_logs')
         .select('id')
         .eq('success', false)
-        .eq('event_type', 'project_created_consolidated')
+        .in('event_type', ['project_created_consolidated', 'project_status_changed', 'stage_status_changed'])
         .lt('attempt_count', 3);
       
       const newStatus = {
         consolidationEnabled,
-        onlyConsolidated,
+        statusChangeEnabled,
         activeWebhooks: webhooks?.length || 0,
         pendingLogs: logs?.length || 0,
-        systemReady: consolidationEnabled && onlyConsolidated
+        systemReady: consolidationEnabled && statusChangeEnabled
       };
       
       setStatus(newStatus);
       
-      console.log('📊 Status dos webhooks únicos consolidados atualizado:', newStatus);
+      console.log('📊 Status dos webhooks atualizado:', newStatus);
     } catch (error) {
       console.error('Erro ao buscar status:', error);
       toast.error('Erro ao carregar status dos webhooks');
@@ -68,9 +68,9 @@ const WebhookStatus = () => {
 
   const processQueue = async () => {
     try {
-      console.log('🚀 Processando fila de webhooks consolidados únicos CORRIGIDOS');
+      console.log('🚀 Processando fila de webhooks (incluindo status changes)');
       await processForced();
-      toast.success('Fila de webhooks únicos processada com distribuição para todos os webhooks');
+      toast.success('Fila de webhooks processada com sucesso');
       await fetchStatus();
     } catch (error) {
       console.error('Erro ao processar fila:', error);
@@ -87,7 +87,7 @@ const WebhookStatus = () => {
       return (
         <Badge variant="default" className="bg-green-500">
           <CheckCircle className="h-3 w-3 mr-1" />
-          Sistema Único Consolidado Ativo (CORRIGIDO)
+          Sistema Multi-Evento Ativo
         </Badge>
       );
     } else {
@@ -106,7 +106,7 @@ const WebhookStatus = () => {
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Webhook className="h-5 w-5" />
-            <span>Status - Webhook Único Consolidado (CORRIGIDO)</span>
+            <span>Status - Sistema de Webhooks</span>
           </div>
           <Button
             variant="outline"
@@ -127,15 +127,15 @@ const WebhookStatus = () => {
         
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">Consolidação Habilitada</div>
+            <div className="text-xs text-muted-foreground">Criação de Projetos</div>
             <Badge variant={status.consolidationEnabled ? "default" : "outline"}>
               {status.consolidationEnabled ? "✅ Ativo" : "❌ Inativo"}
             </Badge>
           </div>
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">Apenas Consolidados</div>
-            <Badge variant={status.onlyConsolidated ? "default" : "outline"}>
-              {status.onlyConsolidated ? "✅ Ativo" : "❌ Inativo"}
+            <div className="text-xs text-muted-foreground">Mudanças de Status</div>
+            <Badge variant={status.statusChangeEnabled ? "default" : "outline"}>
+              {status.statusChangeEnabled ? "✅ Ativo" : "❌ Inativo"}
             </Badge>
           </div>
         </div>
@@ -146,7 +146,7 @@ const WebhookStatus = () => {
             <Badge variant="outline">{status.activeWebhooks}</Badge>
           </div>
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">Logs Consolidados Pendentes</div>
+            <div className="text-xs text-muted-foreground">Logs Pendentes</div>
             <Badge variant={status.pendingLogs > 0 ? "secondary" : "outline"}>
               {status.pendingLogs}
             </Badge>
@@ -155,17 +155,17 @@ const WebhookStatus = () => {
 
         {status.systemReady && (
           <div className="text-xs text-green-600 bg-green-50 p-3 rounded border border-green-200">
-            <div className="font-medium mb-1">✅ Sistema CORRIGIDO e Funcionando</div>
+            <div className="font-medium mb-1">✅ Sistema Completo Funcionando</div>
             <div>
-              <strong>Correção Aplicada:</strong> O sistema agora cria APENAS UM webhook consolidado por projeto e o distribui automaticamente para TODOS os webhooks ativos configurados. Problema de duplicação resolvido definitivamente.
+              <strong>Recursos Ativos:</strong> O sistema agora envia webhooks para criação de projetos E mudanças de status em projetos e etapas. Seu webhook receberá todos os eventos automaticamente.
             </div>
           </div>
         )}
 
         {!status.systemReady && (
           <div className="text-xs text-amber-600 bg-amber-50 p-3 rounded border border-amber-200">
-            <div className="font-medium mb-1">⚠️ Atenção</div>
-            <div>Execute a migração SQL para aplicar a correção definitiva que elimina duplicações.</div>
+            <div className="font-medium mb-1">⚠️ Configuração Necessária</div>
+            <div>Configure os webhooks para receber notificações completas de projetos e mudanças de status.</div>
           </div>
         )}
 
@@ -178,16 +178,17 @@ const WebhookStatus = () => {
               className="w-full"
             >
               <Webhook className="h-4 w-4 mr-2" />
-              Processar Fila Corrigida ({status.pendingLogs} pendentes)
+              Processar Fila ({status.pendingLogs} pendentes)
             </Button>
           </div>
         )}
 
         <div className="text-xs text-blue-600 bg-blue-50 p-3 rounded border border-blue-200">
-          <div className="font-medium mb-1">🔧 Correção Implementada</div>
+          <div className="font-medium mb-1">🎯 Eventos Disponíveis</div>
           <div>
-            <strong>Problema Identificado:</strong> A função trigger estava criando um webhook para cada webhook ativo na tabela.<br/>
-            <strong>Solução:</strong> Agora cria apenas UM webhook consolidado e o processamento distribui para todos os webhooks ativos.
+            <strong>project_created_consolidated:</strong> Dados completos quando um projeto é criado<br/>
+            <strong>project_status_changed:</strong> Quando o status de um projeto muda<br/>
+            <strong>stage_status_changed:</strong> Quando o status de uma etapa muda
           </div>
         </div>
       </CardContent>
