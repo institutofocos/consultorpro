@@ -57,7 +57,7 @@ const WebhookStatus = () => {
       
       setStatus(newStatus);
       
-      console.log('📊 Status dos webhooks únicos atualizado:', newStatus);
+      console.log('📊 Status dos webhooks únicos consolidados atualizado:', newStatus);
     } catch (error) {
       console.error('Erro ao buscar status:', error);
       toast.error('Erro ao carregar status dos webhooks');
@@ -68,9 +68,9 @@ const WebhookStatus = () => {
 
   const processQueue = async () => {
     try {
-      console.log('🚀 Processando fila de webhooks consolidados únicos');
+      console.log('🚀 Processando fila de webhooks consolidados únicos CORRIGIDOS');
       await processForced();
-      toast.success('Fila de webhooks únicos processada');
+      toast.success('Fila de webhooks únicos processada com distribuição para todos os webhooks');
       await fetchStatus();
     } catch (error) {
       console.error('Erro ao processar fila:', error);
@@ -87,7 +87,7 @@ const WebhookStatus = () => {
       return (
         <Badge variant="default" className="bg-green-500">
           <CheckCircle className="h-3 w-3 mr-1" />
-          Sistema Consolidado Único Ativo (Padrão)
+          Sistema Único Consolidado Ativo (CORRIGIDO)
         </Badge>
       );
     } else {
@@ -106,7 +106,7 @@ const WebhookStatus = () => {
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Webhook className="h-5 w-5" />
-            <span>Status - Webhook Único Consolidado</span>
+            <span>Status - Webhook Único Consolidado (CORRIGIDO)</span>
           </div>
           <Button
             variant="outline"
@@ -155,9 +155,9 @@ const WebhookStatus = () => {
 
         {status.systemReady && (
           <div className="text-xs text-green-600 bg-green-50 p-3 rounded border border-green-200">
-            <div className="font-medium mb-1">✅ Sistema Otimizado e Funcionando</div>
+            <div className="font-medium mb-1">✅ Sistema CORRIGIDO e Funcionando</div>
             <div>
-              <strong>Configuração Padrão Ativa:</strong> O sistema agora está configurado por padrão para enviar APENAS UM webhook consolidado contendo todas as informações do projeto (cliente, serviço, consultor, etapas) em uma única requisição quando um novo projeto é criado.
+              <strong>Correção Aplicada:</strong> O sistema agora cria APENAS UM webhook consolidado por projeto e o distribui automaticamente para TODOS os webhooks ativos configurados. Problema de duplicação resolvido definitivamente.
             </div>
           </div>
         )}
@@ -165,7 +165,7 @@ const WebhookStatus = () => {
         {!status.systemReady && (
           <div className="text-xs text-amber-600 bg-amber-50 p-3 rounded border border-amber-200">
             <div className="font-medium mb-1">⚠️ Atenção</div>
-            <div>O sistema deve estar configurado automaticamente. Clique em "Atualizar" para verificar o status mais recente.</div>
+            <div>Execute a migração SQL para aplicar a correção definitiva que elimina duplicações.</div>
           </div>
         )}
 
@@ -178,10 +178,18 @@ const WebhookStatus = () => {
               className="w-full"
             >
               <Webhook className="h-4 w-4 mr-2" />
-              Processar Fila Consolidada ({status.pendingLogs} pendentes)
+              Processar Fila Corrigida ({status.pendingLogs} pendentes)
             </Button>
           </div>
         )}
+
+        <div className="text-xs text-blue-600 bg-blue-50 p-3 rounded border border-blue-200">
+          <div className="font-medium mb-1">🔧 Correção Implementada</div>
+          <div>
+            <strong>Problema Identificado:</strong> A função trigger estava criando um webhook para cada webhook ativo na tabela.<br/>
+            <strong>Solução:</strong> Agora cria apenas UM webhook consolidado e o processamento distribui para todos os webhooks ativos.
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

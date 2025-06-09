@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
@@ -346,9 +345,9 @@ serve(async (req) => {
     }
 
     if (action === "process") {
-      console.log('Processing consolidated webhook queue');
+      console.log('Processing consolidated webhook queue - VERSÃO CORRIGIDA');
       
-      // Buscar webhooks pendentes (incluindo consolidados)
+      // Buscar webhooks consolidados pendentes
       const { data: logs, error } = await supabaseClient
         .from('webhook_logs')
         .select(`
@@ -356,9 +355,10 @@ serve(async (req) => {
           webhooks!inner(*)
         `)
         .eq('success', false)
+        .eq('event_type', 'project_created_consolidated')
         .lt('attempt_count', 3)
         .order('created_at', { ascending: true })
-        .limit(20);
+        .limit(10);
 
       if (error) {
         console.error('Error fetching consolidated webhook logs:', error);
@@ -374,82 +374,106 @@ serve(async (req) => {
         );
       }
 
-      console.log(`Processando ${logs?.length || 0} webhook logs consolidados`);
+      console.log(`Processando ${logs?.length || 0} webhook logs consolidados únicos`);
 
       let processedCount = 0;
       let successCount = 0;
       let consolidatedCount = 0;
 
+      // Para cada log consolidado, enviar para TODOS os webhooks ativos
       for (const log of logs || []) {
         try {
-          console.log(`Processando webhook log ${log.id} para ${log.webhooks.url}`);
+          console.log(`Processando webhook consolidado ${log.id} - distribuindo para todos os webhooks ativos`);
           
-          // Identificar se é um webhook consolidado
-          const isConsolidated = log.event_type === 'project_created_consolidated' || 
-                                log.table_name === 'projects_consolidated';
-          
-          if (isConsolidated) {
-            consolidatedCount++;
+          // Buscar TODOS os webhooks ativos para projetos
+          const { data: allWebhooks } = await supabaseClient
+            .from('webhooks')
+            .select('*')
+            .eq('is_active', true)
+            .contains('tables', ['projects'])
+            .contains('events', ['INSERT']);
+
+          if (!allWebhooks || allWebhooks.length === 0) {
+            console.log('Nenhum webhook ativo encontrado');
+            continue;
           }
+
+          let webhookSuccessCount = 0;
           
-          // Enriquecer payload com formatação brasileira
-          const enrichedPayload = {
-            event_type: log.event_type,
-            table_name: log.table_name,
-            timestamp: formatDateTimeBR(log.created_at),
-            webhook_id: log.webhook_id,
-            attempt: log.attempt_count + 1,
-            data: log.payload,
-            system_info: {
-              source: 'ConsultorPRO System',
-              webhook_type: isConsolidated ? 'consolidated' : 'standard',
-              processed_at: formatDateTimeBR(new Date()),
-              version: 'consolidated_2.0'
+          // Enviar para TODOS os webhooks ativos
+          for (const webhook of allWebhooks) {
+            try {
+              // Enriquecer payload com formatação brasileira
+              const enrichedPayload = {
+                event_type: log.event_type,
+                table_name: log.table_name,
+                timestamp: formatDateTimeBR(log.created_at),
+                webhook_id: webhook.id,
+                attempt: log.attempt_count + 1,
+                data: log.payload,
+                system_info: {
+                  source: 'ConsultorPRO System',
+                  webhook_type: 'consolidated',
+                  processed_at: formatDateTimeBR(new Date()),
+                  version: 'consolidated_unique_2.0',
+                  distributed_to_all: true
+                }
+              };
+              
+              // Formatar datas no payload
+              if (enrichedPayload.data) {
+                formatPayloadDates(enrichedPayload.data);
+              }
+              
+              const response = await fetch(webhook.url, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'User-Agent': 'Supabase-Webhook-Consolidated-Unique/2.0',
+                  'X-Webhook-Event': log.event_type,
+                  'X-Webhook-Table': log.table_name,
+                  'X-Webhook-Timestamp': log.created_at,
+                  'X-Webhook-Type': 'consolidated_unique',
+                  'X-Distribution-Type': 'all_active_webhooks',
+                  ...(webhook.secret_key && {
+                    'Authorization': `Bearer ${webhook.secret_key}`,
+                    'X-Webhook-Secret': webhook.secret_key
+                  })
+                },
+                body: JSON.stringify(enrichedPayload)
+              });
+
+              const success = response.ok;
+              if (success) webhookSuccessCount++;
+
+              console.log(`Webhook ${webhook.id} (${webhook.url}) processado: ${success ? 'SUCCESS' : 'FAILED'} (${response.status})`);
+              
+            } catch (webhookError) {
+              console.error(`Erro ao processar webhook ${webhook.id}:`, webhookError);
             }
-          };
-          
-          // Formatar datas no payload
-          if (enrichedPayload.data) {
-            formatPayloadDates(enrichedPayload.data);
           }
+
+          // Marcar o log original como processado se pelo menos um webhook teve sucesso
+          const overallSuccess = webhookSuccessCount > 0;
           
-          const response = await fetch(log.webhooks.url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'User-Agent': 'Supabase-Webhook-Consolidated/2.0',
-              'X-Webhook-Event': log.event_type,
-              'X-Webhook-Table': log.table_name,
-              'X-Webhook-Timestamp': log.created_at,
-              'X-Webhook-Type': isConsolidated ? 'consolidated' : 'standard',
-              ...(log.webhooks.secret_key && {
-                'Authorization': `Bearer ${log.webhooks.secret_key}`,
-                'X-Webhook-Secret': log.webhooks.secret_key
-              })
-            },
-            body: JSON.stringify(enrichedPayload)
-          });
-
-          const success = response.ok;
-          const responseBody = await response.text();
-
-          // Atualizar log
           await supabaseClient
             .from('webhook_logs')
             .update({
-              success,
-              response_status: response.status,
-              response_body: responseBody.substring(0, 1000),
+              success: overallSuccess,
+              response_status: overallSuccess ? 200 : 500,
+              response_body: `Distribuído para ${allWebhooks.length} webhooks, ${webhookSuccessCount} sucessos`,
               attempt_count: log.attempt_count + 1
             })
             .eq('id', log.id);
 
           processedCount++;
-          if (success) successCount++;
+          if (overallSuccess) successCount++;
+          consolidatedCount++;
 
-          console.log(`Webhook ${log.id} processado: ${success ? 'SUCCESS' : 'FAILED'} (${response.status}) ${isConsolidated ? '[CONSOLIDATED]' : ''}`);
+          console.log(`Webhook consolidado ${log.id} processado: distribuído para ${allWebhooks.length} webhooks (${webhookSuccessCount} sucessos)`);
+          
         } catch (error) {
-          console.error(`Error processing webhook ${log.id}:`, error);
+          console.error(`Error processing consolidated webhook ${log.id}:`, error);
           
           await supabaseClient
             .from('webhook_logs')
@@ -466,10 +490,11 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: `Processados ${processedCount} webhooks (${successCount} sucessos, ${consolidatedCount} consolidados)`,
+          message: `Processados ${processedCount} webhooks consolidados únicos (${successCount} sucessos)`,
           processed_count: processedCount,
           success_count: successCount,
-          consolidated_count: consolidatedCount
+          consolidated_count: consolidatedCount,
+          distribution_type: 'all_active_webhooks'
         }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },
