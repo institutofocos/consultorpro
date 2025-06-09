@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,7 @@ import {
 import ProjectsExpandedTable from './ProjectsExpandedTable';
 import ProjectForm from './ProjectForm';
 import SearchableSelect from '@/components/ui/searchable-select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Project } from './types';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
 
@@ -33,7 +34,7 @@ const ProjectList: React.FC = () => {
   const [tags, setTags] = useState<Array<{id: string, name: string}>>([]);
   const [consultants, setConsultants] = useState<Array<{id: string, name: string}>>([]);
   const [services, setServices] = useState<Array<{id: string, name: string}>>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   // Hook para buscar status dinâmicos
@@ -182,13 +183,13 @@ const ProjectList: React.FC = () => {
   const handleEditProject = (project: Project) => {
     console.log('Editando projeto:', project);
     setEditingProject(project);
-    setIsDialogOpen(true);
+    setIsSheetOpen(true);
   };
 
   const handleNewProject = () => {
     console.log('Criando novo projeto');
     setEditingProject(null);
-    setIsDialogOpen(true);
+    setIsSheetOpen(true);
   };
 
   const clearFilters = () => {
@@ -211,8 +212,8 @@ const ProjectList: React.FC = () => {
       // Force refetch data to ensure we get the latest
       await refetch();
       
-      // Close dialog and clear editing state
-      setIsDialogOpen(false);
+      // Close sheet and clear editing state
+      setIsSheetOpen(false);
       setEditingProject(null);
       
       console.log('Lista de projetos atualizada com sucesso');
@@ -223,9 +224,9 @@ const ProjectList: React.FC = () => {
     }
   };
 
-  const handleDialogOpenChange = (open: boolean) => {
-    console.log('Dialog open change:', open);
-    setIsDialogOpen(open);
+  const handleSheetOpenChange = (open: boolean) => {
+    console.log('Sheet open change:', open);
+    setIsSheetOpen(open);
     if (!open) {
       setEditingProject(null);
     }
@@ -282,8 +283,8 @@ const ProjectList: React.FC = () => {
           <p className="text-muted-foreground">Gerenciamento de projetos</p>
         </div>
         <div className="flex items-center">
-          <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
-            <DialogTrigger asChild>
+          <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
+            <SheetTrigger asChild>
               <Button 
                 size="sm" 
                 variant="outline" 
@@ -293,20 +294,22 @@ const ProjectList: React.FC = () => {
                 <Plus className="h-4 w-4" />
                 <span>Novo Projeto</span>
               </Button>
-            </DialogTrigger>
-            <DialogContent size="full" className="max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[900px] max-w-[90vw] overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>
                   {editingProject ? 'Editar Projeto' : 'Novo Projeto'}
-                </DialogTitle>
-              </DialogHeader>
-              <ProjectForm
-                project={editingProject}
-                onSave={handleProjectSaved}
-                onClose={() => setIsDialogOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
+                </SheetTitle>
+              </SheetHeader>
+              <div className="mt-6">
+                <ProjectForm
+                  project={editingProject}
+                  onSave={handleProjectSaved}
+                  onClose={() => setIsSheetOpen(false)}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
 

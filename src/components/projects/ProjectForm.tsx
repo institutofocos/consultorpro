@@ -189,311 +189,300 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onClose, onSave, project }) =
   }));
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">{project ? 'Editar Projeto' : 'Novo Projeto'}</h2>
-            <Button variant="outline" onClick={onClose}>
-              Cancelar
-            </Button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Informações Básicas</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Nome do Projeto *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Nome do projeto"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label>Cliente</Label>
-                  <SearchableSelect
-                    options={[{ id: '', name: 'Nenhum' }, ...clientOptions]}
-                    value={formData.clientId}
-                    onValueChange={(value) => setFormData({ ...formData, clientId: value as string })}
-                    placeholder="Selecione um cliente"
-                    searchPlaceholder="Pesquisar clientes..."
-                    emptyText="Nenhum cliente encontrado"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <Label htmlFor="description">Descrição</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Descrição do projeto"
-                    rows={3}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Informações Adicionais</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Serviço</Label>
-                  <SearchableSelect
-                    options={[{ id: '', name: 'Nenhum' }, ...serviceOptions]}
-                    value={formData.serviceId}
-                    onValueChange={(value) => setFormData({ ...formData, serviceId: value as string })}
-                    placeholder="Selecione um serviço"
-                    searchPlaceholder="Pesquisar serviços..."
-                    emptyText="Nenhum serviço encontrado"
-                  />
-                </div>
-
-                <div>
-                  <Label>Consultor Principal</Label>
-                  <SearchableSelect
-                    options={[{ id: '', name: 'Nenhum' }, ...consultantOptions]}
-                    value={formData.mainConsultantId}
-                    onValueChange={(value) => setFormData({ ...formData, mainConsultantId: value as string })}
-                    placeholder="Selecione um consultor"
-                    searchPlaceholder="Pesquisar consultores..."
-                    emptyText="Nenhum consultor encontrado"
-                  />
-                </div>
-
-                <div>
-                  <Label>Consultor de Apoio</Label>
-                  <SearchableSelect
-                    options={[{ id: '', name: 'Nenhum' }, ...consultantOptions]}
-                    value={formData.supportConsultantId}
-                    onValueChange={(value) => setFormData({ ...formData, supportConsultantId: value as string })}
-                    placeholder="Selecione um consultor"
-                    searchPlaceholder="Pesquisar consultores..."
-                    emptyText="Nenhum consultor encontrado"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="url">URL do Projeto</Label>
-                  <Input
-                    id="url"
-                    type="url"
-                    value={formData.url}
-                    onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-                    placeholder="URL do projeto"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Datas e Valores</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <Label htmlFor="startDate">Data de Início *</Label>
-                  <Input
-                    id="startDate"
-                    type="date"
-                    value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="endDate">Data de Término *</Label>
-                  <Input
-                    id="endDate"
-                    type="date"
-                    value={formData.endDate}
-                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="totalValue">Valor Total (R$)</Label>
-                  <Input
-                    id="totalValue"
-                    type="number"
-                    step="0.01"
-                    value={formData.totalValue}
-                    onChange={(e) => setFormData({ ...formData, totalValue: Number(e.target.value) })}
-                    placeholder="0.00"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="totalHours">Total de Horas</Label>
-                  <Input
-                    id="totalHours"
-                    type="number"
-                    value={formData.totalHours}
-                    onChange={(e) => setFormData({ ...formData, totalHours: Number(e.target.value) })}
-                    placeholder="0"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="hourlyRate">Valor por Hora (R$)</Label>
-                  <Input
-                    id="hourlyRate"
-                    type="number"
-                    step="0.01"
-                    value={formData.hourlyRate}
-                    onChange={(e) => setFormData({ ...formData, hourlyRate: Number(e.target.value) })}
-                    placeholder="0.00"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="taxPercent">Taxa (%)</Label>
-                  <Input
-                    id="taxPercent"
-                    type="number"
-                    value={formData.taxPercent}
-                    onChange={(e) => setFormData({ ...formData, taxPercent: Number(e.target.value) })}
-                    placeholder="0"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="thirdPartyExpenses">Despesas de Terceiros (R$)</Label>
-                  <Input
-                    id="thirdPartyExpenses"
-                    type="number"
-                    step="0.01"
-                    value={formData.thirdPartyExpenses}
-                    onChange={(e) => setFormData({ ...formData, thirdPartyExpenses: Number(e.target.value) })}
-                    placeholder="0.00"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Comissões</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <Label htmlFor="mainConsultantValue">Valor Consultor Principal (R$)</Label>
-                  <Input
-                    id="mainConsultantValue"
-                    type="number"
-                    step="0.01"
-                    value={formData.mainConsultantValue}
-                    onChange={(e) => setFormData({ ...formData, mainConsultantValue: Number(e.target.value) })}
-                    placeholder="0.00"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="supportConsultantValue">Valor Consultor de Apoio (R$)</Label>
-                  <Input
-                    id="supportConsultantValue"
-                    type="number"
-                    step="0.01"
-                    value={formData.supportConsultantValue}
-                    onChange={(e) => setFormData({ ...formData, supportConsultantValue: Number(e.target.value) })}
-                    placeholder="0.00"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="mainConsultantCommission">Comissão Consultor Principal (%)</Label>
-                  <Input
-                    id="mainConsultantCommission"
-                    type="number"
-                    value={formData.mainConsultantCommission}
-                    onChange={(e) => setFormData({ ...formData, mainConsultantCommission: Number(e.target.value) })}
-                    placeholder="0"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="supportConsultantCommission">Comissão Consultor de Apoio (%)</Label>
-                  <Input
-                    id="supportConsultantCommission"
-                    type="number"
-                    value={formData.supportConsultantCommission}
-                    onChange={(e) => setFormData({ ...formData, supportConsultantCommission: Number(e.target.value) })}
-                    placeholder="0"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Informações do Gerente</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="managerName">Nome do Gerente</Label>
-                  <Input
-                    id="managerName"
-                    value={formData.managerName}
-                    onChange={(e) => setFormData({ ...formData, managerName: e.target.value })}
-                    placeholder="Nome do gerente"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="managerEmail">Email do Gerente</Label>
-                  <Input
-                    id="managerEmail"
-                    type="email"
-                    value={formData.managerEmail}
-                    onChange={(e) => setFormData({ ...formData, managerEmail: e.target.value })}
-                    placeholder="Email do gerente"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="managerPhone">Telefone do Gerente</Label>
-                  <Input
-                    id="managerPhone"
-                    type="tel"
-                    value={formData.managerPhone}
-                    onChange={(e) => setFormData({ ...formData, managerPhone: e.target.value })}
-                    placeholder="Telefone do gerente"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <ProjectFormStageSection
-              stages={stages}
-              onStagesChange={setStages}
-              consultantOptions={consultantOptions}
-              startDate={formData.startDate}
-            />
-
-            <div className="flex justify-end gap-4">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isCreating}>
-                {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {project ? 'Atualizar Projeto' : 'Salvar Projeto'}
-              </Button>
+    <div className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Informações Básicas</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="name">Nome do Projeto *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Nome do projeto"
+                required
+              />
             </div>
-          </form>
+
+            <div>
+              <Label>Cliente</Label>
+              <SearchableSelect
+                options={[{ id: '', name: 'Nenhum' }, ...clientOptions]}
+                value={formData.clientId}
+                onValueChange={(value) => setFormData({ ...formData, clientId: value as string })}
+                placeholder="Selecione um cliente"
+                searchPlaceholder="Pesquisar clientes..."
+                emptyText="Nenhum cliente encontrado"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <Label htmlFor="description">Descrição</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Descrição do projeto"
+                rows={3}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Informações Adicionais</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Serviço</Label>
+              <SearchableSelect
+                options={[{ id: '', name: 'Nenhum' }, ...serviceOptions]}
+                value={formData.serviceId}
+                onValueChange={(value) => setFormData({ ...formData, serviceId: value as string })}
+                placeholder="Selecione um serviço"
+                searchPlaceholder="Pesquisar serviços..."
+                emptyText="Nenhum serviço encontrado"
+              />
+            </div>
+
+            <div>
+              <Label>Consultor Principal</Label>
+              <SearchableSelect
+                options={[{ id: '', name: 'Nenhum' }, ...consultantOptions]}
+                value={formData.mainConsultantId}
+                onValueChange={(value) => setFormData({ ...formData, mainConsultantId: value as string })}
+                placeholder="Selecione um consultor"
+                searchPlaceholder="Pesquisar consultores..."
+                emptyText="Nenhum consultor encontrado"
+              />
+            </div>
+
+            <div>
+              <Label>Consultor de Apoio</Label>
+              <SearchableSelect
+                options={[{ id: '', name: 'Nenhum' }, ...consultantOptions]}
+                value={formData.supportConsultantId}
+                onValueChange={(value) => setFormData({ ...formData, supportConsultantId: value as string })}
+                placeholder="Selecione um consultor"
+                searchPlaceholder="Pesquisar consultores..."
+                emptyText="Nenhum consultor encontrado"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="url">URL do Projeto</Label>
+              <Input
+                id="url"
+                type="url"
+                value={formData.url}
+                onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+                placeholder="URL do projeto"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Datas e Valores</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <Label htmlFor="startDate">Data de Início *</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={formData.startDate}
+                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="endDate">Data de Término *</Label>
+              <Input
+                id="endDate"
+                type="date"
+                value={formData.endDate}
+                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="totalValue">Valor Total (R$)</Label>
+              <Input
+                id="totalValue"
+                type="number"
+                step="0.01"
+                value={formData.totalValue}
+                onChange={(e) => setFormData({ ...formData, totalValue: Number(e.target.value) })}
+                placeholder="0.00"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="totalHours">Total de Horas</Label>
+              <Input
+                id="totalHours"
+                type="number"
+                value={formData.totalHours}
+                onChange={(e) => setFormData({ ...formData, totalHours: Number(e.target.value) })}
+                placeholder="0"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="hourlyRate">Valor por Hora (R$)</Label>
+              <Input
+                id="hourlyRate"
+                type="number"
+                step="0.01"
+                value={formData.hourlyRate}
+                onChange={(e) => setFormData({ ...formData, hourlyRate: Number(e.target.value) })}
+                placeholder="0.00"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="taxPercent">Taxa (%)</Label>
+              <Input
+                id="taxPercent"
+                type="number"
+                value={formData.taxPercent}
+                onChange={(e) => setFormData({ ...formData, taxPercent: Number(e.target.value) })}
+                placeholder="0"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="thirdPartyExpenses">Despesas de Terceiros (R$)</Label>
+              <Input
+                id="thirdPartyExpenses"
+                type="number"
+                step="0.01"
+                value={formData.thirdPartyExpenses}
+                onChange={(e) => setFormData({ ...formData, thirdPartyExpenses: Number(e.target.value) })}
+                placeholder="0.00"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Comissões</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <Label htmlFor="mainConsultantValue">Valor Consultor Principal (R$)</Label>
+              <Input
+                id="mainConsultantValue"
+                type="number"
+                step="0.01"
+                value={formData.mainConsultantValue}
+                onChange={(e) => setFormData({ ...formData, mainConsultantValue: Number(e.target.value) })}
+                placeholder="0.00"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="supportConsultantValue">Valor Consultor de Apoio (R$)</Label>
+              <Input
+                id="supportConsultantValue"
+                type="number"
+                step="0.01"
+                value={formData.supportConsultantValue}
+                onChange={(e) => setFormData({ ...formData, supportConsultantValue: Number(e.target.value) })}
+                placeholder="0.00"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="mainConsultantCommission">Comissão Consultor Principal (%)</Label>
+              <Input
+                id="mainConsultantCommission"
+                type="number"
+                value={formData.mainConsultantCommission}
+                onChange={(e) => setFormData({ ...formData, mainConsultantCommission: Number(e.target.value) })}
+                placeholder="0"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="supportConsultantCommission">Comissão Consultor de Apoio (%)</Label>
+              <Input
+                id="supportConsultantCommission"
+                type="number"
+                value={formData.supportConsultantCommission}
+                onChange={(e) => setFormData({ ...formData, supportConsultantCommission: Number(e.target.value) })}
+                placeholder="0"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Informações do Gerente</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="managerName">Nome do Gerente</Label>
+              <Input
+                id="managerName"
+                value={formData.managerName}
+                onChange={(e) => setFormData({ ...formData, managerName: e.target.value })}
+                placeholder="Nome do gerente"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="managerEmail">Email do Gerente</Label>
+              <Input
+                id="managerEmail"
+                type="email"
+                value={formData.managerEmail}
+                onChange={(e) => setFormData({ ...formData, managerEmail: e.target.value })}
+                placeholder="Email do gerente"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="managerPhone">Telefone do Gerente</Label>
+              <Input
+                id="managerPhone"
+                type="tel"
+                value={formData.managerPhone}
+                onChange={(e) => setFormData({ ...formData, managerPhone: e.target.value })}
+                placeholder="Telefone do gerente"
+              />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <ProjectFormStageSection
+          stages={stages}
+          onStagesChange={setStages}
+          consultantOptions={consultantOptions}
+          startDate={formData.startDate}
+        />
+
+        <div className="flex justify-end gap-4">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={isCreating}>
+            {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {project ? 'Atualizar Projeto' : 'Salvar Projeto'}
+          </Button>
         </div>
-      </div>
+      </form>
     </div>
   );
 };
