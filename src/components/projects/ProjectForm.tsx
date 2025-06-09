@@ -51,7 +51,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onClose, onSave, project }) =
     hourlyRate: project?.hourlyRate || 0,
     taxPercent: project?.taxPercent || 16,
     thirdPartyExpenses: project?.thirdPartyExpenses || 0,
-    mainConsultantValue: project?.mainConsultantValue || 0,
+    mainConsultantValue: project?.consultantValue || 0,
     supportConsultantValue: project?.supportConsultantValue || 0,
     mainConsultantCommission: project?.mainConsultantCommission || 0,
     supportConsultantCommission: project?.supportConsultantCommission || 0,
