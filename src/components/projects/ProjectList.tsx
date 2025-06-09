@@ -301,8 +301,8 @@ const ProjectList: React.FC = () => {
                 </DialogTitle>
               </DialogHeader>
               <ProjectForm
-                projectId={editingProject?.id}
-                onSuccess={handleProjectSaved}
+                project={editingProject}
+                onProjectSaved={handleProjectSaved}
                 onCancel={() => setIsDialogOpen(false)}
               />
             </DialogContent>

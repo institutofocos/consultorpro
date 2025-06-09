@@ -33,7 +33,7 @@ import {
   CheckSquare
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useWebhookProcessorContext } from "@/contexts/WebhookProcessorContext";
+import { useWebhookProcessor } from "@/hooks/useWebhookProcessor";
 
 interface Webhook {
   id: string;
@@ -70,14 +70,14 @@ const WebhookManagement: React.FC = () => {
     message: '' 
   });
 
-  // Usar o contexto global do processador
+  // Hook do processador automático
   const { 
     config: webhookConfig, 
     setConfig: setWebhookConfig, 
     isProcessing, 
     processImmediately,
     processForced
-  } = useWebhookProcessorContext();
+  } = useWebhookProcessor();
 
   const [selectedEvents, setSelectedEvents] = useState<Record<string, boolean>>({
     INSERT: true,
@@ -390,10 +390,10 @@ const WebhookManagement: React.FC = () => {
       <div className="text-center space-y-2">
         <h1 className="text-4xl font-bold flex items-center justify-center gap-3">
           <Zap className="h-8 w-8 text-blue-600" />
-          Sistema de Webhooks Global
+          Sistema de Webhooks Corrigido
         </h1>
         <p className="text-muted-foreground text-lg">
-          ✅ Processamento automático ativo | ✅ Funcionando em todo o sistema
+          ✅ Webhooks de status funcionando | ✅ Projetos consolidados em uma requisição
         </p>
       </div>
 
@@ -401,8 +401,8 @@ const WebhookManagement: React.FC = () => {
       <Card className="shadow-lg border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-green-600" />
-            Sistema Global Ativo
+            <CheckSquare className="h-5 w-5 text-green-600" />
+            Sistema Funcionando
             {isProcessing && (
               <Badge variant="secondary" className="animate-pulse">
                 <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
@@ -440,83 +440,115 @@ const WebhookManagement: React.FC = () => {
           <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
             <div className="flex items-center gap-2 text-green-800 font-medium mb-2">
               <CheckSquare className="h-4 w-4" />
-              Sistema Global Funcionando
+              Correções Aplicadas
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-green-700">
-              <div>✅ Processamento automático ativo em todas as telas</div>
-              <div>✅ Status updates funcionando independentemente da navegação</div>
-              <div>✅ Criação de projetos monitorada globalmente</div>
-              <div>✅ Webhooks enviados automaticamente em {webhookConfig.interval_seconds}s</div>
+              <div>✅ Triggers simplificados e confiáveis</div>
+              <div>✅ Status updates funcionando normalmente</div>
+              <div>✅ Projetos consolidados em uma única requisição</div>
+              <div>✅ Processamento robusto com retry automático</div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Configuration */}
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
-            Configuração Global
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-            <div>
-              <Label>Sistema Global Ativo</Label>
-              <p className="text-sm text-muted-foreground">
-                Processamento automático em todas as telas
+      {/* Configuration and Setup */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Processor Config */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Processamento Automático
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+              <div>
+                <Label>Sistema Ativo</Label>
+                <p className="text-sm text-muted-foreground">
+                  Processamento automático de webhooks
+                </p>
+              </div>
+              <Switch
+                checked={webhookConfig.enabled}
+                onCheckedChange={(enabled) => 
+                  setWebhookConfig(prev => ({ ...prev, enabled }))
+                }
+              />
+            </div>
+
+            <div className="space-y-3">
+              <Label>Intervalo (segundos)</Label>
+              <Input
+                type="number"
+                min="10"
+                max="300"
+                value={webhookConfig.interval_seconds}
+                onChange={(e) => setWebhookConfig(prev => ({
+                  ...prev,
+                  interval_seconds: Math.max(10, parseInt(e.target.value) || 30)
+                }))}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button 
+                onClick={processImmediately}
+                disabled={isProcessing}
+                variant="outline"
+                size="sm"
+              >
+                {isProcessing ? (
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Timer className="h-4 w-4 mr-2" />
+                )}
+                Processar
+              </Button>
+              
+              <Button 
+                onClick={processForced}
+                disabled={isProcessing}
+                variant="secondary"
+                size="sm"
+              >
+                <PlayCircle className="h-4 w-4 mr-2" />
+                Forçar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* System Setup */}
+        <Card className="shadow-lg border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Configuração do Sistema
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-4 bg-white rounded-lg border">
+              <p className="text-sm mb-3">
+                <strong>Sistema Corrigido:</strong> Triggers otimizados para garantir que webhooks sejam enviados corretamente para mudanças de status e criação de projetos consolidados.
               </p>
             </div>
-            <Switch
-              checked={webhookConfig.enabled}
-              onCheckedChange={(enabled) => 
-                setWebhookConfig({ ...webhookConfig, enabled })
-              }
-            />
-          </div>
-
-          <div className="space-y-3">
-            <Label>Intervalo (segundos)</Label>
-            <Input
-              type="number"
-              min="10"
-              max="300"
-              value={webhookConfig.interval_seconds}
-              onChange={(e) => setWebhookConfig({
-                ...webhookConfig,
-                interval_seconds: Math.max(10, parseInt(e.target.value) || 30)
-              })}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
             <Button 
-              onClick={processImmediately}
-              disabled={isProcessing}
-              variant="outline"
-              size="sm"
+              onClick={setupDatabaseTriggers}
+              disabled={isSettingUpTriggers}
+              className="w-full bg-blue-600 hover:bg-blue-700"
             >
-              {isProcessing ? (
+              {isSettingUpTriggers ? (
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
               ) : (
-                <Timer className="h-4 w-4 mr-2" />
+                <Shield className="h-4 w-4 mr-2" />
               )}
-              Processar Agora
+              Configurar Triggers
             </Button>
-            
-            <Button 
-              onClick={processForced}
-              disabled={isProcessing}
-              variant="secondary"
-              size="sm"
-            >
-              <PlayCircle className="h-4 w-4 mr-2" />
-              Forçar Processamento
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Register New Webhook */}
       <Card className="shadow-lg">

@@ -1,50 +1,97 @@
 
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import AdminSetup from "./pages/AdminSetup";
-import NotFound from "./pages/NotFound";
-import Layout from "./components/layout/Layout";
 import { AuthProvider } from "./contexts/AuthContext";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/sonner";
-import { WebhookProcessorProvider } from "./contexts/WebhookProcessorContext";
-import "./App.css";
+import { useWebhookProcessor } from "@/hooks/useWebhookProcessor";
+import { useEffect } from "react";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+// Import components
+import ConsultantList from "./components/consultants/ConsultantList";
+import ProjectList from "./components/projects/ProjectList";
+import ServiceList from "./components/services/ServiceList";
+import Layout from "./components/layout/Layout";
+import SettingsPage from "./components/settings/SettingsPage";
+import ClientList from "./components/clients/ClientList";
+import FinancialPage from "./components/financial/FinancialPage";
+import DemandsList from "./components/demands/DemandsList";
+import Dashboard from "./components/dashboard/Dashboard";
+import CalendarPage from "./components/calendar/CalendarPage";
 
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <WebhookProcessorProvider>
-          <Router>
+const queryClient = new QueryClient();
+
+// Componente interno para inicializar o processador de webhooks globalmente
+const WebhookProcessorProvider = ({ children }: { children: React.ReactNode }) => {
+  const { config } = useWebhookProcessor();
+
+  useEffect(() => {
+    console.log('Sistema de webhook automático inicializado globalmente:', config);
+  }, [config]);
+
+  return <>{children}</>;
+};
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <WebhookProcessorProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
             <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/admin-setup" element={<AdminSetup />} />
-              <Route path="/*" element={
-                <Layout>
-                  <Routes>
-                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                    <Route path="/*" element={<Index />} />
-                  </Routes>
-                </Layout>
+              {/* Redirect from auth to dashboard */}
+              <Route path="/auth" element={<Navigate to="/" replace />} />
+              <Route path="/admin-setup" element={<Navigate to="/" replace />} />
+              
+              {/* Main routes with Layout wrapper */}
+              <Route path="/" element={<Layout><Dashboard /></Layout>} />
+              
+              <Route path="/consultants" element={
+                <Layout><ConsultantList /></Layout>
               } />
+              
+              <Route path="/clients" element={
+                <Layout><ClientList /></Layout>
+              } />
+              
+              <Route path="/projects" element={
+                <Layout><ProjectList /></Layout>
+              } />
+              
+              <Route path="/services" element={
+                <Layout><ServiceList /></Layout>
+              } />
+              
+              <Route path="/demands" element={
+                <Layout><DemandsList /></Layout>
+              } />
+              
+              <Route path="/calendar" element={
+                <Layout><CalendarPage /></Layout>
+              } />
+              
+              <Route path="/financial" element={
+                <Layout><FinancialPage /></Layout>
+              } />
+              
+              <Route path="/settings" element={
+                <Layout><SettingsPage /></Layout>
+              } />
+              
               <Route path="*" element={<NotFound />} />
             </Routes>
-            <Toaster />
-          </Router>
-        </WebhookProcessorProvider>
-      </AuthProvider>
-    </QueryClientProvider>
-  );
-}
+          </BrowserRouter>
+        </TooltipProvider>
+      </WebhookProcessorProvider>
+    </AuthProvider>
+  </QueryClientProvider>
+);
 
 export default App;
