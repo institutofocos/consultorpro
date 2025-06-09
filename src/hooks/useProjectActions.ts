@@ -6,27 +6,6 @@ import { supabase } from '@/integrations/supabase/client';
 export const useProjectActions = () => {
   const [isLoading, setIsLoading] = useState(false);
 
-  // Função para processar webhooks imediatamente após uma ação
-  const processWebhooksImmediately = async () => {
-    try {
-      console.log('Processando webhooks imediatamente após ação...');
-      const { data, error } = await supabase.functions.invoke('webhooks', {
-        body: { action: 'process' }
-      });
-
-      if (error) {
-        console.error('Erro ao processar webhooks:', error);
-        return;
-      }
-
-      if (data?.success) {
-        console.log('Webhooks processados imediatamente:', data.message);
-      }
-    } catch (error) {
-      console.error('Erro no processamento imediato de webhooks:', error);
-    }
-  };
-
   const updateProjectStatus = async (projectId: string, status: string) => {
     setIsLoading(true);
     console.log('Atualizando status do projeto:', projectId, 'para:', status);
@@ -49,11 +28,6 @@ export const useProjectActions = () => {
       console.log('Status do projeto atualizado com sucesso - webhook disparado automaticamente via trigger');
       toast.success('Status do projeto atualizado com sucesso');
       
-      // Processar webhooks imediatamente
-      setTimeout(() => {
-        processWebhooksImmediately();
-      }, 500);
-      
       // Log para confirmar que a atualização foi feita
       await supabase
         .from('system_logs')
@@ -65,8 +39,7 @@ export const useProjectActions = () => {
             project_id: projectId,
             new_status: status,
             timestamp: new Date().toISOString(),
-            webhook_triggered_by: 'database_trigger',
-            auto_processed: true
+            webhook_triggered_by: 'database_trigger'
           }
         });
         
@@ -101,11 +74,6 @@ export const useProjectActions = () => {
       console.log('Status da etapa atualizado com sucesso - webhook disparado automaticamente via trigger');
       toast.success('Status da etapa atualizado com sucesso');
       
-      // Processar webhooks imediatamente
-      setTimeout(() => {
-        processWebhooksImmediately();
-      }, 500);
-      
       // Log simplificado
       await supabase
         .from('system_logs')
@@ -117,8 +85,7 @@ export const useProjectActions = () => {
             stage_id: stageId,
             new_status: status,
             timestamp: new Date().toISOString(),
-            webhook_triggered_by: 'database_trigger',
-            auto_processed: true
+            webhook_triggered_by: 'database_trigger'
           }
         });
         
@@ -153,11 +120,6 @@ export const useProjectActions = () => {
       console.log('Projeto concluído com sucesso - webhook disparado automaticamente via trigger');
       toast.success('Projeto concluído com sucesso');
       
-      // Processar webhooks imediatamente
-      setTimeout(() => {
-        processWebhooksImmediately();
-      }, 500);
-      
       // Log simplificado
       await supabase
         .from('system_logs')
@@ -169,8 +131,7 @@ export const useProjectActions = () => {
             project_id: projectId,
             action: 'complete',
             timestamp: new Date().toISOString(),
-            webhook_triggered_by: 'database_trigger',
-            auto_processed: true
+            webhook_triggered_by: 'database_trigger'
           }
         });
         
@@ -207,11 +168,6 @@ export const useProjectActions = () => {
       console.log('Etapa concluída com sucesso - webhook disparado automaticamente via trigger');
       toast.success('Etapa concluída com sucesso');
       
-      // Processar webhooks imediatamente
-      setTimeout(() => {
-        processWebhooksImmediately();
-      }, 500);
-      
       // Log simplificado
       await supabase
         .from('system_logs')
@@ -223,8 +179,7 @@ export const useProjectActions = () => {
             stage_id: stageId,
             action: 'complete',
             timestamp: new Date().toISOString(),
-            webhook_triggered_by: 'database_trigger',
-            auto_processed: true
+            webhook_triggered_by: 'database_trigger'
           }
         });
         
@@ -261,11 +216,6 @@ export const useProjectActions = () => {
       console.log('Conclusão da etapa desfeita com sucesso - webhook disparado automaticamente via trigger');
       toast.success('Conclusão da etapa desfeita com sucesso');
       
-      // Processar webhooks imediatamente
-      setTimeout(() => {
-        processWebhooksImmediately();
-      }, 500);
-      
       // Log simplificado
       await supabase
         .from('system_logs')
@@ -277,8 +227,7 @@ export const useProjectActions = () => {
             stage_id: stageId,
             action: 'uncomplete',
             timestamp: new Date().toISOString(),
-            webhook_triggered_by: 'database_trigger',
-            auto_processed: true
+            webhook_triggered_by: 'database_trigger'
           }
         });
         
@@ -313,11 +262,6 @@ export const useProjectActions = () => {
       console.log('Projeto cancelado com sucesso - webhook disparado automaticamente via trigger');
       toast.success('Projeto cancelado com sucesso');
       
-      // Processar webhooks imediatamente
-      setTimeout(() => {
-        processWebhooksImmediately();
-      }, 500);
-      
       // Log simplificado
       await supabase
         .from('system_logs')
@@ -329,8 +273,7 @@ export const useProjectActions = () => {
             project_id: projectId,
             action: 'cancel',
             timestamp: new Date().toISOString(),
-            webhook_triggered_by: 'database_trigger',
-            auto_processed: true
+            webhook_triggered_by: 'database_trigger'
           }
         });
         
@@ -360,11 +303,6 @@ export const useProjectActions = () => {
       console.log('Etapa excluída com sucesso - webhook disparado automaticamente via trigger');
       toast.success('Etapa excluída com sucesso');
       
-      // Processar webhooks imediatamente
-      setTimeout(() => {
-        processWebhooksImmediately();
-      }, 500);
-      
       // Log simplificado
       await supabase
         .from('system_logs')
@@ -376,8 +314,7 @@ export const useProjectActions = () => {
             stage_id: stageId,
             action: 'delete',
             timestamp: new Date().toISOString(),
-            webhook_triggered_by: 'database_trigger',
-            auto_processed: true
+            webhook_triggered_by: 'database_trigger'
           }
         });
         
@@ -400,6 +337,5 @@ export const useProjectActions = () => {
     uncompleteStage,
     cancelProject,
     deleteStage,
-    processWebhooksImmediately,
   };
 };

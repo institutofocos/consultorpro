@@ -34,9 +34,35 @@ export const useWebhookProcessor = () => {
 
       if (data?.success) {
         console.log('Fila de webhooks processada:', data.message);
+        // Log de sucesso apenas se houver webhooks processados
+        if (data.processed_count && data.processed_count > 0) {
+          await supabase
+            .from('system_logs')
+            .insert({
+              log_type: 'success',
+              category: 'webhook_processor',
+              message: `${data.processed_count} webhooks processados com sucesso`,
+              details: {
+                processed_count: data.processed_count,
+                timestamp: new Date().toISOString(),
+                auto_processed: true
+              }
+            });
+        }
       }
     } catch (error) {
       console.error('Erro no processamento automático de webhooks:', error);
+      await supabase
+        .from('system_logs')
+        .insert({
+          log_type: 'error',
+          category: 'webhook_processor',
+          message: 'Erro no processamento automático de webhooks: ' + (error instanceof Error ? error.message : 'Erro desconhecido'),
+          details: {
+            error: error instanceof Error ? error.message : 'Erro desconhecido',
+            timestamp: new Date().toISOString()
+          }
+        });
     } finally {
       setIsProcessing(false);
     }
@@ -45,6 +71,9 @@ export const useWebhookProcessor = () => {
   // Configurar intervalo automático de processamento
   useEffect(() => {
     if (!config.enabled) return;
+
+    // Processar imediatamente na inicialização
+    processWebhookQueue();
 
     const interval = setInterval(() => {
       processWebhookQueue();
