@@ -17,7 +17,7 @@ export const useWebhookProcessor = () => {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastProcessTimeRef = useRef<number>(0);
 
-  // Função principal para processar a fila de webhooks incluindo consolidados
+  // Função principal para processar a fila de webhooks consolidados
   const processWebhookQueue = useCallback(async (force = false) => {
     if (!config.enabled || (isProcessing && !force)) return;
     
@@ -48,47 +48,52 @@ export const useWebhookProcessor = () => {
           .insert({
             log_type: 'error',
             category: 'webhook_processor_error',
-            message: 'Erro no processamento: ' + error.message,
+            message: 'Erro no processamento consolidado: ' + error.message,
             details: {
               error: error.message,
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toISOString(),
+              consolidation_enabled: true
             }
           });
         return;
       }
 
       if (data?.success) {
-        console.log('✅ Fila processada com sucesso:', data.message);
+        console.log('✅ Fila consolidada processada com sucesso:', data.message);
         
         if (data.processed_count && data.processed_count > 0) {
-          console.log(`📊 Processados: ${data.processed_count} webhooks`);
+          console.log(`📊 Webhooks consolidados processados: ${data.processed_count}`);
           
           await supabase
             .from('system_logs')
             .insert({
               log_type: 'success',
               category: 'webhook_processor_success',
-              message: `${data.processed_count} webhooks processados com sucesso (incluindo consolidados)`,
+              message: `${data.processed_count} webhooks consolidados processados com sucesso`,
               details: {
                 processed_count: data.processed_count,
                 consolidated_count: data.consolidated_count || 0,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                consolidation_enabled: true
               }
             });
+        } else {
+          console.log('📭 Nenhum webhook consolidado pendente para processar');
         }
       }
     } catch (error) {
-      console.error('💥 Erro crítico no processamento:', error);
+      console.error('💥 Erro crítico no processamento consolidado:', error);
       
       await supabase
         .from('system_logs')
         .insert({
           log_type: 'error',
           category: 'webhook_processor_critical',
-          message: 'Erro crítico: ' + (error instanceof Error ? error.message : 'Erro desconhecido'),
+          message: 'Erro crítico no processamento consolidado: ' + (error instanceof Error ? error.message : 'Erro desconhecido'),
           details: {
             error: error instanceof Error ? error.message : 'Erro desconhecido',
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            consolidation_enabled: true
           }
         });
     } finally {
@@ -114,34 +119,59 @@ export const useWebhookProcessor = () => {
       processWebhookQueue();
     }, config.interval_seconds * 1000);
 
-    console.log(`🔄 Processamento automático iniciado (${config.interval_seconds}s) - Webhooks consolidados habilitados`);
+    console.log(`🔄 Processamento automático de webhooks consolidados iniciado (${config.interval_seconds}s)`);
 
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-      console.log('⏹️ Processamento automático parado');
+      console.log('⏹️ Processamento automático de webhooks consolidados parado');
     };
   }, [config.interval_seconds, config.enabled, processWebhookQueue]);
 
-  // Processar imediatamente
+  // Processar imediatamente (respeitando debounce)
   const processImmediately = useCallback(async () => {
-    console.log('🚀 Processamento imediato solicitado (consolidados inclusos)');
+    console.log('🚀 Processamento imediato de webhooks consolidados solicitado');
     await processWebhookQueue();
   }, [processWebhookQueue]);
 
   // Processar forçado (ignora debounce)
   const processForced = useCallback(async () => {
-    console.log('⚡ Processamento forçado solicitado (consolidados inclusos)');
+    console.log('⚡ Processamento forçado de webhooks consolidados solicitado');
     await processWebhookQueue(true);
   }, [processWebhookQueue]);
 
   // Função específica para criação de projetos consolidados
   const processForProjectCreation = useCallback(async () => {
-    console.log('🎯 Processamento consolidado para criação de projeto solicitado');
+    console.log('🎯 Processamento consolidado específico para criação de projeto');
     await processWebhookQueue(true);
   }, [processWebhookQueue]);
+
+  // Verificar status dos webhooks consolidados
+  const checkConsolidationStatus = useCallback(async () => {
+    try {
+      const { data: settings } = await supabase
+        .from('system_settings')
+        .select('*')
+        .in('setting_key', ['webhook_consolidation_enabled', 'webhook_only_consolidated'])
+        .limit(10);
+      
+      const consolidationEnabled = settings?.find(s => s.setting_key === 'webhook_consolidation_enabled')?.setting_value === 'true';
+      const onlyConsolidated = settings?.find(s => s.setting_key === 'webhook_only_consolidated')?.setting_value === 'true';
+      
+      console.log('📊 Status dos webhooks consolidados:', {
+        consolidationEnabled,
+        onlyConsolidated,
+        systemReady: consolidationEnabled && onlyConsolidated
+      });
+      
+      return { consolidationEnabled, onlyConsolidated };
+    } catch (error) {
+      console.error('Erro ao verificar status da consolidação:', error);
+      return { consolidationEnabled: false, onlyConsolidated: false };
+    }
+  }, []);
 
   return {
     config,
@@ -150,6 +180,7 @@ export const useWebhookProcessor = () => {
     processImmediately,
     processForced,
     processWebhookQueue,
-    processForProjectCreation
+    processForProjectCreation,
+    checkConsolidationStatus
   };
 };
