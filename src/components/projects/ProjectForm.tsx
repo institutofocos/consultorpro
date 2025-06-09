@@ -92,9 +92,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ projectId, onSuccess, onCance
 
   const queryClient = useQueryClient();
 
-  const { data: projectData, isLoading: isProjectLoading } = useQuery(
-    ["project", projectId],
-    async () => {
+  const { data: projectData, isLoading: isProjectLoading } = useQuery({
+    queryKey: ["project", projectId],
+    queryFn: async () => {
       if (!projectId) return null;
       const { data, error } = await supabase
         .from("projects")
@@ -104,15 +104,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ projectId, onSuccess, onCance
       if (error) throw error;
       return data as ProjectFormData;
     },
-    {
-      enabled: !!projectId,
-      onSuccess: (data) => {
-        if (data) {
-          setFormData(data);
-        }
-      },
-    }
-  );
+    enabled: !!projectId,
+  });
 
   useEffect(() => {
     if (projectData) {
@@ -239,9 +232,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ projectId, onSuccess, onCance
     }
   });
 
-  const { data: clients, isLoading: isClientsLoading } = useQuery(
-    ["clients"],
-    async () => {
+  const { data: clients, isLoading: isClientsLoading } = useQuery({
+    queryKey: ["clients"],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("clients")
         .select("*")
@@ -249,11 +242,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ projectId, onSuccess, onCance
       if (error) throw error;
       return data;
     }
-  );
+  });
 
-  const { data: services, isLoading: isServicesLoading } = useQuery(
-    ["services"],
-    async () => {
+  const { data: services, isLoading: isServicesLoading } = useQuery({
+    queryKey: ["services"],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("services")
         .select("*")
@@ -261,11 +254,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ projectId, onSuccess, onCance
       if (error) throw error;
       return data;
     }
-  );
+  });
 
-  const { data: consultants, isLoading: isConsultantsLoading } = useQuery(
-    ["consultants"],
-    async () => {
+  const { data: consultants, isLoading: isConsultantsLoading } = useQuery({
+    queryKey: ["consultants"],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("consultants")
         .select("*")
@@ -273,7 +266,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ projectId, onSuccess, onCance
       if (error) throw error;
       return data;
     }
-  );
+  });
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -354,7 +347,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ projectId, onSuccess, onCance
             onChange={handleChange}
           >
             <option value="">Selecione um cliente</option>
-            {clients?.map((client: any) => (
+            {clients && Array.isArray(clients) && clients.map((client: any) => (
               <option key={client.id} value={client.id}>
                 {client.name}
               </option>
@@ -372,7 +365,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ projectId, onSuccess, onCance
             onChange={handleChange}
           >
             <option value="">Selecione um serviço</option>
-            {services?.map((service: any) => (
+            {services && Array.isArray(services) && services.map((service: any) => (
               <option key={service.id} value={service.id}>
                 {service.name}
               </option>
@@ -392,7 +385,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ projectId, onSuccess, onCance
             onChange={handleChange}
           >
             <option value="">Selecione um consultor</option>
-            {consultants?.map((consultant: any) => (
+            {consultants && Array.isArray(consultants) && consultants.map((consultant: any) => (
               <option key={consultant.id} value={consultant.id}>
                 {consultant.name}
               </option>
@@ -410,7 +403,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ projectId, onSuccess, onCance
             onChange={handleChange}
           >
             <option value="">Selecione um consultor (opcional)</option>
-            {consultants?.map((consultant: any) => (
+            {consultants && Array.isArray(consultants) && consultants.map((consultant: any) => (
               <option key={consultant.id} value={consultant.id}>
                 {consultant.name}
               </option>
@@ -576,8 +569,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ projectId, onSuccess, onCance
         />
       </div>
 
-      <Button type="submit" disabled={createProjectMutation.isLoading || updateProjectMutation.isLoading}>
-        {createProjectMutation.isLoading || updateProjectMutation.isLoading ? (
+      <Button type="submit" disabled={createProjectMutation.isPending || updateProjectMutation.isPending}>
+        {createProjectMutation.isPending || updateProjectMutation.isPending ? (
           <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
             <path
               fill="currentColor"
