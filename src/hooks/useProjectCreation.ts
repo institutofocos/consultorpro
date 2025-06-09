@@ -52,10 +52,7 @@ export const useProjectCreation = () => {
     setIsCreating(true);
     
     try {
-      console.log('Iniciando criação de projeto com etapas...');
-      
-      // Note: Since the RPC functions don't exist in the types, we'll handle this differently
-      // We'll create the project and stages normally, and the webhooks will be triggered by the regular triggers
+      console.log('Iniciando criação de projeto...');
       
       // 1. Criar o projeto
       const { data: project, error: projectError } = await supabase
@@ -68,7 +65,7 @@ export const useProjectCreation = () => {
         throw new Error(`Erro ao criar projeto: ${projectError.message}`);
       }
 
-      console.log('Projeto criado:', project.id);
+      console.log('Projeto criado com sucesso:', project.id);
 
       // 2. Criar as etapas se existirem
       let createdStages = [];
@@ -91,12 +88,15 @@ export const useProjectCreation = () => {
         console.log('Etapas criadas:', createdStages.length);
       }
 
-      // 3. Enviar webhook consolidado
-      console.log('Enviando webhook consolidado...');
-      await sendProjectWebhook(project.id);
+      // 3. Tentar enviar webhook (sem bloquear o sucesso)
+      try {
+        await sendProjectWebhook(project.id);
+      } catch (webhookError) {
+        console.log('Webhook falhou, mas projeto foi criado com sucesso');
+      }
 
       toast.success('Projeto criado com sucesso!', {
-        description: `Projeto "${project.name}" foi criado com ${createdStages.length} etapas`
+        description: `Projeto "${project.name}" foi criado ${createdStages.length > 0 ? `com ${createdStages.length} etapas` : ''}`
       });
 
       return {
