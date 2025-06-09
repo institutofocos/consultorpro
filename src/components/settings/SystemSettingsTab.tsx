@@ -1,20 +1,12 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TimezoneSettings from './TimezoneSettings';
 import SystemMonitor from './SystemMonitor';
 import SystemReset from './SystemReset';
 import WebhookManagement from './WebhookManagement';
-import { useWebhookProcessor } from '@/hooks/useWebhookProcessor';
 
 const SystemSettingsTab = () => {
-  // Inicializar o processador automático de webhooks globalmente
-  const { config } = useWebhookProcessor();
-
-  useEffect(() => {
-    console.log('Sistema de webhook automático inicializado:', config);
-  }, [config]);
-
   return (
     <div className="space-y-6">
       <div>
