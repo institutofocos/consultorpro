@@ -358,7 +358,7 @@ export const deleteAccountsReceivable = async (id: string) => {
   const { data, error } = await supabase
     .from('accounts_receivable')
     .update({ 
-      status: 'deleted',
+      status: 'canceled',
       updated_at: new Date().toISOString()
     })
     .eq('id', id)
@@ -376,7 +376,7 @@ export const deleteAccountsPayable = async (id: string) => {
   const { data, error } = await supabase
     .from('accounts_payable')
     .update({ 
-      status: 'deleted',
+      status: 'canceled',
       updated_at: new Date().toISOString()
     })
     .eq('id', id)
