@@ -170,26 +170,72 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Tipo de Transação */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Tipo de Transação</Label>
-            <RadioGroup
-              value={formData.type}
-              onValueChange={(value: 'income' | 'expense') => 
-                setFormData(prev => ({ ...prev, type: value }))
-              }
-              className="flex gap-6"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="income" id="income" />
-                <Label htmlFor="income">Receita</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="expense" id="expense" />
-                <Label htmlFor="expense">Despesa</Label>
-              </div>
-            </RadioGroup>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Primeira linha: Tipo, Valor e Data de Vencimento */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Tipo</Label>
+              <RadioGroup
+                value={formData.type}
+                onValueChange={(value: 'income' | 'expense') => 
+                  setFormData(prev => ({ ...prev, type: value }))
+                }
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="income" id="income" />
+                  <Label htmlFor="income" className="text-sm">Receita</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="expense" id="expense" />
+                  <Label htmlFor="expense" className="text-sm">Despesa</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="amount">Valor (R$) *</Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.amount}
+                onChange={(e) => setFormData(prev => ({ ...prev, amount: Number(e.target.value) }))}
+                placeholder="0,00"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Data de Vencimento *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !formData.due_date && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.due_date ? (
+                      format(formData.due_date, "dd/MM/yyyy", { locale: ptBR })
+                    ) : (
+                      <span>Selecionar data</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={formData.due_date}
+                    onSelect={(date) => date && setFormData(prev => ({ ...prev, due_date: date }))}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
 
           {/* Descrição */}
@@ -201,21 +247,7 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               placeholder="Descreva a transação..."
               required
-            />
-          </div>
-
-          {/* Valor */}
-          <div className="space-y-2">
-            <Label htmlFor="amount">Valor *</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.amount}
-              onChange={(e) => setFormData(prev => ({ ...prev, amount: Number(e.target.value) }))}
-              placeholder="0,00"
-              required
+              className="min-h-[80px]"
             />
           </div>
 
@@ -235,200 +267,172 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
             />
           </div>
 
-          {/* Data de Vencimento */}
-          <div className="space-y-2">
-            <Label>Data de Vencimento *</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !formData.due_date && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {formData.due_date ? (
-                    format(formData.due_date, "PPP", { locale: ptBR })
-                  ) : (
-                    <span>Selecionar data</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={formData.due_date}
-                  onSelect={(date) => date && setFormData(prev => ({ ...prev, due_date: date }))}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          {/* Status */}
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select 
-              value={formData.status} 
-              onValueChange={(value: 'pending' | 'paid' | 'received' | 'canceled') => 
-                setFormData(prev => ({ ...prev, status: value }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecionar status" />
-              </SelectTrigger>
-              <SelectContent>
-                {formData.type === 'income' ? (
-                  <>
-                    <SelectItem value="pending">Pendente</SelectItem>
-                    <SelectItem value="received">Recebido</SelectItem>
-                    <SelectItem value="canceled">Cancelado</SelectItem>
-                  </>
-                ) : (
-                  <>
-                    <SelectItem value="pending">Pendente</SelectItem>
-                    <SelectItem value="paid">Pago</SelectItem>
-                    <SelectItem value="canceled">Cancelado</SelectItem>
-                  </>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Data de Pagamento (condicional) */}
-          {(formData.status === 'paid' || formData.status === 'received') && (
+          {/* Segunda linha: Status e Data de Pagamento (se necessário) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Data de Pagamento</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !formData.payment_date && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.payment_date ? (
-                      format(formData.payment_date, "PPP", { locale: ptBR })
-                    ) : (
-                      <span>Selecionar data</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={formData.payment_date}
-                    onSelect={(date) => setFormData(prev => ({ ...prev, payment_date: date }))}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          )}
-
-          {/* Cliente (se receita) */}
-          {formData.type === 'income' && (
-            <div className="space-y-2">
-              <Label>Cliente</Label>
+              <Label>Status</Label>
               <Select 
-                value={formData.client_id} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, client_id: value }))}
+                value={formData.status} 
+                onValueChange={(value: 'pending' | 'paid' | 'received' | 'canceled') => 
+                  setFormData(prev => ({ ...prev, status: value }))
+                }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecionar cliente" />
+                  <SelectValue placeholder="Selecionar status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum cliente</SelectItem>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name}
+                  {formData.type === 'income' ? (
+                    <>
+                      <SelectItem value="pending">Pendente</SelectItem>
+                      <SelectItem value="received">Recebido</SelectItem>
+                      <SelectItem value="canceled">Cancelado</SelectItem>
+                    </>
+                  ) : (
+                    <>
+                      <SelectItem value="pending">Pendente</SelectItem>
+                      <SelectItem value="paid">Pago</SelectItem>
+                      <SelectItem value="canceled">Cancelado</SelectItem>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Data de Pagamento (condicional) */}
+            {(formData.status === 'paid' || formData.status === 'received') && (
+              <div className="space-y-2">
+                <Label>Data de Pagamento</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.payment_date && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.payment_date ? (
+                        format(formData.payment_date, "dd/MM/yyyy", { locale: ptBR })
+                      ) : (
+                        <span>Selecionar data</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={formData.payment_date}
+                      onSelect={(date) => setFormData(prev => ({ ...prev, payment_date: date }))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+          </div>
+
+          {/* Terceira linha: Cliente (se receita), Consultor e Projeto */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {formData.type === 'income' && (
+              <div className="space-y-2">
+                <Label>Cliente</Label>
+                <Select 
+                  value={formData.client_id} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, client_id: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Nenhum cliente</SelectItem>
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Consultor</Label>
+              <Select 
+                value={formData.consultant_id} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, consultant_id: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar consultor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nenhum consultor</SelectItem>
+                  {consultants.map((consultant) => (
+                    <SelectItem key={consultant.id} value={consultant.id}>
+                      {consultant.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          )}
 
-          {/* Consultor */}
-          <div className="space-y-2">
-            <Label>Consultor</Label>
-            <Select 
-              value={formData.consultant_id} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, consultant_id: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecionar consultor" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Nenhum consultor</SelectItem>
-                {consultants.map((consultant) => (
-                  <SelectItem key={consultant.id} value={consultant.id}>
-                    {consultant.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <Label>Projeto</Label>
+              <Select 
+                value={formData.project_id} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, project_id: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar projeto" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nenhum projeto</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          {/* Projeto */}
-          <div className="space-y-2">
-            <Label>Projeto</Label>
-            <Select 
-              value={formData.project_id} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, project_id: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecionar projeto" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Nenhum projeto</SelectItem>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Quarta linha: Tag e URL do Comprovante */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Tag</Label>
+              <Select 
+                value={formData.tag_id} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, tag_id: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar tag" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nenhuma tag</SelectItem>
+                  {tags.map((tag) => (
+                    <SelectItem key={tag.id} value={tag.id}>
+                      {tag.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          {/* Tag */}
-          <div className="space-y-2">
-            <Label>Tag</Label>
-            <Select 
-              value={formData.tag_id} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, tag_id: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecionar tag" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Nenhuma tag</SelectItem>
-                {tags.map((tag) => (
-                  <SelectItem key={tag.id} value={tag.id}>
-                    {tag.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* URL do Comprovante */}
-          <div className="space-y-2">
-            <Label htmlFor="receipt_url">URL do Comprovante</Label>
-            <Input
-              id="receipt_url"
-              type="url"
-              value={formData.receipt_url}
-              onChange={(e) => setFormData(prev => ({ ...prev, receipt_url: e.target.value }))}
-              placeholder="https://..."
-            />
+            <div className="space-y-2">
+              <Label htmlFor="receipt_url">URL do Comprovante</Label>
+              <Input
+                id="receipt_url"
+                type="url"
+                value={formData.receipt_url}
+                onChange={(e) => setFormData(prev => ({ ...prev, receipt_url: e.target.value }))}
+                placeholder="https://..."
+              />
+            </div>
           </div>
 
           {/* Botões */}
-          <div className="flex justify-end gap-3 pt-6">
+          <div className="flex justify-end gap-3 pt-4 border-t">
             <Button type="button" variant="outline" onClick={handleClose}>
               Cancelar
             </Button>
