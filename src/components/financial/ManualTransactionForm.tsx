@@ -1,106 +1,30 @@
 
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Upload, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import FrequencySelector, { FrequencyType, RecurringInterval } from './FrequencySelector';
-import { 
-  ManualTransaction, 
-  TransactionCategory, 
-  TransactionSubcategory, 
-  PaymentMethod,
-  fetchTransactionCategories,
-  fetchTransactionSubcategories,
-  fetchPaymentMethods
-} from '@/integrations/supabase/financial';
-
-interface Client {
-  id: string;
-  name: string;
-}
-
-interface Consultant {
-  id: string;
-  name: string;
-}
-
-interface Project {
-  id: string;
-  name: string;
-}
-
-interface Tag {
-  id: string;
-  name: string;
-}
 
 interface ManualTransactionFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => Promise<void>;
-  transaction?: ManualTransaction;
-  clients: Client[];
-  consultants: Consultant[];
-  projects: Project[];
-  tags: Tag[];
+  onSubmit: (data: any) => void;
+  transaction?: any;
+  clients: any[];
+  consultants: any[];
+  projects: any[];
+  tags: any[];
 }
-
-const formSchema = z.object({
-  type: z.enum(['income', 'expense']),
-  description: z.string().min(3, { message: 'Descrição é obrigatória' }),
-  amount: z.coerce.number().min(0.01, { message: 'Valor deve ser maior que zero' }),
-  due_date: z.date(),
-  payment_date: z.date().optional().nullable(),
-  status: z.enum(['pending', 'paid', 'received', 'canceled']),
-  category_id: z.string().min(1, { message: 'Categoria é obrigatória' }),
-  subcategory_id: z.string().optional().nullable(),
-  payment_method_id: z.string().optional().nullable(),
-  is_fixed_expense: z.boolean().default(false),
-  client_id: z.string().optional().nullable(),
-  consultant_id: z.string().optional().nullable(),
-  project_id: z.string().optional().nullable(),
-  tag_id: z.string().optional().nullable(),
-  receipt_url: z.string().optional().nullable(),
-});
 
 const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
   isOpen,
@@ -110,669 +34,409 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
   clients,
   consultants,
   projects,
-  tags,
+  tags
 }) => {
-  const [categories, setCategories] = useState<TransactionCategory[]>([]);
-  const [subcategories, setSubcategories] = useState<TransactionSubcategory[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [showMoreDetails, setShowMoreDetails] = useState(false);
-  
-  // Estados para frequência
+  const [formData, setFormData] = useState({
+    type: 'income' as 'income' | 'expense',
+    description: '',
+    amount: 0,
+    due_date: new Date(),
+    payment_date: null as Date | null,
+    status: 'pending' as 'pending' | 'paid' | 'received' | 'canceled',
+    client_id: '',
+    consultant_id: '',
+    project_id: '',
+    tag_id: '',
+    is_fixed_expense: false,
+    receipt_url: ''
+  });
+
   const [frequencyType, setFrequencyType] = useState<FrequencyType>('unique');
   const [recurringInterval, setRecurringInterval] = useState<RecurringInterval>('monthly');
   const [installments, setInstallments] = useState(2);
   const [recurringTimes, setRecurringTimes] = useState(12);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      type: transaction?.type || 'expense',
-      description: transaction?.description || '',
-      amount: transaction?.amount || 0,
-      due_date: transaction?.due_date ? new Date(transaction.due_date) : new Date(),
-      payment_date: transaction?.payment_date ? new Date(transaction.payment_date) : null,
-      status: transaction?.status || 'pending',
-      category_id: transaction?.category_id || '',
-      subcategory_id: transaction?.subcategory_id || '',
-      payment_method_id: transaction?.payment_method_id || '',
-      is_fixed_expense: transaction?.is_fixed_expense || false,
-      client_id: transaction?.client_id || '',
-      consultant_id: transaction?.consultant_id || '',
-      project_id: transaction?.project_id || '',
-      tag_id: transaction?.tag_id || '',
-      receipt_url: transaction?.receipt_url || '',
-    },
-  });
-
-  const isEditing = !!transaction;
-  const transactionType = form.watch('type');
-  const selectedCategoryId = form.watch('category_id');
-  const currentAmount = form.watch('amount');
-  const isFixedExpense = form.watch('is_fixed_expense');
-
-  // Carregar dados iniciais
   useEffect(() => {
-    const loadInitialData = async () => {
-      const [categoriesData, paymentMethodsData] = await Promise.all([
-        fetchTransactionCategories(),
-        fetchPaymentMethods()
-      ]);
+    if (transaction) {
+      setFormData({
+        type: transaction.type || 'income',
+        description: transaction.description || '',
+        amount: transaction.amount || 0,
+        due_date: transaction.due_date ? new Date(transaction.due_date) : new Date(),
+        payment_date: transaction.payment_date ? new Date(transaction.payment_date) : null,
+        status: transaction.status || 'pending',
+        client_id: transaction.client_id || '',
+        consultant_id: transaction.consultant_id || '',
+        project_id: transaction.project_id || '',
+        tag_id: transaction.tag_id || '',
+        is_fixed_expense: transaction.is_fixed_expense || false,
+        receipt_url: transaction.receipt_url || ''
+      });
       
-      setCategories(categoriesData);
-      setPaymentMethods(paymentMethodsData);
-    };
-    
-    if (isOpen) {
-      loadInitialData();
+      if (transaction.is_recurring) {
+        setFrequencyType('recurring');
+        setRecurringInterval(transaction.recurrence_interval || 'monthly');
+        setRecurringTimes(transaction.installments || 12);
+      } else if (transaction.installments && transaction.installments > 1) {
+        setFrequencyType('installment');
+        setInstallments(transaction.installments);
+      }
+    } else {
+      // Reset form when creating new transaction
+      setFormData({
+        type: 'income',
+        description: '',
+        amount: 0,
+        due_date: new Date(),
+        payment_date: null,
+        status: 'pending',
+        client_id: '',
+        consultant_id: '',
+        project_id: '',
+        tag_id: '',
+        is_fixed_expense: false,
+        receipt_url: ''
+      });
+      setFrequencyType('unique');
+      setInstallments(2);
+      setRecurringTimes(12);
     }
-  }, [isOpen]);
+  }, [transaction, isOpen]);
 
-  // Atualizar categorias quando o tipo muda
-  useEffect(() => {
-    const loadCategories = async () => {
-      const data = await fetchTransactionCategories(transactionType);
-      setCategories(data);
-      
-      if (!isEditing) {
-        form.setValue('category_id', '');
-        form.setValue('subcategory_id', '');
-      }
-    };
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     
-    loadCategories();
-  }, [transactionType, form, isEditing]);
-
-  // Atualizar subcategorias quando a categoria muda
-  useEffect(() => {
-    const loadSubcategories = async () => {
-      if (selectedCategoryId) {
-        const data = await fetchTransactionSubcategories(selectedCategoryId);
-        setSubcategories(data);
-      } else {
-        setSubcategories([]);
-        form.setValue('subcategory_id', '');
-      }
-    };
+    console.log('Form data before processing:', formData);
+    console.log('Frequency type:', frequencyType);
     
-    loadSubcategories();
-  }, [selectedCategoryId, form]);
+    // Função para converter string vazia em null para campos UUID
+    const sanitizeUUID = (value: string) => {
+      return value && value.trim() !== '' ? value : null;
+    };
 
-  const handleSubmit = async (data: z.infer<typeof formSchema>) => {
-    try {
-      console.log('Form data:', data);
-      console.log('Frequency settings:', { frequencyType, recurringInterval, installments, recurringTimes });
-      
-      // Validação personalizada
-      if (data.amount <= 0) {
-        form.setError('amount', { message: 'Valor deve ser maior que zero' });
-        return;
-      }
+    // Preparar dados básicos da transação
+    const transactionData = {
+      type: formData.type,
+      description: formData.description,
+      amount: Number(formData.amount),
+      due_date: formData.due_date,
+      payment_date: formData.payment_date,
+      status: formData.status,
+      client_id: sanitizeUUID(formData.client_id),
+      consultant_id: sanitizeUUID(formData.consultant_id),
+      project_id: sanitizeUUID(formData.project_id),
+      tag_id: sanitizeUUID(formData.tag_id),
+      is_fixed_expense: formData.is_fixed_expense,
+      receipt_url: formData.receipt_url || null,
+      // Campos específicos para frequência
+      is_recurring: frequencyType === 'recurring',
+      recurrence_interval: frequencyType === 'recurring' ? recurringInterval : null,
+      installments: frequencyType === 'installment' ? installments : (frequencyType === 'recurring' ? recurringTimes : 1),
+      current_installment: 1
+    };
 
-      if (!data.category_id) {
-        form.setError('category_id', { message: 'Por favor, selecione uma categoria' });
-        return;
-      }
+    console.log('Transaction data to submit:', transactionData);
+    
+    onSubmit(transactionData);
+  };
 
-      // Preparar dados para submissão
-      const submissionData = {
-        type: data.type,
-        description: data.description,
-        amount: data.amount,
-        due_date: data.due_date,
-        payment_date: data.payment_date,
-        status: data.status,
-        category_id: data.category_id || null,
-        subcategory_id: data.subcategory_id || null,
-        payment_method_id: data.payment_method_id || null,
-        is_fixed_expense: data.is_fixed_expense,
-        client_id: data.client_id || null,
-        consultant_id: data.consultant_id || null,
-        project_id: data.project_id || null,
-        tag_id: data.tag_id || null,
-        receipt_url: data.receipt_url || null,
-        is_recurring: frequencyType === 'recurring',
-        recurrence_interval: frequencyType === 'recurring' ? recurringInterval : null,
-        installments: frequencyType === 'installment' ? installments : (frequencyType === 'recurring' ? recurringTimes : null),
-        current_installment: 1,
-      };
-
-      console.log('Submission data:', submissionData);
-
-      await onSubmit(submissionData);
-      onClose();
-    } catch (error) {
-      console.error('Error in form submission:', error);
-    }
+  const handleClose = () => {
+    setFormData({
+      type: 'income',
+      description: '',
+      amount: 0,
+      due_date: new Date(),
+      payment_date: null,
+      status: 'pending',
+      client_id: '',
+      consultant_id: '',
+      project_id: '',
+      tag_id: '',
+      is_fixed_expense: false,
+      receipt_url: ''
+    });
+    setFrequencyType('unique');
+    setInstallments(2);
+    setRecurringTimes(12);
+    onClose();
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[900px] max-h-[95vh] overflow-y-auto" size="full">
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl">
-            {isEditing ? '✏️ Editar Transação' : '➕ Nova Transação'}
+          <DialogTitle>
+            {transaction ? 'Editar Transação' : 'Nova Transação'}
           </DialogTitle>
-          <DialogDescription>
-            {isEditing 
-              ? 'Atualize os detalhes da transação abaixo'
-              : 'Preencha os detalhes para adicionar uma nova transação'
-            }
-          </DialogDescription>
         </DialogHeader>
-        
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-            {/* Seção: Informações Essenciais */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Coluna 1: Valor, Descrição, Categoria */}
-              <div className="space-y-4">
-                <div className="flex items-center space-x-4">
-                  <FormField
-                    control={form.control}
-                    name="type"
-                    render={({ field }) => (
-                      <FormItem className="flex-1">
-                        <FormLabel className="font-medium">Tipo</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="h-11">
-                              <SelectValue placeholder="Tipo" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="income">
-                              <div className="flex items-center space-x-2">
-                                <span className="text-green-600">💰</span>
-                                <span>Receita</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="expense">
-                              <div className="flex items-center space-x-2">
-                                <span className="text-red-600">💸</span>
-                                <span>Despesa</span>
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="amount"
-                    render={({ field }) => (
-                      <FormItem className="flex-1">
-                        <FormLabel className="font-medium">Valor (R$)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            step="0.01" 
-                            placeholder="0,00" 
-                            className="h-11 text-lg font-medium"
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-medium">Descrição</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Descreva a transação" 
-                          className="min-h-[80px] resize-none"
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="category_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-medium">Categoria *</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          value={field.value || ""}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="h-11">
-                              <SelectValue placeholder="Selecione a categoria" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {categories.map((category) => (
-                              <SelectItem key={category.id} value={category.id}>
-                                <div className="flex items-center space-x-2">
-                                  <span>{category.icon}</span>
-                                  <span>{category.name}</span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="subcategory_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-medium">Subcategoria</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          value={field.value || ""}
-                          disabled={!selectedCategoryId}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="h-11">
-                              <SelectValue placeholder="Subcategoria" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="">Nenhuma</SelectItem>
-                            {subcategories.map((subcategory) => (
-                              <SelectItem key={subcategory.id} value={subcategory.id}>
-                                {subcategory.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
 
-                {/* Tags visuais */}
-                <div className="flex flex-wrap gap-2">
-                  {isFixedExpense && transactionType === 'expense' && (
-                    <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                      📌 Despesa Fixa
-                    </Badge>
-                  )}
-                  {frequencyType !== 'unique' && (
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                      🔄 Recorrente
-                    </Badge>
-                  )}
-                </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Tipo de Transação */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Tipo de Transação</Label>
+            <RadioGroup
+              value={formData.type}
+              onValueChange={(value: 'income' | 'expense') => 
+                setFormData(prev => ({ ...prev, type: value }))
+              }
+              className="flex gap-6"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="income" id="income" />
+                <Label htmlFor="income">Receita</Label>
               </div>
-              
-              {/* Coluna 2: Data, Frequência, Pagamento */}
-              <div className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="due_date"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel className="font-medium">Data de Vencimento *</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "w-full h-11 pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {field.value ? (
-                                format(field.value, "dd/MM/yyyy", { locale: ptBR })
-                              ) : (
-                                <span>Selecione uma data</span>
-                              )}
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            initialFocus
-                            locale={ptBR}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {/* Seletor de Frequência */}
-                <div className="space-y-2">
-                  <FormLabel className="font-medium">Frequência</FormLabel>
-                  <div className="border rounded-lg p-4 bg-gray-50">
-                    <FrequencySelector
-                      frequencyType={frequencyType}
-                      onFrequencyTypeChange={setFrequencyType}
-                      recurringInterval={recurringInterval}
-                      onRecurringIntervalChange={setRecurringInterval}
-                      installments={installments}
-                      onInstallmentsChange={setInstallments}
-                      recurringTimes={recurringTimes}
-                      onRecurringTimesChange={setRecurringTimes}
-                      amount={currentAmount}
-                    />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="payment_method_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-medium">Forma de Pagamento</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          value={field.value || ""}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="h-11">
-                              <SelectValue placeholder="Selecione" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="">Nenhuma</SelectItem>
-                            {paymentMethods.map((method) => (
-                              <SelectItem key={method.id} value={method.id}>
-                                <div className="flex items-center space-x-2">
-                                  <span>{method.icon}</span>
-                                  <span>{method.name}</span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-medium">Status</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="h-11">
-                              <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="pending">⏳ Pendente</SelectItem>
-                            {transactionType === 'income' ? (
-                              <SelectItem value="received">✅ Recebido</SelectItem>
-                            ) : (
-                              <SelectItem value="paid">✅ Pago</SelectItem>
-                            )}
-                            <SelectItem value="canceled">❌ Cancelado</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="expense" id="expense" />
+                <Label htmlFor="expense">Despesa</Label>
+              </div>
+            </RadioGroup>
+          </div>
 
-                {/* Switch para Despesa Fixa */}
-                {transactionType === 'expense' && (
-                  <FormField
-                    control={form.control}
-                    name="is_fixed_expense"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-white">
-                        <div className="space-y-0.5">
-                          <FormLabel className="font-medium">📌 Despesa Fixa</FormLabel>
-                          <div className="text-sm text-gray-600">
-                            Marque se é uma despesa recorrente mensal
-                          </div>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                )}
-              </div>
-            </div>
-            
-            {/* Seção: Mais Detalhes (Recolhível) */}
-            <Collapsible open={showMoreDetails} onOpenChange={setShowMoreDetails}>
-              <CollapsibleTrigger asChild>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  className="w-full justify-between"
+          {/* Descrição */}
+          <div className="space-y-2">
+            <Label htmlFor="description">Descrição *</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              placeholder="Descreva a transação..."
+              required
+            />
+          </div>
+
+          {/* Valor */}
+          <div className="space-y-2">
+            <Label htmlFor="amount">Valor *</Label>
+            <Input
+              id="amount"
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.amount}
+              onChange={(e) => setFormData(prev => ({ ...prev, amount: Number(e.target.value) }))}
+              placeholder="0,00"
+              required
+            />
+          </div>
+
+          {/* Frequência */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Frequência</Label>
+            <FrequencySelector
+              frequencyType={frequencyType}
+              onFrequencyTypeChange={setFrequencyType}
+              recurringInterval={recurringInterval}
+              onRecurringIntervalChange={setRecurringInterval}
+              installments={installments}
+              onInstallmentsChange={setInstallments}
+              recurringTimes={recurringTimes}
+              onRecurringTimesChange={setRecurringTimes}
+              amount={formData.amount}
+            />
+          </div>
+
+          {/* Data de Vencimento */}
+          <div className="space-y-2">
+            <Label>Data de Vencimento *</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !formData.due_date && "text-muted-foreground"
+                  )}
                 >
-                  <span>🔧 Mais detalhes</span>
-                  {showMoreDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {formData.due_date ? (
+                    format(formData.due_date, "PPP", { locale: ptBR })
+                  ) : (
+                    <span>Selecionar data</span>
+                  )}
                 </Button>
-              </CollapsibleTrigger>
-              
-              <CollapsibleContent className="space-y-4 mt-4">
-                {/* Data de Pagamento */}
-                <FormField
-                  control={form.control}
-                  name="payment_date"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Data de {transactionType === 'income' ? 'Recebimento' : 'Pagamento'}</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "w-full pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {field.value ? (
-                                format(field.value, "dd/MM/yyyy", { locale: ptBR })
-                              ) : (
-                                <span>Selecione uma data</span>
-                              )}
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value || undefined}
-                            onSelect={field.onChange}
-                            initialFocus
-                            locale={ptBR}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={formData.due_date}
+                  onSelect={(date) => date && setFormData(prev => ({ ...prev, due_date: date }))}
+                  initialFocus
                 />
-                
-                {/* Vínculos */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="client_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cliente</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          value={field.value || ""}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione o cliente" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="">Nenhum</SelectItem>
-                            {clients.map((client) => (
-                              <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Status */}
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select 
+              value={formData.status} 
+              onValueChange={(value: 'pending' | 'paid' | 'received' | 'canceled') => 
+                setFormData(prev => ({ ...prev, status: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecionar status" />
+              </SelectTrigger>
+              <SelectContent>
+                {formData.type === 'income' ? (
+                  <>
+                    <SelectItem value="pending">Pendente</SelectItem>
+                    <SelectItem value="received">Recebido</SelectItem>
+                    <SelectItem value="canceled">Cancelado</SelectItem>
+                  </>
+                ) : (
+                  <>
+                    <SelectItem value="pending">Pendente</SelectItem>
+                    <SelectItem value="paid">Pago</SelectItem>
+                    <SelectItem value="canceled">Cancelado</SelectItem>
+                  </>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Data de Pagamento (condicional) */}
+          {(formData.status === 'paid' || formData.status === 'received') && (
+            <div className="space-y-2">
+              <Label>Data de Pagamento</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !formData.payment_date && "text-muted-foreground"
                     )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="consultant_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Consultor</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          value={field.value || ""}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione o consultor" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="">Nenhum</SelectItem>
-                            {consultants.map((consultant) => (
-                              <SelectItem key={consultant.id} value={consultant.id}>{consultant.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.payment_date ? (
+                      format(formData.payment_date, "PPP", { locale: ptBR })
+                    ) : (
+                      <span>Selecionar data</span>
                     )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={formData.payment_date}
+                    onSelect={(date) => setFormData(prev => ({ ...prev, payment_date: date }))}
+                    initialFocus
                   />
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="project_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Projeto</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          value={field.value || ""}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione o projeto" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="">Nenhum</SelectItem>
-                            {projects.map((project) => (
-                              <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="tag_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tag</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          value={field.value || ""}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione a tag" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="">Nenhuma</SelectItem>
-                            {tags.map((tag) => (
-                              <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                {/* Comprovante */}
-                <FormField
-                  control={form.control}
-                  name="receipt_url"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>URL do Comprovante</FormLabel>
-                      <FormControl>
-                        <div className="flex space-x-2">
-                          <Input 
-                            placeholder="https://exemplo.com/comprovante.pdf" 
-                            {...field} 
-                            value={field.value || ''}
-                          />
-                          <Button type="button" variant="outline" size="icon">
-                            <Upload className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CollapsibleContent>
-            </Collapsible>
-            
-            <DialogFooter className="flex flex-col sm:flex-row gap-2">
-              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-                Cancelar
-              </Button>
-              <Button type="submit" className="flex-1">
-                {isEditing ? '💾 Atualizar Transação' : '➕ Criar Transação'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+
+          {/* Cliente (se receita) */}
+          {formData.type === 'income' && (
+            <div className="space-y-2">
+              <Label>Cliente</Label>
+              <Select 
+                value={formData.client_id} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, client_id: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nenhum cliente</SelectItem>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Consultor */}
+          <div className="space-y-2">
+            <Label>Consultor</Label>
+            <Select 
+              value={formData.consultant_id} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, consultant_id: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecionar consultor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Nenhum consultor</SelectItem>
+                {consultants.map((consultant) => (
+                  <SelectItem key={consultant.id} value={consultant.id}>
+                    {consultant.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Projeto */}
+          <div className="space-y-2">
+            <Label>Projeto</Label>
+            <Select 
+              value={formData.project_id} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, project_id: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecionar projeto" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Nenhum projeto</SelectItem>
+                {projects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Tag */}
+          <div className="space-y-2">
+            <Label>Tag</Label>
+            <Select 
+              value={formData.tag_id} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, tag_id: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecionar tag" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Nenhuma tag</SelectItem>
+                {tags.map((tag) => (
+                  <SelectItem key={tag.id} value={tag.id}>
+                    {tag.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* URL do Comprovante */}
+          <div className="space-y-2">
+            <Label htmlFor="receipt_url">URL do Comprovante</Label>
+            <Input
+              id="receipt_url"
+              type="url"
+              value={formData.receipt_url}
+              onChange={(e) => setFormData(prev => ({ ...prev, receipt_url: e.target.value }))}
+              placeholder="https://..."
+            />
+          </div>
+
+          {/* Botões */}
+          <div className="flex justify-end gap-3 pt-6">
+            <Button type="button" variant="outline" onClick={handleClose}>
+              Cancelar
+            </Button>
+            <Button type="submit">
+              {transaction ? 'Atualizar' : 'Criar'} Transação
+            </Button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

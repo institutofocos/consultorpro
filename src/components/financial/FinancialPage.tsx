@@ -94,33 +94,47 @@ const FinancialPage = () => {
     mutationFn: async (transaction: any) => {
       console.log('Creating transaction with data:', transaction);
       
+      // Validar e limpar dados UUID antes de enviar
+      const cleanTransaction = {
+        ...transaction,
+        client_id: transaction.client_id || null,
+        consultant_id: transaction.consultant_id || null,
+        project_id: transaction.project_id || null,
+        tag_id: transaction.tag_id || null,
+        category_id: null,
+        subcategory_id: null,
+        payment_method_id: null,
+      };
+      
+      console.log('Clean transaction data:', cleanTransaction);
+      
       // Se for transação recorrente, criar múltiplas transações
-      if (transaction.is_recurring && transaction.recurrence_interval) {
+      if (cleanTransaction.is_recurring && cleanTransaction.recurrence_interval) {
         const { createRecurringTransactions } = await import('@/integrations/supabase/recurring-transactions');
-        return await createRecurringTransactions(transaction, transaction.installments || 12);
+        return await createRecurringTransactions(cleanTransaction, cleanTransaction.installments || 12);
       }
       
       // Se for parcelamento, criar múltiplas transações com valores divididos
-      if (transaction.installments && transaction.installments > 1 && !transaction.is_recurring) {
+      if (cleanTransaction.installments && cleanTransaction.installments > 1 && !cleanTransaction.is_recurring) {
         const { createInstallmentTransactions } = await import('@/integrations/supabase/recurring-transactions');
-        return await createInstallmentTransactions(transaction, transaction.installments);
+        return await createInstallmentTransactions(cleanTransaction, cleanTransaction.installments);
       }
       
       // Transação única
-      const result = await createManualTransaction(transaction);
+      const result = await createManualTransaction(cleanTransaction);
       
       // Se for receita, criar entrada em accounts_receivable
-      if (transaction.type === 'income') {
+      if (cleanTransaction.type === 'income') {
         const { supabase } = await import('@/integrations/supabase/client');
         const receivableData = {
-          description: transaction.description,
-          amount: transaction.amount,
-          due_date: transaction.due_date,
-          status: transaction.status === 'received' ? 'received' : 'pending',
-          client_id: transaction.client_id,
-          project_id: transaction.project_id,
-          consultant_id: transaction.consultant_id,
-          payment_date: transaction.payment_date
+          description: cleanTransaction.description,
+          amount: cleanTransaction.amount,
+          due_date: format(cleanTransaction.due_date, 'yyyy-MM-dd'),
+          status: cleanTransaction.status === 'received' ? 'received' : 'pending',
+          client_id: cleanTransaction.client_id,
+          project_id: cleanTransaction.project_id,
+          consultant_id: cleanTransaction.consultant_id,
+          payment_date: cleanTransaction.payment_date ? format(cleanTransaction.payment_date, 'yyyy-MM-dd') : null
         };
         
         console.log('Creating single accounts_receivable entry:', receivableData);
@@ -136,16 +150,16 @@ const FinancialPage = () => {
       }
       
       // Se for despesa, criar entrada em accounts_payable
-      if (transaction.type === 'expense') {
+      if (cleanTransaction.type === 'expense') {
         const { supabase } = await import('@/integrations/supabase/client');
         const payableData = {
-          description: transaction.description,
-          amount: transaction.amount,
-          due_date: transaction.due_date,
-          status: transaction.status === 'paid' ? 'paid' : 'pending',
-          consultant_id: transaction.consultant_id,
-          project_id: transaction.project_id,
-          payment_date: transaction.payment_date
+          description: cleanTransaction.description,
+          amount: cleanTransaction.amount,
+          due_date: format(cleanTransaction.due_date, 'yyyy-MM-dd'),
+          status: cleanTransaction.status === 'paid' ? 'paid' : 'pending',
+          consultant_id: cleanTransaction.consultant_id,
+          project_id: cleanTransaction.project_id,
+          payment_date: cleanTransaction.payment_date ? format(cleanTransaction.payment_date, 'yyyy-MM-dd') : null
         };
         
         console.log('Creating single accounts_payable entry:', payableData);
@@ -169,9 +183,9 @@ const FinancialPage = () => {
       queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Error in createManualTransactionMutation:', error);
-      toast.error("Erro ao criar transação: " + error.message);
+      toast.error("Erro ao criar transação: " + (error.message || 'Erro desconhecido'));
     },
   });
 
@@ -277,12 +291,16 @@ const FinancialPage = () => {
   };
 
   const handleAddTransaction = async (data: any) => {
+    console.log('Transaction data received:', data);
+    
     // Format dates correctly for the database
     const formattedData = {
       ...data,
       due_date: format(data.due_date, 'yyyy-MM-dd'),
       payment_date: data.payment_date ? format(data.payment_date, 'yyyy-MM-dd') : null
     };
+    
+    console.log('Formatted transaction data:', formattedData);
     
     if (editingTransaction) {
       await updateManualTransactionMutation.mutate({ 
