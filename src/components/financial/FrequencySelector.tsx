@@ -32,11 +32,14 @@ const FrequencySelector: React.FC<FrequencySelectorProps> = ({
   amount
 }) => {
   const getFrequencyDisplay = () => {
+    // Ensure amount is a valid number and default to 0 if not
+    const validAmount = typeof amount === 'number' && !isNaN(amount) ? amount : 0;
+    
     if (frequencyType === 'unique') return 'Lançamento único';
     
     if (frequencyType === 'installment') {
-      const installmentValue = amount / installments;
-      const totalValue = amount * installments;
+      const installmentValue = validAmount / installments;
+      const totalValue = validAmount * installments;
       return `${installments}x de R$ ${installmentValue.toFixed(2)} = R$ ${totalValue.toFixed(2)}`;
     }
     
@@ -48,8 +51,8 @@ const FrequencySelector: React.FC<FrequencySelectorProps> = ({
         yearly: 'ano'
       }[recurringInterval];
       
-      const totalValue = amount * recurringTimes;
-      return `${recurringTimes}x de R$ ${amount.toFixed(2)} | Todo ${intervalText} = R$ ${totalValue.toFixed(2)}`;
+      const totalValue = validAmount * recurringTimes;
+      return `${recurringTimes}x de R$ ${validAmount.toFixed(2)} | Todo ${intervalText} = R$ ${totalValue.toFixed(2)}`;
     }
     
     return '';
