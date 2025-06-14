@@ -200,6 +200,7 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
   const handleSubmit = async (data: z.infer<typeof formSchema>) => {
     try {
       console.log('Form data:', data);
+      console.log('Frequency settings:', { frequencyType, recurringInterval, installments, recurringTimes });
       
       // Validação personalizada
       if (data.amount <= 0) {
@@ -229,10 +230,10 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
         project_id: data.project_id || null,
         tag_id: data.tag_id || null,
         receipt_url: data.receipt_url || null,
-        is_recurring: frequencyType !== 'unique',
+        is_recurring: frequencyType === 'recurring',
         recurrence_interval: frequencyType === 'recurring' ? recurringInterval : null,
-        installments: frequencyType === 'installment' ? installments : null,
-        current_installment: frequencyType === 'installment' ? 1 : null,
+        installments: frequencyType === 'installment' ? installments : (frequencyType === 'recurring' ? recurringTimes : null),
+        current_installment: 1,
       };
 
       console.log('Submission data:', submissionData);

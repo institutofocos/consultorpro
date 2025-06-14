@@ -36,7 +36,8 @@ const FrequencySelector: React.FC<FrequencySelectorProps> = ({
     
     if (frequencyType === 'installment') {
       const installmentValue = amount / installments;
-      return `${installments}x de R$ ${installmentValue.toFixed(2)}`;
+      const totalValue = amount * installments;
+      return `${installments}x de R$ ${installmentValue.toFixed(2)} = R$ ${totalValue.toFixed(2)}`;
     }
     
     if (frequencyType === 'recurring') {
@@ -47,7 +48,8 @@ const FrequencySelector: React.FC<FrequencySelectorProps> = ({
         yearly: 'ano'
       }[recurringInterval];
       
-      return `${recurringTimes}x | Todo ${intervalText}`;
+      const totalValue = amount * recurringTimes;
+      return `${recurringTimes}x de R$ ${amount.toFixed(2)} | Todo ${intervalText} = R$ ${totalValue.toFixed(2)}`;
     }
     
     return '';

@@ -92,7 +92,21 @@ const FinancialPage = () => {
   // Mutations
   const createManualTransactionMutation = useMutation({
     mutationFn: async (transaction: any) => {
-      // Criar a transação manual
+      console.log('Creating transaction with data:', transaction);
+      
+      // Se for transação recorrente, criar múltiplas transações
+      if (transaction.is_recurring && transaction.recurrence_interval) {
+        const { createRecurringTransactions } = await import('@/integrations/supabase/recurring-transactions');
+        return await createRecurringTransactions(transaction, transaction.installments || 12);
+      }
+      
+      // Se for parcelamento, criar múltiplas transações com valores divididos
+      if (transaction.installments && transaction.installments > 1 && !transaction.is_recurring) {
+        const { createInstallmentTransactions } = await import('@/integrations/supabase/recurring-transactions');
+        return await createInstallmentTransactions(transaction, transaction.installments);
+      }
+      
+      // Transação única
       const result = await createManualTransaction(transaction);
       
       // Se for receita, criar entrada em accounts_receivable
@@ -127,7 +141,7 @@ const FinancialPage = () => {
       return result;
     },
     onSuccess: () => {
-      toast.success("Transação criada com sucesso");
+      toast.success("Transação(ões) criada(s) com sucesso");
       // Invalidar apenas as queries das contas a pagar/receber e resumo financeiro
       queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
       queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
