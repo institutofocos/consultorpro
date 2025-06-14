@@ -112,7 +112,7 @@ const FinancialPage = () => {
       // Se for receita, criar entrada em accounts_receivable
       if (transaction.type === 'income') {
         const { supabase } = await import('@/integrations/supabase/client');
-        await supabase.from('accounts_receivable').insert({
+        const receivableData = {
           description: transaction.description,
           amount: transaction.amount,
           due_date: transaction.due_date,
@@ -121,13 +121,24 @@ const FinancialPage = () => {
           project_id: transaction.project_id,
           consultant_id: transaction.consultant_id,
           payment_date: transaction.payment_date
-        });
+        };
+        
+        console.log('Creating single accounts_receivable entry:', receivableData);
+        
+        const { error: receivableError } = await supabase
+          .from('accounts_receivable')
+          .insert(receivableData);
+          
+        if (receivableError) {
+          console.error('Error creating accounts_receivable:', receivableError);
+          throw receivableError;
+        }
       }
       
       // Se for despesa, criar entrada em accounts_payable
       if (transaction.type === 'expense') {
         const { supabase } = await import('@/integrations/supabase/client');
-        await supabase.from('accounts_payable').insert({
+        const payableData = {
           description: transaction.description,
           amount: transaction.amount,
           due_date: transaction.due_date,
@@ -135,7 +146,18 @@ const FinancialPage = () => {
           consultant_id: transaction.consultant_id,
           project_id: transaction.project_id,
           payment_date: transaction.payment_date
-        });
+        };
+        
+        console.log('Creating single accounts_payable entry:', payableData);
+        
+        const { error: payableError } = await supabase
+          .from('accounts_payable')
+          .insert(payableData);
+          
+        if (payableError) {
+          console.error('Error creating accounts_payable:', payableError);
+          throw payableError;
+        }
       }
       
       return result;
@@ -148,6 +170,7 @@ const FinancialPage = () => {
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
     },
     onError: (error) => {
+      console.error('Error in createManualTransactionMutation:', error);
       toast.error("Erro ao criar transação: " + error.message);
     },
   });

@@ -33,7 +33,9 @@ export const createRecurringTransactions = async (
   console.log('Creating recurring transactions:', {
     baseDate,
     recurringTimes,
-    interval: transactionData.recurrence_interval
+    interval: transactionData.recurrence_interval,
+    type: transactionData.type,
+    amount: transactionData.amount
   });
 
   for (let i = 0; i < recurringTimes; i++) {
@@ -66,7 +68,7 @@ export const createRecurringTransactions = async (
     transactions.push(transaction);
   }
 
-  console.log('Inserting transactions:', transactions.length);
+  console.log('Inserting recurring transactions:', transactions.length, 'transactions');
 
   // Inserir todas as transações
   const { data, error } = await supabase
@@ -82,30 +84,56 @@ export const createRecurringTransactions = async (
   console.log('Successfully created recurring transactions:', data?.length);
 
   // Criar entradas correspondentes em accounts_payable/receivable
-  for (const transaction of transactions) {
-    if (transaction.type === 'income') {
-      await supabase.from('accounts_receivable').insert({
-        description: `${transaction.description} (${transaction.current_installment}/${transaction.installments})`,
-        amount: transaction.amount,
-        due_date: transaction.due_date,
-        status: transaction.status === 'received' ? 'received' : 'pending',
-        client_id: transaction.client_id,
-        project_id: transaction.project_id,
-        consultant_id: transaction.consultant_id,
-        payment_date: transaction.payment_date
-      });
-    }
-    
-    if (transaction.type === 'expense') {
-      await supabase.from('accounts_payable').insert({
-        description: `${transaction.description} (${transaction.current_installment}/${transaction.installments})`,
-        amount: transaction.amount,
-        due_date: transaction.due_date,
-        status: transaction.status === 'paid' ? 'paid' : 'pending',
-        consultant_id: transaction.consultant_id,
-        project_id: transaction.project_id,
-        payment_date: transaction.payment_date
-      });
+  if (data) {
+    for (const transaction of data) {
+      try {
+        if (transaction.type === 'income') {
+          const receivableData = {
+            description: `${transaction.description} (${transaction.current_installment}/${transaction.installments})`,
+            amount: transaction.amount,
+            due_date: transaction.due_date,
+            status: transaction.status === 'received' ? 'received' : 'pending',
+            client_id: transaction.client_id,
+            project_id: transaction.project_id,
+            consultant_id: transaction.consultant_id,
+            payment_date: transaction.payment_date
+          };
+          
+          console.log('Creating accounts_receivable entry:', receivableData);
+          
+          const { error: receivableError } = await supabase
+            .from('accounts_receivable')
+            .insert(receivableData);
+            
+          if (receivableError) {
+            console.error('Error creating accounts_receivable:', receivableError);
+          }
+        }
+        
+        if (transaction.type === 'expense') {
+          const payableData = {
+            description: `${transaction.description} (${transaction.current_installment}/${transaction.installments})`,
+            amount: transaction.amount,
+            due_date: transaction.due_date,
+            status: transaction.status === 'paid' ? 'paid' : 'pending',
+            consultant_id: transaction.consultant_id,
+            project_id: transaction.project_id,
+            payment_date: transaction.payment_date
+          };
+          
+          console.log('Creating accounts_payable entry:', payableData);
+          
+          const { error: payableError } = await supabase
+            .from('accounts_payable')
+            .insert(payableData);
+            
+          if (payableError) {
+            console.error('Error creating accounts_payable:', payableError);
+          }
+        }
+      } catch (entryError) {
+        console.error('Error creating accounts entry for transaction:', transaction.id, entryError);
+      }
     }
   }
 
@@ -123,7 +151,9 @@ export const createInstallmentTransactions = async (
   console.log('Creating installment transactions:', {
     baseDate,
     installments,
-    installmentAmount
+    installmentAmount,
+    type: transactionData.type,
+    totalAmount: transactionData.amount
   });
 
   for (let i = 0; i < installments; i++) {
@@ -158,30 +188,56 @@ export const createInstallmentTransactions = async (
   console.log('Successfully created installment transactions:', data?.length);
 
   // Criar entradas correspondentes em accounts_payable/receivable
-  for (const transaction of transactions) {
-    if (transaction.type === 'income') {
-      await supabase.from('accounts_receivable').insert({
-        description: `${transaction.description} (${transaction.current_installment}/${transaction.installments})`,
-        amount: transaction.amount,
-        due_date: transaction.due_date,
-        status: transaction.status === 'received' ? 'received' : 'pending',
-        client_id: transaction.client_id,
-        project_id: transaction.project_id,
-        consultant_id: transaction.consultant_id,
-        payment_date: transaction.payment_date
-      });
-    }
-    
-    if (transaction.type === 'expense') {
-      await supabase.from('accounts_payable').insert({
-        description: `${transaction.description} (${transaction.current_installment}/${transaction.installments})`,
-        amount: transaction.amount,
-        due_date: transaction.due_date,
-        status: transaction.status === 'paid' ? 'paid' : 'pending',
-        consultant_id: transaction.consultant_id,
-        project_id: transaction.project_id,
-        payment_date: transaction.payment_date
-      });
+  if (data) {
+    for (const transaction of data) {
+      try {
+        if (transaction.type === 'income') {
+          const receivableData = {
+            description: `${transaction.description} (${transaction.current_installment}/${transaction.installments})`,
+            amount: transaction.amount,
+            due_date: transaction.due_date,
+            status: transaction.status === 'received' ? 'received' : 'pending',
+            client_id: transaction.client_id,
+            project_id: transaction.project_id,
+            consultant_id: transaction.consultant_id,
+            payment_date: transaction.payment_date
+          };
+          
+          console.log('Creating accounts_receivable entry for installment:', receivableData);
+          
+          const { error: receivableError } = await supabase
+            .from('accounts_receivable')
+            .insert(receivableData);
+            
+          if (receivableError) {
+            console.error('Error creating accounts_receivable for installment:', receivableError);
+          }
+        }
+        
+        if (transaction.type === 'expense') {
+          const payableData = {
+            description: `${transaction.description} (${transaction.current_installment}/${transaction.installments})`,
+            amount: transaction.amount,
+            due_date: transaction.due_date,
+            status: transaction.status === 'paid' ? 'paid' : 'pending',
+            consultant_id: transaction.consultant_id,
+            project_id: transaction.project_id,
+            payment_date: transaction.payment_date
+          };
+          
+          console.log('Creating accounts_payable entry for installment:', payableData);
+          
+          const { error: payableError } = await supabase
+            .from('accounts_payable')
+            .insert(payableData);
+            
+          if (payableError) {
+            console.error('Error creating accounts_payable for installment:', payableError);
+          }
+        }
+      } catch (entryError) {
+        console.error('Error creating accounts entry for installment transaction:', transaction.id, entryError);
+      }
     }
   }
 

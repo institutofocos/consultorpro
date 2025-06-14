@@ -32,15 +32,22 @@ const FrequencySelector: React.FC<FrequencySelectorProps> = ({
   amount
 }) => {
   const getFrequencyDisplay = () => {
-    // Ensure amount is a valid number and default to 0 if not
-    const validAmount = typeof amount === 'number' && !isNaN(amount) ? amount : 0;
+    // Garantir que amount é um número válido
+    const validAmount = Number(amount) || 0;
+    
+    console.log('FrequencySelector - getFrequencyDisplay:', {
+      frequencyType,
+      validAmount,
+      installments,
+      recurringTimes,
+      recurringInterval
+    });
     
     if (frequencyType === 'unique') return 'Lançamento único';
     
     if (frequencyType === 'installment') {
       const installmentValue = validAmount / installments;
-      const totalValue = validAmount * installments;
-      return `${installments}x de R$ ${installmentValue.toFixed(2)} = R$ ${totalValue.toFixed(2)}`;
+      return `${installments}x de R$ ${installmentValue.toFixed(2)} (Total: R$ ${validAmount.toFixed(2)})`;
     }
     
     if (frequencyType === 'recurring') {
@@ -52,7 +59,7 @@ const FrequencySelector: React.FC<FrequencySelectorProps> = ({
       }[recurringInterval];
       
       const totalValue = validAmount * recurringTimes;
-      return `${recurringTimes}x de R$ ${validAmount.toFixed(2)} | Todo ${intervalText} = R$ ${totalValue.toFixed(2)}`;
+      return `${recurringTimes}x de R$ ${validAmount.toFixed(2)} a cada ${intervalText} (Total: R$ ${totalValue.toFixed(2)})`;
     }
     
     return '';
