@@ -516,7 +516,11 @@ export const fetchTransactionCategories = async (type?: 'income' | 'expense'): P
       throw error;
     }
     
-    return data || [];
+    // Garantir que os tipos estão corretos
+    return (data || []).map(item => ({
+      ...item,
+      type: item.type as 'income' | 'expense' | 'both'
+    }));
   } catch (error) {
     console.error('Error fetching transaction categories:', error);
     return [];
@@ -556,7 +560,11 @@ export const fetchPaymentMethods = async (): Promise<PaymentMethod[]> => {
       throw error;
     }
     
-    return data || [];
+    // Garantir que os tipos estão corretos
+    return (data || []).map(item => ({
+      ...item,
+      type: item.type as 'cash' | 'card' | 'pix' | 'transfer' | 'other'
+    }));
   } catch (error) {
     console.error('Error fetching payment methods:', error);
     return [];
