@@ -542,56 +542,84 @@ export type Database = {
       manual_transactions: {
         Row: {
           amount: number
+          category_id: string | null
           client_id: string | null
           consultant_id: string | null
           created_at: string
+          current_installment: number | null
           description: string
           due_date: string
           id: string
+          installments: number | null
+          is_fixed_expense: boolean | null
           is_recurring: boolean
           payment_date: string | null
+          payment_method_id: string | null
           project_id: string | null
+          receipt_url: string | null
           recurrence_interval: string | null
           status: string
+          subcategory_id: string | null
           tag_id: string | null
           type: string
           updated_at: string
         }
         Insert: {
           amount: number
+          category_id?: string | null
           client_id?: string | null
           consultant_id?: string | null
           created_at?: string
+          current_installment?: number | null
           description: string
           due_date: string
           id?: string
+          installments?: number | null
+          is_fixed_expense?: boolean | null
           is_recurring?: boolean
           payment_date?: string | null
+          payment_method_id?: string | null
           project_id?: string | null
+          receipt_url?: string | null
           recurrence_interval?: string | null
           status?: string
+          subcategory_id?: string | null
           tag_id?: string | null
           type: string
           updated_at?: string
         }
         Update: {
           amount?: number
+          category_id?: string | null
           client_id?: string | null
           consultant_id?: string | null
           created_at?: string
+          current_installment?: number | null
           description?: string
           due_date?: string
           id?: string
+          installments?: number | null
+          is_fixed_expense?: boolean | null
           is_recurring?: boolean
           payment_date?: string | null
+          payment_method_id?: string | null
           project_id?: string | null
+          receipt_url?: string | null
           recurrence_interval?: string | null
           status?: string
+          subcategory_id?: string | null
           tag_id?: string | null
           type?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "manual_transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "manual_transactions_client_id_fkey"
             columns: ["client_id"]
@@ -604,6 +632,20 @@ export type Database = {
             columns: ["consultant_id"]
             isOneToOne: false
             referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_transactions_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "payment_methods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_transactions_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_subcategories"
             referencedColumns: ["id"]
           },
         ]
@@ -629,6 +671,36 @@ export type Database = {
           id?: string
           module_name?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      payment_methods: {
+        Row: {
+          created_at: string
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          type?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1179,6 +1251,74 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      transaction_categories: {
+        Row: {
+          color: string | null
+          created_at: string
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      transaction_subcategories: {
+        Row: {
+          category_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_subcategories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_profiles: {
         Row: {

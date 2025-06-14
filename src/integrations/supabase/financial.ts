@@ -22,12 +22,52 @@ export type ManualTransaction = {
   client_id: string | null;
   consultant_id: string | null;
   project_id: string | null;
+  category_id: string | null;
+  subcategory_id: string | null;
+  payment_method_id: string | null;
+  installments: number | null;
+  current_installment: number | null;
+  receipt_url: string | null;
+  is_fixed_expense: boolean | null;
   created_at: string;
   updated_at: string;
   client_name?: string;
   consultant_name?: string;
   project_name?: string;
   tag_name?: string;
+  category_name?: string;
+  subcategory_name?: string;
+  payment_method_name?: string;
+};
+
+export type TransactionCategory = {
+  id: string;
+  name: string;
+  icon: string | null;
+  color: string;
+  type: 'income' | 'expense' | 'both';
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TransactionSubcategory = {
+  id: string;
+  name: string;
+  category_id: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PaymentMethod = {
+  id: string;
+  name: string;
+  icon: string | null;
+  type: 'cash' | 'card' | 'pix' | 'transfer' | 'other';
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 export type AccountsPayable = {
@@ -460,6 +500,67 @@ export const reactivateAccountsPayable = async (id: string) => {
   }
 
   return data;
+};
+
+export const fetchTransactionCategories = async (type?: 'income' | 'expense'): Promise<TransactionCategory[]> => {
+  try {
+    let query = supabase.from('transaction_categories').select('*').eq('is_active', true);
+    
+    if (type) {
+      query = query.or(`type.eq.${type},type.eq.both`);
+    }
+    
+    const { data, error } = await query.order('name');
+    
+    if (error) {
+      throw error;
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching transaction categories:', error);
+    return [];
+  }
+};
+
+export const fetchTransactionSubcategories = async (categoryId?: string): Promise<TransactionSubcategory[]> => {
+  try {
+    let query = supabase.from('transaction_subcategories').select('*').eq('is_active', true);
+    
+    if (categoryId) {
+      query = query.eq('category_id', categoryId);
+    }
+    
+    const { data, error } = await query.order('name');
+    
+    if (error) {
+      throw error;
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching transaction subcategories:', error);
+    return [];
+  }
+};
+
+export const fetchPaymentMethods = async (): Promise<PaymentMethod[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('payment_methods')
+      .select('*')
+      .eq('is_active', true)
+      .order('name');
+    
+    if (error) {
+      throw error;
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching payment methods:', error);
+    return [];
+  }
 };
 
 export const fetchAccountsHistory = async (filters: FinancialFilter = {}) => {
