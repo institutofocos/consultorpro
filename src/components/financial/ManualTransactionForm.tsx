@@ -133,14 +133,14 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
       payment_date: transaction?.payment_date ? new Date(transaction.payment_date) : null,
       status: transaction?.status || 'pending',
       category_id: transaction?.category_id || '',
-      subcategory_id: transaction?.subcategory_id || null,
-      payment_method_id: transaction?.payment_method_id || null,
+      subcategory_id: transaction?.subcategory_id || '',
+      payment_method_id: transaction?.payment_method_id || '',
       is_fixed_expense: transaction?.is_fixed_expense || false,
-      client_id: transaction?.client_id || null,
-      consultant_id: transaction?.consultant_id || null,
-      project_id: transaction?.project_id || null,
-      tag_id: transaction?.tag_id || null,
-      receipt_url: transaction?.receipt_url || null,
+      client_id: transaction?.client_id || '',
+      consultant_id: transaction?.consultant_id || '',
+      project_id: transaction?.project_id || '',
+      tag_id: transaction?.tag_id || '',
+      receipt_url: transaction?.receipt_url || '',
     },
   });
 
@@ -175,7 +175,7 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
       
       if (!isEditing) {
         form.setValue('category_id', '');
-        form.setValue('subcategory_id', null);
+        form.setValue('subcategory_id', '');
       }
     };
     
@@ -190,7 +190,7 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
         setSubcategories(data);
       } else {
         setSubcategories([]);
-        form.setValue('subcategory_id', null);
+        form.setValue('subcategory_id', '');
       }
     };
     
@@ -198,30 +198,50 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
   }, [selectedCategoryId, form]);
 
   const handleSubmit = async (data: z.infer<typeof formSchema>) => {
-    // Validação personalizada
-    if (data.amount <= 0) {
-      form.setError('amount', { message: 'Valor deve ser maior que zero' });
-      return;
-    }
-
-    if (!data.category_id) {
-      form.setError('category_id', { message: 'Por favor, selecione uma categoria' });
-      return;
-    }
-
-    // Preparar dados incluindo informações de frequência
-    const submissionData = {
-      ...data,
-      frequency_info: {
-        type: frequencyType,
-        recurring_interval: recurringInterval,
-        installments: installments,
-        recurring_times: recurringTimes,
+    try {
+      console.log('Form data:', data);
+      
+      // Validação personalizada
+      if (data.amount <= 0) {
+        form.setError('amount', { message: 'Valor deve ser maior que zero' });
+        return;
       }
-    };
 
-    await onSubmit(submissionData);
-    onClose();
+      if (!data.category_id) {
+        form.setError('category_id', { message: 'Por favor, selecione uma categoria' });
+        return;
+      }
+
+      // Preparar dados para submissão
+      const submissionData = {
+        type: data.type,
+        description: data.description,
+        amount: data.amount,
+        due_date: data.due_date,
+        payment_date: data.payment_date,
+        status: data.status,
+        category_id: data.category_id || null,
+        subcategory_id: data.subcategory_id || null,
+        payment_method_id: data.payment_method_id || null,
+        is_fixed_expense: data.is_fixed_expense,
+        client_id: data.client_id || null,
+        consultant_id: data.consultant_id || null,
+        project_id: data.project_id || null,
+        tag_id: data.tag_id || null,
+        receipt_url: data.receipt_url || null,
+        is_recurring: frequencyType !== 'unique',
+        recurrence_interval: frequencyType === 'recurring' ? recurringInterval : null,
+        installments: frequencyType === 'installment' ? installments : null,
+        current_installment: frequencyType === 'installment' ? 1 : null,
+      };
+
+      console.log('Submission data:', submissionData);
+
+      await onSubmit(submissionData);
+      onClose();
+    } catch (error) {
+      console.error('Error in form submission:', error);
+    }
   };
 
   return (
@@ -329,7 +349,7 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
                         <FormLabel className="font-medium">Categoria *</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
-                          defaultValue={field.value || undefined}
+                          value={field.value || ""}
                         >
                           <FormControl>
                             <SelectTrigger className="h-11">
@@ -360,7 +380,7 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
                         <FormLabel className="font-medium">Subcategoria</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
-                          defaultValue={field.value || undefined}
+                          value={field.value || ""}
                           disabled={!selectedCategoryId}
                         >
                           <FormControl>
@@ -467,7 +487,7 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
                         <FormLabel className="font-medium">Forma de Pagamento</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
-                          defaultValue={field.value || undefined}
+                          value={field.value || ""}
                         >
                           <FormControl>
                             <SelectTrigger className="h-11">
@@ -613,7 +633,7 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
                         <FormLabel>Cliente</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
-                          defaultValue={field.value || undefined}
+                          value={field.value || ""}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -640,7 +660,7 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
                         <FormLabel>Consultor</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
-                          defaultValue={field.value || undefined}
+                          value={field.value || ""}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -669,7 +689,7 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
                         <FormLabel>Projeto</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
-                          defaultValue={field.value || undefined}
+                          value={field.value || ""}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -696,7 +716,7 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
                         <FormLabel>Tag</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
-                          defaultValue={field.value || undefined}
+                          value={field.value || ""}
                         >
                           <FormControl>
                             <SelectTrigger>
