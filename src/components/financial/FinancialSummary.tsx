@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -63,7 +62,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({ summary, isLoading 
       
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Pagamentos a Consultores Realizados</CardTitle>
+          <CardTitle className="text-sm font-medium">Pagamentos Realizados</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-blue-600">
