@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { ChevronLeft, ChevronRight, Calendar, User, Clock } from 'lucide-react';
 import { format, addDays, startOfWeek, differenceInDays, parseISO, addWeeks, subWeeks, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatDateBR } from '@/utils/dateUtils';
+import { useProjectStatuses } from '@/hooks/useProjectStatuses';
 
 interface Task {
   id: string;
@@ -37,6 +39,9 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
   const [timelineWeeks, setTimelineWeeks] = useState(8); // 8 weeks view
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
   const [resizingTask, setResizingTask] = useState<string | null>(null);
+
+  // Use the project statuses hook
+  const { statuses, getStatusDisplay, getStatusBadgeStyle } = useProjectStatuses();
 
   // Generate timeline based on view start date and weeks
   const generateTimeline = () => {
@@ -80,28 +85,30 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
     return acc;
   }, {} as Record<string, { project_name: string; service_name: string; tasks: Task[] }>);
 
+  // Get status color from configured statuses or fallback
   const getStatusColor = (status: string) => {
-    const colorMap: { [key: string]: string } = {
-      'iniciar_projeto': 'bg-gray-500',
-      'em_producao': 'bg-blue-500',
-      'aguardando_aprovacao': 'bg-yellow-500',
-      'aguardando_assinatura': 'bg-purple-500',
-      'concluido': 'bg-green-500',
-      'cancelado': 'bg-red-500'
+    const statusSetting = statuses.find(s => s.name === status);
+    if (statusSetting) {
+      return statusSetting.color;
+    }
+    
+    // Fallback para status antigos não configurados
+    const fallbackColors: { [key: string]: string } = {
+      'iniciar_projeto': '#6b7280',
+      'em_producao': '#3b82f6',
+      'aguardando_aprovacao': '#f59e0b',
+      'aguardando_assinatura': '#8b5cf6',
+      'concluido': '#10b981',
+      'cancelado': '#ef4444'
     };
-    return colorMap[status] || 'bg-gray-500';
+    
+    return fallbackColors[status] || '#6b7280';
   };
 
-  const getStatusDisplay = (status: string) => {
-    const statusMap: { [key: string]: string } = {
-      'iniciar_projeto': 'Inicial',
-      'em_producao': 'Em andamento',
-      'aguardando_aprovacao': 'Aguardando',
-      'aguardando_assinatura': 'Assinatura',
-      'concluido': 'Concluído',
-      'cancelado': 'Cancelado'
-    };
-    return statusMap[status] || status;
+  // Get status display text from configured statuses
+  const getStatusDisplayText = (status: string) => {
+    const statusData = getStatusDisplay(status);
+    return statusData.label;
   };
 
   const calculateTaskPosition = (startDate: string, endDate: string) => {
@@ -278,6 +285,8 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
                   {/* Project Tasks */}
                   {projectData.tasks.map((task) => {
                     const position = calculateTaskPosition(task.start_date, task.end_date);
+                    const statusColor = getStatusColor(task.status);
+                    const statusBadgeStyle = getStatusBadgeStyle(task.status);
                     
                     if (!position.visible) return null;
 
@@ -293,8 +302,11 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
                                   {task.consultant_name}
                                 </div>
                               </div>
-                              <Badge className={`${getStatusColor(task.status)} text-white text-xs`}>
-                                {getStatusDisplay(task.status)}
+                              <Badge 
+                                className="text-white text-xs"
+                                style={statusBadgeStyle}
+                              >
+                                {getStatusDisplayText(task.status)}
                               </Badge>
                             </div>
                           </div>
@@ -319,12 +331,13 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div
-                                  className={`absolute top-2 bottom-2 ${getStatusColor(task.status)} rounded cursor-move hover:opacity-80 transition-opacity flex items-center px-2 text-white text-xs font-medium shadow-sm ${
+                                  className={`absolute top-2 bottom-2 rounded cursor-move hover:opacity-80 transition-opacity flex items-center px-2 text-white text-xs font-medium shadow-sm ${
                                     draggedTask === task.id ? 'opacity-50' : ''
                                   }`}
                                   style={{
                                     left: position.left,
-                                    width: position.width
+                                    width: position.width,
+                                    backgroundColor: statusColor
                                   }}
                                   draggable
                                   onDragStart={() => handleDragStart(task.id)}
@@ -353,7 +366,7 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
                                     <div>Horas: {task.hours}h</div>
                                     <div>Valor: R$ {task.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                                     <div>Consultor: {task.consultant_name}</div>
-                                    <div>Status: {getStatusDisplay(task.status)}</div>
+                                    <div>Status: {getStatusDisplayText(task.status)}</div>
                                   </div>
                                 </div>
                               </TooltipContent>
@@ -374,30 +387,46 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-4">
-            <div className="flex items-center gap-2 text-sm">
-              <div className="w-4 h-4 bg-gray-500 rounded"></div>
-              <span>Inicial</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <div className="w-4 h-4 bg-blue-500 rounded"></div>
-              <span>Em andamento</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <div className="w-4 h-4 bg-yellow-500 rounded"></div>
-              <span>Aguardando</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <div className="w-4 h-4 bg-purple-500 rounded"></div>
-              <span>Assinatura</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <div className="w-4 h-4 bg-green-500 rounded"></div>
-              <span>Concluído</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <div className="w-4 h-4 bg-red-500 rounded"></div>
-              <span>Cancelado</span>
-            </div>
+            {statuses.length > 0 ? (
+              // Show configured statuses from database
+              statuses.map((status) => (
+                <div key={status.id} className="flex items-center gap-2 text-sm">
+                  <div 
+                    className="w-4 h-4 rounded"
+                    style={{ backgroundColor: status.color }}
+                  ></div>
+                  <span>{status.display_name}</span>
+                </div>
+              ))
+            ) : (
+              // Fallback legend for old statuses
+              <>
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="w-4 h-4 bg-gray-500 rounded"></div>
+                  <span>Inicial</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="w-4 h-4 bg-blue-500 rounded"></div>
+                  <span>Em andamento</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="w-4 h-4 bg-yellow-500 rounded"></div>
+                  <span>Aguardando</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="w-4 h-4 bg-purple-500 rounded"></div>
+                  <span>Assinatura</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="w-4 h-4 bg-green-500 rounded"></div>
+                  <span>Concluído</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="w-4 h-4 bg-red-500 rounded"></div>
+                  <span>Cancelado</span>
+                </div>
+              </>
+            )}
             <div className="flex items-center gap-2 text-sm">
               <div className="w-1 h-4 bg-green-500"></div>
               <span>Hoje</span>
