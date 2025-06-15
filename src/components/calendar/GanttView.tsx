@@ -130,6 +130,10 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
     setViewStartDate(addWeeks(viewStartDate, 2));
   };
 
+  const navigateToday = () => {
+    setViewStartDate(startOfWeek(new Date()));
+  };
+
   const handleDragStart = (taskId: string) => {
     setDraggedTask(taskId);
   };
@@ -159,6 +163,10 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
           <Button variant="outline" size="sm" onClick={navigatePrevious}>
             <ChevronLeft className="h-4 w-4 mr-2" />
             Anterior
+          </Button>
+          <Button variant="outline" size="sm" onClick={navigateToday}>
+            <Calendar className="h-4 w-4 mr-2" />
+            Hoje
           </Button>
           <Button variant="outline" size="sm" onClick={navigateNext}>
             Próximo
