@@ -78,7 +78,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({ summary, isLoading 
       
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Pagamentos a Consultores Pendentes</CardTitle>
+          <CardTitle className="text-sm font-medium">Pagamentos Pendentes</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-orange-600">
