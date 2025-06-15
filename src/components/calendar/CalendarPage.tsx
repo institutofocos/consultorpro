@@ -3,15 +3,16 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Search, Calendar as CalendarIcon, Pin, Hourglass, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Calendar as CalendarIcon, Pin, Hourglass, Filter, BarChart3 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, addMonths, subMonths, addWeeks, subWeeks } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from "@/integrations/supabase/client";
 import TaskModal from './TaskModal';
+import GanttView from './GanttView';
 import SearchableSelect from "@/components/ui/searchable-select";
 import { useConsultants } from "@/hooks/useConsultants";
 
-type ViewMode = 'day' | 'week' | 'month';
+type ViewMode = 'day' | 'week' | 'month' | 'gantt';
 
 interface Task {
   id: string;
@@ -211,6 +212,9 @@ const CalendarPage: React.FC = () => {
       case 'month':
         setCurrentDate(subMonths(currentDate, 1));
         break;
+      case 'gantt':
+        setCurrentDate(addWeeks(currentDate, -1));
+        break;
     }
   };
 
@@ -224,6 +228,9 @@ const CalendarPage: React.FC = () => {
         break;
       case 'month':
         setCurrentDate(addMonths(currentDate, 1));
+        break;
+      case 'gantt':
+        setCurrentDate(addWeeks(currentDate, 1));
         break;
     }
   };
@@ -265,6 +272,10 @@ const CalendarPage: React.FC = () => {
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedConsultantId('');
+  };
+
+  const renderGanttView = () => {
+    return <GanttView tasks={filteredTasks} selectedConsultantId={selectedConsultantId} />;
   };
 
   const renderMonthView = () => {
@@ -453,6 +464,8 @@ const CalendarPage: React.FC = () => {
         return `${format(weekStart, 'd MMM', { locale: ptBR })} - ${format(weekEnd, 'd MMM yyyy', { locale: ptBR })}`;
       case 'month':
         return format(currentDate, 'MMMM yyyy', { locale: ptBR });
+      case 'gantt':
+        return 'Visualização Gantt';
     }
   };
 
@@ -531,38 +544,61 @@ const CalendarPage: React.FC = () => {
               >
                 Mês
               </Button>
+              <Button
+                variant={viewMode === 'gantt' ? 'default' : 'outline'}
+                onClick={() => setViewMode('gantt')}
+                size="sm"
+              >
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Gantt
+              </Button>
             </div>
             
-            <div className="flex items-center gap-4">
-              <Button variant="outline" size="sm" onClick={navigatePrevious}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <h2 className="text-lg font-semibold min-w-[200px] text-center">
+            {viewMode !== 'gantt' && (
+              <div className="flex items-center gap-4">
+                <Button variant="outline" size="sm" onClick={navigatePrevious}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <h2 className="text-lg font-semibold min-w-[200px] text-center">
+                  {getViewTitle()}
+                </h2>
+                <Button variant="outline" size="sm" onClick={navigateNext}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+
+            {viewMode === 'gantt' && (
+              <h2 className="text-lg font-semibold">
                 {getViewTitle()}
               </h2>
-              <Button variant="outline" size="sm" onClick={navigateNext}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+            )}
           </div>
 
-          {/* Legenda para ajudar o usuário */}
-          <div className="flex items-center gap-4 mt-4 p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-2 text-sm">
-              <Pin className="h-4 w-4 text-blue-600" />
-              <span>📌 Iniciar tarefa</span>
+          {/* Legenda para ajudar o usuário - só mostra se não for Gantt */}
+          {viewMode !== 'gantt' && (
+            <div className="flex items-center gap-4 mt-4 p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-2 text-sm">
+                <Pin className="h-4 w-4 text-blue-600" />
+                <span>📌 Iniciar tarefa</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Hourglass className="h-4 w-4 text-orange-600" />
+                <span>⏳ Finalizar tarefa</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Hourglass className="h-4 w-4 text-orange-600" />
-              <span>⏳ Finalizar tarefa</span>
-            </div>
-          </div>
+          )}
         </CardHeader>
         
         <CardContent className="flex-1 p-0">
           {viewMode === 'month' && renderMonthView()}
           {viewMode === 'week' && renderWeekView()}
           {viewMode === 'day' && renderDayView()}
+          {viewMode === 'gantt' && (
+            <div className="p-6">
+              {renderGanttView()}
+            </div>
+          )}
         </CardContent>
       </Card>
 
