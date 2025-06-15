@@ -14,6 +14,12 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({ summary, isLoading 
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
+  const getTotalExpectedColor = (value: number) => {
+    if (value > 0) return 'text-green-600';
+    if (value < 0) return 'text-red-600';
+    return 'text-gray-600';
+  };
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
       <Card>
@@ -21,7 +27,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({ summary, isLoading 
           <CardTitle className="text-sm font-medium">Total Previsto</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">
+          <div className={`text-2xl font-bold ${getTotalExpectedColor(summary?.total_expected || 0)}`}>
             {isLoading ? (
               <Skeleton className="h-8 w-full" />
             ) : (

@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export type FinancialSummary = {
@@ -148,7 +149,12 @@ export const fetchFinancialSummary = async (filters: FinancialFilter = {}): Prom
     const receivables = receivableData.data || [];
     
     // Calcular totais - excluindo itens com status 'deleted'
-    const totalExpected = receivables.reduce((sum, item) => sum + Number(item.amount), 0);
+    const totalReceivableExpected = receivables.reduce((sum, item) => sum + Number(item.amount), 0);
+    const totalPayableExpected = payables.reduce((sum, item) => sum + Number(item.amount), 0);
+    
+    // Total previsto = Receitas previstas - Despesas previstas
+    const totalExpected = totalReceivableExpected - totalPayableExpected;
+    
     const totalReceived = receivables.filter(item => item.status === 'received').reduce((sum, item) => sum + Number(item.amount), 0);
     const totalPending = receivables.filter(item => item.status === 'pending').reduce((sum, item) => sum + Number(item.amount), 0);
     const consultantPaymentsMade = payables.filter(item => item.status === 'paid').reduce((sum, item) => sum + Number(item.amount), 0);
