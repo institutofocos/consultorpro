@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import FrequencySelector, { FrequencyType, RecurringInterval } from './FrequencySelector';
+import { fetchTransactionCategories, fetchTransactionSubcategories, fetchPaymentMethods } from '@/integrations/supabase/financial';
 
 interface ManualTransactionFormProps {
   isOpen: boolean;
@@ -47,6 +48,9 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
     consultant_id: '',
     project_id: '',
     tag_id: '',
+    category_id: '',
+    subcategory_id: '',
+    payment_method_id: '',
     is_fixed_expense: false,
     receipt_url: ''
   });
@@ -55,6 +59,53 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
   const [recurringInterval, setRecurringInterval] = useState<RecurringInterval>('monthly');
   const [installments, setInstallments] = useState(2);
   const [recurringTimes, setRecurringTimes] = useState(12);
+
+  const [categories, setCategories] = useState<any[]>([]);
+  const [subcategories, setSubcategories] = useState<any[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadCategories();
+      loadPaymentMethods();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (formData.category_id) {
+      loadSubcategories(formData.category_id);
+    } else {
+      setSubcategories([]);
+      setFormData(prev => ({ ...prev, subcategory_id: '' }));
+    }
+  }, [formData.category_id]);
+
+  const loadCategories = async () => {
+    try {
+      const data = await fetchTransactionCategories(formData.type);
+      setCategories(data);
+    } catch (error) {
+      console.error('Erro ao carregar categorias:', error);
+    }
+  };
+
+  const loadSubcategories = async (categoryId: string) => {
+    try {
+      const data = await fetchTransactionSubcategories(categoryId);
+      setSubcategories(data);
+    } catch (error) {
+      console.error('Erro ao carregar subcategorias:', error);
+    }
+  };
+
+  const loadPaymentMethods = async () => {
+    try {
+      const data = await fetchPaymentMethods();
+      setPaymentMethods(data);
+    } catch (error) {
+      console.error('Erro ao carregar formas de pagamento:', error);
+    }
+  };
 
   useEffect(() => {
     if (transaction) {
@@ -69,6 +120,9 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
         consultant_id: transaction.consultant_id || '',
         project_id: transaction.project_id || '',
         tag_id: transaction.tag_id || '',
+        category_id: transaction.category_id || '',
+        subcategory_id: transaction.subcategory_id || '',
+        payment_method_id: transaction.payment_method_id || '',
         is_fixed_expense: transaction.is_fixed_expense || false,
         receipt_url: transaction.receipt_url || ''
       });
@@ -94,6 +148,9 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
         consultant_id: '',
         project_id: '',
         tag_id: '',
+        category_id: '',
+        subcategory_id: '',
+        payment_method_id: '',
         is_fixed_expense: false,
         receipt_url: ''
       });
@@ -102,6 +159,15 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
       setRecurringTimes(12);
     }
   }, [transaction, isOpen]);
+
+  // Recarregar categorias quando o tipo mudar
+  useEffect(() => {
+    if (isOpen) {
+      loadCategories();
+      // Limpar categoria e subcategoria quando mudar o tipo
+      setFormData(prev => ({ ...prev, category_id: '', subcategory_id: '' }));
+    }
+  }, [formData.type, isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,6 +192,9 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
       consultant_id: sanitizeUUID(formData.consultant_id),
       project_id: sanitizeUUID(formData.project_id),
       tag_id: sanitizeUUID(formData.tag_id),
+      category_id: sanitizeUUID(formData.category_id),
+      subcategory_id: sanitizeUUID(formData.subcategory_id),
+      payment_method_id: sanitizeUUID(formData.payment_method_id),
       is_fixed_expense: formData.is_fixed_expense,
       receipt_url: formData.receipt_url || null,
       // Campos específicos para frequência
@@ -251,6 +320,51 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
             />
           </div>
 
+          {/* Categoria e Subcategoria */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Categoria *</Label>
+              <Select 
+                value={formData.category_id} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nenhuma categoria</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.icon && <span className="mr-2">{category.icon}</span>}
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Subcategoria</Label>
+              <Select 
+                value={formData.subcategory_id} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, subcategory_id: value }))}
+                disabled={!formData.category_id}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a subcategoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nenhuma subcategoria</SelectItem>
+                  {subcategories.map((subcategory) => (
+                    <SelectItem key={subcategory.id} value={subcategory.id}>
+                      {subcategory.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           {/* Frequência */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Frequência</Label>
@@ -267,8 +381,8 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
             />
           </div>
 
-          {/* Segunda linha: Status e Data de Pagamento (se necessário) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Status, Data de Pagamento e Forma de Pagamento */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Status</Label>
               <Select 
@@ -330,9 +444,30 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
                 </Popover>
               </div>
             )}
+
+            <div className="space-y-2">
+              <Label>Forma de Pagamento</Label>
+              <Select 
+                value={formData.payment_method_id} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, payment_method_id: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nenhuma forma</SelectItem>
+                  {paymentMethods.map((method) => (
+                    <SelectItem key={method.id} value={method.id}>
+                      {method.icon && <span className="mr-2">{method.icon}</span>}
+                      {method.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          {/* Terceira linha: Cliente (se receita), Consultor e Projeto */}
+          {/* Cliente (se receita), Consultor e Projeto */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {formData.type === 'income' && (
               <div className="space-y-2">
@@ -397,7 +532,7 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
             </div>
           </div>
 
-          {/* Quarta linha: Tag e URL do Comprovante */}
+          {/* Tag e URL do Comprovante */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Tag</Label>
