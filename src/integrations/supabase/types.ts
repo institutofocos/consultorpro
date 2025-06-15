@@ -690,7 +690,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
-          type: string
+          type?: string
           updated_at?: string
         }
         Update: {
@@ -1270,7 +1270,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
-          type: string
+          type?: string
           updated_at?: string
         }
         Update: {
