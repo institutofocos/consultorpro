@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -92,9 +91,9 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
       return statusSetting.color;
     }
     
-    // Fallback para status antigos não configurados
+    // Fallback para status antigos não configurados - CORRIGIDO: iniciar_projeto agora usa azul
     const fallbackColors: { [key: string]: string } = {
-      'iniciar_projeto': '#6b7280',
+      'iniciar_projeto': '#3b82f6', // Mudado de #6b7280 (cinza) para #3b82f6 (azul)
       'em_producao': '#3b82f6',
       'aguardando_aprovacao': '#f59e0b',
       'aguardando_assinatura': '#8b5cf6',
@@ -111,6 +110,7 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
     return statusData.label;
   };
 
+  // Calculate task position
   const calculateTaskPosition = (startDate: string, endDate: string) => {
     const start = parseISO(startDate);
     const end = parseISO(endDate);
@@ -129,26 +129,32 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
     };
   };
 
+  // Navigate to previous week
   const navigatePrevious = () => {
     setViewStartDate(subWeeks(viewStartDate, 2));
   };
 
+  // Navigate to next week
   const navigateNext = () => {
     setViewStartDate(addWeeks(viewStartDate, 2));
   };
 
+  // Navigate to today
   const navigateToday = () => {
     setViewStartDate(startOfWeek(new Date()));
   };
 
+  // Handle drag start
   const handleDragStart = (taskId: string) => {
     setDraggedTask(taskId);
   };
 
+  // Handle drag end
   const handleDragEnd = () => {
     setDraggedTask(null);
   };
 
+  // Filter grouped tasks based on selected consultant
   const filteredGroupedTasks = selectedConsultantId
     ? Object.entries(groupedTasks).reduce((acc, [projectId, projectData]) => {
         const filteredTasks = projectData.tasks.filter(task => task.consultant_id === selectedConsultantId);
@@ -304,7 +310,7 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
                               </div>
                               <Badge 
                                 className="text-white text-xs"
-                                style={statusBadgeStyle}
+                                style={statusBadgeStyle.backgroundColor ? statusBadgeStyle : { backgroundColor: statusColor, color: '#ffffff' }}
                               >
                                 {getStatusDisplayText(task.status)}
                               </Badge>
@@ -399,10 +405,10 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
                 </div>
               ))
             ) : (
-              // Fallback legend for old statuses
+              // Fallback legend for old statuses - CORRIGIDO: iniciar_projeto agora usa azul
               <>
                 <div className="flex items-center gap-2 text-sm">
-                  <div className="w-4 h-4 bg-gray-500 rounded"></div>
+                  <div className="w-4 h-4 bg-blue-500 rounded"></div>
                   <span>Inicial</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
