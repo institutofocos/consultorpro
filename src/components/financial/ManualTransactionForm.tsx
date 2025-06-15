@@ -221,6 +221,9 @@ const ManualTransactionForm: React.FC<ManualTransactionFormProps> = ({
       consultant_id: '',
       project_id: '',
       tag_id: '',
+      category_id: '',
+      subcategory_id: '',
+      payment_method_id: '',
       is_fixed_expense: false,
       receipt_url: ''
     });
