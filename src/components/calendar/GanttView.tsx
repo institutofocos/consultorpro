@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,8 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ChevronLeft, ChevronRight, Calendar, User, Clock } from 'lucide-react';
-import { format, addDays, startOfWeek, differenceInDays, parseISO, addWeeks, subWeeks } from 'date-fns';
+import { format, addDays, startOfWeek, differenceInDays, parseISO, addWeeks, subWeeks, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatDateBR } from '@/utils/dateUtils';
 
 interface Task {
   id: string;
@@ -48,6 +48,24 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
   };
 
   const timeline = generateTimeline();
+
+  // Calculate current date position
+  const calculateCurrentDatePosition = () => {
+    const today = new Date();
+    const totalDays = timelineWeeks * 7;
+    const daysSinceViewStart = differenceInDays(today, viewStartDate);
+    
+    // Check if today is within the visible timeline
+    const isVisible = daysSinceViewStart >= 0 && daysSinceViewStart < totalDays;
+    const leftPercent = (daysSinceViewStart / totalDays) * 100;
+    
+    return {
+      visible: isVisible,
+      left: `${leftPercent}%`
+    };
+  };
+
+  const currentDatePosition = calculateCurrentDatePosition();
 
   // Group tasks by project
   const groupedTasks = tasks.reduce((acc, task) => {
@@ -185,11 +203,11 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
           ) : (
             <div className="overflow-x-auto">
               {/* Timeline Header */}
-              <div className="flex border-b bg-muted/30">
+              <div className="flex border-b bg-muted/30 relative">
                 <div className="w-80 flex-shrink-0 p-4 border-r font-semibold">
                   Projeto / Etapa
                 </div>
-                <div className="flex-1 grid grid-cols-8 min-w-[800px]">
+                <div className="flex-1 grid grid-cols-8 min-w-[800px] relative">
                   {timeline.map((week, index) => (
                     <div key={index} className="p-2 text-center text-sm font-medium border-r border-muted">
                       <div>{format(week, 'MMM', { locale: ptBR })}</div>
@@ -198,6 +216,27 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
                       </div>
                     </div>
                   ))}
+                  
+                  {/* Current Date Line */}
+                  {currentDatePosition.visible && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div
+                            className="absolute top-0 bottom-0 w-0.5 bg-green-500 z-10 cursor-pointer"
+                            style={{ left: currentDatePosition.left }}
+                          >
+                            <div className="absolute -top-1 -left-1 w-2 h-2 bg-green-500 rounded-full"></div>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <div className="text-sm font-medium">
+                            Hoje: {formatDateBR(new Date())}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </div>
               </div>
 
@@ -205,7 +244,7 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
               {Object.entries(filteredGroupedTasks).map(([projectId, projectData]) => (
                 <div key={projectId} className="border-b">
                   {/* Project Header */}
-                  <div className="flex bg-muted/10">
+                  <div className="flex bg-muted/10 relative">
                     <div className="w-80 flex-shrink-0 p-3 border-r">
                       <div className="font-semibold">{projectData.project_name}</div>
                       <div className="text-xs text-muted-foreground">{projectData.service_name}</div>
@@ -217,6 +256,14 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
                           <div key={index} className="border-r border-muted/30 h-full"></div>
                         ))}
                       </div>
+                      
+                      {/* Current Date Line for Project Header */}
+                      {currentDatePosition.visible && (
+                        <div
+                          className="absolute top-0 bottom-0 w-0.5 bg-green-500 z-10"
+                          style={{ left: currentDatePosition.left }}
+                        ></div>
+                      )}
                     </div>
                   </div>
 
@@ -228,7 +275,7 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
 
                     return (
                       <TooltipProvider key={task.id}>
-                        <div className="flex hover:bg-muted/20 transition-colors">
+                        <div className="flex hover:bg-muted/20 transition-colors relative">
                           <div className="w-80 flex-shrink-0 p-3 border-r">
                             <div className="flex items-center gap-2">
                               <div className="flex-1">
@@ -251,6 +298,14 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
                                 <div key={index} className="border-r border-muted/20"></div>
                               ))}
                             </div>
+                            
+                            {/* Current Date Line for Task Row */}
+                            {currentDatePosition.visible && (
+                              <div
+                                className="absolute top-0 bottom-0 w-0.5 bg-green-500 z-20"
+                                style={{ left: currentDatePosition.left }}
+                              ></div>
+                            )}
                             
                             {/* Task bar */}
                             <Tooltip>
@@ -334,6 +389,10 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
             <div className="flex items-center gap-2 text-sm">
               <div className="w-4 h-4 bg-red-500 rounded"></div>
               <span>Cancelado</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <div className="w-1 h-4 bg-green-500"></div>
+              <span>Hoje</span>
             </div>
           </div>
         </CardContent>
