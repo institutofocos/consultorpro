@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ChevronLeft, ChevronRight, Calendar, User, Clock, Resize, Move } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, User, Clock } from 'lucide-react';
 import { format, addDays, startOfWeek, differenceInDays, parseISO, addWeeks, subWeeks } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
