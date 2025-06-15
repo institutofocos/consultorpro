@@ -523,7 +523,36 @@ export const fetchTransactionCategories = async (type?: 'income' | 'expense'): P
     }));
   } catch (error) {
     console.error('Error fetching transaction categories:', error);
-    return [];
+    
+    // Retornar categorias padrão caso não existam no banco
+    const defaultCategories: TransactionCategory[] = [
+      {
+        id: 'default-income',
+        name: 'Receita de Serviços',
+        icon: '💰',
+        color: '#22c55e',
+        type: 'income',
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: 'default-expense',
+        name: 'Despesas Operacionais',
+        icon: '💸',
+        color: '#ef4444',
+        type: 'expense',
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+    ];
+    
+    if (type) {
+      return defaultCategories.filter(cat => cat.type === type || cat.type === 'both');
+    }
+    
+    return defaultCategories;
   }
 };
 
@@ -531,7 +560,7 @@ export const fetchTransactionSubcategories = async (categoryId?: string): Promis
   try {
     let query = supabase.from('transaction_subcategories').select('*').eq('is_active', true);
     
-    if (categoryId) {
+    if (categoryId && categoryId !== 'default-income' && categoryId !== 'default-expense') {
       query = query.eq('category_id', categoryId);
     }
     
@@ -567,7 +596,39 @@ export const fetchPaymentMethods = async (): Promise<PaymentMethod[]> => {
     }));
   } catch (error) {
     console.error('Error fetching payment methods:', error);
-    return [];
+    
+    // Retornar métodos de pagamento padrão caso não existam no banco
+    const defaultMethods: PaymentMethod[] = [
+      {
+        id: 'default-pix',
+        name: 'PIX',
+        icon: '📱',
+        type: 'pix',
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: 'default-transfer',
+        name: 'Transferência Bancária',
+        icon: '🏦',
+        type: 'transfer',
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: 'default-cash',
+        name: 'Dinheiro',
+        icon: '💵',
+        type: 'cash',
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+    ];
+    
+    return defaultMethods;
   }
 };
 

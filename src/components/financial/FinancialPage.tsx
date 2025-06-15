@@ -293,11 +293,13 @@ const FinancialPage = () => {
   const handleAddTransaction = async (data: any) => {
     console.log('Transaction data received:', data);
     
-    // Format dates correctly for the database
+    // Format dates correctly for the database - ensure they are strings
     const formattedData = {
       ...data,
-      due_date: format(data.due_date, 'yyyy-MM-dd'),
-      payment_date: data.payment_date ? format(data.payment_date, 'yyyy-MM-dd') : null
+      due_date: typeof data.due_date === 'string' ? data.due_date : format(data.due_date, 'yyyy-MM-dd'),
+      payment_date: data.payment_date ? 
+        (typeof data.payment_date === 'string' ? data.payment_date : format(data.payment_date, 'yyyy-MM-dd')) 
+        : null
     };
     
     console.log('Formatted transaction data:', formattedData);
