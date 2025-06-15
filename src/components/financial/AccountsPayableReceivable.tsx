@@ -602,6 +602,7 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Vencimento</TableHead>
+                    <TableHead>Descrição</TableHead>
                     <TableHead>Projeto</TableHead>
                     <TableHead>Etapa</TableHead>
                     <TableHead>Status da Etapa</TableHead>
@@ -616,7 +617,7 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                   {receivables.isLoading ? (
                     Array.from({ length: 3 }).map((_, index) => (
                       <TableRow key={index}>
-                        {Array.from({ length: 9 }).map((_, cellIndex) => (
+                        {Array.from({ length: 10 }).map((_, cellIndex) => (
                           <TableCell key={cellIndex}>
                             <Skeleton className="h-5 w-full" />
                           </TableCell>
@@ -625,7 +626,7 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                     ))
                   ) : !receivables.data || receivables.data.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8">
+                      <TableCell colSpan={10} className="text-center py-8">
                         Nenhuma conta a receber encontrada
                       </TableCell>
                     </TableRow>
@@ -635,6 +636,7 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                         <TableCell>
                           {format(new Date(receivable.due_date), 'dd/MM/yyyy')}
                         </TableCell>
+                        <TableCell>{receivable.description}</TableCell>
                         <TableCell className="font-medium">
                           {receivable.project_name || '-'}
                         </TableCell>
