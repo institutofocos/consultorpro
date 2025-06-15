@@ -70,7 +70,7 @@ export const createRecurringTransactions = async (
 
   console.log('Inserting recurring transactions:', transactions.length, 'transactions');
 
-  // Inserir todas as transações
+  // Inserir todas as transações na tabela manual_transactions
   const { data, error } = await supabase
     .from('manual_transactions')
     .insert(transactions)
@@ -83,7 +83,7 @@ export const createRecurringTransactions = async (
 
   console.log('Successfully created recurring transactions:', data?.length);
 
-  // Criar entradas correspondentes em accounts_payable/receivable
+  // Criar entradas correspondentes em accounts_payable/receivable APENAS AQUI
   if (data) {
     for (const transaction of data) {
       try {
@@ -174,7 +174,7 @@ export const createInstallmentTransactions = async (
 
   console.log('Inserting installment transactions:', transactions.length);
 
-  // Inserir todas as transações
+  // Inserir todas as transações na tabela manual_transactions
   const { data, error } = await supabase
     .from('manual_transactions')
     .insert(transactions)
@@ -187,7 +187,7 @@ export const createInstallmentTransactions = async (
 
   console.log('Successfully created installment transactions:', data?.length);
 
-  // Criar entradas correspondentes em accounts_payable/receivable
+  // Criar entradas correspondentes em accounts_payable/receivable APENAS AQUI
   if (data) {
     for (const transaction of data) {
       try {
