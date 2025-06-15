@@ -3,8 +3,9 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ChevronLeft, ChevronRight, Search, Calendar as CalendarIcon, Pin, Hourglass, Filter, BarChart3 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, addMonths, subMonths, addWeeks, subWeeks } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, addMonths, subMonths, addWeeks, subWeeks, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from "@/integrations/supabase/client";
 import TaskModal from './TaskModal';
@@ -308,23 +309,44 @@ const CalendarPage: React.FC = () => {
             <span className="text-sm font-medium">{formattedDate}</span>
             <div className="mt-1 space-y-1">
               {dayTaskEvents.map((taskEvent, index) => (
-                <div
-                  key={`${taskEvent.task.id}-${taskEvent.type}-${index}`}
-                  onClick={() => handleTaskEventClick(taskEvent)}
-                  className={`text-xs p-1 rounded cursor-pointer hover:opacity-80 ${getEventTypeColor(taskEvent.type)} ${getStatusColor(taskEvent.task.status)}`}
-                  title={formatTaskEventDisplay(taskEvent)}
-                >
-                  <div className="flex items-center gap-1">
-                    {taskEvent.type === 'start' ? (
-                      <Pin className="h-3 w-3 text-blue-600" />
-                    ) : (
-                      <Hourglass className="h-3 w-3 text-orange-600" />
-                    )}
-                    <span className="truncate">
-                      {formatTaskEventDisplay(taskEvent)}
-                    </span>
-                  </div>
-                </div>
+                <TooltipProvider key={`${taskEvent.task.id}-${taskEvent.type}-${index}`}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
+                        onClick={() => handleTaskEventClick(taskEvent)}
+                        className={`text-xs p-1 rounded cursor-pointer hover:opacity-80 ${getEventTypeColor(taskEvent.type)} ${getStatusColor(taskEvent.task.status)}`}
+                        title={formatTaskEventDisplay(taskEvent)}
+                      >
+                        <div className="flex items-center gap-1">
+                          {taskEvent.type === 'start' ? (
+                            <Pin className="h-3 w-3 text-blue-600" />
+                          ) : (
+                            <Hourglass className="h-3 w-3 text-orange-600" />
+                          )}
+                          <span className="truncate">
+                            {formatTaskEventDisplay(taskEvent)}
+                          </span>
+                        </div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div className="space-y-1">
+                        <div className="font-semibold">{taskEvent.task.name}</div>
+                        <div className="text-xs">
+                          <div>Início: {format(parseISO(taskEvent.task.start_date), 'dd/MM/yyyy', { locale: ptBR })}</div>
+                          <div>Fim: {format(parseISO(taskEvent.task.end_date), 'dd/MM/yyyy', { locale: ptBR })}</div>
+                          <div>Duração: {taskEvent.task.days} dias</div>
+                          <div>Horas: {taskEvent.task.hours}h</div>
+                          <div>Valor: R$ {taskEvent.task.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                          <div>Consultor: {taskEvent.task.consultant_name}</div>
+                          <div>Status: {getStatusDisplay(taskEvent.task.status)}</div>
+                          <div>Projeto: {taskEvent.task.project_name}</div>
+                          <div>Serviço: {taskEvent.task.service_name}</div>
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               ))}
             </div>
           </div>
@@ -371,31 +393,52 @@ const CalendarPage: React.FC = () => {
           </div>
           <div className="space-y-2">
             {dayTaskEvents.map((taskEvent, index) => (
-              <div
-                key={`${taskEvent.task.id}-${taskEvent.type}-${index}`}
-                onClick={() => handleTaskEventClick(taskEvent)}
-                className={`text-sm p-2 rounded cursor-pointer hover:opacity-80 ${getEventTypeColor(taskEvent.type)}`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  {taskEvent.type === 'start' ? (
-                    <Pin className="h-4 w-4 text-blue-600" />
-                  ) : (
-                    <Hourglass className="h-4 w-4 text-orange-600" />
-                  )}
-                  <Badge 
-                    variant="outline" 
-                    className={getStatusColor(taskEvent.task.status)}
-                  >
-                    {getStatusDisplay(taskEvent.task.status)}
-                  </Badge>
-                </div>
-                <div className="font-medium">
-                  {taskEvent.type === 'start' ? '📌 Iniciar' : '⏳ Finalizar'}: {taskEvent.task.name}
-                </div>
-                <div className="text-xs text-gray-600">
-                  {taskEvent.task.project_name} - {taskEvent.task.consultant_name}
-                </div>
-              </div>
+              <TooltipProvider key={`${taskEvent.task.id}-${taskEvent.type}-${index}`}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div
+                      onClick={() => handleTaskEventClick(taskEvent)}
+                      className={`text-sm p-2 rounded cursor-pointer hover:opacity-80 ${getEventTypeColor(taskEvent.type)}`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        {taskEvent.type === 'start' ? (
+                          <Pin className="h-4 w-4 text-blue-600" />
+                        ) : (
+                          <Hourglass className="h-4 w-4 text-orange-600" />
+                        )}
+                        <Badge 
+                          variant="outline" 
+                          className={getStatusColor(taskEvent.task.status)}
+                        >
+                          {getStatusDisplay(taskEvent.task.status)}
+                        </Badge>
+                      </div>
+                      <div className="font-medium">
+                        {taskEvent.type === 'start' ? '📌 Iniciar' : '⏳ Finalizar'}: {taskEvent.task.name}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        {taskEvent.task.project_name} - {taskEvent.task.consultant_name}
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="space-y-1">
+                      <div className="font-semibold">{taskEvent.task.name}</div>
+                      <div className="text-xs">
+                        <div>Início: {format(parseISO(taskEvent.task.start_date), 'dd/MM/yyyy', { locale: ptBR })}</div>
+                        <div>Fim: {format(parseISO(taskEvent.task.end_date), 'dd/MM/yyyy', { locale: ptBR })}</div>
+                        <div>Duração: {taskEvent.task.days} dias</div>
+                        <div>Horas: {taskEvent.task.hours}h</div>
+                        <div>Valor: R$ {taskEvent.task.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        <div>Consultor: {taskEvent.task.consultant_name}</div>
+                        <div>Status: {getStatusDisplay(taskEvent.task.status)}</div>
+                        <div>Projeto: {taskEvent.task.project_name}</div>
+                        <div>Serviço: {taskEvent.task.service_name}</div>
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             ))}
           </div>
         </div>
@@ -422,31 +465,52 @@ const CalendarPage: React.FC = () => {
             </div>
           ) : (
             dayTaskEvents.map((taskEvent, index) => (
-              <div
-                key={`${taskEvent.task.id}-${taskEvent.type}-${index}`}
-                onClick={() => handleTaskEventClick(taskEvent)}
-                className={`p-4 rounded-lg cursor-pointer hover:opacity-80 ${getEventTypeColor(taskEvent.type)}`}
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  {taskEvent.type === 'start' ? (
-                    <Pin className="h-5 w-5 text-blue-600" />
-                  ) : (
-                    <Hourglass className="h-5 w-5 text-orange-600" />
-                  )}
-                  <Badge 
-                    variant="outline" 
-                    className={getStatusColor(taskEvent.task.status)}
-                  >
-                    {getStatusDisplay(taskEvent.task.status)}
-                  </Badge>
-                </div>
-                <div className="font-semibold text-lg">
-                  {taskEvent.type === 'start' ? '📌 Iniciar' : '⏳ Finalizar'}: {taskEvent.task.name}
-                </div>
-                <div className="text-sm opacity-75 mt-1">
-                  {taskEvent.task.project_name} - {taskEvent.task.consultant_name}
-                </div>
-              </div>
+              <TooltipProvider key={`${taskEvent.task.id}-${taskEvent.type}-${index}`}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div
+                      onClick={() => handleTaskEventClick(taskEvent)}
+                      className={`p-4 rounded-lg cursor-pointer hover:opacity-80 ${getEventTypeColor(taskEvent.type)}`}
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        {taskEvent.type === 'start' ? (
+                          <Pin className="h-5 w-5 text-blue-600" />
+                        ) : (
+                          <Hourglass className="h-5 w-5 text-orange-600" />
+                        )}
+                        <Badge 
+                          variant="outline" 
+                          className={getStatusColor(taskEvent.task.status)}
+                        >
+                          {getStatusDisplay(taskEvent.task.status)}
+                        </Badge>
+                      </div>
+                      <div className="font-semibold text-lg">
+                        {taskEvent.type === 'start' ? '📌 Iniciar' : '⏳ Finalizar'}: {taskEvent.task.name}
+                      </div>
+                      <div className="text-sm opacity-75 mt-1">
+                        {taskEvent.task.project_name} - {taskEvent.task.consultant_name}
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="space-y-1">
+                      <div className="font-semibold">{taskEvent.task.name}</div>
+                      <div className="text-xs">
+                        <div>Início: {format(parseISO(taskEvent.task.start_date), 'dd/MM/yyyy', { locale: ptBR })}</div>
+                        <div>Fim: {format(parseISO(taskEvent.task.end_date), 'dd/MM/yyyy', { locale: ptBR })}</div>
+                        <div>Duração: {taskEvent.task.days} dias</div>
+                        <div>Horas: {taskEvent.task.hours}h</div>
+                        <div>Valor: R$ {taskEvent.task.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        <div>Consultor: {taskEvent.task.consultant_name}</div>
+                        <div>Status: {getStatusDisplay(taskEvent.task.status)}</div>
+                        <div>Projeto: {taskEvent.task.project_name}</div>
+                        <div>Serviço: {taskEvent.task.service_name}</div>
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             ))
           )}
         </div>
