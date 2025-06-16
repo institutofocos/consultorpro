@@ -179,6 +179,53 @@ export const fetchFinancialSummary = async (filters: FinancialFilter = {}): Prom
   }
 };
 
+export const fetchFinancialSummaryYear = async (filters: FinancialFilter = {}): Promise<FinancialSummary> => {
+  try {
+    const currentYear = new Date().getFullYear();
+    const yearStart = `${currentYear}-01-01`;
+    const yearEnd = `${currentYear}-12-31`;
+    
+    const yearFilters = {
+      ...filters,
+      startDate: yearStart,
+      endDate: yearEnd
+    };
+    
+    return await fetchFinancialSummary(yearFilters);
+  } catch (error) {
+    console.error('Error in fetchFinancialSummaryYear:', error);
+    return { 
+      total_expected: 0, 
+      total_received: 0, 
+      total_pending: 0, 
+      consultant_payments_made: 0, 
+      consultant_payments_pending: 0 
+    };
+  }
+};
+
+export const fetchFinancialSummaryGeneral = async (filters: FinancialFilter = {}): Promise<FinancialSummary> => {
+  try {
+    // Remove date filters to get all-time data
+    const generalFilters = {
+      ...filters,
+      startDate: undefined,
+      endDate: undefined
+    };
+    
+    return await fetchFinancialSummary(generalFilters);
+  } catch (error) {
+    console.error('Error in fetchFinancialSummaryGeneral:', error);
+    return { 
+      total_expected: 0, 
+      total_received: 0, 
+      total_pending: 0, 
+      consultant_payments_made: 0, 
+      consultant_payments_pending: 0 
+    };
+  }
+};
+
 export const fetchAccountsPayable = async (filters: FinancialFilter = {}): Promise<AccountsPayable[]> => {
   try {
     const { startDate, endDate, consultantId } = filters;

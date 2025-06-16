@@ -6,6 +6,8 @@ import { format } from "date-fns";
 import { toast } from 'sonner';
 import { 
   fetchFinancialSummary,
+  fetchFinancialSummaryYear,
+  fetchFinancialSummaryGeneral,
   fetchAccountsPayable,
   fetchAccountsReceivable,
   createManualTransaction,
@@ -43,10 +45,22 @@ const FinancialPage = () => {
 
   const activeFilters = getMonthFilters();
 
-  // Fetch financial data
+  // Fetch financial data for current month
   const { data: summary, isLoading: summaryLoading } = useQuery({
     queryKey: ['financial-summary', activeFilters],
     queryFn: () => fetchFinancialSummary(activeFilters),
+  });
+
+  // Fetch financial data for current year
+  const { data: yearSummary, isLoading: yearSummaryLoading } = useQuery({
+    queryKey: ['financial-summary-year', filters],
+    queryFn: () => fetchFinancialSummaryYear(filters),
+  });
+
+  // Fetch financial data for general (all time)
+  const { data: generalSummary, isLoading: generalSummaryLoading } = useQuery({
+    queryKey: ['financial-summary-general', filters],
+    queryFn: () => fetchFinancialSummaryGeneral(filters),
   });
 
   const { data: payables, isLoading: payablesLoading } = useQuery({
@@ -353,6 +367,8 @@ const FinancialPage = () => {
     }
   };
 
+  const isAnySummaryLoading = summaryLoading || yearSummaryLoading || generalSummaryLoading;
+
   return (
     <div className="space-y-8 animate-fade-in">
       <div className="flex justify-between items-center">
@@ -375,7 +391,9 @@ const FinancialPage = () => {
       {/* Summary Cards */}
       <FinancialSummary
         summary={summary}
-        isLoading={summaryLoading}
+        yearSummary={yearSummary}
+        generalSummary={generalSummary}
+        isLoading={isAnySummaryLoading}
       />
 
       {/* Filters */}
