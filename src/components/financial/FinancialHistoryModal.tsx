@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check, X, Trash } from "lucide-react";
+import { Check, X, Trash, Eye } from "lucide-react";
 import { format, isAfter, isBefore, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from 'sonner';
@@ -118,6 +118,32 @@ const FinancialHistoryModal: React.FC<FinancialHistoryModalProps> = ({
     console.log('Dados para PDF:', filteredHistory);
   };
 
+  const handleViewTransaction = (item: HistoryItem) => {
+    // Armazenar informações no sessionStorage para manter estado
+    sessionStorage.setItem('highlightTransaction', JSON.stringify({
+      id: item.id,
+      type: item.type,
+      dueDate: item.due_date
+    }));
+
+    // Fechar o modal
+    onClose();
+
+    // Pequeno delay para garantir que o modal feche antes da navegação
+    setTimeout(() => {
+      // Redirecionar para a tela financeira com scroll para a seção correta
+      window.location.hash = item.type === 'receivable' ? '#accounts-receivable' : '#accounts-payable';
+      
+      // Scroll suave para a seção
+      const targetSection = document.querySelector(item.type === 'receivable' ? '#accounts-receivable' : '#accounts-payable');
+      if (targetSection) {
+        targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      toast.success(`Redirecionando para ${item.type === 'receivable' ? 'contas a receber' : 'contas a pagar'}`);
+    }, 100);
+  };
+
   const renderTable = (data: HistoryItem[], emptyMessage: string) => (
     <Table>
       <TableHeader>
@@ -141,7 +167,12 @@ const FinancialHistoryModal: React.FC<FinancialHistoryModalProps> = ({
           </TableRow>
         ) : (
           data.map(item => (
-            <TableRow key={`${item.type}-${item.id}`}>
+            <TableRow 
+              key={`${item.type}-${item.id}`}
+              data-transaction-id={item.id}
+              data-transaction-type={item.type}
+              data-due-date={item.due_date}
+            >
               <TableCell>
                 {format(new Date(item.due_date), 'dd/MM/yyyy')}
               </TableCell>
@@ -172,47 +203,16 @@ const FinancialHistoryModal: React.FC<FinancialHistoryModalProps> = ({
                 {format(new Date(item.updated_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
               </TableCell>
               <TableCell>
-                <div className="flex items-center gap-1">
-                  {item.status === 'pending' && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        const action = item.type === 'receivable' ? 'recebido' : 'pago';
-                        toast.success(`Marcado como ${action}`);
-                      }}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Check className="h-4 w-4 text-green-600" />
-                    </Button>
-                  )}
-                  
-                  {item.status !== 'canceled' && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        toast.info("Transação cancelada");
-                      }}
-                      className="h-8 w-8 p-0"
-                    >
-                      <X className="h-4 w-4 text-red-600" />
-                    </Button>
-                  )}
-                  
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      if (confirm("Tem certeza que deseja excluir esta transação?")) {
-                        toast.success("Transação excluída");
-                      }
-                    }}
-                    className="h-8 w-8 p-0"
-                  >
-                    <Trash className="h-4 w-4 text-red-600" />
-                  </Button>
-                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleViewTransaction(item)}
+                  className="h-8 w-8 p-0 hover:bg-blue-50 transition-colors duration-200"
+                  aria-label={`Visualizar ${item.type === 'receivable' ? 'conta a receber' : 'conta a pagar'}: ${item.description}`}
+                  title="Visualizar detalhes"
+                >
+                  <Eye className="h-4 w-4 text-blue-600" />
+                </Button>
               </TableCell>
             </TableRow>
           ))
