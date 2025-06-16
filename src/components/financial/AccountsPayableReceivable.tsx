@@ -83,14 +83,21 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
         const transactionToHighlight = JSON.parse(highlightData);
         console.log('🎯 Dados da transação para destacar:', transactionToHighlight);
 
+        // Se há um mês específico para navegar, mudar o mês primeiro
+        if (transactionToHighlight.targetMonth) {
+          const targetDate = new Date(transactionToHighlight.targetMonth);
+          console.log('📅 Navegando para o mês:', format(targetDate, 'MMMM/yyyy', { locale: ptBR }));
+          onMonthChange(targetDate);
+        }
+
         // Definir a tab correta
         const correctTab = transactionToHighlight.type === 'receivable' ? 'receivable' : 'payable';
         setActiveTab(correctTab);
 
-        // Aguardar a renderização e então destacar
+        // Aguardar a renderização e carregamento dos dados
         setTimeout(() => {
           highlightTransactionRow(transactionToHighlight);
-        }, 1000);
+        }, 2000); // Aumentar o tempo para permitir o carregamento dos dados
 
         // Limpar o sessionStorage após usar
         sessionStorage.removeItem('highlightTransaction');
@@ -98,60 +105,67 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
         console.error('Erro ao processar dados de destaque:', error);
       }
     }
-  }, [payables.data, receivables.data]);
+  }, [payables.data, receivables.data, onMonthChange]);
 
   const highlightTransactionRow = (transactionData: any) => {
     console.log('🔍 Procurando transação para destacar:', transactionData);
     
-    // Procurar pela linha da transação
-    const transactionRows = document.querySelectorAll(`[data-transaction-type="${transactionData.type}"]`);
-    let targetRow = null;
+    // Aguardar um pouco mais para garantir que os dados foram carregados
+    const findAndHighlight = () => {
+      const transactionRows = document.querySelectorAll(`[data-transaction-type="${transactionData.type}"]`);
+      let targetRow = null;
 
-    transactionRows.forEach(row => {
-      const rowElement = row as HTMLElement;
-      const rowId = rowElement.getAttribute('data-transaction-id');
-      const rowDueDate = rowElement.getAttribute('data-due-date');
-      const rowText = rowElement.textContent || '';
+      console.log(`🔍 Encontradas ${transactionRows.length} linhas do tipo ${transactionData.type}`);
 
-      console.log('🔍 Verificando linha:', {
-        rowId,
-        rowDueDate,
-        targetId: transactionData.id,
-        targetDueDate: transactionData.dueDate,
-        descriptionMatch: rowText.includes(transactionData.description?.substring(0, 20) || '')
+      transactionRows.forEach(row => {
+        const rowElement = row as HTMLElement;
+        const rowId = rowElement.getAttribute('data-transaction-id');
+        const rowDueDate = rowElement.getAttribute('data-due-date');
+        const rowText = rowElement.textContent || '';
+
+        console.log('🔍 Verificando linha:', {
+          rowId,
+          rowDueDate,
+          targetId: transactionData.id,
+          targetDueDate: transactionData.dueDate,
+          descriptionMatch: rowText.includes(transactionData.description?.substring(0, 20) || '')
+        });
+
+        // Comparar por ID, data de vencimento e parte da descrição
+        if (rowId === transactionData.id || 
+            (rowDueDate === transactionData.dueDate && 
+             rowText.includes(transactionData.description?.substring(0, 20) || '')) ||
+            (rowText.includes(transactionData.entityName || '') && 
+             rowDueDate === transactionData.dueDate)) {
+          targetRow = rowElement;
+          console.log('✅ Linha encontrada para destaque!');
+        }
       });
 
-      // Comparar por ID, data de vencimento e parte da descrição
-      if (rowId === transactionData.id || 
-          (rowDueDate === transactionData.dueDate && 
-           rowText.includes(transactionData.description?.substring(0, 20) || '')) ||
-          (rowText.includes(transactionData.entityName || '') && 
-           rowDueDate === transactionData.dueDate)) {
-        targetRow = rowElement;
-        console.log('✅ Linha encontrada para destaque!');
+      if (targetRow) {
+        // Fazer scroll até a linha
+        targetRow.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+
+        // Adicionar destaque à linha
+        targetRow.classList.add('bg-blue-100', 'border-2', 'border-blue-500', 'shadow-lg', 'transition-all', 'duration-300');
+        
+        // Remover o destaque após 8 segundos (mais tempo para o usuário ver)
+        setTimeout(() => {
+          targetRow?.classList.remove('bg-blue-100', 'border-2', 'border-blue-500', 'shadow-lg');
+        }, 8000);
+
+        toast.success(`Transação localizada: ${transactionData.description?.substring(0, 30) || 'Transação'}...`);
+      } else {
+        console.warn('❌ Transação não encontrada na lista atual');
+        // Tentar novamente após mais um tempo
+        setTimeout(findAndHighlight, 1000);
       }
-    });
+    };
 
-    if (targetRow) {
-      // Fazer scroll até a linha
-      targetRow.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'center' 
-      });
-
-      // Adicionar destaque à linha
-      targetRow.classList.add('bg-blue-100', 'border-2', 'border-blue-500', 'shadow-lg', 'transition-all', 'duration-300');
-      
-      // Remover o destaque após 5 segundos
-      setTimeout(() => {
-        targetRow?.classList.remove('bg-blue-100', 'border-2', 'border-blue-500', 'shadow-lg');
-      }, 5000);
-
-      toast.success(`Transação localizada: ${transactionData.description?.substring(0, 30) || 'Transação'}...`);
-    } else {
-      console.warn('❌ Transação não encontrada na lista atual');
-      toast.error('Transação não encontrada na lista atual. Verifique os filtros de data.');
-    }
+    findAndHighlight();
   };
 
   // Fetch history data - sempre que o modal for aberto

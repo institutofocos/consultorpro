@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -121,80 +120,90 @@ const FinancialHistoryModal: React.FC<FinancialHistoryModalProps> = ({
     console.log('Dados para PDF:', filteredHistory);
   };
 
-  const handleViewTransaction = (item: HistoryItem) => {
-    console.log('🔍 Visualizando transação:', {
+  const handleViewTransaction = async (item: HistoryItem) => {
+    console.log('🔍 Iniciando busca global por transação:', {
       id: item.id,
       type: item.type,
       description: item.description,
       due_date: item.due_date
     });
 
-    // Armazenar informações detalhadas no sessionStorage
-    sessionStorage.setItem('highlightTransaction', JSON.stringify({
-      id: item.id,
-      type: item.type,
-      dueDate: item.due_date,
-      description: item.description,
-      amount: item.amount,
-      entityName: item.entity_name
-    }));
-
-    // Fechar o modal
-    onClose();
-
-    // Navegar para a página financeira
-    navigate('/financial');
-
-    // Aguardar a navegação e então fazer o scroll e destaque
-    setTimeout(() => {
-      const targetTab = item.type === 'receivable' ? 'receivable' : 'payable';
+    try {
+      // Buscar a transação em todos os dados para determinar o mês correto
+      const { fetchAccountsPayable, fetchAccountsReceivable } = await import('@/integrations/supabase/financial');
       
-      // Tentar clicar na tab correta
-      const tabButton = document.querySelector(`[value="${targetTab}"]`);
-      if (tabButton) {
-        (tabButton as HTMLElement).click();
+      // Buscar em um período amplo para encontrar a transação
+      const currentYear = new Date().getFullYear();
+      const startOfYear = `${currentYear - 1}-01-01`;
+      const endOfYear = `${currentYear + 1}-12-31`;
+      
+      const searchFilters = {
+        startDate: startOfYear,
+        endDate: endOfYear
+      };
+
+      let foundTransactionMonth = null;
+      let transactionData = null;
+
+      if (item.type === 'receivable') {
+        console.log('🔍 Buscando em contas a receber...');
+        const allReceivables = await fetchAccountsReceivable(searchFilters);
+        const foundTransaction = allReceivables?.find(t => 
+          t.id === item.id || 
+          (t.due_date === item.due_date && t.description.includes(item.description.substring(0, 20)))
+        );
+        
+        if (foundTransaction) {
+          transactionData = foundTransaction;
+          foundTransactionMonth = new Date(foundTransaction.due_date);
+          console.log('✅ Transação encontrada em contas a receber:', foundTransaction);
+        }
+      } else {
+        console.log('🔍 Buscando em contas a pagar...');
+        const allPayables = await fetchAccountsPayable(searchFilters);
+        const foundTransaction = allPayables?.find(t => 
+          t.id === item.id || 
+          (t.due_date === item.due_date && t.description.includes(item.description.substring(0, 20)))
+        );
+        
+        if (foundTransaction) {
+          transactionData = foundTransaction;
+          foundTransactionMonth = new Date(foundTransaction.due_date);
+          console.log('✅ Transação encontrada em contas a pagar:', foundTransaction);
+        }
       }
 
-      // Aguardar a tab carregar e então fazer o scroll e destaque
-      setTimeout(() => {
-        // Procurar pela linha da transação usando os dados armazenados
-        const transactionRows = document.querySelectorAll(`[data-transaction-type="${item.type}"]`);
-        let targetRow = null;
+      if (!foundTransactionMonth || !transactionData) {
+        toast.error('Transação não encontrada no sistema');
+        return;
+      }
 
-        transactionRows.forEach(row => {
-          const rowElement = row as HTMLElement;
-          const rowId = rowElement.getAttribute('data-transaction-id');
-          const rowDueDate = rowElement.getAttribute('data-due-date');
-          
-          // Comparar por ID ou por combinação de dados únicos
-          if (rowId === item.id || 
-              (rowDueDate === item.due_date && 
-               rowElement.textContent?.includes(item.description.substring(0, 20)))) {
-            targetRow = rowElement;
-          }
-        });
+      // Armazenar informações completas no sessionStorage
+      sessionStorage.setItem('highlightTransaction', JSON.stringify({
+        id: transactionData.id,
+        type: item.type,
+        dueDate: transactionData.due_date,
+        description: transactionData.description,
+        amount: transactionData.amount,
+        entityName: item.entity_name,
+        targetMonth: foundTransactionMonth.toISOString()
+      }));
 
-        if (targetRow) {
-          // Fazer scroll até a linha
-          targetRow.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center' 
-          });
+      console.log('📅 Mês da transação encontrado:', foundTransactionMonth);
 
-          // Adicionar destaque à linha
-          targetRow.classList.add('bg-blue-100', 'border-2', 'border-blue-500', 'shadow-lg');
-          
-          // Remover o destaque após 5 segundos
-          setTimeout(() => {
-            targetRow?.classList.remove('bg-blue-100', 'border-2', 'border-blue-500', 'shadow-lg');
-          }, 5000);
+      // Fechar o modal
+      onClose();
 
-          toast.success(`Transação localizada: ${item.description.substring(0, 30)}...`);
-        } else {
-          toast.error('Transação não encontrada na lista atual. Verifique os filtros de data.');
-        }
-      }, 500);
-    }, 100);
+      // Navegar para a página financeira
+      navigate('/financial');
+
+      // Toast informativo
+      toast.success(`Direcionando para ${format(foundTransactionMonth, 'MMMM/yyyy', { locale: ptBR })}...`);
+
+    } catch (error) {
+      console.error('❌ Erro ao buscar transação:', error);
+      toast.error('Erro ao buscar transação no sistema');
+    }
   };
 
   const renderTable = (data: HistoryItem[], emptyMessage: string) => (
