@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,10 +12,11 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check, X, Trash, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
 import { format, isAfter, isBefore, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import FinancialHistoryFilters from './FinancialHistoryFilters';
 import { useConsultants } from '@/hooks/useConsultants';
 
@@ -46,6 +48,7 @@ const FinancialHistoryModal: React.FC<FinancialHistoryModalProps> = ({
   history,
   isLoading
 }) => {
+  const navigate = useNavigate();
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [statusFilter, setStatusFilter] = useState('all');
@@ -119,28 +122,78 @@ const FinancialHistoryModal: React.FC<FinancialHistoryModalProps> = ({
   };
 
   const handleViewTransaction = (item: HistoryItem) => {
-    // Armazenar informações no sessionStorage para manter estado
+    console.log('🔍 Visualizando transação:', {
+      id: item.id,
+      type: item.type,
+      description: item.description,
+      due_date: item.due_date
+    });
+
+    // Armazenar informações detalhadas no sessionStorage
     sessionStorage.setItem('highlightTransaction', JSON.stringify({
       id: item.id,
       type: item.type,
-      dueDate: item.due_date
+      dueDate: item.due_date,
+      description: item.description,
+      amount: item.amount,
+      entityName: item.entity_name
     }));
 
     // Fechar o modal
     onClose();
 
-    // Pequeno delay para garantir que o modal feche antes da navegação
+    // Navegar para a página financeira
+    navigate('/financial');
+
+    // Aguardar a navegação e então fazer o scroll e destaque
     setTimeout(() => {
-      // Redirecionar para a tela financeira com scroll para a seção correta
-      window.location.hash = item.type === 'receivable' ? '#accounts-receivable' : '#accounts-payable';
+      const targetTab = item.type === 'receivable' ? 'receivable' : 'payable';
       
-      // Scroll suave para a seção
-      const targetSection = document.querySelector(item.type === 'receivable' ? '#accounts-receivable' : '#accounts-payable');
-      if (targetSection) {
-        targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Tentar clicar na tab correta
+      const tabButton = document.querySelector(`[value="${targetTab}"]`);
+      if (tabButton) {
+        (tabButton as HTMLElement).click();
       }
 
-      toast.success(`Redirecionando para ${item.type === 'receivable' ? 'contas a receber' : 'contas a pagar'}`);
+      // Aguardar a tab carregar e então fazer o scroll e destaque
+      setTimeout(() => {
+        // Procurar pela linha da transação usando os dados armazenados
+        const transactionRows = document.querySelectorAll(`[data-transaction-type="${item.type}"]`);
+        let targetRow = null;
+
+        transactionRows.forEach(row => {
+          const rowElement = row as HTMLElement;
+          const rowId = rowElement.getAttribute('data-transaction-id');
+          const rowDueDate = rowElement.getAttribute('data-due-date');
+          
+          // Comparar por ID ou por combinação de dados únicos
+          if (rowId === item.id || 
+              (rowDueDate === item.due_date && 
+               rowElement.textContent?.includes(item.description.substring(0, 20)))) {
+            targetRow = rowElement;
+          }
+        });
+
+        if (targetRow) {
+          // Fazer scroll até a linha
+          targetRow.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          });
+
+          // Adicionar destaque à linha
+          targetRow.classList.add('bg-blue-100', 'border-2', 'border-blue-500', 'shadow-lg');
+          
+          // Remover o destaque após 5 segundos
+          setTimeout(() => {
+            targetRow?.classList.remove('bg-blue-100', 'border-2', 'border-blue-500', 'shadow-lg');
+          }, 5000);
+
+          toast.success(`Transação localizada: ${item.description.substring(0, 30)}...`);
+        } else {
+          toast.error('Transação não encontrada na lista atual. Verifique os filtros de data.');
+        }
+      }, 500);
     }, 100);
   };
 

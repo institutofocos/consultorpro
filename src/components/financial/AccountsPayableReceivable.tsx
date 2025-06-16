@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
@@ -73,6 +73,86 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'payable' | 'receivable' } | null>(null);
   const [reactivateTarget, setReactivateTarget] = useState<{ id: string; type: 'payable' | 'receivable' } | null>(null);
   const [undoTarget, setUndoTarget] = useState<{ id: string; type: 'payable' | 'receivable'; currentStatus: string } | null>(null);
+  const [activeTab, setActiveTab] = useState('payable');
+
+  // Verificar se há uma transação para destacar quando o componente carregar
+  useEffect(() => {
+    const highlightData = sessionStorage.getItem('highlightTransaction');
+    if (highlightData) {
+      try {
+        const transactionToHighlight = JSON.parse(highlightData);
+        console.log('🎯 Dados da transação para destacar:', transactionToHighlight);
+
+        // Definir a tab correta
+        const correctTab = transactionToHighlight.type === 'receivable' ? 'receivable' : 'payable';
+        setActiveTab(correctTab);
+
+        // Aguardar a renderização e então destacar
+        setTimeout(() => {
+          highlightTransactionRow(transactionToHighlight);
+        }, 1000);
+
+        // Limpar o sessionStorage após usar
+        sessionStorage.removeItem('highlightTransaction');
+      } catch (error) {
+        console.error('Erro ao processar dados de destaque:', error);
+      }
+    }
+  }, [payables.data, receivables.data]);
+
+  const highlightTransactionRow = (transactionData: any) => {
+    console.log('🔍 Procurando transação para destacar:', transactionData);
+    
+    // Procurar pela linha da transação
+    const transactionRows = document.querySelectorAll(`[data-transaction-type="${transactionData.type}"]`);
+    let targetRow = null;
+
+    transactionRows.forEach(row => {
+      const rowElement = row as HTMLElement;
+      const rowId = rowElement.getAttribute('data-transaction-id');
+      const rowDueDate = rowElement.getAttribute('data-due-date');
+      const rowText = rowElement.textContent || '';
+
+      console.log('🔍 Verificando linha:', {
+        rowId,
+        rowDueDate,
+        targetId: transactionData.id,
+        targetDueDate: transactionData.dueDate,
+        descriptionMatch: rowText.includes(transactionData.description?.substring(0, 20) || '')
+      });
+
+      // Comparar por ID, data de vencimento e parte da descrição
+      if (rowId === transactionData.id || 
+          (rowDueDate === transactionData.dueDate && 
+           rowText.includes(transactionData.description?.substring(0, 20) || '')) ||
+          (rowText.includes(transactionData.entityName || '') && 
+           rowDueDate === transactionData.dueDate)) {
+        targetRow = rowElement;
+        console.log('✅ Linha encontrada para destaque!');
+      }
+    });
+
+    if (targetRow) {
+      // Fazer scroll até a linha
+      targetRow.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+
+      // Adicionar destaque à linha
+      targetRow.classList.add('bg-blue-100', 'border-2', 'border-blue-500', 'shadow-lg', 'transition-all', 'duration-300');
+      
+      // Remover o destaque após 5 segundos
+      setTimeout(() => {
+        targetRow?.classList.remove('bg-blue-100', 'border-2', 'border-blue-500', 'shadow-lg');
+      }, 5000);
+
+      toast.success(`Transação localizada: ${transactionData.description?.substring(0, 30) || 'Transação'}...`);
+    } else {
+      console.warn('❌ Transação não encontrada na lista atual');
+      toast.error('Transação não encontrada na lista atual. Verifique os filtros de data.');
+    }
+  };
 
   // Fetch history data - sempre que o modal for aberto
   const { data: historyData, isLoading: historyLoading, refetch: refetchHistory } = useQuery({
@@ -426,7 +506,7 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
 
   return (
     <>
-      <Tabs defaultValue="payable" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex justify-between items-center mb-4">
           <TabsList className="grid w-full max-w-md grid-cols-2">
             <TabsTrigger value="payable">Contas a Pagar</TabsTrigger>
@@ -493,7 +573,13 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                     </TableRow>
                   ) : (
                     payables.data.map(payable => (
-                      <TableRow key={payable.id}>
+                      <TableRow 
+                        key={payable.id}
+                        data-transaction-id={payable.id}
+                        data-transaction-type="payable"
+                        data-due-date={payable.due_date}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
                         <TableCell>
                           {format(new Date(payable.due_date), 'dd/MM/yyyy')}
                         </TableCell>
@@ -632,7 +718,13 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                     </TableRow>
                   ) : (
                     receivables.data.map(receivable => (
-                      <TableRow key={receivable.id}>
+                      <TableRow 
+                        key={receivable.id}
+                        data-transaction-id={receivable.id}
+                        data-transaction-type="receivable"
+                        data-due-date={receivable.due_date}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
                         <TableCell>
                           {format(new Date(receivable.due_date), 'dd/MM/yyyy')}
                         </TableCell>
