@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,20 +10,12 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format, isAfter, isBefore, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from 'sonner';
 import FinancialHistoryFilters from './FinancialHistoryFilters';
 import { useConsultants } from '@/hooks/useConsultants';
-import { 
-  updateAccountsReceivableStatus, 
-  updateAccountsPayableStatus,
-  deleteAccountsReceivable,
-  deleteAccountsPayable
-} from '@/integrations/supabase/financial';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface HistoryItem {
   id: string;
@@ -52,65 +45,12 @@ const FinancialHistoryModal: React.FC<FinancialHistoryModalProps> = ({
   history,
   isLoading
 }) => {
-  const queryClient = useQueryClient();
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [statusFilter, setStatusFilter] = useState('all');
   const [consultantFilter, setConsultantFilter] = useState('all');
 
   const { data: consultants = [] } = useConsultants();
-
-  // Mutations for updating status
-  const updateReceivableStatusMutation = useMutation({
-    mutationFn: ({ id, status, paymentDate }: { id: string, status: 'pending' | 'received' | 'canceled', paymentDate?: string }) =>
-      updateAccountsReceivableStatus(id, status, paymentDate),
-    onSuccess: () => {
-      toast.success("Status atualizado com sucesso");
-      queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
-      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
-    },
-    onError: (error: any) => {
-      toast.error("Erro ao atualizar status: " + error.message);
-    },
-  });
-
-  const updatePayableStatusMutation = useMutation({
-    mutationFn: ({ id, status, paymentDate }: { id: string, status: 'pending' | 'paid' | 'canceled', paymentDate?: string }) =>
-      updateAccountsPayableStatus(id, status, paymentDate),
-    onSuccess: () => {
-      toast.success("Status atualizado com sucesso");
-      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
-      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
-    },
-    onError: (error: any) => {
-      toast.error("Erro ao atualizar status: " + error.message);
-    },
-  });
-
-  // Mutations for deleting
-  const deleteReceivableMutation = useMutation({
-    mutationFn: (id: string) => deleteAccountsReceivable(id),
-    onSuccess: () => {
-      toast.success("Conta a receber excluída com sucesso");
-      queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
-      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
-    },
-    onError: (error: any) => {
-      toast.error("Erro ao excluir conta: " + error.message);
-    },
-  });
-
-  const deletePayableMutation = useMutation({
-    mutationFn: (id: string) => deleteAccountsPayable(id),
-    onSuccess: () => {
-      toast.success("Conta a pagar excluída com sucesso");
-      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
-      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
-    },
-    onError: (error: any) => {
-      toast.error("Erro ao excluir conta: " + error.message);
-    },
-  });
 
   const filteredHistory = useMemo(() => {
     let filtered = [...history];
@@ -171,46 +111,6 @@ const FinancialHistoryModal: React.FC<FinancialHistoryModalProps> = ({
     }
   };
 
-  const handleMarkAsReceived = (item: HistoryItem) => {
-    if (item.type === 'receivable') {
-      updateReceivableStatusMutation.mutate({
-        id: item.id,
-        status: 'received',
-        paymentDate: format(new Date(), 'yyyy-MM-dd')
-      });
-    } else {
-      updatePayableStatusMutation.mutate({
-        id: item.id,
-        status: 'paid',
-        paymentDate: format(new Date(), 'yyyy-MM-dd')
-      });
-    }
-  };
-
-  const handleCancel = (item: HistoryItem) => {
-    if (item.type === 'receivable') {
-      updateReceivableStatusMutation.mutate({
-        id: item.id,
-        status: 'canceled'
-      });
-    } else {
-      updatePayableStatusMutation.mutate({
-        id: item.id,
-        status: 'canceled'
-      });
-    }
-  };
-
-  const handleDelete = (item: HistoryItem) => {
-    if (confirm("Tem certeza que deseja excluir este registro?")) {
-      if (item.type === 'receivable') {
-        deleteReceivableMutation.mutate(item.id);
-      } else {
-        deletePayableMutation.mutate(item.id);
-      }
-    }
-  };
-
   const handleGeneratePDF = () => {
     // Implementação básica para gerar PDF
     toast.info("Função de gerar PDF será implementada em breve");
@@ -228,13 +128,12 @@ const FinancialHistoryModal: React.FC<FinancialHistoryModalProps> = ({
           <TableHead>Valor</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Atualizado em</TableHead>
-          <TableHead>Ações</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {data.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={8} className="text-center py-8">
+            <TableCell colSpan={7} className="text-center py-8">
               {emptyMessage}
             </TableCell>
           </TableRow>
@@ -269,41 +168,6 @@ const FinancialHistoryModal: React.FC<FinancialHistoryModalProps> = ({
               </TableCell>
               <TableCell>
                 {format(new Date(item.updated_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center space-x-1">
-                  {item.status === 'pending' && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleMarkAsReceived(item)}
-                      className="text-green-600 hover:text-green-700"
-                      title={item.type === 'receivable' ? 'Marcar como recebido' : 'Marcar como pago'}
-                    >
-                      <Check className="h-4 w-4" />
-                    </Button>
-                  )}
-                  {item.status !== 'canceled' && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleCancel(item)}
-                      className="text-orange-600 hover:text-orange-700"
-                      title="Cancelar"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleDelete(item)}
-                    className="text-red-600 hover:text-red-700"
-                    title="Excluir"
-                  >
-                    <Trash className="h-4 w-4" />
-                  </Button>
-                </div>
               </TableCell>
             </TableRow>
           ))
