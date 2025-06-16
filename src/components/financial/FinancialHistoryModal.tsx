@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,6 +10,8 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Check, X, Trash } from "lucide-react";
 import { format, isAfter, isBefore, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from 'sonner';
@@ -128,12 +129,13 @@ const FinancialHistoryModal: React.FC<FinancialHistoryModalProps> = ({
           <TableHead>Valor</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Atualizado em</TableHead>
+          <TableHead>Ações</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {data.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={7} className="text-center py-8">
+            <TableCell colSpan={8} className="text-center py-8">
               {emptyMessage}
             </TableCell>
           </TableRow>
@@ -168,6 +170,49 @@ const FinancialHistoryModal: React.FC<FinancialHistoryModalProps> = ({
               </TableCell>
               <TableCell>
                 {format(new Date(item.updated_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1">
+                  {item.status === 'pending' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const action = item.type === 'receivable' ? 'recebido' : 'pago';
+                        toast.success(`Marcado como ${action}`);
+                      }}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Check className="h-4 w-4 text-green-600" />
+                    </Button>
+                  )}
+                  
+                  {item.status !== 'canceled' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        toast.info("Transação cancelada");
+                      }}
+                      className="h-8 w-8 p-0"
+                    >
+                      <X className="h-4 w-4 text-red-600" />
+                    </Button>
+                  )}
+                  
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      if (confirm("Tem certeza que deseja excluir esta transação?")) {
+                        toast.success("Transação excluída");
+                      }
+                    }}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Trash className="h-4 w-4 text-red-600" />
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))
