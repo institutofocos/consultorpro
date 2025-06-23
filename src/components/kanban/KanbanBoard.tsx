@@ -369,6 +369,7 @@ const KanbanBoard: React.FC = () => {
                 const projectsInColumn = getProjectsByStatus(column.status);
                 const stagesInColumn = getStagesByStatus(column.status);
                 const totalItems = projectsInColumn.length + stagesInColumn.length;
+                const shouldScroll = totalItems > 3;
                 
                 return (
                   <Droppable key={column.id} droppableId={column.status}>
@@ -376,14 +377,17 @@ const KanbanBoard: React.FC = () => {
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`w-80 p-4 rounded-lg min-h-[600px] flex-shrink-0 ${column.color} ${
+                        className={`w-80 p-4 rounded-lg flex-shrink-0 ${column.color} ${
                           snapshot.isDraggingOver ? 'bg-opacity-50' : ''
                         }`}
                         style={{
-                          borderTop: `4px solid ${column.statusColor}` // Usar cor da regra
+                          borderTop: `4px solid ${column.statusColor}`,
+                          height: shouldScroll ? '600px' : 'auto',
+                          display: 'flex',
+                          flexDirection: 'column'
                         }}
                       >
-                        <div className="flex justify-between items-center mb-4">
+                        <div className="flex justify-between items-center mb-4 flex-shrink-0">
                           <div className="flex items-center gap-2">
                             <div 
                               className="w-3 h-3 rounded-full" 
@@ -396,7 +400,12 @@ const KanbanBoard: React.FC = () => {
                           </Badge>
                         </div>
 
-                        <div className="space-y-3">
+                        <div 
+                          className={`space-y-3 ${shouldScroll ? 'overflow-y-auto flex-1' : ''}`}
+                          style={{ 
+                            maxHeight: shouldScroll ? 'calc(100% - 60px)' : 'none'
+                          }}
+                        >
                           {/* Projetos */}
                           {projectsInColumn.map((project, index) => (
                             <Draggable key={`project-${project.id}`} draggableId={`project-${project.id}`} index={index}>
