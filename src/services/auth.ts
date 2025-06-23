@@ -101,7 +101,27 @@ export async function createUserWithProfile(userData: {
   console.log('Creating user with profile:', userData);
   
   try {
-    // Create the user in Supabase Auth
+    // Validate input data
+    if (!userData.email || !userData.password || !userData.full_name) {
+      throw new Error('Email, senha e nome são obrigatórios');
+    }
+
+    if (userData.password.length < 6) {
+      throw new Error('A senha deve ter pelo menos 6 caracteres');
+    }
+
+    // Check if user already exists
+    const { data: existingProfile } = await supabase
+      .from('user_profiles')
+      .select('email')
+      .eq('email', userData.email.toLowerCase())
+      .single();
+
+    if (existingProfile) {
+      throw new Error('Este email já está cadastrado no sistema');
+    }
+
+    // Create the user in Supabase Auth using admin API
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: userData.email,
       password: userData.password,
@@ -114,7 +134,15 @@ export async function createUserWithProfile(userData: {
 
     if (authError) {
       console.error('Auth user creation error:', authError);
-      throw authError;
+      
+      // Handle specific auth errors
+      if (authError.message.includes('already registered')) {
+        throw new Error('Este email já está cadastrado');
+      } else if (authError.message.includes('Password should be at least')) {
+        throw new Error('A senha deve ter pelo menos 6 caracteres');
+      } else {
+        throw new Error(`Erro na autenticação: ${authError.message}`);
+      }
     }
 
     if (!authData.user) {
@@ -123,27 +151,36 @@ export async function createUserWithProfile(userData: {
 
     console.log('Auth user created:', authData.user.id);
 
-    // Create user profile
+    // Create user profile with better error handling
     const { error: profileError } = await supabase
       .from('user_profiles')
       .insert({
         id: authData.user.id,
         full_name: userData.full_name,
         role: userData.role,
-        email: userData.email,
+        email: userData.email.toLowerCase(),
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        is_active: true
       });
 
     if (profileError) {
       console.error('Profile creation error:', profileError);
-      // Try to clean up the auth user
+      
+      // Try to clean up the auth user if profile creation fails
       try {
         await supabase.auth.admin.deleteUser(authData.user.id);
+        console.log('Cleaned up auth user after profile creation failure');
       } catch (cleanupError) {
         console.error('Failed to cleanup auth user:', cleanupError);
       }
-      throw profileError;
+      
+      // Handle specific profile errors
+      if (profileError.code === '23505') {
+        throw new Error('Usuário já existe no sistema');
+      } else {
+        throw new Error(`Erro ao criar perfil: ${profileError.message}`);
+      }
     }
 
     console.log('User profile created successfully');
@@ -165,7 +202,8 @@ export async function createUserWithProfile(userData: {
 
       if (permissionsError) {
         console.error('Permissions creation error:', permissionsError);
-        // Don't fail the entire process for permissions errors
+        // Don't fail the entire process for permissions errors, just log it
+        console.warn('Module permissions could not be created, but user was created successfully');
       } else {
         console.log('Module permissions created successfully');
       }
@@ -177,7 +215,7 @@ export async function createUserWithProfile(userData: {
         id: authData.user.id,
         full_name: userData.full_name,
         role: userData.role,
-        email: userData.email
+        email: userData.email.toLowerCase()
       }
     };
   } catch (error) {

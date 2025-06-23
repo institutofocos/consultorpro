@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -65,7 +66,7 @@ const UserManagement: React.FC = () => {
       setIsLoading(true);
       console.log('Loading users...');
 
-      // Load user profiles from the database
+      // Load user profiles from the database with better error handling
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
         .select('*')
@@ -73,7 +74,16 @@ const UserManagement: React.FC = () => {
 
       if (profilesError) {
         console.error('Error loading user profiles:', profilesError);
-        throw new Error(`Erro ao carregar perfis de usuário: ${profilesError.message}`);
+        
+        // Show more specific error messages
+        if (profilesError.code === 'PGRST301') {
+          toast.error('Erro de permissão ao carregar usuários. Verifique as configurações de segurança.');
+        } else if (profilesError.code === '42P01') {
+          toast.error('Tabela de usuários não encontrada. Verifique a configuração do banco de dados.');
+        } else {
+          toast.error(`Erro ao carregar usuários: ${profilesError.message}`);
+        }
+        return;
       }
 
       console.log('User profiles loaded:', profiles?.length || 0);
@@ -91,9 +101,13 @@ const UserManagement: React.FC = () => {
 
       console.log('All users processed:', allUsers.length);
       setUsers(allUsers);
+      
+      if (allUsers.length === 0) {
+        toast.info('Nenhum usuário encontrado no sistema.');
+      }
     } catch (error: any) {
       console.error('Error loading users:', error);
-      toast.error(error.message || 'Erro ao carregar usuários');
+      toast.error('Erro inesperado ao carregar usuários');
     } finally {
       setIsLoading(false);
     }
@@ -103,6 +117,19 @@ const UserManagement: React.FC = () => {
     try {
       if (!newUser.full_name?.trim() || !newUser.email?.trim() || !newUser.password?.trim()) {
         toast.error('Preencha todos os campos obrigatórios');
+        return;
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newUser.email.trim())) {
+        toast.error('Digite um email válido');
+        return;
+      }
+
+      // Password validation
+      if (newUser.password.length < 6) {
+        toast.error('A senha deve ter pelo menos 6 caracteres');
         return;
       }
 
@@ -118,7 +145,7 @@ const UserManagement: React.FC = () => {
       });
 
       console.log('User created successfully:', result);
-      toast.success('Usuário criado com sucesso!');
+      toast.success(`Usuário "${newUser.full_name}" criado com sucesso!`);
       
       setIsDialogOpen(false);
       setNewUser({ 
@@ -132,8 +159,20 @@ const UserManagement: React.FC = () => {
       await loadUsers();
     } catch (error: any) {
       console.error('Error creating user:', error);
-      const errorMessage = error?.message || 'Erro desconhecido ao criar usuário';
-      toast.error(errorMessage);
+      
+      // Handle specific errors
+      if (error?.message?.includes('already registered') || error?.message?.includes('User already registered')) {
+        toast.error('Este email já está cadastrado no sistema');
+      } else if (error?.message?.includes('Password should be at least')) {
+        toast.error('A senha deve ter pelo menos 6 caracteres');
+      } else if (error?.message?.includes('Invalid email')) {
+        toast.error('Email inválido');
+      } else if (error?.message?.includes('duplicate key value')) {
+        toast.error('Usuário já existe no sistema');
+      } else {
+        const errorMessage = error?.message || 'Erro desconhecido ao criar usuário';
+        toast.error(`Erro ao criar usuário: ${errorMessage}`);
+      }
     } finally {
       setIsCreatingUser(false);
     }
@@ -220,7 +259,8 @@ const UserManagement: React.FC = () => {
                       type="password"
                       value={newUser.password}
                       onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
-                      placeholder="Senha de acesso"
+                      placeholder="Mínimo 6 caracteres"
+                      minLength={6}
                     />
                   </div>
 
