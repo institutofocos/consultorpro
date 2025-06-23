@@ -52,7 +52,7 @@ const KanbanBoard: React.FC = () => {
         .from('projects')
         .select(`
           *,
-          clients!inner (id, name, contact_name),
+          clients!projects_client_id_fkey (id, name, contact_name),
           services (id, name)
         `);
 
@@ -88,8 +88,12 @@ const KanbanBoard: React.FC = () => {
         .from('project_stages')
         .select(`
           *,
-          projects!inner (id, name, client_id),
-          projects!inner (clients!inner (id, name))
+          projects!project_stages_project_id_fkey (
+            id, 
+            name, 
+            client_id,
+            clients!projects_client_id_fkey (id, name)
+          )
         `);
 
       if (error) {
@@ -127,6 +131,46 @@ const KanbanBoard: React.FC = () => {
       return data;
     },
   });
+
+  // Setup real-time subscriptions para atualização automática
+  useEffect(() => {
+    const projectsChannel = supabase
+      .channel('kanban-projects-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'projects'
+        },
+        (payload) => {
+          console.log('Projeto atualizado via real-time:', payload);
+          queryClient.invalidateQueries({ queryKey: ['kanban-projects'] });
+        }
+      )
+      .subscribe();
+
+    const stagesChannel = supabase
+      .channel('kanban-stages-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'project_stages'
+        },
+        (payload) => {
+          console.log('Etapa atualizada via real-time:', payload);
+          queryClient.invalidateQueries({ queryKey: ['kanban-stages'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(projectsChannel);
+      supabase.removeChannel(stagesChannel);
+    };
+  }, [queryClient]);
 
   // Processar projetos
   const projects: Project[] = useMemo(() => {

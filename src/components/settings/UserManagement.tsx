@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,9 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Users, Plus, Edit2, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import UserEditModal from './UserEditModal';
 
 interface User {
   id: string;
@@ -18,6 +21,7 @@ interface User {
   email?: string;
   created_at: string;
   last_login?: string;
+  is_active?: boolean;
 }
 
 interface NewUser {
@@ -32,6 +36,7 @@ const UserManagement: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [newUser, setNewUser] = useState<NewUser>({
     full_name: '',
     email: '',
@@ -41,11 +46,9 @@ const UserManagement: React.FC = () => {
 
   const userRoles = [
     { value: 'admin', label: 'Administrador' },
+    { value: 'consultant', label: 'Consultor' },
     { value: 'manager', label: 'Gestor' },
     { value: 'financial', label: 'Financeiro' },
-    { value: 'marketing', label: 'Marketing' },
-    { value: 'intern', label: 'Estagiário' },
-    { value: 'consultant', label: 'Consultor' },
     { value: 'client', label: 'Cliente' }
   ];
 
@@ -58,7 +61,7 @@ const UserManagement: React.FC = () => {
       setIsLoading(true);
       console.log('Loading users...');
 
-      // Carregar perfis de usuário - agora deve funcionar com as novas políticas
+      // Carregar perfis de usuário
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
         .select('*')
@@ -66,13 +69,12 @@ const UserManagement: React.FC = () => {
 
       if (profilesError) {
         console.error('Error loading user profiles:', profilesError);
-        // Continuar mesmo com erro para tentar carregar de outras fontes
       }
 
       // Carregar consultores
       const { data: consultants, error: consultantsError } = await supabase
         .from('consultants')
-        .select('id, name, email, created_at')
+        .select('i d, name, email, created_at')
         .order('created_at', { ascending: false });
 
       if (consultantsError) {
@@ -98,8 +100,10 @@ const UserManagement: React.FC = () => {
           id: profile.id,
           full_name: profile.full_name,
           role: profile.role,
+          email: profile.email,
           created_at: profile.created_at,
-          last_login: profile.last_login || undefined
+          last_login: profile.last_login || undefined,
+          is_active: profile.is_active !== false
         })));
       }
 
@@ -113,7 +117,8 @@ const UserManagement: React.FC = () => {
               full_name: consultant.name,
               role: 'consultant',
               email: consultant.email,
-              created_at: consultant.created_at || new Date().toISOString()
+              created_at: consultant.created_at || new Date().toISOString(),
+              is_active: true
             });
           }
         });
@@ -129,7 +134,8 @@ const UserManagement: React.FC = () => {
               full_name: client.contact_name || client.name,
               role: 'client',
               email: client.email || undefined,
-              created_at: client.created_at || new Date().toISOString()
+              created_at: client.created_at || new Date().toISOString(),
+              is_active: true
             });
           }
         });
@@ -183,19 +189,13 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const getRoleBadgeVariant = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return 'destructive';
-      case 'manager':
-        return 'default';
-      case 'consultant':
-        return 'secondary';
-      case 'client':
-        return 'outline';
-      default:
-        return 'outline';
-    }
+  const handleEditUser = (user: User) => {
+    setEditingUser(user);
+    setShowEditModal(true);
+  };
+
+  const handleUserUpdated = () => {
+    loadUsers();
   };
 
   const getRoleLabel = (role: string) => {
@@ -203,8 +203,12 @@ const UserManagement: React.FC = () => {
     return roleConfig?.label || role;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
+  const getStatusBadge = (isActive?: boolean) => {
+    return isActive !== false ? (
+      <Badge variant="default" className="text-xs">Ativo</Badge>
+    ) : (
+      <Badge variant="secondary" className="text-xs">Inativo</Badge>
+    );
   };
 
   return (
@@ -311,6 +315,7 @@ const UserManagement: React.FC = () => {
                   <TableHead>Nome</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Tipo</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Criado em</TableHead>
                   <TableHead>Último Acesso</TableHead>
                   <TableHead>Ações</TableHead>
@@ -323,18 +328,22 @@ const UserManagement: React.FC = () => {
                     <TableCell>{user.email || '-'}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {userRoles.find(r => r.value === user.role)?.label || user.role}
+                        {getRoleLabel(user.role)}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {getStatusBadge(user.is_active)}
                     </TableCell>
                     <TableCell>{new Date(user.created_at).toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell>{user.last_login ? new Date(user.last_login).toLocaleDateString('pt-BR') : '-'}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditUser(user)}
+                        >
                           <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -345,6 +354,14 @@ const UserManagement: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal de Edição */}
+      <UserEditModal
+        user={editingUser}
+        open={showEditModal}
+        onOpenChange={setShowEditModal}
+        onUserUpdated={handleUserUpdated}
+      />
     </div>
   );
 };
