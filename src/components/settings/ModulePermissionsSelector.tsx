@@ -8,15 +8,15 @@ import {
   FileText, Calendar, DollarSign, Settings 
 } from 'lucide-react';
 
-export interface ModulePermission {
+export interface ModulePermissionInput {
   module_name: string;
   can_view: boolean;
   can_edit: boolean;
 }
 
 interface ModulePermissionsSelectorProps {
-  permissions: ModulePermission[];
-  onChange: (permissions: ModulePermission[]) => void;
+  permissions: ModulePermissionInput[];
+  onChange: (permissions: ModulePermissionInput[]) => void;
 }
 
 const systemModules = [

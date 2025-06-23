@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { AuthUser, UserProfile, ModulePermission } from '@/types/auth';
 import { User } from '@supabase/supabase-js';
@@ -86,12 +85,18 @@ export async function registerUser(email: string, password: string, userData: {
   }
 }
 
+interface ModulePermissionInput {
+  module_name: string;
+  can_view: boolean;
+  can_edit: boolean;
+}
+
 export async function createUserWithProfile(userData: {
   email: string;
   password: string;
   full_name: string;
   role: 'admin' | 'consultant' | 'client';
-  permissions?: ModulePermission[];
+  permissions?: ModulePermissionInput[];
 }) {
   console.log('Creating user with profile:', userData);
   
@@ -179,6 +184,51 @@ export async function createUserWithProfile(userData: {
     console.error('Create user with profile error:', error);
     throw error;
   }
+}
+
+export async function setupAdminUsers() {
+  const adminEmails = [
+    'contato@eron.dev.br',
+    'augusto.andrademelo@gmail.com',
+    'pedroaugusto.andrademelo@gmail.com'
+  ];
+  
+  const defaultPassword = '123456789';
+  const results: string[] = [];
+  
+  for (const email of adminEmails) {
+    try {
+      console.log(`Configurando admin: ${email}`);
+      
+      const userData = {
+        email,
+        password: defaultPassword,
+        full_name: 'Administrador',
+        role: 'admin' as const,
+        permissions: [
+          { module_name: 'dashboard', can_view: true, can_edit: true },
+          { module_name: 'consultants', can_view: true, can_edit: true },
+          { module_name: 'clients', can_view: true, can_edit: true },
+          { module_name: 'projects', can_view: true, can_edit: true },
+          { module_name: 'services', can_view: true, can_edit: true },
+          { module_name: 'demands', can_view: true, can_edit: true },
+          { module_name: 'calendar', can_view: true, can_edit: true },
+          { module_name: 'financial', can_view: true, can_edit: true },
+          { module_name: 'settings', can_view: true, can_edit: true }
+        ]
+      };
+
+      const result = await createUserWithProfile(userData);
+      results.push(`✅ Administrador criado: ${email}`);
+      console.log(`Admin criado com sucesso: ${email}`);
+    } catch (error: any) {
+      const errorMsg = `❌ Erro ao criar ${email}: ${error.message}`;
+      results.push(errorMsg);
+      console.error(`Erro ao criar admin ${email}:`, error);
+    }
+  }
+  
+  return results;
 }
 
 export async function updateUserProfile(userId: string, userData: Partial<Omit<UserProfile, 'created_at' | 'updated_at' | 'id'>>) {

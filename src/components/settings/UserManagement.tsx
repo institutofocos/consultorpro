@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,7 +12,7 @@ import { Users, Plus, Edit2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { createUserWithProfile } from "@/services/auth";
 import UserEditModal from './UserEditModal';
-import ModulePermissionsSelector, { ModulePermission } from './ModulePermissionsSelector';
+import ModulePermissionsSelector, { ModulePermissionInput } from './ModulePermissionsSelector';
 
 interface User {
   id: string;
@@ -31,7 +30,7 @@ interface NewUser {
   email: string;
   password: string;
   role: string;
-  permissions: ModulePermission[];
+  permissions: ModulePermissionInput[];
 }
 
 const UserManagement: React.FC = () => {
