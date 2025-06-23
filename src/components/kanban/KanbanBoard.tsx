@@ -185,6 +185,17 @@ const KanbanBoard: React.FC = () => {
         return '';
       };
 
+      // Helper function to safely extract client data
+      const getClientData = (clients: any) => {
+        if (!clients) return undefined;
+        if (Array.isArray(clients)) {
+          return clients[0] || undefined;
+        }
+        return clients;
+      };
+
+      const clientData = getClientData(project.clients);
+
       return {
         id: project.id,
         projectId: project.project_id,
@@ -214,11 +225,9 @@ const KanbanBoard: React.FC = () => {
         createdAt: project.created_at,
         updatedAt: project.updated_at,
         // Mapped fields - Fixed type safety for services
-        clients: Array.isArray(project.clients) ? project.clients[0] : project.clients,
+        clients: clientData,
         services: project.services,
-        clientName: Array.isArray(project.clients) 
-          ? project.clients[0]?.name 
-          : project.clients?.name,
+        clientName: clientData?.name || '',
         serviceName: getServiceName(project.services),
       };
     });

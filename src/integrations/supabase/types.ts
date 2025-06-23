@@ -1396,11 +1396,13 @@ export type Database = {
       user_profiles: {
         Row: {
           created_at: string
+          email: string | null
           full_name: string
           id: string
           is_active: boolean | null
           last_login: string | null
           password_hash: string | null
+          phone: string | null
           profile_photo_url: string | null
           role: string
           updated_at: string
@@ -1409,11 +1411,13 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          email?: string | null
           full_name: string
           id: string
           is_active?: boolean | null
           last_login?: string | null
           password_hash?: string | null
+          phone?: string | null
           profile_photo_url?: string | null
           role: string
           updated_at?: string
@@ -1422,11 +1426,13 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          email?: string | null
           full_name?: string
           id?: string
           is_active?: boolean | null
           last_login?: string | null
           password_hash?: string | null
+          phone?: string | null
           profile_photo_url?: string | null
           role?: string
           updated_at?: string

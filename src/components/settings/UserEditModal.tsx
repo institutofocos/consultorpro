@@ -14,6 +14,7 @@ interface User {
   full_name: string;
   role: string;
   email?: string;
+  phone?: string;
   created_at: string;
   last_login?: string;
   is_active?: boolean;
@@ -45,7 +46,8 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
     full_name: user?.full_name || '',
     role: user?.role || 'client',
     email: user?.email || '',
-    is_active: user?.is_active !== false // default to true if not specified
+    phone: user?.phone || '',
+    is_active: user?.is_active !== false
   });
 
   React.useEffect(() => {
@@ -54,6 +56,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
         full_name: user.full_name || '',
         role: user.role || 'client',
         email: user.email || '',
+        phone: user.phone || '',
         is_active: user.is_active !== false
       });
     }
@@ -71,6 +74,9 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
         .update({
           full_name: formData.full_name,
           role: formData.role,
+          email: formData.email,
+          phone: formData.phone,
+          is_active: formData.is_active,
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
@@ -181,6 +187,17 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
               value={formData.email}
               onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
               placeholder="email@exemplo.com"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="phone">Telefone</Label>
+            <Input
+              id="phone"
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+              placeholder="(11) 99999-9999"
             />
           </div>
 

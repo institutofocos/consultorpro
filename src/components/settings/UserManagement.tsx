@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ interface User {
   full_name: string;
   role: string;
   email?: string;
+  phone?: string;
   created_at: string;
   last_login?: string;
   is_active?: boolean;
@@ -71,9 +73,10 @@ const UserManagement: React.FC = () => {
 
       if (profilesError) {
         console.error('Error loading user profiles:', profilesError);
+        throw profilesError;
       }
 
-      // Carregar consultores - Fixed SQL syntax
+      // Carregar consultores
       const { data: consultants, error: consultantsError } = await supabase
         .from('consultants')
         .select('id, name, email, created_at')
@@ -96,16 +99,17 @@ const UserManagement: React.FC = () => {
       // Combinar todos os usuários
       const allUsers: User[] = [];
 
-      // Adicionar perfis de usuário - Fixed property access
+      // Adicionar perfis de usuário
       if (profiles && profiles.length > 0) {
         allUsers.push(...profiles.map(profile => ({
           id: profile.id,
           full_name: profile.full_name,
           role: profile.role,
-          email: profile.username || undefined, // Use username as email fallback
+          email: profile.email || profile.username || undefined,
+          phone: profile.phone || undefined,
           created_at: profile.created_at,
           last_login: profile.last_login || undefined,
-          is_active: profile.user_type !== 'inactive' // Derive from user_type if is_active doesn't exist
+          is_active: profile.is_active !== false
         })));
       }
 
@@ -253,7 +257,7 @@ const UserManagement: React.FC = () => {
               Novo Usuário
             </Button>
           </DialogTrigger>
-          <DialogContent size="xl">
+          <DialogContent className="max-w-4xl">
             <DialogHeader>
               <DialogTitle>Criar Novo Usuário</DialogTitle>
             </DialogHeader>
