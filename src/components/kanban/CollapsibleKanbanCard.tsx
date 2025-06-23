@@ -55,9 +55,6 @@ const CollapsibleKanbanCard: React.FC<CollapsibleKanbanCardProps> = ({
   };
 
   if (type === 'project' && project) {
-    const projectStatus = project.status || 'planned';
-    const statusDisplay = getStatusDisplay(projectStatus);
-    const statusStyle = getStatusBadgeStyle(projectStatus);
     const progressPercentage = project.stages && project.stages.length > 0 
       ? Math.round((project.stages.filter(s => s.completed).length / project.stages.length) * 100)
       : 0;
@@ -75,9 +72,6 @@ const CollapsibleKanbanCard: React.FC<CollapsibleKanbanCardProps> = ({
                 {project.name}
               </h4>
               <div className="flex gap-1 flex-wrap mb-2">
-                <Badge style={statusStyle} variant="secondary" className="text-xs">
-                  {statusDisplay.label}
-                </Badge>
                 {project.projectId && (
                   <Badge variant="outline" className="text-xs">
                     {project.projectId}
@@ -253,9 +247,6 @@ const CollapsibleKanbanCard: React.FC<CollapsibleKanbanCardProps> = ({
   }
 
   if (type === 'stage' && stage) {
-    const stageStatus = stage.status || 'iniciar_projeto';
-    const statusDisplay = getStatusDisplay(stageStatus);
-    const statusStyle = getStatusBadgeStyle(stageStatus);
     const margin = stage.value && stage.valorDeRepasse ? stage.value - stage.valorDeRepasse : 0;
     const marginPercentage = stage.value ? Math.round((margin / stage.value) * 100) : 0;
 
@@ -273,14 +264,6 @@ const CollapsibleKanbanCard: React.FC<CollapsibleKanbanCardProps> = ({
               </h4>
               <div className="text-xs text-gray-500 mb-2 truncate">
                 Projeto: {stage.projectName}
-              </div>
-              <div className="flex gap-1 flex-wrap mb-2">
-                <Badge style={statusStyle} variant="secondary" className="text-xs">
-                  {statusDisplay.label}
-                </Badge>
-                <Badge variant="outline" className="text-xs">
-                  Etapa
-                </Badge>
               </div>
             </div>
             
@@ -316,7 +299,7 @@ const CollapsibleKanbanCard: React.FC<CollapsibleKanbanCardProps> = ({
               <span>Fim: {formatDate(stage.endDate)}</span>
             </div>
 
-            {/* Consultores sempre visíveis */}
+            {/* Cliente sempre visível */}
             <div className="space-y-1">
               {stage.clientName && (
                 <div className="flex items-center gap-2">
@@ -375,12 +358,6 @@ const CollapsibleKanbanCard: React.FC<CollapsibleKanbanCardProps> = ({
                     </span>
                   </div>
                 </div>
-              </div>
-
-              {/* Informações adicionais que podem estar disponíveis */}
-              <div className="space-y-2">
-                {/* Aqui podemos adicionar informações do gestor quando disponível */}
-                {/* Como as etapas não têm gestor direto, seria necessário buscar do projeto pai */}
               </div>
             </div>
           )}
