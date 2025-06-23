@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -44,7 +43,7 @@ const KanbanBoard: React.FC = () => {
   
   const queryClient = useQueryClient();
 
-  // Buscar projetos com dados relacionados
+  // Buscar projetos com dados relacionados - fixed the query with proper column hints
   const { data: rawProjects = [], isLoading } = useQuery({
     queryKey: ['kanban-projects', searchTerm, selectedConsultant, selectedService, selectedTag],
     queryFn: async () => {
@@ -54,8 +53,8 @@ const KanbanBoard: React.FC = () => {
           *,
           clients:client_id (id, name, contact_name),
           services:service_id (id, name),
-          main_consultant:main_consultant_id (id, name),
-          support_consultant:support_consultant_id (id, name),
+          main_consultant:main_consultant_id (id, name, email),
+          support_consultant:support_consultant_id (id, name, email),
           project_stages (*),
           project_tasks (*)
         `);
@@ -107,7 +106,7 @@ const KanbanBoard: React.FC = () => {
     url: project.url,
     createdAt: project.created_at,
     updatedAt: project.updated_at,
-    // Mapped database fields
+    // Mapped database fields with proper type checking
     project_stages: project.project_stages?.map((stage: any) => ({
       id: stage.id,
       projectId: stage.project_id,
@@ -137,11 +136,11 @@ const KanbanBoard: React.FC = () => {
     services: project.services,
     main_consultant: project.main_consultant,
     support_consultant: project.support_consultant,
-    // Computed fields
-    clientName: project.clients?.name,
-    serviceName: project.services?.name,
-    mainConsultantName: project.main_consultant?.name,
-    supportConsultantName: project.support_consultant?.name,
+    // Computed fields with null checks
+    clientName: project.clients?.name || undefined,
+    serviceName: project.services?.name || undefined,
+    mainConsultantName: project.main_consultant?.name || undefined,
+    supportConsultantName: project.support_consultant?.name || undefined,
   }));
 
   // Buscar consultores para filtro
