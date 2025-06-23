@@ -22,6 +22,9 @@ export interface Stage {
   valorDeRepasse?: number;
   createdAt?: string;
   updatedAt?: string;
+  // Extended properties for Kanban
+  projectName?: string;
+  clientName?: string;
 }
 
 export interface ProjectTag {

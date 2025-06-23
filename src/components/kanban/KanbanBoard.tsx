@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -77,7 +78,7 @@ const KanbanBoard: React.FC = () => {
     },
   });
 
-  // Transform raw data to match Project interface
+  // Transform raw data to match Project interface and map database fields
   const projects: Project[] = rawProjects.map(project => ({
     id: project.id,
     projectId: project.project_id,
@@ -107,7 +108,30 @@ const KanbanBoard: React.FC = () => {
     createdAt: project.created_at,
     updatedAt: project.updated_at,
     // Mapped database fields
-    project_stages: project.project_stages || [],
+    project_stages: project.project_stages?.map((stage: any) => ({
+      id: stage.id,
+      projectId: stage.project_id,
+      name: stage.name,
+      description: stage.description,
+      days: stage.days,
+      hours: stage.hours,
+      value: stage.value,
+      startDate: stage.start_date,
+      endDate: stage.end_date,
+      consultantId: stage.consultant_id,
+      completed: stage.completed,
+      clientApproved: stage.client_approved,
+      managerApproved: stage.manager_approved,
+      invoiceIssued: stage.invoice_issued,
+      paymentReceived: stage.payment_received,
+      consultantsSettled: stage.consultants_settled,
+      attachment: stage.attachment,
+      stageOrder: stage.stage_order,
+      status: stage.status,
+      valorDeRepasse: stage.valor_de_repasse,
+      createdAt: stage.created_at,
+      updatedAt: stage.updated_at,
+    })) || [],
     project_tasks: project.project_tasks || [],
     clients: project.clients,
     services: project.services,

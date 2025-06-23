@@ -108,11 +108,11 @@ const ProjectDetailsModal: React.FC<ProjectDetailsModalProps> = ({
           )}
 
           {/* Etapas */}
-          {project.stages && project.stages.length > 0 && (
+          {project.project_stages && project.project_stages.length > 0 && (
             <div className="space-y-3">
               <h4 className="font-semibold">Etapas do Projeto</h4>
               <div className="space-y-2">
-                {project.stages.map((stage, index) => (
+                {project.project_stages.map((stage, index) => (
                   <div key={stage.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-3">
                       {stage.completed ? (
