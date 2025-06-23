@@ -23,6 +23,9 @@ export const fetchConsultants = async () => {
 
 export const createConsultant = async (consultant: any) => {
   try {
+    console.log('=== INICIANDO CRIAÇÃO DE CONSULTOR ===');
+    console.log('Dados do consultor:', consultant);
+
     // Remover campos que não existem na tabela
     const {
       username,
@@ -48,16 +51,115 @@ export const createConsultant = async (consultant: any) => {
       hours_per_month: hoursPerMonth || consultant.hours_per_month || 160,
     };
 
-    const { data, error } = await supabase
+    console.log('Dados limpos do consultor:', consultantData);
+
+    // Primeiro, criar o usuário no Supabase Auth
+    const defaultPassword = 'consultor123';
+    console.log('Criando usuário no Supabase Auth...');
+    
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: consultantData.email,
+      password: defaultPassword,
+      email_confirm: true,
+      user_metadata: {
+        full_name: consultantData.name,
+        role: 'consultant'
+      }
+    });
+
+    if (authError) {
+      console.error('Erro ao criar usuário no Auth:', authError);
+      throw new Error(`Erro ao criar usuário: ${authError.message}`);
+    }
+
+    console.log('Usuário criado no Auth:', authData.user?.id);
+
+    // Usar o ID do usuário criado para o consultor
+    const consultantWithUserId = {
+      ...consultantData,
+      id: authData.user!.id
+    };
+
+    console.log('Criando consultor na tabela com ID do usuário...');
+
+    // Criar o consultor na tabela (usando o ID do usuário do Auth)
+    const { data: consultantResult, error: consultantError } = await supabase
       .from('consultants')
-      .insert(consultantData)
+      .insert(consultantWithUserId)
       .select()
       .single();
     
-    if (error) throw error;
-    return data;
+    if (consultantError) {
+      console.error('Erro ao criar consultor na tabela:', consultantError);
+      // Se falhou, tentar limpar o usuário criado
+      try {
+        await supabase.auth.admin.deleteUser(authData.user!.id);
+      } catch (cleanupError) {
+        console.error('Erro ao limpar usuário:', cleanupError);
+      }
+      throw consultantError;
+    }
+
+    console.log('Consultor criado na tabela:', consultantResult);
+
+    // Criar o perfil do usuário manualmente
+    console.log('Criando perfil do usuário...');
+    const { error: profileError } = await supabase
+      .from('user_profiles')
+      .upsert({
+        id: authData.user!.id,
+        full_name: consultantData.name,
+        role: 'consultant',
+        email: consultantData.email,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+    if (profileError) {
+      console.error('Erro ao criar perfil:', profileError);
+      // Não falhar aqui, apenas logar
+    }
+
+    // Criar permissões de módulo para o consultor
+    console.log('Criando permissões de módulo...');
+    const modulePermissions = [
+      { module_name: 'dashboard', can_view: true, can_edit: false },
+      { module_name: 'projects', can_view: true, can_edit: false },
+      { module_name: 'demands', can_view: true, can_edit: false },
+      { module_name: 'calendar', can_view: true, can_edit: false }
+    ];
+
+    const permissionsToInsert = modulePermissions.map(permission => ({
+      user_id: authData.user!.id,
+      module_name: permission.module_name,
+      can_view: permission.can_view,
+      can_edit: permission.can_edit,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }));
+
+    const { error: permissionsError } = await supabase
+      .from('module_permissions')
+      .insert(permissionsToInsert);
+
+    if (permissionsError) {
+      console.error('Erro ao criar permissões:', permissionsError);
+      // Não falhar aqui, apenas logar
+    }
+
+    console.log('=== CONSULTOR E USUÁRIO CRIADOS COM SUCESSO ===');
+    console.log('ID do usuário:', authData.user!.id);
+    console.log('Email:', consultantData.email);
+    console.log('Senha padrão:', defaultPassword);
+    
+    return {
+      ...consultantResult,
+      userCreated: true,
+      defaultPassword,
+      userId: authData.user!.id
+    };
   } catch (error) {
-    console.error('Error creating consultant:', error);
+    console.error('=== ERRO NA CRIAÇÃO DO CONSULTOR ===', error);
     throw error;
   }
 };

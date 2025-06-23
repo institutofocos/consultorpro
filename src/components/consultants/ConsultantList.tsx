@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -9,12 +10,14 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   Search, 
   UserPlus, 
   Edit, 
   Trash,
-  ExternalLink
+  ExternalLink,
+  CheckCircle2
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import ConsultantForm from './ConsultantForm';
@@ -81,6 +84,11 @@ export const ConsultantList: React.FC = () => {
   const [availableHours, setAvailableHours] = useState<{[key: string]: number}>({});
   const [workedHours, setWorkedHours] = useState<{[key: string]: number}>({});
   const [activeProjects, setActiveProjects] = useState<{[key: string]: number}>({});
+  const [lastCreatedUser, setLastCreatedUser] = useState<{
+    name: string;
+    email: string;
+    password: string;
+  } | null>(null);
   const [servicesModal, setServicesModal] = useState<{
     isOpen: boolean;
     consultantId: string;
@@ -176,6 +184,15 @@ export const ConsultantList: React.FC = () => {
   
   const handleAddConsultant = async (consultant: any) => {
     try {
+      // Show user creation success if applicable
+      if (consultant.userCreated && consultant.defaultPassword) {
+        setLastCreatedUser({
+          name: consultant.name,
+          email: consultant.email,
+          password: consultant.defaultPassword
+        });
+      }
+
       // Refresh consultant list after saving
       const { data: updatedData, error: refreshError } = await supabase
         .from('consultants')
@@ -281,6 +298,31 @@ export const ConsultantList: React.FC = () => {
         <h1 className="text-3xl font-bold">Consultores</h1>
         <p className="text-muted-foreground">Gerenciamento de consultores</p>
       </div>
+
+      {lastCreatedUser && (
+        <Alert className="border-green-200 bg-green-50">
+          <CheckCircle2 className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">
+            <strong>Usuário criado com sucesso!</strong>
+            <div className="mt-2 space-y-1">
+              <div><strong>Nome:</strong> {lastCreatedUser.name}</div>
+              <div><strong>Email:</strong> {lastCreatedUser.email}</div>
+              <div><strong>Senha padrão:</strong> {lastCreatedUser.password}</div>
+            </div>
+            <div className="mt-2 text-sm">
+              Informe ao consultor para fazer login e alterar a senha no primeiro acesso.
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-2"
+              onClick={() => setLastCreatedUser(null)}
+            >
+              Entendi
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
       
       {showForm ? (
         <ConsultantForm 

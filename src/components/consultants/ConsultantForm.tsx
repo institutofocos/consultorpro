@@ -1,10 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Info, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchServices } from "@/integrations/supabase/services";
@@ -33,7 +34,7 @@ interface Consultant {
 
 interface ConsultantFormProps {
   consultant?: Consultant;
-  onConsultantSaved: (consultant: Consultant) => void;
+  onConsultantSaved: (consultant: Consultant & { userCreated?: boolean; defaultPassword?: string }) => void;
   onCancel: () => void;
 }
 
@@ -59,6 +60,7 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
   });
   const [isLoading, setIsLoading] = useState(false);
   const [availableServices, setAvailableServices] = useState<Array<{ id: string; name: string }>>([]);
+  const [showUserCreationInfo, setShowUserCreationInfo] = useState(false);
 
   useEffect(() => {
     const loadServices = async () => {
@@ -162,20 +164,22 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
         toast.success('Consultor atualizado com sucesso!');
       } else {
         console.log('Criando novo consultor');
-        const { data, error } = await supabase
-          .from('consultants')
-          .insert(consultantData)
-          .select()
-          .single();
-
-        if (error) {
-          console.error('Erro na criação:', error);
-          throw new Error(`Erro ao criar consultor: ${error.message}`);
+        
+        // Importar a função createConsultant
+        const { createConsultant } = await import('@/integrations/supabase/consultants');
+        
+        const result = await createConsultant(consultantData);
+        savedConsultant = result;
+        
+        if (result.userCreated) {
+          toast.success(
+            `Consultor criado com sucesso! Usuário criado com senha padrão: ${result.defaultPassword}`,
+            { duration: 8000 }
+          );
+          setShowUserCreationInfo(true);
+        } else {
+          toast.success('Consultor criado com sucesso!');
         }
-
-        console.log('Consultor criado com sucesso:', data);
-        savedConsultant = data;
-        toast.success('Consultor criado com sucesso!');
       }
 
       // Gerenciar serviços do consultor
@@ -225,6 +229,24 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {!consultant && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            Ao criar um novo consultor, um usuário será automaticamente criado no sistema com:
+            <ul className="list-disc list-inside mt-2 space-y-1">
+              <li>Email: mesmo email do consultor</li>
+              <li>Senha padrão: "consultor123"</li>
+              <li>Papel: Consultor</li>
+              <li>Acesso aos módulos: Dashboard, Projetos, Demandas e Calendário</li>
+            </ul>
+            <span className="text-sm text-muted-foreground mt-2 block">
+              O consultor deverá alterar a senha no primeiro acesso.
+            </span>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>{consultant ? 'Editar Consultor' : 'Novo Consultor'}</CardTitle>
@@ -252,39 +274,6 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                 placeholder="email@exemplo.com"
                 required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="phone">Telefone</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                placeholder="(11) 99999-9999"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="profile_photo">URL da Foto de Perfil</Label>
-              <Input
-                id="profile_photo"
-                value={formData.profile_photo}
-                onChange={(e) => setFormData(prev => ({ ...prev, profile_photo: e.target.value }))}
-                placeholder="https://exemplo.com/foto.jpg"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="url">URL</Label>
-              <Input
-                id="url"
-                type="url"
-                value={formData.url}
-                onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
-                placeholder="https://exemplo.com"
               />
             </div>
           </div>
