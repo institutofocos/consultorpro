@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -12,6 +13,8 @@ import { Project, Stage } from '@/components/projects/types';
 import { toast } from 'sonner';
 import KanbanCard from './KanbanCard';
 import ProjectDetailsModal from './ProjectDetailsModal';
+import { fetchProjects } from '@/integrations/supabase/projects';
+import { useProjectStatuses } from '@/hooks/useProjectStatuses';
 
 interface KanbanColumn {
   id: string;
@@ -41,67 +44,39 @@ const KanbanBoard: React.FC = () => {
   const [showProjectModal, setShowProjectModal] = useState(false);
   
   const queryClient = useQueryClient();
+  const { statuses, getStatusDisplay } = useProjectStatuses();
 
-  // Buscar projetos
-  const { data: rawProjects = [], isLoading: projectsLoading } = useQuery({
+  // Buscar projetos usando a função do sistema de projetos
+  const { data: projects = [], isLoading: projectsLoading } = useQuery({
     queryKey: ['kanban-projects', searchTerm, selectedConsultant, selectedService],
     queryFn: async () => {
       console.log('Buscando projetos para o Kanban...');
-      let query = supabase
-        .from('projects')
-        .select(`
-          *,
-          clients!projects_client_id_fkey (id, name, contact_name),
-          services (id, name)
-        `);
-
+      const allProjects = await fetchProjects();
+      
+      // Aplicar filtros
+      let filteredProjects = allProjects;
+      
       if (searchTerm) {
-        query = query.ilike('name', `%${searchTerm}%`);
+        filteredProjects = filteredProjects.filter(project => 
+          project.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
       }
-
+      
       if (selectedConsultant) {
-        query = query.or(`main_consultant_id.eq.${selectedConsultant},support_consultant_id.eq.${selectedConsultant}`);
+        filteredProjects = filteredProjects.filter(project => 
+          project.mainConsultantId === selectedConsultant || 
+          project.supportConsultantId === selectedConsultant
+        );
       }
-
+      
       if (selectedService) {
-        query = query.eq('service_id', selectedService);
-      }
-
-      const { data, error } = await query;
-      if (error) {
-        console.error('Erro ao buscar projetos:', error);
-        throw error;
+        filteredProjects = filteredProjects.filter(project => 
+          project.serviceId === selectedService
+        );
       }
       
-      console.log('Projetos encontrados:', data?.length || 0);
-      return data || [];
-    },
-  });
-
-  // Buscar etapas dos projetos
-  const { data: rawStages = [], isLoading: stagesLoading } = useQuery({
-    queryKey: ['kanban-stages'],
-    queryFn: async () => {
-      console.log('Buscando etapas para o Kanban...');
-      const { data, error } = await supabase
-        .from('project_stages')
-        .select(`
-          *,
-          projects!project_stages_project_id_fkey (
-            id, 
-            name, 
-            client_id,
-            clients!projects_client_id_fkey (id, name)
-          )
-        `);
-
-      if (error) {
-        console.error('Erro ao buscar etapas:', error);
-        throw error;
-      }
-      
-      console.log('Etapas encontradas:', data?.length || 0);
-      return data || [];
+      console.log('Projetos filtrados para o Kanban:', filteredProjects.length);
+      return filteredProjects;
     },
   });
 
@@ -133,17 +108,19 @@ const KanbanBoard: React.FC = () => {
 
   // Setup real-time subscriptions para atualização automática
   useEffect(() => {
+    console.log('Configurando real-time subscriptions para o Kanban...');
+    
     const projectsChannel = supabase
       .channel('kanban-projects-changes')
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'projects'
         },
         (payload) => {
-          console.log('Projeto atualizado via real-time:', payload);
+          console.log('Projeto atualizado via real-time (Kanban):', payload);
           queryClient.invalidateQueries({ queryKey: ['kanban-projects'] });
         }
       )
@@ -154,147 +131,28 @@ const KanbanBoard: React.FC = () => {
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'project_stages'
         },
         (payload) => {
-          console.log('Etapa atualizada via real-time:', payload);
-          queryClient.invalidateQueries({ queryKey: ['kanban-stages'] });
+          console.log('Etapa atualizada via real-time (Kanban):', payload);
+          queryClient.invalidateQueries({ queryKey: ['kanban-projects'] });
         }
       )
       .subscribe();
 
     return () => {
+      console.log('Removendo real-time subscriptions do Kanban...');
       supabase.removeChannel(projectsChannel);
       supabase.removeChannel(stagesChannel);
     };
   }, [queryClient]);
 
-  // Processar projetos - Fixed type safety issues
-  const projects: Project[] = useMemo(() => {
-    if (!rawProjects) return [];
-    
-    return rawProjects.map(project => {
-      // Helper function to safely extract service name
-      const getServiceName = (services: any): string => {
-        if (!services) return '';
-        if (typeof services === 'object' && services.name) {
-          return String(services.name);
-        }
-        return '';
-      };
-
-      // Helper function to safely extract client data
-      const getClientData = (clients: any) => {
-        if (!clients) return undefined;
-        if (Array.isArray(clients)) {
-          return clients[0] || undefined;
-        }
-        return clients;
-      };
-
-      const clientData = getClientData(project.clients);
-
-      return {
-        id: project.id,
-        projectId: project.project_id,
-        name: project.name,
-        description: project.description,
-        serviceId: project.service_id,
-        clientId: project.client_id,
-        mainConsultantId: project.main_consultant_id,
-        mainConsultantCommission: project.main_consultant_commission || 0,
-        supportConsultantId: project.support_consultant_id,
-        supportConsultantCommission: project.support_consultant_commission || 0,
-        startDate: project.start_date,
-        endDate: project.end_date,
-        totalValue: project.total_value,
-        totalHours: project.total_hours,
-        hourlyRate: project.hourly_rate,
-        taxPercent: project.tax_percent,
-        thirdPartyExpenses: project.third_party_expenses,
-        consultantValue: project.main_consultant_value,
-        supportConsultantValue: project.support_consultant_value,
-        managerName: project.manager_name,
-        managerEmail: project.manager_email,
-        managerPhone: project.manager_phone,
-        status: project.status,
-        tags: project.tags || [],
-        url: project.url,
-        createdAt: project.created_at,
-        updatedAt: project.updated_at,
-        // Mapped fields - Fixed type safety for services
-        clients: clientData,
-        services: project.services,
-        clientName: clientData?.name || '',
-        serviceName: getServiceName(project.services),
-      };
-    });
-  }, [rawProjects]);
-
-  // Processar etapas - Fixed type safety for nested objects
-  const stages: (Stage & { projectName?: string; clientName?: string })[] = useMemo(() => {
-    if (!rawStages) return [];
-    
-    return rawStages.map(stage => {
-      // Helper function to safely extract project name
-      const getProjectName = (projects: any): string => {
-        if (!projects) return '';
-        if (typeof projects === 'object' && projects.name) {
-          return String(projects.name);
-        }
-        return '';
-      };
-
-      // Helper function to safely extract client name
-      const getClientName = (projects: any): string => {
-        if (!projects) return '';
-        if (typeof projects === 'object' && projects.clients) {
-          const clients = projects.clients;
-          if (Array.isArray(clients) && clients[0]?.name) {
-            return String(clients[0].name);
-          }
-          if (typeof clients === 'object' && clients.name) {
-            return String(clients.name);
-          }
-        }
-        return '';
-      };
-
-      return {
-        id: stage.id,
-        projectId: stage.project_id,
-        name: stage.name,
-        description: stage.description,
-        days: stage.days,
-        hours: stage.hours,
-        value: stage.value,
-        startDate: stage.start_date,
-        endDate: stage.end_date,
-        consultantId: stage.consultant_id,
-        completed: stage.completed,
-        clientApproved: stage.client_approved,
-        managerApproved: stage.manager_approved,
-        invoiceIssued: stage.invoice_issued,
-        paymentReceived: stage.payment_received,
-        consultantsSettled: stage.consultants_settled,
-        attachment: stage.attachment,
-        stageOrder: stage.stage_order,
-        status: stage.status || 'iniciar_projeto',
-        valorDeRepasse: stage.valor_de_repasse,
-        createdAt: stage.created_at,
-        updatedAt: stage.updated_at,
-        projectName: getProjectName(stage.projects),
-        clientName: getClientName(stage.projects),
-      };
-    });
-  }, [rawStages]);
-
-  // Mutation para atualizar status do projeto
+  // Mutation para atualizar status do projeto via drag and drop
   const updateProjectStatusMutation = useMutation({
     mutationFn: async ({ projectId, newStatus }: { projectId: string; newStatus: string }) => {
-      console.log('Atualizando status do projeto:', projectId, 'para:', newStatus);
+      console.log('Atualizando status do projeto via Kanban:', projectId, 'para:', newStatus);
       const { error } = await supabase
         .from('projects')
         .update({ status: newStatus })
@@ -303,18 +161,19 @@ const KanbanBoard: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kanban-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] }); // Invalidar também a query principal
       toast.success('Status do projeto atualizado com sucesso!');
     },
     onError: (error) => {
-      console.error('Erro ao atualizar projeto:', error);
+      console.error('Erro ao atualizar projeto via Kanban:', error);
       toast.error('Erro ao atualizar status do projeto');
     },
   });
 
-  // Mutation para atualizar status da etapa
+  // Mutation para atualizar status da etapa via drag and drop
   const updateStageStatusMutation = useMutation({
     mutationFn: async ({ stageId, newStatus }: { stageId: string; newStatus: string }) => {
-      console.log('Atualizando status da etapa:', stageId, 'para:', newStatus);
+      console.log('Atualizando status da etapa via Kanban:', stageId, 'para:', newStatus);
       const { error } = await supabase
         .from('project_stages')
         .update({ status: newStatus })
@@ -322,11 +181,12 @@ const KanbanBoard: React.FC = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['kanban-stages'] });
+      queryClient.invalidateQueries({ queryKey: ['kanban-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] }); // Invalidar também a query principal
       toast.success('Status da etapa atualizado com sucesso!');
     },
     onError: (error) => {
-      console.error('Erro ao atualizar etapa:', error);
+      console.error('Erro ao atualizar etapa via Kanban:', error);
       toast.error('Erro ao atualizar status da etapa');
     },
   });
@@ -349,17 +209,27 @@ const KanbanBoard: React.FC = () => {
   };
 
   const getProjectsByStatus = (status: string) => {
-    console.log('Filtrando projetos para status:', status);
-    const filtered = projects.filter(project => project.status === status);
-    console.log('Projetos encontrados para', status, ':', filtered.length);
-    return filtered;
+    return projects.filter(project => project.status === status);
   };
 
   const getStagesByStatus = (status: string) => {
-    console.log('Filtrando etapas para status:', status);
-    const filtered = stages.filter(stage => stage.status === status);
-    console.log('Etapas encontradas para', status, ':', filtered.length);
-    return filtered;
+    const allStages: (Stage & { projectName?: string; clientName?: string })[] = [];
+    
+    projects.forEach(project => {
+      if (project.stages) {
+        project.stages.forEach(stage => {
+          if (stage.status === status) {
+            allStages.push({
+              ...stage,
+              projectName: project.name,
+              clientName: project.clientName
+            });
+          }
+        });
+      }
+    });
+    
+    return allStages;
   };
 
   const handleProjectClick = (project: Project) => {
@@ -367,7 +237,7 @@ const KanbanBoard: React.FC = () => {
     setShowProjectModal(true);
   };
 
-  const isLoading = projectsLoading || stagesLoading;
+  const isLoading = projectsLoading;
 
   if (isLoading) {
     return (
@@ -383,10 +253,9 @@ const KanbanBoard: React.FC = () => {
       <div className="flex flex-col gap-4 flex-shrink-0">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">Kanban Board</h1>
-          <Button className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Novo Projeto
-          </Button>
+          <div className="text-sm text-muted-foreground">
+            Sincronizado automaticamente com Gerenciamento de Projetos
+          </div>
         </div>
 
         {/* Filtros */}
@@ -441,73 +310,79 @@ const KanbanBoard: React.FC = () => {
         <DragDropContext onDragEnd={handleDragEnd}>
           <div className="overflow-x-auto pb-4">
             <div className="flex gap-4 min-w-max" style={{ width: `${columns.length * 320}px` }}>
-              {columns.map(column => (
-                <Droppable key={column.id} droppableId={column.id}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`w-80 p-4 rounded-lg min-h-[600px] flex-shrink-0 ${column.color} ${
-                        snapshot.isDraggingOver ? 'bg-opacity-50' : ''
-                      }`}
-                    >
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-semibold text-sm">{column.title}</h3>
-                        <Badge variant="secondary" className="text-xs">
-                          {getProjectsByStatus(column.status).length + getStagesByStatus(column.status).length}
-                        </Badge>
-                      </div>
+              {columns.map(column => {
+                const projectsInColumn = getProjectsByStatus(column.status);
+                const stagesInColumn = getStagesByStatus(column.status);
+                const totalItems = projectsInColumn.length + stagesInColumn.length;
+                
+                return (
+                  <Droppable key={column.id} droppableId={column.id}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`w-80 p-4 rounded-lg min-h-[600px] flex-shrink-0 ${column.color} ${
+                          snapshot.isDraggingOver ? 'bg-opacity-50' : ''
+                        }`}
+                      >
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="font-semibold text-sm">{column.title}</h3>
+                          <Badge variant="secondary" className="text-xs">
+                            {totalItems}
+                          </Badge>
+                        </div>
 
-                      <div className="space-y-3">
-                        {/* Projetos */}
-                        {getProjectsByStatus(column.status).map((project, index) => (
-                          <Draggable key={`project-${project.id}`} draggableId={`project-${project.id}`} index={index}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={snapshot.isDragging ? 'rotate-2' : ''}
-                              >
-                                <KanbanCard
-                                  project={project}
-                                  onClick={() => handleProjectClick(project)}
-                                  type="project"
-                                />
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
+                        <div className="space-y-3">
+                          {/* Projetos */}
+                          {projectsInColumn.map((project, index) => (
+                            <Draggable key={`project-${project.id}`} draggableId={`project-${project.id}`} index={index}>
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className={snapshot.isDragging ? 'rotate-2' : ''}
+                                >
+                                  <KanbanCard
+                                    project={project}
+                                    onClick={() => handleProjectClick(project)}
+                                    type="project"
+                                  />
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
 
-                        {/* Etapas */}
-                        {getStagesByStatus(column.status).map((stage, index) => (
-                          <Draggable 
-                            key={`stage-${stage.id}`} 
-                            draggableId={`stage-${stage.id}`} 
-                            index={index + getProjectsByStatus(column.status).length}
-                          >
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={snapshot.isDragging ? 'rotate-2' : ''}
-                              >
-                                <KanbanCard
-                                  stage={stage}
-                                  onClick={() => {/* Implementar modal de detalhes da etapa */}}
-                                  type="stage"
-                                />
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
+                          {/* Etapas */}
+                          {stagesInColumn.map((stage, index) => (
+                            <Draggable 
+                              key={`stage-${stage.id}`} 
+                              draggableId={`stage-${stage.id}`} 
+                              index={index + projectsInColumn.length}
+                            >
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className={snapshot.isDragging ? 'rotate-2' : ''}
+                                >
+                                  <KanbanCard
+                                    stage={stage}
+                                    onClick={() => {/* Modal de detalhes da etapa pode ser implementado */}}
+                                    type="stage"
+                                  />
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                        </div>
+                        {provided.placeholder}
                       </div>
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              ))}
+                    )}
+                  </Droppable>
+                );
+              })}
             </div>
           </div>
         </DragDropContext>

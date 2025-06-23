@@ -7,6 +7,7 @@ import { Calendar, Clock, User, Building, Tag, CheckCircle, AlertCircle, DollarS
 import { Project, Stage } from '@/components/projects/types';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useProjectStatuses } from '@/hooks/useProjectStatuses';
 
 interface KanbanCardProps {
   project?: Project;
@@ -16,20 +17,7 @@ interface KanbanCardProps {
 }
 
 const KanbanCard: React.FC<KanbanCardProps> = ({ project, stage, onClick, type }) => {
-  const getStatusColor = (status: string) => {
-    const statusColors = {
-      'iniciar_projeto': 'bg-gray-100 text-gray-800',
-      'em_producao': 'bg-blue-100 text-blue-800',
-      'aguardando_assinatura': 'bg-yellow-100 text-yellow-800',
-      'aguardando_aprovacao': 'bg-orange-100 text-orange-800',
-      'aguardando_nota_fiscal': 'bg-purple-100 text-purple-800',
-      'aguardando_pagamento': 'bg-pink-100 text-pink-800',
-      'aguardando_repasse': 'bg-indigo-100 text-indigo-800',
-      'finalizados': 'bg-green-100 text-green-800',
-      'cancelados': 'bg-red-100 text-red-800',
-    };
-    return statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800';
-  };
+  const { getStatusDisplay, getStatusBadgeStyle } = useProjectStatuses();
 
   const getPriorityIcon = (value: number) => {
     if (value >= 50000) return <AlertCircle className="h-3 w-3 text-red-500" />;
@@ -45,16 +33,24 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, stage, onClick, type }
   };
 
   const formatDate = (date: string) => {
-    return formatDistanceToNow(new Date(date), { 
-      addSuffix: true, 
-      locale: ptBR 
-    });
+    if (!date) return 'Sem data';
+    try {
+      return formatDistanceToNow(new Date(date), { 
+        addSuffix: true, 
+        locale: ptBR 
+      });
+    } catch {
+      return 'Data inválida';
+    }
   };
 
   if (type === 'project' && project) {
-    const completedStages = project.project_stages?.filter(stage => stage.completed).length || 0;
-    const totalStages = project.project_stages?.length || 0;
+    const completedStages = project.stages?.filter(stage => stage.completed).length || 0;
+    const totalStages = project.stages?.length || 0;
     const progress = totalStages > 0 ? (completedStages / totalStages) * 100 : 0;
+    
+    const statusDisplay = getStatusDisplay(project.status);
+    const statusStyle = getStatusBadgeStyle(project.status);
 
     return (
       <Card 
@@ -68,8 +64,8 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, stage, onClick, type }
               <h4 className="font-semibold text-sm line-clamp-2 mb-1">
                 {project.name}
               </h4>
-              <Badge className={`text-xs ${getStatusColor(project.status)}`}>
-                {project.status.replace('_', ' ')}
+              <Badge style={statusStyle} variant="secondary" className="text-xs">
+                {statusDisplay.label}
               </Badge>
             </div>
             {getPriorityIcon(project.totalValue)}
@@ -84,46 +80,50 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, stage, onClick, type }
               </span>
             </div>
             
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs text-gray-600">
-                <span>Progresso</span>
-                <span>{Math.round(progress)}%</span>
+            {totalStages > 0 && (
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-gray-600">
+                  <span>Progresso</span>
+                  <span>{Math.round(progress)}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                  <div 
+                    className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-1.5">
-                <div 
-                  className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Informações */}
           <div className="space-y-2">
-            {project.clients && (
+            {project.clientName && (
               <div className="flex items-center gap-2">
                 <Building className="h-3 w-3 text-gray-500" />
                 <span className="text-xs text-gray-600 truncate">
-                  {project.clients.name}
+                  {project.clientName}
                 </span>
               </div>
             )}
 
-            {project.main_consultant && (
+            {project.mainConsultantName && (
               <div className="flex items-center gap-2">
                 <User className="h-3 w-3 text-gray-500" />
                 <span className="text-xs text-gray-600 truncate">
-                  {project.main_consultant.name}
+                  {project.mainConsultantName}
                 </span>
               </div>
             )}
 
-            <div className="flex items-center gap-2">
-              <Calendar className="h-3 w-3 text-gray-500" />
-              <span className="text-xs text-gray-600">
-                {formatDate(project.endDate)}
-              </span>
-            </div>
+            {project.endDate && (
+              <div className="flex items-center gap-2">
+                <Calendar className="h-3 w-3 text-gray-500" />
+                <span className="text-xs text-gray-600">
+                  {formatDate(project.endDate)}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Tags */}
@@ -142,12 +142,12 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, stage, onClick, type }
             </div>
           )}
 
-          {/* Tarefas */}
-          {project.project_tasks && project.project_tasks.length > 0 && (
+          {/* Etapas */}
+          {totalStages > 0 && (
             <div className="flex items-center gap-2">
               <CheckCircle className="h-3 w-3 text-gray-500" />
               <span className="text-xs text-gray-600">
-                {project.project_tasks.filter(task => task.completed).length}/{project.project_tasks.length} tarefas
+                {completedStages}/{totalStages} etapas
               </span>
             </div>
           )}
@@ -157,6 +157,9 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, stage, onClick, type }
   }
 
   if (type === 'stage' && stage) {
+    const statusDisplay = getStatusDisplay(stage.status || 'iniciar_projeto');
+    const statusStyle = getStatusBadgeStyle(stage.status || 'iniciar_projeto');
+
     return (
       <Card 
         className="cursor-pointer hover:shadow-lg transition-all duration-200 border-l-4 border-l-green-500"
@@ -169,9 +172,14 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, stage, onClick, type }
               <h4 className="font-semibold text-sm line-clamp-2 mb-1">
                 {stage.name}
               </h4>
-              <Badge className={`text-xs ${getStatusColor(stage.status || 'iniciar_projeto')}`}>
-                Etapa
-              </Badge>
+              <div className="flex gap-1 flex-wrap">
+                <Badge style={statusStyle} variant="secondary" className="text-xs">
+                  {statusDisplay.label}
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  Etapa
+                </Badge>
+              </div>
             </div>
             {stage.completed && <CheckCircle className="h-3 w-3 text-green-500" />}
           </div>
