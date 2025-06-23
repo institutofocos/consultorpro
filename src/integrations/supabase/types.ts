@@ -963,6 +963,63 @@ export type Database = {
         }
         Relationships: []
       }
+      project_tasks: {
+        Row: {
+          assigned_consultant_id: string | null
+          completed: boolean | null
+          completed_at: string | null
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          name: string
+          project_id: string
+          start_date: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_consultant_id?: string | null
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name: string
+          project_id: string
+          start_date?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_consultant_id?: string | null
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string
+          project_id?: string
+          start_date?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_tasks_assigned_consultant_id_fkey"
+            columns: ["assigned_consultant_id"]
+            isOneToOne: false
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           client_id: string | null
@@ -978,6 +1035,7 @@ export type Database = {
           manager_name: string | null
           manager_phone: string | null
           name: string
+          parent_project_id: string | null
           project_id: string | null
           service_id: string | null
           start_date: string
@@ -1007,6 +1065,7 @@ export type Database = {
           manager_name?: string | null
           manager_phone?: string | null
           name: string
+          parent_project_id?: string | null
           project_id?: string | null
           service_id?: string | null
           start_date: string
@@ -1036,6 +1095,7 @@ export type Database = {
           manager_name?: string | null
           manager_phone?: string | null
           name?: string
+          parent_project_id?: string | null
           project_id?: string | null
           service_id?: string | null
           start_date?: string
@@ -1078,6 +1138,13 @@ export type Database = {
             columns: ["support_consultant_id"]
             isOneToOne: false
             referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_parent_project_id_fkey"
+            columns: ["parent_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
