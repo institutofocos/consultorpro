@@ -1,605 +1,409 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 }
 
-const formatDateBR = (date: string | Date | null | undefined): string => {
-  if (!date) return '-';
-  
-  try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    if (isNaN(dateObj.getTime())) return '-';
-    
-    const brazilDate = dateObj.toLocaleString('pt-BR', {
-      timeZone: 'America/Sao_Paulo',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-    
-    return brazilDate;
-  } catch (error) {
-    console.error('Error formatting date:', error);
-    return '-';
-  }
-};
-
-const formatDateTimeBR = (date: string | Date | null | undefined): string => {
-  if (!date) return '-';
-  
-  try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    if (isNaN(dateObj.getTime())) return '-';
-    
-    const brazilDateTime = dateObj.toLocaleString('pt-BR', {
-      timeZone: 'America/Sao_Paulo',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
-    
-    return brazilDateTime;
-  } catch (error) {
-    console.error('Error formatting datetime:', error);
-    return '-';
-  }
-};
+interface DemandRequest {
+  nome: string;
+  descricao?: string;
+  cliente_id?: string;
+  cliente_nome?: string;
+  servico_id?: string;
+  servico_nome?: string;
+  data_inicio: string;
+  data_fim: string;
+  valor_total: number;
+  horas_totais?: number;
+  valor_hora?: number;
+  observacoes?: string;
+  url?: string;
+  etapas?: Array<{
+    nome: string;
+    descricao?: string;
+    dias: number;
+    horas: number;
+    valor: number;
+  }>;
+}
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: corsHeaders,
-      status: 204,
-    });
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
   }
 
   const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-  );
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  )
 
   try {
-    const requestBody = await req.json();
-    const { action } = requestBody;
-    console.log(`=== WEBHOOK ACTION: ${action} ===`);
-    
-    if (action === "register") {
-      const { url, events, tables } = requestBody;
-      console.log('Registering webhook:', { url, events, tables });
-      
-      if (!url || !events || !tables || events.length === 0 || tables.length === 0) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            message: "URL, events, and tables are required" 
-          }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 400 
-          }
-        );
-      }
-      
-      // Verificar se já existe um webhook com esta URL
-      const { data: existingWebhook } = await supabaseClient
-        .from('webhooks')
-        .select('id, url')
-        .eq('url', url)
-        .single();
+    const url = new URL(req.url);
+    const pathname = url.pathname;
 
-      if (existingWebhook) {
-        console.log('Webhook with this URL already exists:', existingWebhook);
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            message: "Um webhook com esta URL já está registrado. Cada URL pode ter apenas um webhook ativo.",
-            existing_webhook_id: existingWebhook.id
-          }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 409 // Conflict
-          }
-        );
-      }
-      
-      const { data, error } = await supabaseClient
-        .from('webhooks')
-        .insert({
-          url,
-          events,
-          tables,
-          is_active: true
-        })
-        .select()
-        .single();
+    console.log('📥 Webhook recebido:', {
+      method: req.method,
+      pathname: pathname,
+      timestamp: new Date().toISOString()
+    });
 
-      if (error) {
-        console.error('Error registering webhook:', error);
-        
-        // Se o erro for de violação de constraint única, retornar mensagem específica
-        if (error.code === '23505' && error.message.includes('webhooks_url_unique')) {
-          return new Response(
-            JSON.stringify({ 
-              success: false, 
-              message: "Um webhook com esta URL já está registrado. Cada URL pode ter apenas um webhook ativo."
-            }),
-            { 
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-              status: 409
-            }
-          );
-        }
-        
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            message: error.message 
-          }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 500 
-          }
-        );
-      }
-
-      console.log('Webhook registered successfully:', data);
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: "Webhook registrado com sucesso",
-          webhook: data
-        }),
-        { 
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200 
-        }
-      );
-    }
-    
-    if (action === "list") {
-      console.log('Fetching webhooks list');
-      
-      const { data, error } = await supabaseClient
-        .from('webhooks')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching webhooks:', error);
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            message: error.message 
-          }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 500 
-          }
-        );
-      }
-
-      console.log('Webhooks fetched:', data?.length || 0);
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          webhooks: data || []
-        }),
-        { 
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200 
-        }
-      );
-    }
-    
-    if (action === "test") {
-      const { url } = requestBody;
-      console.log('Testing webhook:', url);
-      
-      if (!url) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            message: "URL is required for testing" 
-          }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 400 
-          }
-        );
-      }
-      
-      const currentDate = new Date();
-      const testPayload = {
-        event_type: 'project_created_consolidated',
-        timestamp: formatDateTimeBR(currentDate),
-        project_id: 'test-project-id',
-        project: {
-          id: 'test-project-id',
-          name: 'Projeto de Teste',
-          description: 'Teste do sistema de webhook',
-          status: 'planned',
-          total_value: 15000,
-          created_at: formatDateBR(currentDate)
-        },
-        client: {
-          id: 'test-client-id',
-          name: 'Cliente de Teste',
-          email: 'cliente@teste.com'
-        },
-        service: {
-          id: 'test-service-id',
-          name: 'Serviço de Teste',
-          total_value: 15000
-        },
-        main_consultant: {
-          id: 'test-consultant-id',
-          name: 'Consultor Principal de Teste',
-          email: 'consultor@teste.com'
-        },
-        system_info: {
-          source: 'ConsultorPRO System',
-          consolidation_type: 'project_creation',
-          processed_at: formatDateBR(currentDate),
-          test: true
-        }
-      };
-
-      try {
-        console.log('Sending test payload to:', url);
-        
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'User-Agent': 'Supabase-Webhook/1.0',
-            'X-Test-Event': 'true'
-          },
-          body: JSON.stringify(testPayload)
-        });
-
-        const success = response.ok;
-        let responseText = '';
-        
-        try {
-          responseText = await response.text();
-        } catch (e) {
-          responseText = 'Unable to read response body';
-        }
-        
-        console.log('Webhook test result:', { 
-          success, 
-          status: response.status, 
-          responseBody: responseText
-        });
-        
-        return new Response(
-          JSON.stringify({ 
-            success, 
-            message: success ? "Teste enviado com sucesso!" : `Teste falhou: ${response.status}`,
-            status: response.status,
-            responseBody: responseText
-          }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 200 
-          }
-        );
-      } catch (error) {
-        console.error('Error testing webhook:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            message: "Teste falhou: " + errorMessage,
-            error: errorMessage
-          }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 200 
-          }
-        );
-      }
-    }
-    
-    if (action === "delete") {
-      const { id } = requestBody;
-      console.log('Deleting webhook:', id);
-      
-      if (!id) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            message: "Webhook ID is required" 
-          }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 400 
-          }
-        );
-      }
-      
-      const { error } = await supabaseClient
-        .from('webhooks')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        console.error('Error deleting webhook:', error);
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            message: error.message 
-          }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 500 
-          }
-        );
-      }
-
-      console.log('Webhook deleted successfully');
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: "Webhook excluído com sucesso" 
-        }),
-        { 
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200 
-        }
-      );
+    // Endpoint para registro de demandas
+    if (req.method === 'POST' && pathname === '/api/demands') {
+      return await handleDemandRegistration(req, supabaseClient);
     }
 
-    if (action === "process") {
-      console.log('Processing webhook queue - INCLUDING STATUS CHANGES');
-      
-      // Buscar webhooks pendentes (incluindo status changes)
-      const { data: logs, error } = await supabaseClient
-        .from('webhook_logs')
-        .select(`
-          *,
-          webhooks!inner(*)
-        `)
-        .eq('success', false)
-        .in('event_type', ['project_created_consolidated', 'project_status_changed', 'stage_status_changed'])
-        .lt('attempt_count', 3)
-        .order('created_at', { ascending: true })
-        .limit(10);
-
-      if (error) {
-        console.error('Error fetching webhook logs:', error);
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            message: error.message 
-          }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 500 
-          }
-        );
-      }
-
-      console.log(`Processando ${logs?.length || 0} webhook logs (incluindo status changes)`);
-
-      let processedCount = 0;
-      let successCount = 0;
-
-      // Para cada log, enviar para TODOS os webhooks ativos
-      for (const log of logs || []) {
-        try {
-          console.log(`Processando webhook ${log.id} - evento: ${log.event_type}`);
-          
-          // Buscar TODOS os webhooks ativos
-          const { data: allWebhooks } = await supabaseClient
-            .from('webhooks')
-            .select('*')
-            .eq('is_active', true);
-
-          if (!allWebhooks || allWebhooks.length === 0) {
-            console.log('Nenhum webhook ativo encontrado');
-            continue;
-          }
-
-          let webhookSuccessCount = 0;
-          
-          // Enviar para TODOS os webhooks ativos
-          for (const webhook of allWebhooks) {
-            try {
-              // Enriquecer payload com formatação brasileira
-              const enrichedPayload = {
-                event_type: log.event_type,
-                table_name: log.table_name,
-                timestamp: formatDateTimeBR(log.created_at),
-                webhook_id: webhook.id,
-                attempt: log.attempt_count + 1,
-                data: log.payload,
-                system_info: {
-                  source: 'ConsultorPRO System',
-                  webhook_type: log.event_type.includes('status') ? 'status_change' : 'consolidated',
-                  processed_at: formatDateTimeBR(new Date()),
-                  version: '2.0_with_status_changes'
-                }
-              };
-              
-              // Formatar datas no payload
-              if (enrichedPayload.data) {
-                formatPayloadDates(enrichedPayload.data);
-              }
-              
-              const response = await fetch(webhook.url, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'User-Agent': 'Supabase-Webhook-StatusChanges/2.0',
-                  'X-Webhook-Event': log.event_type,
-                  'X-Webhook-Table': log.table_name,
-                  'X-Webhook-Timestamp': log.created_at,
-                  'X-Webhook-Type': log.event_type.includes('status') ? 'status_change' : 'consolidated',
-                  ...(webhook.secret_key && {
-                    'Authorization': `Bearer ${webhook.secret_key}`,
-                    'X-Webhook-Secret': webhook.secret_key
-                  })
-                },
-                body: JSON.stringify(enrichedPayload)
-              });
-
-              const success = response.ok;
-              if (success) webhookSuccessCount++;
-
-              console.log(`Webhook ${webhook.id} (${webhook.url}) processado: ${success ? 'SUCCESS' : 'FAILED'} (${response.status})`);
-              
-            } catch (webhookError) {
-              console.error(`Erro ao processar webhook ${webhook.id}:`, webhookError);
-            }
-          }
-
-          // Marcar o log original como processado se pelo menos um webhook teve sucesso
-          const overallSuccess = webhookSuccessCount > 0;
-          
-          await supabaseClient
-            .from('webhook_logs')
-            .update({
-              success: overallSuccess,
-              response_status: overallSuccess ? 200 : 500,
-              response_body: `Distribuído para ${allWebhooks.length} webhooks, ${webhookSuccessCount} sucessos`,
-              attempt_count: log.attempt_count + 1
-            })
-            .eq('id', log.id);
-
-          processedCount++;
-          if (overallSuccess) successCount++;
-
-          console.log(`Webhook ${log.id} (${log.event_type}) processado: distribuído para ${allWebhooks.length} webhooks (${webhookSuccessCount} sucessos)`);
-          
-        } catch (error) {
-          console.error(`Error processing webhook ${log.id}:`, error);
-          
-          await supabaseClient
-            .from('webhook_logs')
-            .update({
-              attempt_count: log.attempt_count + 1,
-              response_body: `Error: ${error.message}`
-            })
-            .eq('id', log.id);
-          
-          processedCount++;
-        }
-      }
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: `Processados ${processedCount} webhooks (incluindo status changes) - ${successCount} sucessos`,
-          processed_count: processedCount,
-          success_count: successCount
-        }),
-        { 
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200 
-        }
-      );
+    // Processamento de webhooks existente
+    if (req.method === 'POST' && pathname === '/process') {
+      return await processWebhookQueue(supabaseClient);
     }
 
-    if (action === "toggle_active") {
-      const { id, is_active } = requestBody;
-      console.log('Toggling webhook status:', { id, is_active });
-      
-      if (!id) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            message: "Webhook ID is required" 
-          }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 400 
-          }
-        );
-      }
-      
-      const { error } = await supabaseClient
-        .from('webhooks')
-        .update({ is_active })
-        .eq('id', id);
-
-      if (error) {
-        console.error('Error toggling webhook:', error);
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            message: error.message 
-          }),
-          { 
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 500 
-          }
-        );
-      }
-
-      console.log('Webhook status toggled successfully');
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: `Webhook ${is_active ? 'ativado' : 'desativado'} com sucesso` 
-        }),
-        { 
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200 
-        }
-      );
-    }
-
+    // Endpoint não encontrado
     return new Response(
       JSON.stringify({ 
-        success: false, 
-        message: "Invalid action" 
-      }),
+        error: 'Endpoint não encontrado',
+        available_endpoints: [
+          'POST /api/demands - Cadastrar nova demanda',
+          'POST /process - Processar fila de webhooks'
+        ]
+      }), 
       { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400 
+        status: 404, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
-    
+
   } catch (error) {
-    console.error("Webhook error:", error);
+    console.error('❌ Erro no webhook:', error);
     
     return new Response(
       JSON.stringify({ 
-        success: false, 
-        error: error.message 
-      }),
+        error: 'Erro interno do servidor',
+        message: error.message,
+        timestamp: new Date().toISOString()
+      }), 
       { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }
-})
+});
 
-function formatPayloadDates(obj: any): void {
-  if (!obj || typeof obj !== 'object') return;
-  
-  const dateFields = ['created_at', 'updated_at', 'due_date', 'start_date', 'end_date', 'completed_at', 'timestamp', 'changed_at'];
-  
-  for (const key in obj) {
-    if (obj.hasOwnProperty(key)) {
-      if (dateFields.includes(key) && obj[key]) {
-        obj[key] = formatDateTimeBR(obj[key]);
-      } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-        formatPayloadDates(obj[key]);
+async function handleDemandRegistration(req: Request, supabase: any) {
+  try {
+    const body: DemandRequest = await req.json();
+    
+    console.log('📋 Processando nova demanda:', {
+      nome: body.nome,
+      cliente: body.cliente_nome || body.cliente_id,
+      valor: body.valor_total
+    });
+
+    // Validações obrigatórias
+    const validationErrors = validateDemandRequest(body);
+    if (validationErrors.length > 0) {
+      return new Response(
+        JSON.stringify({
+          error: 'Dados inválidos',
+          validationErrors: validationErrors,
+          timestamp: new Date().toISOString()
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // Buscar ou criar cliente
+    let clientId = body.cliente_id;
+    if (!clientId && body.cliente_nome) {
+      const clientResult = await findOrCreateClient(supabase, body.cliente_nome);
+      if (!clientResult.success) {
+        return new Response(
+          JSON.stringify({
+            error: 'Erro ao processar cliente',
+            message: clientResult.error,
+            timestamp: new Date().toISOString()
+          }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+      clientId = clientResult.clientId;
+    }
+
+    // Buscar serviço se fornecido
+    let serviceId = body.servico_id;
+    if (!serviceId && body.servico_nome) {
+      const serviceResult = await findServiceByName(supabase, body.servico_nome);
+      if (serviceResult.success) {
+        serviceId = serviceResult.serviceId;
       }
     }
+
+    // Criar projeto (demanda)
+    const projectData = {
+      name: body.nome,
+      description: body.descricao || '',
+      client_id: clientId,
+      service_id: serviceId,
+      start_date: body.data_inicio,
+      end_date: body.data_fim,
+      total_value: body.valor_total,
+      total_hours: body.horas_totais || 0,
+      hourly_rate: body.valor_hora || 0,
+      status: 'em_planejamento',
+      url: body.url || null,
+      main_consultant_id: null, // Demanda sem consultor
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .insert(projectData)
+      .select()
+      .single();
+
+    if (projectError) {
+      console.error('❌ Erro ao criar projeto:', projectError);
+      return new Response(
+        JSON.stringify({
+          error: 'Erro ao criar demanda',
+          message: projectError.message,
+          timestamp: new Date().toISOString()
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // Criar etapas se fornecidas
+    if (body.etapas && body.etapas.length > 0) {
+      const stagesData = body.etapas.map((etapa, index) => ({
+        project_id: project.id,
+        name: etapa.nome,
+        description: etapa.descricao || '',
+        days: etapa.dias,
+        hours: etapa.horas,
+        value: etapa.valor,
+        stage_order: index + 1,
+        status: 'iniciar_projeto',
+        completed: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }));
+
+      const { error: stagesError } = await supabase
+        .from('project_stages')
+        .insert(stagesData);
+
+      if (stagesError) {
+        console.error('⚠️ Erro ao criar etapas:', stagesError);
+        // Não falha a demanda por causa das etapas
+      }
+    }
+
+    console.log('✅ Demanda criada com sucesso:', {
+      id: project.id,
+      nome: project.name,
+      cliente_id: clientId
+    });
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Demanda cadastrada com sucesso',
+        data: {
+          demanda_id: project.id,
+          nome: project.name,
+          cliente_id: clientId,
+          servico_id: serviceId,
+          status: project.status,
+          created_at: project.created_at
+        },
+        timestamp: new Date().toISOString()
+      }),
+      { 
+        status: 201, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+
+  } catch (error) {
+    console.error('❌ Erro ao processar demanda:', error);
+    
+    return new Response(
+      JSON.stringify({
+        error: 'Erro ao processar demanda',
+        message: error.message,
+        timestamp: new Date().toISOString()
+      }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
   }
+}
+
+function validateDemandRequest(body: DemandRequest): string[] {
+  const errors: string[] = [];
+
+  // Validações obrigatórias
+  if (!body.nome || body.nome.trim().length === 0) {
+    errors.push('Nome da demanda é obrigatório');
+  }
+
+  if (!body.data_inicio) {
+    errors.push('Data de início é obrigatória');
+  } else {
+    const startDate = new Date(body.data_inicio);
+    if (isNaN(startDate.getTime())) {
+      errors.push('Data de início deve estar no formato YYYY-MM-DD');
+    }
+  }
+
+  if (!body.data_fim) {
+    errors.push('Data de fim é obrigatória');
+  } else {
+    const endDate = new Date(body.data_fim);
+    if (isNaN(endDate.getTime())) {
+      errors.push('Data de fim deve estar no formato YYYY-MM-DD');
+    }
+  }
+
+  if (body.valor_total === undefined || body.valor_total === null) {
+    errors.push('Valor total é obrigatório');
+  } else if (typeof body.valor_total !== 'number' || body.valor_total < 0) {
+    errors.push('Valor total deve ser um número positivo');
+  }
+
+  // Pelo menos cliente_id ou cliente_nome deve ser fornecido
+  if (!body.cliente_id && !body.cliente_nome) {
+    errors.push('É necessário fornecer cliente_id ou cliente_nome');
+  }
+
+  // Validar datas
+  if (body.data_inicio && body.data_fim) {
+    const startDate = new Date(body.data_inicio);
+    const endDate = new Date(body.data_fim);
+    if (startDate >= endDate) {
+      errors.push('Data de fim deve ser posterior à data de início');
+    }
+  }
+
+  // Validar etapas se fornecidas
+  if (body.etapas) {
+    body.etapas.forEach((etapa, index) => {
+      if (!etapa.nome || etapa.nome.trim().length === 0) {
+        errors.push(`Etapa ${index + 1}: Nome é obrigatório`);
+      }
+      if (typeof etapa.dias !== 'number' || etapa.dias <= 0) {
+        errors.push(`Etapa ${index + 1}: Dias deve ser um número positivo`);
+      }
+      if (typeof etapa.horas !== 'number' || etapa.horas <= 0) {
+        errors.push(`Etapa ${index + 1}: Horas deve ser um número positivo`);
+      }
+      if (typeof etapa.valor !== 'number' || etapa.valor < 0) {
+        errors.push(`Etapa ${index + 1}: Valor deve ser um número positivo`);
+      }
+    });
+  }
+
+  return errors;
+}
+
+async function findOrCreateClient(supabase: any, clientName: string) {
+  try {
+    // Buscar cliente existente
+    const { data: existingClient, error: searchError } = await supabase
+      .from('clients')
+      .select('id')
+      .ilike('name', clientName)
+      .single();
+
+    if (existingClient) {
+      return { success: true, clientId: existingClient.id };
+    }
+
+    // Criar novo cliente
+    const { data: newClient, error: createError } = await supabase
+      .from('clients')
+      .insert({
+        name: clientName,
+        contact_name: clientName,
+        created_at: new Date().toISOString()
+      })
+      .select('id')
+      .single();
+
+    if (createError) {
+      return { success: false, error: createError.message };
+    }
+
+    return { success: true, clientId: newClient.id };
+
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function findServiceByName(supabase: any, serviceName: string) {
+  try {
+    const { data: service, error } = await supabase
+      .from('services')
+      .select('id')
+      .ilike('name', serviceName)
+      .single();
+
+    if (error || !service) {
+      return { success: false, error: 'Serviço não encontrado' };
+    }
+
+    return { success: true, serviceId: service.id };
+
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function processWebhookQueue(supabase: any) {
+  console.log('🔄 Processando fila de webhooks...');
+  
+  const { error } = await supabase.rpc('process_webhook_queue_comprehensive');
+  
+  if (error) {
+    console.error('❌ Erro ao processar fila:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: 'Erro ao processar fila de webhooks',
+        message: error.message
+      }), 
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+  }
+
+  return new Response(
+    JSON.stringify({ 
+      message: 'Fila de webhooks processada com sucesso',
+      timestamp: new Date().toISOString()
+    }), 
+    { 
+      status: 200, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    }
+  );
 }
