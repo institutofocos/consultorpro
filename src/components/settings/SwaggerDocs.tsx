@@ -1,15 +1,17 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import SwaggerUI from 'swagger-ui-react';
 import "swagger-ui-react/swagger-ui.css";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { InfoIcon, Key, Webhook, BookOpen } from "lucide-react";
+import { InfoIcon, Key, Webhook, BookOpen, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const SwaggerDocs: React.FC = () => {
   const navigate = useNavigate();
+  const [isMainUpdatesOpen, setIsMainUpdatesOpen] = useState(true);
   
   // Swagger specification in OpenAPI format
   const spec = {
@@ -915,68 +917,81 @@ const SwaggerDocs: React.FC = () => {
         </AlertDescription>
       </Alert>
 
-      <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
-            <Webhook className="h-5 w-5" />
-            Principais Atualizações da API
-          </CardTitle>
-          <CardDescription className="text-blue-600 dark:text-blue-400">
-            Novos recursos e melhorias implementados
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 text-sm">
-          <div>
-            <h4 className="font-semibold mb-2">1. Filtros Avançados nos GETs</h4>
-            <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded border">
-              <p className="mb-2"><strong>Exemplos de filtros disponíveis:</strong></p>
-              <ul className="text-xs space-y-1">
-                <li>• <code>/consultants?name=João&city=São Paulo&limit=10</code></li>
-                <li>• <code>/projects?status=active&total_value_min=5000</code></li>
-                <li>• <code>/services?hourly_rate_min=100&hourly_rate_max=200</code></li>
-                <li>• <code>/clients?state=SP&order=name&limit=20</code></li>
-              </ul>
-            </div>
-          </div>
+      <Collapsible open={isMainUpdatesOpen} onOpenChange={setIsMainUpdatesOpen}>
+        <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+          <CardHeader>
+            <CollapsibleTrigger asChild>
+              <div className="flex items-center justify-between cursor-pointer">
+                <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                  <Webhook className="h-5 w-5" />
+                  Principais Atualizações da API
+                </CardTitle>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  {isMainUpdatesOpen ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </CollapsibleTrigger>
+            <CardDescription className="text-blue-600 dark:text-blue-400">
+              Novos recursos e melhorias implementados
+            </CardDescription>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="space-y-4 text-sm">
+              <div>
+                <h4 className="font-semibold mb-2">1. Filtros Avançados nos GETs</h4>
+                <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded border">
+                  <p className="mb-2"><strong>Exemplos de filtros disponíveis:</strong></p>
+                  <ul className="text-xs space-y-1">
+                    <li>• <code>/consultants?name=João&city=São Paulo&limit=10</code></li>
+                    <li>• <code>/projects?status=active&total_value_min=5000</code></li>
+                    <li>• <code>/services?hourly_rate_min=100&hourly_rate_max=200</code></li>
+                    <li>• <code>/clients?state=SP&order=name&limit=20</code></li>
+                  </ul>
+                </div>
+              </div>
 
-          <div>
-            <h4 className="font-semibold mb-2">2. Novos Endpoints POST</h4>
-            <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded border border-green-200">
-              <ul className="text-xs space-y-1">
-                <li>• <strong>POST /clients</strong> - Criar novos clientes</li>
-                <li>• <strong>POST /services</strong> - Criar novos serviços</li>
-                <li>• <strong>POST /demands</strong> - Endpoint corrigido para demandas</li>
-              </ul>
-            </div>
-          </div>
+              <div>
+                <h4 className="font-semibold mb-2">2. Novos Endpoints POST</h4>
+                <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded border border-green-200">
+                  <ul className="text-xs space-y-1">
+                    <li>• <strong>POST /clients</strong> - Criar novos clientes</li>
+                    <li>• <strong>POST /services</strong> - Criar novos serviços</li>
+                    <li>• <strong>POST /demands</strong> - Endpoint corrigido para demandas</li>
+                  </ul>
+                </div>
+              </div>
 
-          <div>
-            <h4 className="font-semibold mb-2">3. Validação de Duplicatas (409)</h4>
-            <div className="bg-yellow-100 dark:bg-yellow-900/30 p-3 rounded border border-yellow-200">
-              <p className="mb-2">Todos os POSTs agora validam duplicatas:</p>
-              <ul className="text-xs space-y-1">
-                <li>• <strong>Clientes:</strong> Nome ou email duplicado</li>
-                <li>• <strong>Serviços:</strong> Nome duplicado</li>
-                <li>• <strong>Consultores:</strong> Email duplicado</li>
-                <li>• <strong>Projetos:</strong> Nome duplicado para o mesmo cliente</li>
-                <li>• <strong>Demandas:</strong> Nome duplicado para o mesmo cliente</li>
-              </ul>
-            </div>
-          </div>
+              <div>
+                <h4 className="font-semibold mb-2">3. Validação de Duplicatas (409)</h4>
+                <div className="bg-yellow-100 dark:bg-yellow-900/30 p-3 rounded border border-yellow-200">
+                  <p className="mb-2">Todos os POSTs agora validam duplicatas:</p>
+                  <ul className="text-xs space-y-1">
+                    <li>• <strong>Clientes:</strong> Nome ou email duplicado</li>
+                    <li>• <strong>Serviços:</strong> Nome duplicado</li>
+                    <li>• <strong>Consultores:</strong> Email duplicado</li>
+                    <li>• <strong>Projetos:</strong> Nome duplicado para o mesmo cliente</li>
+                    <li>• <strong>Demandas:</strong> Nome duplicado para o mesmo cliente</li>
+                  </ul>
+                </div>
+              </div>
 
-          <div>
-            <h4 className="font-semibold mb-2">4. Endpoint de Demandas Corrigido</h4>
-            <div className="bg-purple-100 dark:bg-purple-900/30 p-3 rounded border border-purple-200">
-              <p><strong>Novo endpoint:</strong></p>
-              <code className="text-xs block mt-1">POST /demands</code>
-              <p className="mt-2 text-xs">(anteriormente era /webhooks/api/demands)</p>
-            </div>
-          </div>
+              <div>
+                <h4 className="font-semibold mb-2">4. Endpoint de Demandas Corrigido</h4>
+                <div className="bg-purple-100 dark:bg-purple-900/30 p-3 rounded border border-purple-200">
+                  <p><strong>Novo endpoint:</strong></p>
+                  <code className="text-xs block mt-1">POST /demands</code>
+                  <p className="mt-2 text-xs">(anteriormente era /webhooks/api/demands)</p>
+                </div>
+              </div>
 
-          <div>
-            <h4 className="font-semibold mb-2">5. Exemplo de Resposta 409</h4>
-            <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded border border-red-200">
-              <pre className="text-xs overflow-x-auto">
+              <div>
+                <h4 className="font-semibold mb-2">5. Exemplo de Resposta 409</h4>
+                <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded border border-red-200">
+                  <pre className="text-xs overflow-x-auto">
 {`{
   "error": "Registro já existe",
   "code": 409,
@@ -984,11 +999,13 @@ const SwaggerDocs: React.FC = () => {
   "existing_id": "123e4567-e89b-12d3-a456-426614174000",
   "timestamp": "2024-01-15T10:30:00Z"
 }`}
-              </pre>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                  </pre>
+                </div>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       <Alert>
         <InfoIcon className="h-4 w-4" />
