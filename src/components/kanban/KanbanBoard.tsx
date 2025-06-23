@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -43,7 +44,7 @@ const KanbanBoard: React.FC = () => {
   
   const queryClient = useQueryClient();
 
-  // Buscar projetos com dados relacionados - fixed the query with proper column hints
+  // Buscar projetos com dados relacionados - using explicit foreign key relationships
   const { data: rawProjects = [], isLoading } = useQuery({
     queryKey: ['kanban-projects', searchTerm, selectedConsultant, selectedService, selectedTag],
     queryFn: async () => {
@@ -51,10 +52,10 @@ const KanbanBoard: React.FC = () => {
         .from('projects')
         .select(`
           *,
-          clients:client_id (id, name, contact_name),
+          clients:client_id!inner (id, name, contact_name),
           services:service_id (id, name),
-          main_consultant:main_consultant_id (id, name, email),
-          support_consultant:support_consultant_id (id, name, email),
+          main_consultant:consultants!projects_main_consultant_id_fkey (id, name, email),
+          support_consultant:consultants!projects_support_consultant_id_fkey (id, name, email),
           project_stages (*),
           project_tasks (*)
         `);
@@ -77,7 +78,7 @@ const KanbanBoard: React.FC = () => {
     },
   });
 
-  // Transform raw data to match Project interface and map database fields
+  // Transform raw data to match Project interface with proper error handling
   const projects: Project[] = rawProjects.map(project => ({
     id: project.id,
     projectId: project.project_id,
@@ -132,15 +133,22 @@ const KanbanBoard: React.FC = () => {
       updatedAt: stage.updated_at,
     })) || [],
     project_tasks: project.project_tasks || [],
-    clients: project.clients,
+    // Handle consultant data safely - check if it's an error object
+    clients: Array.isArray(project.clients) && project.clients.length > 0 ? project.clients[0] : project.clients,
     services: project.services,
-    main_consultant: project.main_consultant,
-    support_consultant: project.support_consultant,
-    // Computed fields with null checks
-    clientName: project.clients?.name || undefined,
+    main_consultant: (project.main_consultant && !('error' in project.main_consultant)) ? project.main_consultant : undefined,
+    support_consultant: (project.support_consultant && !('error' in project.support_consultant)) ? project.support_consultant : undefined,
+    // Computed fields with null checks and error handling
+    clientName: (Array.isArray(project.clients) && project.clients.length > 0) 
+      ? project.clients[0]?.name 
+      : project.clients?.name || undefined,
     serviceName: project.services?.name || undefined,
-    mainConsultantName: project.main_consultant?.name || undefined,
-    supportConsultantName: project.support_consultant?.name || undefined,
+    mainConsultantName: (project.main_consultant && !('error' in project.main_consultant)) 
+      ? project.main_consultant.name 
+      : undefined,
+    supportConsultantName: (project.support_consultant && !('error' in project.support_consultant)) 
+      ? project.support_consultant.name 
+      : undefined,
   }));
 
   // Buscar consultores para filtro
@@ -235,7 +243,7 @@ const KanbanBoard: React.FC = () => {
             stages.push({
               ...stage,
               projectName: project.name,
-              clientName: project.clients?.name || 'Cliente não informado'
+              clientName: project.clientName || 'Cliente não informado'
             });
           }
         });
