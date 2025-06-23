@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -45,7 +44,7 @@ const KanbanBoard: React.FC = () => {
   const queryClient = useQueryClient();
 
   // Buscar projetos com dados relacionados
-  const { data: projects = [], isLoading } = useQuery({
+  const { data: rawProjects = [], isLoading } = useQuery({
     queryKey: ['kanban-projects', searchTerm, selectedConsultant, selectedService, selectedTag],
     queryFn: async () => {
       let query = supabase
@@ -74,9 +73,52 @@ const KanbanBoard: React.FC = () => {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as Project[];
+      return data;
     },
   });
+
+  // Transform raw data to match Project interface
+  const projects: Project[] = rawProjects.map(project => ({
+    id: project.id,
+    projectId: project.project_id,
+    name: project.name,
+    description: project.description,
+    serviceId: project.service_id,
+    clientId: project.client_id,
+    mainConsultantId: project.main_consultant_id,
+    mainConsultantCommission: project.main_consultant_commission || 0,
+    supportConsultantId: project.support_consultant_id,
+    supportConsultantCommission: project.support_consultant_commission || 0,
+    startDate: project.start_date,
+    endDate: project.end_date,
+    totalValue: project.total_value,
+    totalHours: project.total_hours,
+    hourlyRate: project.hourly_rate,
+    taxPercent: project.tax_percent,
+    thirdPartyExpenses: project.third_party_expenses,
+    consultantValue: project.main_consultant_value,
+    supportConsultantValue: project.support_consultant_value,
+    managerName: project.manager_name,
+    managerEmail: project.manager_email,
+    managerPhone: project.manager_phone,
+    status: project.status,
+    tags: project.tags || [],
+    url: project.url,
+    createdAt: project.created_at,
+    updatedAt: project.updated_at,
+    // Mapped database fields
+    project_stages: project.project_stages || [],
+    project_tasks: project.project_tasks || [],
+    clients: project.clients,
+    services: project.services,
+    main_consultant: project.main_consultant,
+    support_consultant: project.support_consultant,
+    // Computed fields
+    clientName: project.clients?.name,
+    serviceName: project.services?.name,
+    mainConsultantName: project.main_consultant?.name,
+    supportConsultantName: project.support_consultant?.name,
+  }));
 
   // Buscar consultores para filtro
   const { data: consultants = [] } = useQuery({

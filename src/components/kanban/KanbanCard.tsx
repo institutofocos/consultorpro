@@ -72,7 +72,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, stage, onClick, type }
                 {project.status.replace('_', ' ')}
               </Badge>
             </div>
-            {getPriorityIcon(project.total_value)}
+            {getPriorityIcon(project.totalValue)}
           </div>
 
           {/* Valor e Progresso */}
@@ -80,7 +80,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, stage, onClick, type }
             <div className="flex items-center gap-2">
               <DollarSign className="h-3 w-3 text-gray-500" />
               <span className="text-xs font-medium">
-                {formatCurrency(project.total_value)}
+                {formatCurrency(project.totalValue)}
               </span>
             </div>
             
@@ -121,7 +121,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, stage, onClick, type }
             <div className="flex items-center gap-2">
               <Calendar className="h-3 w-3 text-gray-500" />
               <span className="text-xs text-gray-600">
-                {formatDate(project.end_date)}
+                {formatDate(project.endDate)}
               </span>
             </div>
           </div>
@@ -202,11 +202,11 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, stage, onClick, type }
               </div>
             )}
 
-            {stage.end_date && (
+            {stage.endDate && (
               <div className="flex items-center gap-2">
                 <Calendar className="h-3 w-3 text-gray-500" />
                 <span className="text-xs text-gray-600">
-                  {formatDate(stage.end_date)}
+                  {formatDate(stage.endDate)}
                 </span>
               </div>
             )}

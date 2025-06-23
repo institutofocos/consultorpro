@@ -30,6 +30,20 @@ export interface ProjectTag {
   color?: string;
 }
 
+export interface ProjectTask {
+  id: string;
+  project_id: string;
+  name: string;
+  description?: string;
+  assigned_consultant_id?: string;
+  start_date?: string;
+  end_date?: string;
+  completed: boolean;
+  completed_at?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Project {
   id: string;
   projectId?: string; // ID único de 9 caracteres
@@ -72,6 +86,28 @@ export interface Project {
   completedStages?: number;
   createdAt?: string;
   updatedAt?: string;
+  // Database field mappings for Supabase queries
+  project_stages?: Stage[];
+  project_tasks?: ProjectTask[];
+  clients?: {
+    id: string;
+    name: string;
+    contact_name?: string;
+  };
+  services?: {
+    id: string;
+    name: string;
+  };
+  main_consultant?: {
+    id: string;
+    name: string;
+    email?: string;
+  };
+  support_consultant?: {
+    id: string;
+    name: string;
+    email?: string;
+  };
 }
 
 export interface Consultant {
