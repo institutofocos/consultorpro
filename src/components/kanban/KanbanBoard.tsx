@@ -10,7 +10,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Project, Stage } from '@/components/projects/types';
 import { toast } from 'sonner';
-import KanbanCard from './KanbanCard';
+import CollapsibleKanbanCard from './CollapsibleKanbanCard';
 import ProjectDetailsModal from './ProjectDetailsModal';
 import { fetchProjects } from '@/integrations/supabase/projects';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
@@ -288,16 +288,10 @@ const KanbanBoard: React.FC = () => {
     );
   }
 
-  // Verificar se há projetos que não aparecem no Kanban
-  const totalProjectsAndStages = projects.length + projects.reduce((acc, p) => acc + (p.stages?.length || 0), 0);
-  const totalCardsInKanban = activeColumns.reduce((acc, col) => {
-    return acc + getProjectsByStatus(col.status).length + getStagesByStatus(col.status).length;
-  }, 0);
-
   return (
-    <div className="space-y-6 p-6 h-full">
+    <div className="h-screen flex flex-col p-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 flex-shrink-0">
+      <div className="flex flex-col gap-4 flex-shrink-0 mb-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">Kanban Board</h1>
           <div className="flex items-center gap-2">
@@ -308,13 +302,6 @@ const KanbanBoard: React.FC = () => {
             <div className="text-sm text-muted-foreground">
               {projects.length} projetos · Última sync: {lastSyncTime.toLocaleTimeString('pt-BR')}
             </div>
-          </div>
-        </div>
-
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="text-sm text-blue-800">
-            <strong>Colunas baseadas nas Regras de Projetos:</strong> As colunas do Kanban são geradas automaticamente 
-            com base nos status configurados na aba "Regras" das configurações, usando os nomes de exibição e cores definidos.
           </div>
         </div>
 
@@ -360,16 +347,15 @@ const KanbanBoard: React.FC = () => {
         </div>
       </div>
 
-      {/* Kanban Board com rolagem horizontal */}
+      {/* Kanban Board - ocupar todo o espaço restante */}
       <div className="flex-1 overflow-hidden">
         <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="overflow-x-auto pb-4">
-            <div className="flex gap-4 min-w-max" style={{ width: `${Math.max(activeColumns.length * 320, 1200)}px` }}>
+          <div className="h-full overflow-x-auto">
+            <div className="flex gap-6 h-full pb-4" style={{ minWidth: `${activeColumns.length * 400}px` }}>
               {activeColumns.map(column => {
                 const projectsInColumn = getProjectsByStatus(column.status);
                 const stagesInColumn = getStagesByStatus(column.status);
                 const totalItems = projectsInColumn.length + stagesInColumn.length;
-                const shouldScroll = totalItems > 3;
                 
                 return (
                   <Droppable key={column.id} droppableId={column.status}>
@@ -377,14 +363,12 @@ const KanbanBoard: React.FC = () => {
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`w-80 p-4 rounded-lg flex-shrink-0 ${column.color} ${
+                        className={`w-96 p-4 rounded-lg flex-shrink-0 ${column.color} ${
                           snapshot.isDraggingOver ? 'bg-opacity-50' : ''
-                        }`}
+                        } flex flex-col`}
                         style={{
                           borderTop: `4px solid ${column.statusColor}`,
-                          height: shouldScroll ? '600px' : 'auto',
-                          display: 'flex',
-                          flexDirection: 'column'
+                          height: 'calc(100vh - 200px)'
                         }}
                       >
                         <div className="flex justify-between items-center mb-4 flex-shrink-0">
@@ -400,12 +384,7 @@ const KanbanBoard: React.FC = () => {
                           </Badge>
                         </div>
 
-                        <div 
-                          className={`space-y-3 ${shouldScroll ? 'overflow-y-auto flex-1' : ''}`}
-                          style={{ 
-                            maxHeight: shouldScroll ? 'calc(100% - 60px)' : 'none'
-                          }}
-                        >
+                        <div className="space-y-3 overflow-y-auto flex-1">
                           {/* Projetos */}
                           {projectsInColumn.map((project, index) => (
                             <Draggable key={`project-${project.id}`} draggableId={`project-${project.id}`} index={index}>
@@ -416,7 +395,7 @@ const KanbanBoard: React.FC = () => {
                                   {...provided.dragHandleProps}
                                   className={snapshot.isDragging ? 'rotate-2' : ''}
                                 >
-                                  <KanbanCard
+                                  <CollapsibleKanbanCard
                                     project={project}
                                     onClick={() => handleProjectClick(project)}
                                     type="project"
@@ -440,7 +419,7 @@ const KanbanBoard: React.FC = () => {
                                   {...provided.dragHandleProps}
                                   className={snapshot.isDragging ? 'rotate-2' : ''}
                                 >
-                                  <KanbanCard
+                                  <CollapsibleKanbanCard
                                     stage={stage}
                                     onClick={() => {/* Modal de detalhes da etapa pode ser implementado */}}
                                     type="stage"
