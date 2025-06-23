@@ -1,3 +1,4 @@
+
 import React from 'react';
 import SwaggerUI from 'swagger-ui-react';
 import "swagger-ui-react/swagger-ui.css";
@@ -214,6 +215,20 @@ const SwaggerDocs: React.FC = () => {
             created_at: { type: "string", format: "date-time" }
           }
         },
+        ServiceInput: {
+          type: "object",
+          required: ["name", "total_hours"],
+          properties: {
+            name: { type: "string" },
+            description: { type: "string" },
+            total_hours: { type: "number" },
+            hourly_rate: { type: "number" },
+            total_value: { type: "number" },
+            tax_rate: { type: "number" },
+            extra_costs: { type: "number" },
+            url: { type: "string" }
+          }
+        },
         Client: {
           type: "object",
           properties: {
@@ -222,7 +237,37 @@ const SwaggerDocs: React.FC = () => {
             contact_name: { type: "string" },
             email: { type: "string" },
             phone: { type: "string" },
+            address: { type: "string" },
+            city: { type: "string" },
+            state: { type: "string" },
+            zip_code: { type: "string" },
+            notes: { type: "string" },
             created_at: { type: "string", format: "date-time" }
+          }
+        },
+        ClientInput: {
+          type: "object",
+          required: ["name", "contact_name"],
+          properties: {
+            name: { type: "string" },
+            contact_name: { type: "string" },
+            email: { type: "string" },
+            phone: { type: "string" },
+            address: { type: "string" },
+            city: { type: "string" },
+            state: { type: "string" },
+            zip_code: { type: "string" },
+            notes: { type: "string" }
+          }
+        },
+        ConflictError: {
+          type: "object",
+          properties: {
+            error: { type: "string", example: "Registro já existe" },
+            code: { type: "integer", example: 409 },
+            message: { type: "string", example: "Um registro com essas informações já foi cadastrado no sistema" },
+            existing_id: { type: "string", format: "uuid", description: "ID do registro existente" },
+            timestamp: { type: "string", format: "date-time" }
           }
         }
       }
@@ -234,11 +279,11 @@ const SwaggerDocs: React.FC = () => {
       }
     ],
     paths: {
-      "/webhooks/api/demands": {
+      "/demands": {
         post: {
           summary: "Criar nova demanda",
           tags: ["Demandas"],
-          description: "Endpoint para criar novas demandas no sistema via API",
+          description: "Endpoint para criar novas demandas no sistema via API. Valida se a demanda já existe antes de criar.",
           requestBody: {
             required: true,
             content: {
@@ -268,32 +313,8 @@ const SwaggerDocs: React.FC = () => {
                           dias: 15,
                           horas: 60,
                           valor: 7500.00
-                        },
-                        {
-                          nome: "Desenvolvimento Frontend",
-                          descricao: "Interface do usuário e experiência",
-                          dias: 30,
-                          horas: 80,
-                          valor: 10000.00
-                        },
-                        {
-                          nome: "Desenvolvimento Backend",
-                          descricao: "API e integrações",
-                          dias: 25,
-                          horas: 60,
-                          valor: 7500.00
                         }
                       ]
-                    }
-                  },
-                  exemplo_simples: {
-                    summary: "Exemplo mínimo",
-                    value: {
-                      nome: "Consultoria Estratégica",
-                      cliente_nome: "Startup ABC",
-                      data_inicio: "2024-01-15",
-                      data_fim: "2024-02-15",
-                      valor_total: 8000.00
                     }
                   }
                 }
@@ -307,59 +328,83 @@ const SwaggerDocs: React.FC = () => {
                 "application/json": {
                   schema: {
                     $ref: "#/components/schemas/DemandResponse"
-                  },
-                  examples: {
-                    sucesso: {
-                      summary: "Resposta de sucesso",
-                      value: {
-                        success: true,
-                        message: "Demanda cadastrada com sucesso",
-                        data: {
-                          demanda_id: "123e4567-e89b-12d3-a456-426614174000",
-                          nome: "Desenvolvimento de E-commerce",
-                          cliente_id: "456e7890-e89b-12d3-a456-426614174000",
-                          servico_id: "789e0123-e89b-12d3-a456-426614174000",
-                          status: "em_planejamento",
-                          created_at: "2024-01-15T10:30:00Z"
-                        },
-                        timestamp: "2024-01-15T10:30:00Z"
-                      }
-                    }
+                  }
+                }
+              }
+            },
+            "409": {
+              description: "Demanda já existe no sistema",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/ConflictError"
                   }
                 }
               }
             },
             "400": {
-              description: "Dados inválidos",
-              content: {
-                "application/json": {
-                  schema: {
-                    type: "object",
-                    properties: {
-                      error: { type: "string" },
-                      validationErrors: { 
-                        type: "array",
-                        items: { type: "string" }
-                      },
-                      timestamp: { type: "string", format: "date-time" }
-                    }
-                  }
-                }
-              }
-            },
-            "500": {
-              description: "Erro interno do servidor"
+              description: "Dados inválidos"
             }
           }
         }
       },
       "/consultants": {
         get: {
-          summary: "Get all consultants",
+          summary: "Listar consultores",
           tags: ["Consultants"],
+          parameters: [
+            {
+              name: "name",
+              in: "query",
+              description: "Filtrar por nome (busca parcial)",
+              schema: { type: "string" }
+            },
+            {
+              name: "email",
+              in: "query", 
+              description: "Filtrar por email",
+              schema: { type: "string" }
+            },
+            {
+              name: "phone",
+              in: "query",
+              description: "Filtrar por telefone",
+              schema: { type: "string" }
+            },
+            {
+              name: "city",
+              in: "query",
+              description: "Filtrar por cidade",
+              schema: { type: "string" }
+            },
+            {
+              name: "state",
+              in: "query",
+              description: "Filtrar por estado",
+              schema: { type: "string" }
+            },
+            {
+              name: "limit",
+              in: "query",
+              description: "Limite de registros por página",
+              schema: { type: "integer", default: 50 }
+            },
+            {
+              name: "offset",
+              in: "query",
+              description: "Número de registros para pular (paginação)",
+              schema: { type: "integer", default: 0 }
+            },
+            {
+              name: "order",
+              in: "query",
+              description: "Campo para ordenação (name, email, created_at)",
+              schema: { type: "string", default: "name" }
+            }
+          ],
           responses: {
             "200": {
-              description: "List of consultants",
+              description: "Lista de consultores",
               content: {
                 "application/json": {
                   schema: {
@@ -374,8 +419,9 @@ const SwaggerDocs: React.FC = () => {
           }
         },
         post: {
-          summary: "Create a consultant",
+          summary: "Criar consultor",
           tags: ["Consultants"],
+          description: "Criar novo consultor. Valida se já existe consultor com o mesmo email.",
           requestBody: {
             content: {
               "application/json": {
@@ -387,18 +433,102 @@ const SwaggerDocs: React.FC = () => {
           },
           responses: {
             "201": {
-              description: "Consultant created successfully"
+              description: "Consultor criado com sucesso"
+            },
+            "409": {
+              description: "Consultor com este email já existe",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/ConflictError"
+                  }
+                }
+              }
             }
           }
         }
       },
       "/projects": {
         get: {
-          summary: "Get all projects",
+          summary: "Listar projetos",
           tags: ["Projects"],
+          parameters: [
+            {
+              name: "name",
+              in: "query",
+              description: "Filtrar por nome do projeto",
+              schema: { type: "string" }
+            },
+            {
+              name: "status",
+              in: "query",
+              description: "Filtrar por status",
+              schema: { type: "string" }
+            },
+            {
+              name: "client_id",
+              in: "query",
+              description: "Filtrar por ID do cliente",
+              schema: { type: "string", format: "uuid" }
+            },
+            {
+              name: "main_consultant_id",
+              in: "query",
+              description: "Filtrar por consultor principal",
+              schema: { type: "string", format: "uuid" }
+            },
+            {
+              name: "service_id",
+              in: "query",
+              description: "Filtrar por serviço",
+              schema: { type: "string", format: "uuid" }
+            },
+            {
+              name: "start_date_from",
+              in: "query",
+              description: "Data de início a partir de (YYYY-MM-DD)",
+              schema: { type: "string", format: "date" }
+            },
+            {
+              name: "start_date_to",
+              in: "query",
+              description: "Data de início até (YYYY-MM-DD)",
+              schema: { type: "string", format: "date" }
+            },
+            {
+              name: "total_value_min",
+              in: "query",
+              description: "Valor mínimo do projeto",
+              schema: { type: "number" }
+            },
+            {
+              name: "total_value_max",
+              in: "query",
+              description: "Valor máximo do projeto",
+              schema: { type: "number" }
+            },
+            {
+              name: "limit",
+              in: "query",
+              description: "Limite de registros por página",
+              schema: { type: "integer", default: 50 }
+            },
+            {
+              name: "offset",
+              in: "query",
+              description: "Número de registros para pular",
+              schema: { type: "integer", default: 0 }
+            },
+            {
+              name: "order",
+              in: "query",
+              description: "Campo para ordenação",
+              schema: { type: "string", default: "created_at" }
+            }
+          ],
           responses: {
             "200": {
-              description: "List of projects",
+              description: "Lista de projetos",
               content: {
                 "application/json": {
                   schema: {
@@ -413,8 +543,9 @@ const SwaggerDocs: React.FC = () => {
           }
         },
         post: {
-          summary: "Create a project",
+          summary: "Criar projeto",
           tags: ["Projects"],
+          description: "Criar novo projeto. Valida se já existe projeto com o mesmo nome para o mesmo cliente.",
           requestBody: {
             content: {
               "application/json": {
@@ -426,18 +557,96 @@ const SwaggerDocs: React.FC = () => {
           },
           responses: {
             "201": {
-              description: "Project created successfully"
+              description: "Projeto criado com sucesso"
+            },
+            "409": {
+              description: "Projeto com este nome já existe para este cliente",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/ConflictError"
+                  }
+                }
+              }
             }
           }
         }
       },
       "/services": {
         get: {
-          summary: "Get all services",
+          summary: "Listar serviços",
           tags: ["Services"],
+          parameters: [
+            {
+              name: "name",
+              in: "query",
+              description: "Filtrar por nome do serviço",
+              schema: { type: "string" }
+            },
+            {
+              name: "description",
+              in: "query",
+              description: "Filtrar por descrição (busca parcial)",
+              schema: { type: "string" }
+            },
+            {
+              name: "total_hours_min",
+              in: "query",
+              description: "Horas mínimas",
+              schema: { type: "number" }
+            },
+            {
+              name: "total_hours_max",
+              in: "query",
+              description: "Horas máximas",
+              schema: { type: "number" }
+            },
+            {
+              name: "hourly_rate_min",
+              in: "query",
+              description: "Valor mínimo por hora",
+              schema: { type: "number" }
+            },
+            {
+              name: "hourly_rate_max",
+              in: "query",
+              description: "Valor máximo por hora",
+              schema: { type: "number" }
+            },
+            {
+              name: "total_value_min",
+              in: "query",
+              description: "Valor total mínimo",
+              schema: { type: "number" }
+            },
+            {
+              name: "total_value_max",
+              in: "query",
+              description: "Valor total máximo",
+              schema: { type: "number" }
+            },
+            {
+              name: "limit",
+              in: "query",
+              description: "Limite de registros por página",
+              schema: { type: "integer", default: 50 }
+            },
+            {
+              name: "offset",
+              in: "query",
+              description: "Número de registros para pular",
+              schema: { type: "integer", default: 0 }
+            },
+            {
+              name: "order",
+              in: "query",
+              description: "Campo para ordenação",
+              schema: { type: "string", default: "name" }
+            }
+          ],
           responses: {
             "200": {
-              description: "List of services",
+              description: "Lista de serviços",
               content: {
                 "application/json": {
                   schema: {
@@ -450,15 +659,125 @@ const SwaggerDocs: React.FC = () => {
               }
             }
           }
+        },
+        post: {
+          summary: "Criar serviço",
+          tags: ["Services"],
+          description: "Criar novo serviço. Valida se já existe serviço com o mesmo nome.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ServiceInput"
+                },
+                examples: {
+                  exemplo_basico: {
+                    summary: "Exemplo básico de serviço",
+                    value: {
+                      name: "Desenvolvimento Web",
+                      description: "Desenvolvimento de aplicações web completas",
+                      total_hours: 160,
+                      hourly_rate: 125.00,
+                      total_value: 20000.00,
+                      tax_rate: 16,
+                      extra_costs: 500.00
+                    }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "201": {
+              description: "Serviço criado com sucesso",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/Service"
+                  }
+                }
+              }
+            },
+            "409": {
+              description: "Serviço com este nome já existe",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/ConflictError"
+                  }
+                }
+              }
+            },
+            "400": {
+              description: "Dados inválidos"
+            }
+          }
         }
       },
       "/clients": {
         get: {
-          summary: "Get all clients",
+          summary: "Listar clientes",
           tags: ["Clients"],
+          parameters: [
+            {
+              name: "name",
+              in: "query",
+              description: "Filtrar por nome do cliente",
+              schema: { type: "string" }
+            },
+            {
+              name: "contact_name",
+              in: "query",
+              description: "Filtrar por nome do contato",
+              schema: { type: "string" }
+            },
+            {
+              name: "email",
+              in: "query",
+              description: "Filtrar por email",
+              schema: { type: "string" }
+            },
+            {
+              name: "phone",
+              in: "query",
+              description: "Filtrar por telefone",
+              schema: { type: "string" }
+            },
+            {
+              name: "city",
+              in: "query",
+              description: "Filtrar por cidade",
+              schema: { type: "string" }
+            },
+            {
+              name: "state",
+              in: "query",
+              description: "Filtrar por estado",
+              schema: { type: "string" }
+            },
+            {
+              name: "limit",
+              in: "query",
+              description: "Limite de registros por página",
+              schema: { type: "integer", default: 50 }
+            },
+            {
+              name: "offset",
+              in: "query",
+              description: "Número de registros para pular",
+              schema: { type: "integer", default: 0 }
+            },
+            {
+              name: "order",
+              in: "query",
+              description: "Campo para ordenação",
+              schema: { type: "string", default: "name" }
+            }
+          ],
           responses: {
             "200": {
-              description: "List of clients",
+              description: "Lista de clientes",
               content: {
                 "application/json": {
                   schema: {
@@ -469,6 +788,62 @@ const SwaggerDocs: React.FC = () => {
                   }
                 }
               }
+            }
+          }
+        },
+        post: {
+          summary: "Criar cliente",
+          tags: ["Clients"],
+          description: "Criar novo cliente. Valida se já existe cliente com o mesmo nome ou email.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ClientInput"
+                },
+                examples: {
+                  exemplo_completo: {
+                    summary: "Exemplo completo de cliente",
+                    value: {
+                      name: "Tech Solutions Ltda",
+                      contact_name: "João Silva",
+                      email: "contato@techsolutions.com",
+                      phone: "(11) 99999-9999",
+                      address: "Rua das Flores, 123",
+                      city: "São Paulo",
+                      state: "SP",
+                      zip_code: "01234-567",
+                      notes: "Cliente premium com histórico de projetos grandes"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            "201": {
+              description: "Cliente criado com sucesso",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/Client"
+                  }
+                }
+              }
+            },
+            "409": {
+              description: "Cliente já existe (mesmo nome ou email)",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/ConflictError"
+                  }
+                }
+              }
+            },
+            "400": {
+              description: "Dados inválidos"
             }
           }
         }
@@ -511,20 +886,7 @@ const SwaggerDocs: React.FC = () => {
           },
           responses: {
             "200": {
-              description: "Webhook subscription created successfully",
-              content: {
-                "application/json": {
-                  schema: {
-                    type: "object",
-                    properties: {
-                      id: {
-                        type: "string",
-                        description: "Webhook subscription ID"
-                      }
-                    }
-                  }
-                }
-              }
+              description: "Webhook subscription created successfully"
             }
           }
         }
@@ -541,13 +903,15 @@ const SwaggerDocs: React.FC = () => {
 
       <Alert>
         <BookOpen className="h-4 w-4" />
-        <AlertTitle>🎯 Nova API de Demandas Disponível</AlertTitle>
+        <AlertTitle>🎯 API Atualizada com Filtros e Validações</AlertTitle>
         <AlertDescription>
-          <p className="mb-3">A API para criação de demandas está configurada e funcionando! Use o endpoint:</p>
-          <code className="bg-muted px-2 py-1 rounded text-sm break-all block mb-3">
-            POST https://qffpioepvkfvpuqdbbnh.supabase.co/functions/v1/webhooks/api/demands
-          </code>
-          <p className="text-sm text-green-600 font-medium">✅ Testado e aprovado para produção</p>
+          <p className="mb-3">A API foi atualizada com as seguintes melhorias:</p>
+          <ul className="list-disc list-inside space-y-1 text-sm">
+            <li>✅ Todos os endpoints GET agora têm filtros avançados</li>
+            <li>✅ Métodos POST adicionados para /clients e /services</li>
+            <li>✅ Endpoint de demandas corrigido para /demands</li>
+            <li>✅ Validação de duplicatas com código 409 em todos os POSTs</li>
+          </ul>
         </AlertDescription>
       </Alert>
 
@@ -555,131 +919,72 @@ const SwaggerDocs: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
             <Webhook className="h-5 w-5" />
-            Tutorial: Como Configurar a API de Demandas
+            Principais Atualizações da API
           </CardTitle>
           <CardDescription className="text-blue-600 dark:text-blue-400">
-            Guia completo para integrar sistemas externos com a API de criação de demandas
+            Novos recursos e melhorias implementados
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
           <div>
-            <h4 className="font-semibold mb-2">1. Configuração Básica</h4>
+            <h4 className="font-semibold mb-2">1. Filtros Avançados nos GETs</h4>
             <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded border">
-              <p><strong>URL do Endpoint:</strong></p>
-              <code className="text-xs block mt-1">https://qffpioepvkfvpuqdbbnh.supabase.co/functions/v1/webhooks/api/demands</code>
-              <p className="mt-2"><strong>Método:</strong> POST</p>
-              <p><strong>Content-Type:</strong> application/json</p>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-2">2. Headers Obrigatórios</h4>
-            <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded border">
-              <code className="text-xs block">apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmZnBpb2VwdmtmdnB1cWRiYm5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MzQ5NDIsImV4cCI6MjA2MzUxMDk0Mn0.ZD1AuPVDNuqTeYz8Eyt4QZHf_Qt1K-9oZcK3_fxSx-w</code>
-              <code className="text-xs block mt-1">Content-Type: application/json</code>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-2">3. Exemplo de Requisição Mínima</h4>
-            <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded border">
-              <pre className="text-xs overflow-x-auto">
-{`{
-  "nome": "Desenvolvimento de Sistema",
-  "cliente_nome": "Empresa ABC Ltda",
-  "data_inicio": "2024-02-01",
-  "data_fim": "2024-04-30",
-  "valor_total": 15000.00
-}`}
-              </pre>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-2">4. Exemplo com Etapas</h4>
-            <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded border">
-              <pre className="text-xs overflow-x-auto">
-{`{
-  "nome": "E-commerce Completo",
-  "descricao": "Sistema de vendas online",
-  "cliente_nome": "Loja Virtual XYZ",
-  "data_inicio": "2024-03-01",
-  "data_fim": "2024-06-30",
-  "valor_total": 30000.00,
-  "horas_totais": 240,
-  "valor_hora": 125.00,
-  "etapas": [
-    {
-      "nome": "Análise de Requisitos",
-      "descricao": "Levantamento e documentação",
-      "dias": 10,
-      "horas": 40,
-      "valor": 5000.00
-    },
-    {
-      "nome": "Desenvolvimento",
-      "descricao": "Codificação do sistema",
-      "dias": 45,
-      "horas": 160,
-      "valor": 20000.00
-    },
-    {
-      "nome": "Testes e Deploy",
-      "descricao": "Testes e publicação",
-      "dias": 15,
-      "horas": 40,
-      "valor": 5000.00
-    }
-  ]
-}`}
-              </pre>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-2">5. Campos Obrigatórios</h4>
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded border border-yellow-200">
+              <p className="mb-2"><strong>Exemplos de filtros disponíveis:</strong></p>
               <ul className="text-xs space-y-1">
-                <li>• <strong>nome:</strong> Nome da demanda</li>
-                <li>• <strong>data_inicio:</strong> Data de início (YYYY-MM-DD)</li>
-                <li>• <strong>data_fim:</strong> Data de fim (YYYY-MM-DD)</li>
-                <li>• <strong>valor_total:</strong> Valor total (número)</li>
-                <li>• <strong>cliente_id OU cliente_nome:</strong> Cliente existente ou novo</li>
+                <li>• <code>/consultants?name=João&city=São Paulo&limit=10</code></li>
+                <li>• <code>/projects?status=active&total_value_min=5000</code></li>
+                <li>• <code>/services?hourly_rate_min=100&hourly_rate_max=200</code></li>
+                <li>• <code>/clients?state=SP&order=name&limit=20</code></li>
               </ul>
             </div>
           </div>
 
           <div>
-            <h4 className="font-semibold mb-2">6. Resposta de Sucesso</h4>
-            <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded border border-green-200">
+            <h4 className="font-semibold mb-2">2. Novos Endpoints POST</h4>
+            <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded border border-green-200">
+              <ul className="text-xs space-y-1">
+                <li>• <strong>POST /clients</strong> - Criar novos clientes</li>
+                <li>• <strong>POST /services</strong> - Criar novos serviços</li>
+                <li>• <strong>POST /demands</strong> - Endpoint corrigido para demandas</li>
+              </ul>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-semibold mb-2">3. Validação de Duplicatas (409)</h4>
+            <div className="bg-yellow-100 dark:bg-yellow-900/30 p-3 rounded border border-yellow-200">
+              <p className="mb-2">Todos os POSTs agora validam duplicatas:</p>
+              <ul className="text-xs space-y-1">
+                <li>• <strong>Clientes:</strong> Nome ou email duplicado</li>
+                <li>• <strong>Serviços:</strong> Nome duplicado</li>
+                <li>• <strong>Consultores:</strong> Email duplicado</li>
+                <li>• <strong>Projetos:</strong> Nome duplicado para o mesmo cliente</li>
+                <li>• <strong>Demandas:</strong> Nome duplicado para o mesmo cliente</li>
+              </ul>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-semibold mb-2">4. Endpoint de Demandas Corrigido</h4>
+            <div className="bg-purple-100 dark:bg-purple-900/30 p-3 rounded border border-purple-200">
+              <p><strong>Novo endpoint:</strong></p>
+              <code className="text-xs block mt-1">POST /demands</code>
+              <p className="mt-2 text-xs">(anteriormente era /webhooks/api/demands)</p>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-semibold mb-2">5. Exemplo de Resposta 409</h4>
+            <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded border border-red-200">
               <pre className="text-xs overflow-x-auto">
 {`{
-  "success": true,
-  "message": "Demanda cadastrada com sucesso",
-  "data": {
-    "demanda_id": "123e4567-e89b-12d3-a456-426614174000",
-    "nome": "Desenvolvimento de Sistema",
-    "cliente_id": "456e7890-e89b-12d3-a456-426614174000",
-    "status": "em_planejamento",
-    "created_at": "2024-01-15T10:30:00Z"
-  },
+  "error": "Registro já existe",
+  "code": 409,
+  "message": "Um cliente com este nome já foi cadastrado",
+  "existing_id": "123e4567-e89b-12d3-a456-426614174000",
   "timestamp": "2024-01-15T10:30:00Z"
 }`}
               </pre>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-2">7. Funcionalidades Automáticas</h4>
-            <div className="bg-gray-50 dark:bg-gray-900/20 p-3 rounded border">
-              <ul className="text-xs space-y-1">
-                <li>• ✅ Criação automática de clientes (se não existir)</li>
-                <li>• ✅ Vinculação com serviços existentes</li>
-                <li>• ✅ Validação completa de dados</li>
-                <li>• ✅ Criação de etapas do projeto</li>
-                <li>• ✅ Status inicial: "em_planejamento"</li>
-                <li>• ✅ Cálculos automáticos de valores</li>
-              </ul>
             </div>
           </div>
         </CardContent>
