@@ -14,33 +14,13 @@ export interface ProjectStatusSetting {
   order_index: number;
 }
 
-// Status expandido para garantir que TODOS os possíveis status apareçam
-const defaultKanbanStatuses = [
-  { name: 'planned', display_name: 'Planejado', color: '#6b7280' },
-  { name: 'iniciar_projeto', display_name: 'Iniciar Projeto', color: '#6b7280' },
-  { name: 'active', display_name: 'Ativo', color: '#3b82f6' },
-  { name: 'em_planejamento', display_name: 'Em Planejamento', color: '#3b82f6' },
-  { name: 'em_producao', display_name: 'Em Produção', color: '#3b82f6' },
-  { name: 'aguardando_assinatura', display_name: 'Aguardando Assinatura', color: '#f59e0b' },
-  { name: 'aguardando_aprovacao', display_name: 'Aguardando Aprovação', color: '#f97316' },
-  { name: 'aguardando_nota_fiscal', display_name: 'Aguardando Nota Fiscal', color: '#8b5cf6' },
-  { name: 'aguardando_pagamento', display_name: 'Aguardando Pagamento', color: '#ec4899' },
-  { name: 'aguardando_repasse', display_name: 'Aguardando Repasse', color: '#6366f1' },
-  { name: 'completed', display_name: 'Completo', color: '#10b981' },
-  { name: 'concluido', display_name: 'Concluído', color: '#10b981' },
-  { name: 'finalizados', display_name: 'Finalizados', color: '#10b981' },
-  { name: 'cancelled', display_name: 'Cancelado', color: '#ef4444' },
-  { name: 'cancelados', display_name: 'Cancelados', color: '#ef4444' },
-  { name: 'cancelado', display_name: 'Cancelado', color: '#ef4444' },
-];
-
 export const useProjectStatuses = () => {
   const queryClient = useQueryClient();
 
   const { data: statuses = [], isLoading, refetch } = useQuery({
     queryKey: ['project-statuses'],
     queryFn: async () => {
-      console.log('=== BUSCANDO STATUS DE PROJETOS ===');
+      console.log('=== BUSCANDO STATUS DE PROJETOS CONFIGURADOS ===');
       const { data, error } = await supabase
         .from('project_status_settings')
         .select('*')
@@ -49,41 +29,26 @@ export const useProjectStatuses = () => {
 
       if (error) {
         console.error('Erro ao buscar status configurados:', error);
-        // Em caso de erro, usar fallback
+        return [];
       }
       
       console.log('Status configurados encontrados:', data?.length || 0);
+      console.log('Status configurados:', data);
       
-      // SEMPRE retornar os status padrão + os configurados
-      const configuredStatuses = data || [];
-      const allStatuses = [
-        ...defaultKanbanStatuses.map((status, index) => ({
-          id: `default-${status.name}`,
-          name: status.name,
-          display_name: status.display_name,
-          color: status.color,
-          is_active: true,
-          is_completion_status: ['finalizados', 'concluido', 'completed'].includes(status.name),
-          is_cancellation_status: ['cancelados', 'cancelled', 'cancelado'].includes(status.name),
-          order_index: index
-        })),
-        ...configuredStatuses.map(status => ({
-          ...status,
-          id: status.id || `config-${status.name}`
-        }))
-      ];
+      // Retornar APENAS os status configurados nas regras
+      const configuredStatuses = (data || []).map(status => ({
+        id: status.id,
+        name: status.name,
+        display_name: status.display_name,
+        color: status.color,
+        is_active: status.is_active,
+        is_completion_status: status.is_completion_status,
+        is_cancellation_status: status.is_cancellation_status,
+        order_index: status.order_index
+      }));
 
-      // Remover duplicatas baseado no nome
-      const uniqueStatuses = allStatuses.reduce((acc, current) => {
-        const existing = acc.find(item => item.name === current.name);
-        if (!existing) {
-          acc.push(current);
-        }
-        return acc;
-      }, [] as typeof allStatuses);
-
-      console.log('Status únicos processados:', uniqueStatuses.length);
-      return uniqueStatuses;
+      console.log('Status processados para o Kanban:', configuredStatuses);
+      return configuredStatuses;
     },
     staleTime: 0,
     gcTime: 0,
@@ -94,6 +59,7 @@ export const useProjectStatuses = () => {
       return { label: 'Sem Status', color: '#6b7280' };
     }
 
+    // Buscar primeiro nos status configurados
     const statusSetting = statuses.find(s => s.name === statusName);
     if (statusSetting) {
       return {
@@ -102,16 +68,7 @@ export const useProjectStatuses = () => {
       };
     }
     
-    // Fallback para status não configurados
-    const fallbackStatus = defaultKanbanStatuses.find(s => s.name === statusName);
-    if (fallbackStatus) {
-      return {
-        label: fallbackStatus.display_name,
-        color: fallbackStatus.color
-      };
-    }
-    
-    // Fallback final - criar display baseado no nome
+    // Fallback para status não configurados - criar display baseado no nome
     const displayName = statusName
       .replace(/_/g, ' ')
       .replace(/\b\w/g, l => l.toUpperCase());
@@ -161,16 +118,7 @@ export const useProjectStatuses = () => {
       };
     }
     
-    // Fallback para status padrão
-    const fallbackStatus = defaultKanbanStatuses.find(s => s.name === statusName);
-    if (fallbackStatus) {
-      return {
-        backgroundColor: fallbackStatus.color,
-        color: '#ffffff',
-        border: 'transparent'
-      };
-    }
-    
+    // Fallback para status não configurados
     return {
       backgroundColor: '#6b7280',
       color: '#ffffff',

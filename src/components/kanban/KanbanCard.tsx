@@ -70,9 +70,9 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, stage, onClick, type }
                 <Badge style={statusStyle} variant="secondary" className="text-xs">
                   {statusDisplay.label}
                 </Badge>
-                {project.project_id && (
+                {project.projectId && (
                   <Badge variant="outline" className="text-xs">
-                    {project.project_id}
+                    {project.projectId}
                   </Badge>
                 )}
               </div>

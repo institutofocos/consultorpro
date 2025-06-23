@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -32,7 +31,7 @@ const KanbanBoard: React.FC = () => {
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
   
   const queryClient = useQueryClient();
-  const { statuses, getStatusDisplay } = useProjectStatuses();
+  const { statuses, getStatusDisplay, isLoading: statusesLoading } = useProjectStatuses();
 
   // Buscar projetos usando a função do sistema de projetos
   const { data: projects = [], isLoading: projectsLoading, refetch: refetchProjects } = useQuery({
@@ -116,67 +115,22 @@ const KanbanBoard: React.FC = () => {
     },
   });
 
-  // Determinar colunas dinamicamente baseado nos status encontrados + status padrão
+  // Determinar colunas baseado APENAS nos status configurados nas regras
   const activeColumns = useMemo(() => {
-    console.log('=== DETERMINANDO COLUNAS ATIVAS ===');
+    console.log('=== DETERMINANDO COLUNAS BASEADAS NAS REGRAS DE PROJETOS ===');
     
-    const statusesInUse = new Set<string>();
+    // Usar APENAS os status configurados nas regras de projetos
+    const columnsFromRules = statuses.map(status => ({
+      id: status.name,
+      title: status.display_name, // Usar o nome de exibição das regras
+      color: 'bg-gray-50',
+      status: status.name,
+      statusColor: status.color // Preservar a cor da regra
+    }));
     
-    // Sempre incluir status básicos para garantir que apareçam
-    const basicStatuses = ['planned', 'active', 'completed', 'cancelled', 'iniciar_projeto', 'em_producao', 'concluido'];
-    basicStatuses.forEach(status => statusesInUse.add(status));
-    
-    // Coletar status dos projetos
-    projects.forEach(project => {
-      console.log(`Projeto ${project.name}: status = ${project.status}`);
-      if (project.status) {
-        statusesInUse.add(project.status);
-      }
-      
-      // Coletar status das etapas
-      if (project.stages && project.stages.length > 0) {
-        project.stages.forEach(stage => {
-          console.log(`  Etapa ${stage.name}: status = ${stage.status || 'iniciar_projeto'}`);
-          const stageStatus = stage.status || 'iniciar_projeto';
-          statusesInUse.add(stageStatus);
-        });
-      }
-    });
-
-    console.log('Status em uso encontrados:', Array.from(statusesInUse));
-    
-    // Criar colunas baseado nos status encontrados
-    const columnsToShow = Array.from(statusesInUse).map(status => {
-      const statusDisplay = getStatusDisplay(status);
-      return {
-        id: status,
-        title: statusDisplay.label,
-        color: 'bg-gray-50',
-        status: status
-      };
-    });
-    
-    // Ordenar colunas por uma ordem lógica
-    const statusOrder = [
-      'planned', 'iniciar_projeto', 'active', 'em_planejamento', 'em_producao',
-      'aguardando_assinatura', 'aguardando_aprovacao', 'aguardando_nota_fiscal',
-      'aguardando_pagamento', 'aguardando_repasse',
-      'completed', 'concluido', 'finalizados',
-      'cancelled', 'cancelados', 'cancelado'
-    ];
-    
-    columnsToShow.sort((a, b) => {
-      const aIndex = statusOrder.indexOf(a.status);
-      const bIndex = statusOrder.indexOf(b.status);
-      if (aIndex === -1 && bIndex === -1) return 0;
-      if (aIndex === -1) return 1;
-      if (bIndex === -1) return -1;
-      return aIndex - bIndex;
-    });
-    
-    console.log('Colunas que serão exibidas:', columnsToShow.map(c => `${c.title} (${c.status})`));
-    return columnsToShow;
-  }, [projects, statuses, getStatusDisplay]);
+    console.log('Colunas baseadas nas regras:', columnsFromRules);
+    return columnsFromRules;
+  }, [statuses]);
 
   // Setup real-time subscriptions para atualização automática
   useEffect(() => {
@@ -324,7 +278,7 @@ const KanbanBoard: React.FC = () => {
     toast.success('Kanban sincronizado com sucesso!');
   };
 
-  const isLoading = projectsLoading;
+  const isLoading = projectsLoading || statusesLoading;
 
   if (isLoading) {
     return (
@@ -357,21 +311,12 @@ const KanbanBoard: React.FC = () => {
           </div>
         </div>
 
-        {/* Alerta se houver discrepância */}
-        {totalProjectsAndStages !== totalCardsInKanban && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-yellow-600" />
-            <div className="text-sm text-yellow-800">
-              <strong>Atenção:</strong> Detectada diferença entre projetos/etapas ({totalProjectsAndStages}) e cards no Kanban ({totalCardsInKanban}).
-              <button 
-                onClick={handleRefresh}
-                className="ml-2 underline hover:no-underline"
-              >
-                Clique para sincronizar
-              </button>
-            </div>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="text-sm text-blue-800">
+            <strong>Colunas baseadas nas Regras de Projetos:</strong> As colunas do Kanban são geradas automaticamente 
+            com base nos status configurados na aba "Regras" das configurações, usando os nomes de exibição e cores definidos.
           </div>
-        )}
+        </div>
 
         {/* Filtros */}
         <div className="flex flex-wrap gap-4 items-center">
@@ -434,9 +379,18 @@ const KanbanBoard: React.FC = () => {
                         className={`w-80 p-4 rounded-lg min-h-[600px] flex-shrink-0 ${column.color} ${
                           snapshot.isDraggingOver ? 'bg-opacity-50' : ''
                         }`}
+                        style={{
+                          borderTop: `4px solid ${column.statusColor}` // Usar cor da regra
+                        }}
                       >
                         <div className="flex justify-between items-center mb-4">
-                          <h3 className="font-semibold text-sm">{column.title}</h3>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: column.statusColor }}
+                            />
+                            <h3 className="font-semibold text-sm">{column.title}</h3>
+                          </div>
                           <Badge variant="secondary" className="text-xs">
                             {totalItems}
                           </Badge>
