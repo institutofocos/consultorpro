@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import { toast } from "sonner";
 import { Users, Plus, Edit2, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import UserEditModal from './UserEditModal';
+import ModulePermissionsSelector, { ModulePermission } from './ModulePermissionsSelector';
 
 interface User {
   id: string;
@@ -29,6 +29,7 @@ interface NewUser {
   email: string;
   password: string;
   role: string;
+  permissions: ModulePermission[];
 }
 
 const UserManagement: React.FC = () => {
@@ -41,7 +42,8 @@ const UserManagement: React.FC = () => {
     full_name: '',
     email: '',
     password: '',
-    role: 'client'
+    role: 'client',
+    permissions: []
   });
 
   const userRoles = [
@@ -177,9 +179,34 @@ const UserManagement: React.FC = () => {
         throw authError;
       }
 
+      // Se o usuário foi criado, criar as permissões de módulo
+      if (authData.user && newUser.permissions.length > 0) {
+        const permissionsToInsert = newUser.permissions.map(permission => ({
+          user_id: authData.user!.id,
+          module_name: permission.module_name,
+          can_view: permission.can_view,
+          can_edit: permission.can_edit
+        }));
+
+        const { error: permissionsError } = await supabase
+          .from('module_permissions')
+          .insert(permissionsToInsert);
+
+        if (permissionsError) {
+          console.error('Error creating permissions:', permissionsError);
+          toast.error('Usuário criado, mas erro ao configurar permissões');
+        }
+      }
+
       toast.success('Usuário criado com sucesso!');
       setIsDialogOpen(false);
-      setNewUser({ full_name: '', email: '', password: '', role: 'client' });
+      setNewUser({ 
+        full_name: '', 
+        email: '', 
+        password: '', 
+        role: 'client',
+        permissions: []
+      });
       loadUsers();
     } catch (error) {
       console.error('Error creating user:', error);
@@ -226,60 +253,67 @@ const UserManagement: React.FC = () => {
               Novo Usuário
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent size="xl">
             <DialogHeader>
               <DialogTitle>Criar Novo Usuário</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="new_full_name">Nome Completo *</Label>
-                <Input
-                  id="new_full_name"
-                  value={newUser.full_name}
-                  onChange={(e) => setNewUser(prev => ({ ...prev, full_name: e.target.value }))}
-                  placeholder="Nome completo do usuário"
-                />
+            <div className="space-y-6 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="new_full_name">Nome Completo *</Label>
+                  <Input
+                    id="new_full_name"
+                    value={newUser.full_name}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, full_name: e.target.value }))}
+                    placeholder="Nome completo do usuário"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="new_email">Email *</Label>
+                  <Input
+                    id="new_email"
+                    type="email"
+                    value={newUser.email}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="email@exemplo.com"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="new_password">Senha *</Label>
+                  <Input
+                    id="new_password"
+                    type="password"
+                    value={newUser.password}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="Senha de acesso"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="new_role">Tipo de Usuário *</Label>
+                  <Select value={newUser.role} onValueChange={(value) => setNewUser(prev => ({ ...prev, role: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo de usuário" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {userRoles.map(role => (
+                        <SelectItem key={role.value} value={role.value}>
+                          {role.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              <div>
-                <Label htmlFor="new_email">Email *</Label>
-                <Input
-                  id="new_email"
-                  type="email"
-                  value={newUser.email}
-                  onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="email@exemplo.com"
-                />
-              </div>
+              <ModulePermissionsSelector
+                permissions={newUser.permissions}
+                onChange={(permissions) => setNewUser(prev => ({ ...prev, permissions }))}
+              />
 
-              <div>
-                <Label htmlFor="new_password">Senha *</Label>
-                <Input
-                  id="new_password"
-                  type="password"
-                  value={newUser.password}
-                  onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
-                  placeholder="Senha de acesso"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="new_role">Tipo de Usuário *</Label>
-                <Select value={newUser.role} onValueChange={(value) => setNewUser(prev => ({ ...prev, role: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o tipo de usuário" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {userRoles.map(role => (
-                      <SelectItem key={role.value} value={role.value}>
-                        {role.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex justify-end space-x-2">
+              <div className="flex justify-end space-x-2 pt-4">
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Cancelar
                 </Button>

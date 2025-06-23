@@ -209,8 +209,8 @@ const KanbanBoard: React.FC = () => {
       clientName: Array.isArray(project.clients) 
         ? project.clients[0]?.name 
         : project.clients?.name,
-      serviceName: project.services && typeof project.services === 'object' && 'name' in project.services 
-        ? project.services.name 
+      serviceName: project.services && typeof project.services === 'object' && 'name' in project.services && project.services.name
+        ? String(project.services.name)
         : '',
     }));
   }, [rawProjects]);
@@ -242,11 +242,17 @@ const KanbanBoard: React.FC = () => {
       valorDeRepasse: stage.valor_de_repasse,
       createdAt: stage.created_at,
       updatedAt: stage.updated_at,
-      projectName: stage.projects?.name || '',
-      clientName: stage.projects && typeof stage.projects === 'object' && 'clients' in stage.projects 
+      projectName: stage.projects && typeof stage.projects === 'object' && 'name' in stage.projects && stage.projects.name
+        ? String(stage.projects.name)
+        : '',
+      clientName: stage.projects && typeof stage.projects === 'object' && 'clients' in stage.projects && stage.projects.clients
         ? (Array.isArray(stage.projects.clients) 
-          ? stage.projects.clients[0]?.name 
-          : stage.projects.clients?.name) || ''
+          ? (stage.projects.clients[0] && typeof stage.projects.clients[0] === 'object' && 'name' in stage.projects.clients[0] 
+            ? String(stage.projects.clients[0].name) 
+            : '')
+          : (typeof stage.projects.clients === 'object' && 'name' in stage.projects.clients && stage.projects.clients.name
+            ? String(stage.projects.clients.name) 
+            : ''))
         : '',
     }));
   }, [rawStages]);
