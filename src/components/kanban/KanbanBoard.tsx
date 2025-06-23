@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -204,7 +203,7 @@ const KanbanBoard: React.FC = () => {
       url: project.url,
       createdAt: project.created_at,
       updatedAt: project.updated_at,
-      // Mapped fields
+      // Mapped fields - Fixed service access
       clients: Array.isArray(project.clients) ? project.clients[0] : project.clients,
       services: project.services,
       clientName: Array.isArray(project.clients) 
@@ -241,7 +240,6 @@ const KanbanBoard: React.FC = () => {
       valorDeRepasse: stage.valor_de_repasse,
       createdAt: stage.created_at,
       updatedAt: stage.updated_at,
-      // Extended properties
       projectName: stage.projects?.name,
       clientName: stage.projects?.clients?.name,
     }));
