@@ -71,10 +71,10 @@ const UserManagement: React.FC = () => {
         console.error('Error loading user profiles:', profilesError);
       }
 
-      // Carregar consultores
+      // Carregar consultores - Fixed SQL syntax
       const { data: consultants, error: consultantsError } = await supabase
         .from('consultants')
-        .select('i d, name, email, created_at')
+        .select('id, name, email, created_at')
         .order('created_at', { ascending: false });
 
       if (consultantsError) {
@@ -94,16 +94,16 @@ const UserManagement: React.FC = () => {
       // Combinar todos os usuários
       const allUsers: User[] = [];
 
-      // Adicionar perfis de usuário
+      // Adicionar perfis de usuário - Fixed property access
       if (profiles && profiles.length > 0) {
         allUsers.push(...profiles.map(profile => ({
           id: profile.id,
           full_name: profile.full_name,
           role: profile.role,
-          email: profile.email,
+          email: profile.username || undefined, // Use username as email fallback
           created_at: profile.created_at,
           last_login: profile.last_login || undefined,
-          is_active: profile.is_active !== false
+          is_active: profile.user_type !== 'inactive' // Derive from user_type if is_active doesn't exist
         })));
       }
 

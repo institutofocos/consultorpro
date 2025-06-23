@@ -203,13 +203,13 @@ const KanbanBoard: React.FC = () => {
       url: project.url,
       createdAt: project.created_at,
       updatedAt: project.updated_at,
-      // Mapped fields - Fixed service access
+      // Mapped fields - Fixed type safety
       clients: Array.isArray(project.clients) ? project.clients[0] : project.clients,
       services: project.services,
       clientName: Array.isArray(project.clients) 
         ? project.clients[0]?.name 
         : project.clients?.name,
-      serviceName: project.services?.name,
+      serviceName: project.services?.name || '',
     }));
   }, [rawProjects]);
 
@@ -240,8 +240,8 @@ const KanbanBoard: React.FC = () => {
       valorDeRepasse: stage.valor_de_repasse,
       createdAt: stage.created_at,
       updatedAt: stage.updated_at,
-      projectName: stage.projects?.name,
-      clientName: stage.projects?.clients?.name,
+      projectName: stage.projects?.name || '',
+      clientName: stage.projects?.clients?.name || '',
     }));
   }, [rawStages]);
 
