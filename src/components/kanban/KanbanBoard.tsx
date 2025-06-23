@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -44,7 +43,7 @@ const KanbanBoard: React.FC = () => {
   
   const queryClient = useQueryClient();
 
-  // Buscar projetos com dados relacionados - using explicit foreign key relationships
+  // Buscar projetos com dados relacionados - simplified query structure
   const { data: rawProjects = [], isLoading } = useQuery({
     queryKey: ['kanban-projects', searchTerm, selectedConsultant, selectedService, selectedTag],
     queryFn: async () => {
@@ -52,10 +51,8 @@ const KanbanBoard: React.FC = () => {
         .from('projects')
         .select(`
           *,
-          clients:client_id!inner (id, name, contact_name),
-          services:service_id (id, name),
-          main_consultant:consultants!projects_main_consultant_id_fkey (id, name, email),
-          support_consultant:consultants!projects_support_consultant_id_fkey (id, name, email),
+          clients!inner (id, name, contact_name),
+          services (id, name),
           project_stages (*),
           project_tasks (*)
         `);
@@ -78,78 +75,93 @@ const KanbanBoard: React.FC = () => {
     },
   });
 
-  // Transform raw data to match Project interface with proper error handling
-  const projects: Project[] = rawProjects.map(project => ({
-    id: project.id,
-    projectId: project.project_id,
-    name: project.name,
-    description: project.description,
-    serviceId: project.service_id,
-    clientId: project.client_id,
-    mainConsultantId: project.main_consultant_id,
-    mainConsultantCommission: project.main_consultant_commission || 0,
-    supportConsultantId: project.support_consultant_id,
-    supportConsultantCommission: project.support_consultant_commission || 0,
-    startDate: project.start_date,
-    endDate: project.end_date,
-    totalValue: project.total_value,
-    totalHours: project.total_hours,
-    hourlyRate: project.hourly_rate,
-    taxPercent: project.tax_percent,
-    thirdPartyExpenses: project.third_party_expenses,
-    consultantValue: project.main_consultant_value,
-    supportConsultantValue: project.support_consultant_value,
-    managerName: project.manager_name,
-    managerEmail: project.manager_email,
-    managerPhone: project.manager_phone,
-    status: project.status,
-    tags: project.tags || [],
-    url: project.url,
-    createdAt: project.created_at,
-    updatedAt: project.updated_at,
-    // Mapped database fields with proper type checking
-    project_stages: project.project_stages?.map((stage: any) => ({
-      id: stage.id,
-      projectId: stage.project_id,
-      name: stage.name,
-      description: stage.description,
-      days: stage.days,
-      hours: stage.hours,
-      value: stage.value,
-      startDate: stage.start_date,
-      endDate: stage.end_date,
-      consultantId: stage.consultant_id,
-      completed: stage.completed,
-      clientApproved: stage.client_approved,
-      managerApproved: stage.manager_approved,
-      invoiceIssued: stage.invoice_issued,
-      paymentReceived: stage.payment_received,
-      consultantsSettled: stage.consultants_settled,
-      attachment: stage.attachment,
-      stageOrder: stage.stage_order,
-      status: stage.status,
-      valorDeRepasse: stage.valor_de_repasse,
-      createdAt: stage.created_at,
-      updatedAt: stage.updated_at,
-    })) || [],
-    project_tasks: project.project_tasks || [],
-    // Handle consultant data safely - check if it's an error object
-    clients: Array.isArray(project.clients) && project.clients.length > 0 ? project.clients[0] : project.clients,
-    services: project.services,
-    main_consultant: (project.main_consultant && !('error' in project.main_consultant)) ? project.main_consultant : undefined,
-    support_consultant: (project.support_consultant && !('error' in project.support_consultant)) ? project.support_consultant : undefined,
-    // Computed fields with null checks and error handling
-    clientName: (Array.isArray(project.clients) && project.clients.length > 0) 
-      ? project.clients[0]?.name 
-      : project.clients?.name || undefined,
-    serviceName: project.services?.name || undefined,
-    mainConsultantName: (project.main_consultant && !('error' in project.main_consultant)) 
-      ? project.main_consultant.name 
-      : undefined,
-    supportConsultantName: (project.support_consultant && !('error' in project.support_consultant)) 
-      ? project.support_consultant.name 
-      : undefined,
-  }));
+  // Buscar consultores separadamente para evitar problemas de relacionamento
+  const { data: consultantsData = [] } = useQuery({
+    queryKey: ['consultants-for-kanban'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('consultants')
+        .select('id, name, email')
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Transform raw data to match Project interface with proper consultant data
+  const projects: Project[] = rawProjects.map(project => {
+    // Find consultant data from the separate query
+    const mainConsultant = consultantsData.find(c => c.id === project.main_consultant_id);
+    const supportConsultant = consultantsData.find(c => c.id === project.support_consultant_id);
+    
+    return {
+      id: project.id,
+      projectId: project.project_id,
+      name: project.name,
+      description: project.description,
+      serviceId: project.service_id,
+      clientId: project.client_id,
+      mainConsultantId: project.main_consultant_id,
+      mainConsultantCommission: project.main_consultant_commission || 0,
+      supportConsultantId: project.support_consultant_id,
+      supportConsultantCommission: project.support_consultant_commission || 0,
+      startDate: project.start_date,
+      endDate: project.end_date,
+      totalValue: project.total_value,
+      totalHours: project.total_hours,
+      hourlyRate: project.hourly_rate,
+      taxPercent: project.tax_percent,
+      thirdPartyExpenses: project.third_party_expenses,
+      consultantValue: project.main_consultant_value,
+      supportConsultantValue: project.support_consultant_value,
+      managerName: project.manager_name,
+      managerEmail: project.manager_email,
+      managerPhone: project.manager_phone,
+      status: project.status,
+      tags: project.tags || [],
+      url: project.url,
+      createdAt: project.created_at,
+      updatedAt: project.updated_at,
+      // Mapped database fields with proper type checking
+      project_stages: project.project_stages?.map((stage: any) => ({
+        id: stage.id,
+        projectId: stage.project_id,
+        name: stage.name,
+        description: stage.description,
+        days: stage.days,
+        hours: stage.hours,
+        value: stage.value,
+        startDate: stage.start_date,
+        endDate: stage.end_date,
+        consultantId: stage.consultant_id,
+        completed: stage.completed,
+        clientApproved: stage.client_approved,
+        managerApproved: stage.manager_approved,
+        invoiceIssued: stage.invoice_issued,
+        paymentReceived: stage.payment_received,
+        consultantsSettled: stage.consultants_settled,
+        attachment: stage.attachment,
+        stageOrder: stage.stage_order,
+        status: stage.status,
+        valorDeRepasse: stage.valor_de_repasse,
+        createdAt: stage.created_at,
+        updatedAt: stage.updated_at,
+      })) || [],
+      project_tasks: project.project_tasks || [],
+      // Handle data safely with proper typing
+      clients: Array.isArray(project.clients) ? project.clients[0] : project.clients,
+      services: project.services,
+      main_consultant: mainConsultant,
+      support_consultant: supportConsultant,
+      // Computed fields with proper null checks
+      clientName: Array.isArray(project.clients) 
+        ? project.clients[0]?.name 
+        : project.clients?.name,
+      serviceName: project.services?.name,
+      mainConsultantName: mainConsultant?.name,
+      supportConsultantName: supportConsultant?.name,
+    };
+  });
 
   // Buscar consultores para filtro
   const { data: consultants = [] } = useQuery({
@@ -287,7 +299,7 @@ const KanbanBoard: React.FC = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">Todos os consultores</SelectItem>
-              {consultants.map(consultant => (
+              {consultantsData.map(consultant => (
                 <SelectItem key={consultant.id} value={consultant.id}>
                   {consultant.name}
                 </SelectItem>
