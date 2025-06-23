@@ -23,7 +23,7 @@ const CollapsibleKanbanCard: React.FC<CollapsibleKanbanCardProps> = ({
   onClick, 
   type 
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true); // Alterado para true (colapsado por padrão)
   const { getStatusDisplay, getStatusBadgeStyle } = useProjectStatuses();
 
   const formatCurrency = (value: number) => {
@@ -121,6 +121,29 @@ const CollapsibleKanbanCard: React.FC<CollapsibleKanbanCardProps> = ({
               <span>Início: {project.startDate ? formatDate(project.startDate) : 'Não definido'}</span>
               <span>Fim: {project.endDate ? formatDate(project.endDate) : 'Não definido'}</span>
             </div>
+
+            {/* Informações dos Consultores (sempre visíveis quando colapsado) */}
+            {isCollapsed && (
+              <div className="space-y-1">
+                {project.mainConsultantName && (
+                  <div className="flex items-center gap-2">
+                    <User className="h-3 w-3 text-blue-500" />
+                    <span className="text-xs text-gray-600 truncate">
+                      Principal: {project.mainConsultantName}
+                    </span>
+                  </div>
+                )}
+
+                {project.supportConsultantName && (
+                  <div className="flex items-center gap-2">
+                    <User className="h-3 w-3 text-green-500" />
+                    <span className="text-xs text-gray-600 truncate">
+                      Apoio: {project.supportConsultantName}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Informações Expandidas */}
@@ -168,9 +191,18 @@ const CollapsibleKanbanCard: React.FC<CollapsibleKanbanCardProps> = ({
 
                 {project.mainConsultantName && (
                   <div className="flex items-center gap-2">
-                    <User className="h-3 w-3 text-gray-500" />
+                    <User className="h-3 w-3 text-blue-500" />
                     <span className="text-xs text-gray-600 truncate">
-                      {project.mainConsultantName}
+                      Principal: {project.mainConsultantName}
+                    </span>
+                  </div>
+                )}
+
+                {project.supportConsultantName && (
+                  <div className="flex items-center gap-2">
+                    <User className="h-3 w-3 text-green-500" />
+                    <span className="text-xs text-gray-600 truncate">
+                      Apoio: {project.supportConsultantName}
                     </span>
                   </div>
                 )}
@@ -262,6 +294,16 @@ const CollapsibleKanbanCard: React.FC<CollapsibleKanbanCardProps> = ({
               <span>Início: {stage.startDate ? formatDate(stage.startDate) : 'Não definido'}</span>
               <span>Fim: {stage.endDate ? formatDate(stage.endDate) : 'Não definido'}</span>
             </div>
+
+            {/* Informações dos Consultores (sempre visíveis quando colapsado) - Para etapas, buscar do projeto pai */}
+            {isCollapsed && stage.clientName && (
+              <div className="flex items-center gap-2">
+                <User className="h-3 w-3 text-gray-500" />
+                <span className="text-xs text-gray-600 truncate">
+                  Cliente: {stage.clientName}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Informações Expandidas */}
