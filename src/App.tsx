@@ -23,6 +23,7 @@ import FinancialPage from "./components/financial/FinancialPage";
 import DemandsList from "./components/demands/DemandsList";
 import Dashboard from "./components/dashboard/Dashboard";
 import CalendarPage from "./components/calendar/CalendarPage";
+import KanbanBoard from "./components/kanban/KanbanBoard";
 
 const queryClient = new QueryClient();
 
@@ -75,6 +76,10 @@ const App = () => (
               
               <Route path="/calendar" element={
                 <Layout><CalendarPage /></Layout>
+              } />
+              
+              <Route path="/kanban" element={
+                <Layout><KanbanBoard /></Layout>
               } />
               
               <Route path="/financial" element={

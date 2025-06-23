@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ChevronLeft, ChevronRight, Search, Calendar as CalendarIcon, Pin, Hourglass, Filter, BarChart3 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Calendar as CalendarIcon, Pin, Hourglass, Filter, BarChart3, Kanban } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, addMonths, subMonths, addWeeks, subWeeks, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from "@/integrations/supabase/client";
@@ -12,8 +12,9 @@ import TaskModal from './TaskModal';
 import GanttView from './GanttView';
 import SearchableSelect from "@/components/ui/searchable-select";
 import { useConsultants } from "@/hooks/useConsultants";
+import { useNavigate } from 'react-router-dom';
 
-type ViewMode = 'day' | 'week' | 'month' | 'gantt';
+type ViewMode = 'day' | 'week' | 'month' | 'gantt' | 'kanban';
 
 interface Task {
   id: string;
@@ -51,6 +52,7 @@ const CalendarPage: React.FC = () => {
   const [selectedConsultantId, setSelectedConsultantId] = useState<string>('');
 
   const { data: consultants = [] } = useConsultants();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchTasks();
@@ -518,6 +520,10 @@ const CalendarPage: React.FC = () => {
     );
   };
 
+  const handleKanbanClick = () => {
+    navigate('/kanban');
+  };
+
   const getViewTitle = () => {
     switch (viewMode) {
       case 'day':
@@ -530,6 +536,8 @@ const CalendarPage: React.FC = () => {
         return format(currentDate, 'MMMM yyyy', { locale: ptBR });
       case 'gantt':
         return 'Visualização Gantt';
+      case 'kanban':
+        return 'Visualização Kanban';
     }
   };
 
@@ -616,9 +624,17 @@ const CalendarPage: React.FC = () => {
                 <BarChart3 className="h-4 w-4 mr-2" />
                 Gantt
               </Button>
+              <Button
+                variant="outline"
+                onClick={handleKanbanClick}
+                size="sm"
+              >
+                <Kanban className="h-4 w-4 mr-2" />
+                Kanban
+              </Button>
             </div>
             
-            {viewMode !== 'gantt' && (
+            {viewMode !== 'gantt' && viewMode !== 'kanban' && (
               <div className="flex items-center gap-4">
                 <Button variant="outline" size="sm" onClick={navigatePrevious}>
                   <ChevronLeft className="h-4 w-4" />
@@ -632,15 +648,15 @@ const CalendarPage: React.FC = () => {
               </div>
             )}
 
-            {viewMode === 'gantt' && (
+            {(viewMode === 'gantt' || viewMode === 'kanban') && (
               <h2 className="text-lg font-semibold">
                 {getViewTitle()}
               </h2>
             )}
           </div>
 
-          {/* Legenda para ajudar o usuário - só mostra se não for Gantt */}
-          {viewMode !== 'gantt' && (
+          {/* Legenda para ajudar o usuário - só mostra se não for Gantt ou Kanban */}
+          {viewMode !== 'gantt' && viewMode !== 'kanban' && (
             <div className="flex items-center gap-4 mt-4 p-3 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-2 text-sm">
                 <Pin className="h-4 w-4 text-blue-600" />
