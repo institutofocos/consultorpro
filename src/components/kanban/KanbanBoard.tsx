@@ -23,20 +23,25 @@ interface KanbanColumn {
   status: string;
 }
 
-const defaultColumns: KanbanColumn[] = [
+// Colunas expandidas para incluir todos os status possíveis
+const allPossibleColumns: KanbanColumn[] = [
+  { id: 'planned', title: 'Planejado', color: 'bg-gray-100', status: 'planned' },
   { id: 'iniciar_projeto', title: 'Iniciar Projeto', color: 'bg-gray-100', status: 'iniciar_projeto' },
+  { id: 'active', title: 'Ativo', color: 'bg-blue-100', status: 'active' },
   { id: 'em_producao', title: 'Em Produção', color: 'bg-blue-100', status: 'em_producao' },
   { id: 'aguardando_assinatura', title: 'Aguardando Assinatura', color: 'bg-yellow-100', status: 'aguardando_assinatura' },
   { id: 'aguardando_aprovacao', title: 'Aguardando Aprovação', color: 'bg-orange-100', status: 'aguardando_aprovacao' },
   { id: 'aguardando_nota_fiscal', title: 'Aguardando Nota Fiscal', color: 'bg-purple-100', status: 'aguardando_nota_fiscal' },
   { id: 'aguardando_pagamento', title: 'Aguardando Pagamento', color: 'bg-pink-100', status: 'aguardando_pagamento' },
   { id: 'aguardando_repasse', title: 'Aguardando Repasse', color: 'bg-indigo-100', status: 'aguardando_repasse' },
+  { id: 'completed', title: 'Completo', color: 'bg-green-100', status: 'completed' },
+  { id: 'concluido', title: 'Concluído', color: 'bg-green-100', status: 'concluido' },
   { id: 'finalizados', title: 'Finalizados', color: 'bg-green-100', status: 'finalizados' },
+  { id: 'cancelled', title: 'Cancelado', color: 'bg-red-100', status: 'cancelled' },
   { id: 'cancelados', title: 'Cancelados', color: 'bg-red-100', status: 'cancelados' },
 ];
 
 const KanbanBoard: React.FC = () => {
-  const [columns, setColumns] = useState<KanbanColumn[]>(defaultColumns);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedConsultant, setSelectedConsultant] = useState<string>('');
   const [selectedService, setSelectedService] = useState<string>('');
@@ -47,11 +52,13 @@ const KanbanBoard: React.FC = () => {
   const { statuses, getStatusDisplay } = useProjectStatuses();
 
   // Buscar projetos usando a função do sistema de projetos
-  const { data: projects = [], isLoading: projectsLoading } = useQuery({
+  const { data: projects = [], isLoading: projectsLoading, refetch: refetchProjects } = useQuery({
     queryKey: ['kanban-projects', searchTerm, selectedConsultant, selectedService],
     queryFn: async () => {
-      console.log('Buscando projetos para o Kanban...');
+      console.log('=== BUSCANDO PROJETOS PARA KANBAN ===');
       const allProjects = await fetchProjects();
+      console.log('Todos os projetos encontrados:', allProjects.length);
+      console.log('Projetos detalhados:', allProjects);
       
       // Aplicar filtros
       let filteredProjects = allProjects;
@@ -78,6 +85,9 @@ const KanbanBoard: React.FC = () => {
       console.log('Projetos filtrados para o Kanban:', filteredProjects.length);
       return filteredProjects;
     },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: 10000, // Refetch a cada 10 segundos para garantir sincronia
   });
 
   // Buscar consultores
@@ -106,6 +116,38 @@ const KanbanBoard: React.FC = () => {
     },
   });
 
+  // Determinar quais colunas exibir baseado nos status dos projetos
+  const activeColumns = useMemo(() => {
+    const statusesInUse = new Set<string>();
+    
+    // Coletar status dos projetos
+    projects.forEach(project => {
+      if (project.status) {
+        statusesInUse.add(project.status);
+      }
+      
+      // Coletar status das etapas
+      if (project.stages) {
+        project.stages.forEach(stage => {
+          if (stage.status) {
+            statusesInUse.add(stage.status);
+          }
+        });
+      }
+    });
+
+    console.log('Status em uso:', Array.from(statusesInUse));
+    
+    // Filtrar colunas para mostrar apenas as que têm conteúdo ou são padrão
+    const columnsToShow = allPossibleColumns.filter(col => 
+      statusesInUse.has(col.status) || 
+      ['planned', 'active', 'completed', 'cancelled'].includes(col.status)
+    );
+    
+    console.log('Colunas que serão exibidas:', columnsToShow.map(c => c.title));
+    return columnsToShow;
+  }, [projects]);
+
   // Setup real-time subscriptions para atualização automática
   useEffect(() => {
     console.log('Configurando real-time subscriptions para o Kanban...');
@@ -122,6 +164,7 @@ const KanbanBoard: React.FC = () => {
         (payload) => {
           console.log('Projeto atualizado via real-time (Kanban):', payload);
           queryClient.invalidateQueries({ queryKey: ['kanban-projects'] });
+          queryClient.invalidateQueries({ queryKey: ['projects'] });
         }
       )
       .subscribe();
@@ -138,6 +181,7 @@ const KanbanBoard: React.FC = () => {
         (payload) => {
           console.log('Etapa atualizada via real-time (Kanban):', payload);
           queryClient.invalidateQueries({ queryKey: ['kanban-projects'] });
+          queryClient.invalidateQueries({ queryKey: ['projects'] });
         }
       )
       .subscribe();
@@ -161,7 +205,7 @@ const KanbanBoard: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kanban-projects'] });
-      queryClient.invalidateQueries({ queryKey: ['projects'] }); // Invalidar também a query principal
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
       toast.success('Status do projeto atualizado com sucesso!');
     },
     onError: (error) => {
@@ -182,7 +226,7 @@ const KanbanBoard: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kanban-projects'] });
-      queryClient.invalidateQueries({ queryKey: ['projects'] }); // Invalidar também a query principal
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
       toast.success('Status da etapa atualizado com sucesso!');
     },
     onError: (error) => {
@@ -209,7 +253,9 @@ const KanbanBoard: React.FC = () => {
   };
 
   const getProjectsByStatus = (status: string) => {
-    return projects.filter(project => project.status === status);
+    const projectsInStatus = projects.filter(project => project.status === status);
+    console.log(`Projetos com status ${status}:`, projectsInStatus.length);
+    return projectsInStatus;
   };
 
   const getStagesByStatus = (status: string) => {
@@ -229,12 +275,20 @@ const KanbanBoard: React.FC = () => {
       }
     });
     
+    console.log(`Etapas com status ${status}:`, allStages.length);
     return allStages;
   };
 
   const handleProjectClick = (project: Project) => {
     setSelectedProject(project);
     setShowProjectModal(true);
+  };
+
+  const handleRefresh = () => {
+    console.log('Forçando atualização do Kanban...');
+    refetchProjects();
+    queryClient.invalidateQueries({ queryKey: ['projects'] });
+    toast.success('Kanban atualizado!');
   };
 
   const isLoading = projectsLoading;
@@ -253,8 +307,13 @@ const KanbanBoard: React.FC = () => {
       <div className="flex flex-col gap-4 flex-shrink-0">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">Kanban Board</h1>
-          <div className="text-sm text-muted-foreground">
-            Sincronizado automaticamente com Gerenciamento de Projetos
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
+              Atualizar
+            </Button>
+            <div className="text-sm text-muted-foreground">
+              Sincronizado com {projects.length} projetos
+            </div>
           </div>
         </div>
 
@@ -297,11 +356,6 @@ const KanbanBoard: React.FC = () => {
               ))}
             </SelectContent>
           </Select>
-
-          <Button variant="outline" size="sm">
-            <Filter className="h-4 w-4 mr-2" />
-            Filtros Avançados
-          </Button>
         </div>
       </div>
 
@@ -309,14 +363,14 @@ const KanbanBoard: React.FC = () => {
       <div className="flex-1 overflow-hidden">
         <DragDropContext onDragEnd={handleDragEnd}>
           <div className="overflow-x-auto pb-4">
-            <div className="flex gap-4 min-w-max" style={{ width: `${columns.length * 320}px` }}>
-              {columns.map(column => {
+            <div className="flex gap-4 min-w-max" style={{ width: `${activeColumns.length * 320}px` }}>
+              {activeColumns.map(column => {
                 const projectsInColumn = getProjectsByStatus(column.status);
                 const stagesInColumn = getStagesByStatus(column.status);
                 const totalItems = projectsInColumn.length + stagesInColumn.length;
                 
                 return (
-                  <Droppable key={column.id} droppableId={column.id}>
+                  <Droppable key={column.id} droppableId={column.status}>
                     {(provided, snapshot) => (
                       <div
                         ref={provided.innerRef}
