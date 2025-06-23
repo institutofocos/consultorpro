@@ -654,22 +654,28 @@ export type Database = {
         Row: {
           can_edit: boolean
           can_view: boolean
+          created_at: string | null
           id: string
           module_name: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
           can_edit?: boolean
           can_view?: boolean
+          created_at?: string | null
           id?: string
           module_name: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
           can_edit?: boolean
           can_view?: boolean
+          created_at?: string | null
           id?: string
           module_name?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
@@ -1392,6 +1398,7 @@ export type Database = {
           created_at: string
           full_name: string
           id: string
+          is_active: boolean | null
           last_login: string | null
           password_hash: string | null
           profile_photo_url: string | null
@@ -1404,6 +1411,7 @@ export type Database = {
           created_at?: string
           full_name: string
           id: string
+          is_active?: boolean | null
           last_login?: string | null
           password_hash?: string | null
           profile_photo_url?: string | null
@@ -1416,6 +1424,7 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          is_active?: boolean | null
           last_login?: string | null
           password_hash?: string | null
           profile_photo_url?: string | null

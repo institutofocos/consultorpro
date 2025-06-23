@@ -175,86 +175,111 @@ const KanbanBoard: React.FC = () => {
   const projects: Project[] = useMemo(() => {
     if (!rawProjects) return [];
     
-    return rawProjects.map(project => ({
-      id: project.id,
-      projectId: project.project_id,
-      name: project.name,
-      description: project.description,
-      serviceId: project.service_id,
-      clientId: project.client_id,
-      mainConsultantId: project.main_consultant_id,
-      mainConsultantCommission: project.main_consultant_commission || 0,
-      supportConsultantId: project.support_consultant_id,
-      supportConsultantCommission: project.support_consultant_commission || 0,
-      startDate: project.start_date,
-      endDate: project.end_date,
-      totalValue: project.total_value,
-      totalHours: project.total_hours,
-      hourlyRate: project.hourly_rate,
-      taxPercent: project.tax_percent,
-      thirdPartyExpenses: project.third_party_expenses,
-      consultantValue: project.main_consultant_value,
-      supportConsultantValue: project.support_consultant_value,
-      managerName: project.manager_name,
-      managerEmail: project.manager_email,
-      managerPhone: project.manager_phone,
-      status: project.status,
-      tags: project.tags || [],
-      url: project.url,
-      createdAt: project.created_at,
-      updatedAt: project.updated_at,
-      // Mapped fields - Fixed type safety for services
-      clients: Array.isArray(project.clients) ? project.clients[0] : project.clients,
-      services: project.services,
-      clientName: Array.isArray(project.clients) 
-        ? project.clients[0]?.name 
-        : project.clients?.name,
-      serviceName: project.services && typeof project.services === 'object' && 'name' in project.services && project.services.name
-        ? String(project.services.name)
-        : '',
-    }));
+    return rawProjects.map(project => {
+      // Helper function to safely extract service name
+      const getServiceName = (services: any): string => {
+        if (!services) return '';
+        if (typeof services === 'object' && services.name) {
+          return String(services.name);
+        }
+        return '';
+      };
+
+      return {
+        id: project.id,
+        projectId: project.project_id,
+        name: project.name,
+        description: project.description,
+        serviceId: project.service_id,
+        clientId: project.client_id,
+        mainConsultantId: project.main_consultant_id,
+        mainConsultantCommission: project.main_consultant_commission || 0,
+        supportConsultantId: project.support_consultant_id,
+        supportConsultantCommission: project.support_consultant_commission || 0,
+        startDate: project.start_date,
+        endDate: project.end_date,
+        totalValue: project.total_value,
+        totalHours: project.total_hours,
+        hourlyRate: project.hourly_rate,
+        taxPercent: project.tax_percent,
+        thirdPartyExpenses: project.third_party_expenses,
+        consultantValue: project.main_consultant_value,
+        supportConsultantValue: project.support_consultant_value,
+        managerName: project.manager_name,
+        managerEmail: project.manager_email,
+        managerPhone: project.manager_phone,
+        status: project.status,
+        tags: project.tags || [],
+        url: project.url,
+        createdAt: project.created_at,
+        updatedAt: project.updated_at,
+        // Mapped fields - Fixed type safety for services
+        clients: Array.isArray(project.clients) ? project.clients[0] : project.clients,
+        services: project.services,
+        clientName: Array.isArray(project.clients) 
+          ? project.clients[0]?.name 
+          : project.clients?.name,
+        serviceName: getServiceName(project.services),
+      };
+    });
   }, [rawProjects]);
 
   // Processar etapas - Fixed type safety for nested objects
   const stages: (Stage & { projectName?: string; clientName?: string })[] = useMemo(() => {
     if (!rawStages) return [];
     
-    return rawStages.map(stage => ({
-      id: stage.id,
-      projectId: stage.project_id,
-      name: stage.name,
-      description: stage.description,
-      days: stage.days,
-      hours: stage.hours,
-      value: stage.value,
-      startDate: stage.start_date,
-      endDate: stage.end_date,
-      consultantId: stage.consultant_id,
-      completed: stage.completed,
-      clientApproved: stage.client_approved,
-      managerApproved: stage.manager_approved,
-      invoiceIssued: stage.invoice_issued,
-      paymentReceived: stage.payment_received,
-      consultantsSettled: stage.consultants_settled,
-      attachment: stage.attachment,
-      stageOrder: stage.stage_order,
-      status: stage.status || 'iniciar_projeto',
-      valorDeRepasse: stage.valor_de_repasse,
-      createdAt: stage.created_at,
-      updatedAt: stage.updated_at,
-      projectName: stage.projects && typeof stage.projects === 'object' && 'name' in stage.projects && stage.projects.name
-        ? String(stage.projects.name)
-        : '',
-      clientName: stage.projects && typeof stage.projects === 'object' && 'clients' in stage.projects && stage.projects.clients
-        ? (Array.isArray(stage.projects.clients) 
-          ? (stage.projects.clients[0] && typeof stage.projects.clients[0] === 'object' && 'name' in stage.projects.clients[0] 
-            ? String(stage.projects.clients[0].name) 
-            : '')
-          : (typeof stage.projects.clients === 'object' && 'name' in stage.projects.clients && stage.projects.clients.name
-            ? String(stage.projects.clients.name) 
-            : ''))
-        : '',
-    }));
+    return rawStages.map(stage => {
+      // Helper function to safely extract project name
+      const getProjectName = (projects: any): string => {
+        if (!projects) return '';
+        if (typeof projects === 'object' && projects.name) {
+          return String(projects.name);
+        }
+        return '';
+      };
+
+      // Helper function to safely extract client name
+      const getClientName = (projects: any): string => {
+        if (!projects) return '';
+        if (typeof projects === 'object' && projects.clients) {
+          const clients = projects.clients;
+          if (Array.isArray(clients) && clients[0]?.name) {
+            return String(clients[0].name);
+          }
+          if (typeof clients === 'object' && clients.name) {
+            return String(clients.name);
+          }
+        }
+        return '';
+      };
+
+      return {
+        id: stage.id,
+        projectId: stage.project_id,
+        name: stage.name,
+        description: stage.description,
+        days: stage.days,
+        hours: stage.hours,
+        value: stage.value,
+        startDate: stage.start_date,
+        endDate: stage.end_date,
+        consultantId: stage.consultant_id,
+        completed: stage.completed,
+        clientApproved: stage.client_approved,
+        managerApproved: stage.manager_approved,
+        invoiceIssued: stage.invoice_issued,
+        paymentReceived: stage.payment_received,
+        consultantsSettled: stage.consultants_settled,
+        attachment: stage.attachment,
+        stageOrder: stage.stage_order,
+        status: stage.status || 'iniciar_projeto',
+        valorDeRepasse: stage.valor_de_repasse,
+        createdAt: stage.created_at,
+        updatedAt: stage.updated_at,
+        projectName: getProjectName(stage.projects),
+        clientName: getClientName(stage.projects),
+      };
+    });
   }, [rawStages]);
 
   // Mutation para atualizar status do projeto
