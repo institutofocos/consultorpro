@@ -171,7 +171,7 @@ const KanbanBoard: React.FC = () => {
     };
   }, [queryClient]);
 
-  // Processar projetos
+  // Processar projetos - Fixed type safety issues
   const projects: Project[] = useMemo(() => {
     if (!rawProjects) return [];
     
@@ -203,17 +203,19 @@ const KanbanBoard: React.FC = () => {
       url: project.url,
       createdAt: project.created_at,
       updatedAt: project.updated_at,
-      // Mapped fields - Fixed type safety
+      // Mapped fields - Fixed type safety for services
       clients: Array.isArray(project.clients) ? project.clients[0] : project.clients,
       services: project.services,
       clientName: Array.isArray(project.clients) 
         ? project.clients[0]?.name 
         : project.clients?.name,
-      serviceName: project.services?.name || '',
+      serviceName: project.services && typeof project.services === 'object' && 'name' in project.services 
+        ? project.services.name 
+        : '',
     }));
   }, [rawProjects]);
 
-  // Processar etapas
+  // Processar etapas - Fixed type safety for nested objects
   const stages: (Stage & { projectName?: string; clientName?: string })[] = useMemo(() => {
     if (!rawStages) return [];
     
@@ -241,7 +243,11 @@ const KanbanBoard: React.FC = () => {
       createdAt: stage.created_at,
       updatedAt: stage.updated_at,
       projectName: stage.projects?.name || '',
-      clientName: stage.projects?.clients?.name || '',
+      clientName: stage.projects && typeof stage.projects === 'object' && 'clients' in stage.projects 
+        ? (Array.isArray(stage.projects.clients) 
+          ? stage.projects.clients[0]?.name 
+          : stage.projects.clients?.name) || ''
+        : '',
     }));
   }, [rawStages]);
 
