@@ -4,7 +4,7 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Plus, Filter, Search, Eye, Calendar, User, Clock, Tag } from 'lucide-react';
+import { Plus, Filter, Search, Eye, Calendar, User, Clock, Tag, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -23,30 +23,13 @@ interface KanbanColumn {
   status: string;
 }
 
-// Colunas expandidas para incluir todos os status possíveis
-const allPossibleColumns: KanbanColumn[] = [
-  { id: 'planned', title: 'Planejado', color: 'bg-gray-100', status: 'planned' },
-  { id: 'iniciar_projeto', title: 'Iniciar Projeto', color: 'bg-gray-100', status: 'iniciar_projeto' },
-  { id: 'active', title: 'Ativo', color: 'bg-blue-100', status: 'active' },
-  { id: 'em_producao', title: 'Em Produção', color: 'bg-blue-100', status: 'em_producao' },
-  { id: 'aguardando_assinatura', title: 'Aguardando Assinatura', color: 'bg-yellow-100', status: 'aguardando_assinatura' },
-  { id: 'aguardando_aprovacao', title: 'Aguardando Aprovação', color: 'bg-orange-100', status: 'aguardando_aprovacao' },
-  { id: 'aguardando_nota_fiscal', title: 'Aguardando Nota Fiscal', color: 'bg-purple-100', status: 'aguardando_nota_fiscal' },
-  { id: 'aguardando_pagamento', title: 'Aguardando Pagamento', color: 'bg-pink-100', status: 'aguardando_pagamento' },
-  { id: 'aguardando_repasse', title: 'Aguardando Repasse', color: 'bg-indigo-100', status: 'aguardando_repasse' },
-  { id: 'completed', title: 'Completo', color: 'bg-green-100', status: 'completed' },
-  { id: 'concluido', title: 'Concluído', color: 'bg-green-100', status: 'concluido' },
-  { id: 'finalizados', title: 'Finalizados', color: 'bg-green-100', status: 'finalizados' },
-  { id: 'cancelled', title: 'Cancelado', color: 'bg-red-100', status: 'cancelled' },
-  { id: 'cancelados', title: 'Cancelados', color: 'bg-red-100', status: 'cancelados' },
-];
-
 const KanbanBoard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedConsultant, setSelectedConsultant] = useState<string>('');
   const [selectedService, setSelectedService] = useState<string>('');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showProjectModal, setShowProjectModal] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
   
   const queryClient = useQueryClient();
   const { statuses, getStatusDisplay } = useProjectStatuses();
@@ -56,38 +39,55 @@ const KanbanBoard: React.FC = () => {
     queryKey: ['kanban-projects', searchTerm, selectedConsultant, selectedService],
     queryFn: async () => {
       console.log('=== BUSCANDO PROJETOS PARA KANBAN ===');
-      const allProjects = await fetchProjects();
-      console.log('Todos os projetos encontrados:', allProjects.length);
-      console.log('Projetos detalhados:', allProjects);
-      
-      // Aplicar filtros
-      let filteredProjects = allProjects;
-      
-      if (searchTerm) {
-        filteredProjects = filteredProjects.filter(project => 
-          project.name.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+      try {
+        const allProjects = await fetchProjects();
+        console.log('Projetos encontrados no total:', allProjects.length);
+        
+        // Log detalhado de cada projeto
+        allProjects.forEach(project => {
+          console.log(`Projeto: ${project.name} (ID: ${project.id}) - Status: ${project.status}`);
+          if (project.stages && project.stages.length > 0) {
+            project.stages.forEach(stage => {
+              console.log(`  -> Etapa: ${stage.name} - Status: ${stage.status || 'sem status'}`);
+            });
+          }
+        });
+        
+        // Aplicar filtros
+        let filteredProjects = allProjects;
+        
+        if (searchTerm) {
+          filteredProjects = filteredProjects.filter(project => 
+            project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()))
+          );
+        }
+        
+        if (selectedConsultant) {
+          filteredProjects = filteredProjects.filter(project => 
+            project.mainConsultantId === selectedConsultant || 
+            project.supportConsultantId === selectedConsultant
+          );
+        }
+        
+        if (selectedService) {
+          filteredProjects = filteredProjects.filter(project => 
+            project.serviceId === selectedService
+          );
+        }
+        
+        console.log('Projetos após filtros:', filteredProjects.length);
+        setLastSyncTime(new Date());
+        return filteredProjects;
+      } catch (error) {
+        console.error('Erro ao buscar projetos para Kanban:', error);
+        toast.error('Erro ao carregar projetos para o Kanban');
+        return [];
       }
-      
-      if (selectedConsultant) {
-        filteredProjects = filteredProjects.filter(project => 
-          project.mainConsultantId === selectedConsultant || 
-          project.supportConsultantId === selectedConsultant
-        );
-      }
-      
-      if (selectedService) {
-        filteredProjects = filteredProjects.filter(project => 
-          project.serviceId === selectedService
-        );
-      }
-      
-      console.log('Projetos filtrados para o Kanban:', filteredProjects.length);
-      return filteredProjects;
     },
     staleTime: 0,
     refetchOnWindowFocus: true,
-    refetchInterval: 10000, // Refetch a cada 10 segundos para garantir sincronia
+    refetchInterval: 5000, // Refetch a cada 5 segundos para garantir sincronia
   });
 
   // Buscar consultores
@@ -116,37 +116,67 @@ const KanbanBoard: React.FC = () => {
     },
   });
 
-  // Determinar quais colunas exibir baseado nos status dos projetos
+  // Determinar colunas dinamicamente baseado nos status encontrados + status padrão
   const activeColumns = useMemo(() => {
+    console.log('=== DETERMINANDO COLUNAS ATIVAS ===');
+    
     const statusesInUse = new Set<string>();
+    
+    // Sempre incluir status básicos para garantir que apareçam
+    const basicStatuses = ['planned', 'active', 'completed', 'cancelled', 'iniciar_projeto', 'em_producao', 'concluido'];
+    basicStatuses.forEach(status => statusesInUse.add(status));
     
     // Coletar status dos projetos
     projects.forEach(project => {
+      console.log(`Projeto ${project.name}: status = ${project.status}`);
       if (project.status) {
         statusesInUse.add(project.status);
       }
       
       // Coletar status das etapas
-      if (project.stages) {
+      if (project.stages && project.stages.length > 0) {
         project.stages.forEach(stage => {
-          if (stage.status) {
-            statusesInUse.add(stage.status);
-          }
+          console.log(`  Etapa ${stage.name}: status = ${stage.status || 'iniciar_projeto'}`);
+          const stageStatus = stage.status || 'iniciar_projeto';
+          statusesInUse.add(stageStatus);
         });
       }
     });
 
-    console.log('Status em uso:', Array.from(statusesInUse));
+    console.log('Status em uso encontrados:', Array.from(statusesInUse));
     
-    // Filtrar colunas para mostrar apenas as que têm conteúdo ou são padrão
-    const columnsToShow = allPossibleColumns.filter(col => 
-      statusesInUse.has(col.status) || 
-      ['planned', 'active', 'completed', 'cancelled'].includes(col.status)
-    );
+    // Criar colunas baseado nos status encontrados
+    const columnsToShow = Array.from(statusesInUse).map(status => {
+      const statusDisplay = getStatusDisplay(status);
+      return {
+        id: status,
+        title: statusDisplay.label,
+        color: 'bg-gray-50',
+        status: status
+      };
+    });
     
-    console.log('Colunas que serão exibidas:', columnsToShow.map(c => c.title));
+    // Ordenar colunas por uma ordem lógica
+    const statusOrder = [
+      'planned', 'iniciar_projeto', 'active', 'em_planejamento', 'em_producao',
+      'aguardando_assinatura', 'aguardando_aprovacao', 'aguardando_nota_fiscal',
+      'aguardando_pagamento', 'aguardando_repasse',
+      'completed', 'concluido', 'finalizados',
+      'cancelled', 'cancelados', 'cancelado'
+    ];
+    
+    columnsToShow.sort((a, b) => {
+      const aIndex = statusOrder.indexOf(a.status);
+      const bIndex = statusOrder.indexOf(b.status);
+      if (aIndex === -1 && bIndex === -1) return 0;
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+      return aIndex - bIndex;
+    });
+    
+    console.log('Colunas que serão exibidas:', columnsToShow.map(c => `${c.title} (${c.status})`));
     return columnsToShow;
-  }, [projects]);
+  }, [projects, statuses, getStatusDisplay]);
 
   // Setup real-time subscriptions para atualização automática
   useEffect(() => {
@@ -254,7 +284,7 @@ const KanbanBoard: React.FC = () => {
 
   const getProjectsByStatus = (status: string) => {
     const projectsInStatus = projects.filter(project => project.status === status);
-    console.log(`Projetos com status ${status}:`, projectsInStatus.length);
+    console.log(`Projetos com status ${status}:`, projectsInStatus.map(p => p.name));
     return projectsInStatus;
   };
 
@@ -264,7 +294,8 @@ const KanbanBoard: React.FC = () => {
     projects.forEach(project => {
       if (project.stages) {
         project.stages.forEach(stage => {
-          if (stage.status === status) {
+          const stageStatus = stage.status || 'iniciar_projeto';
+          if (stageStatus === status) {
             allStages.push({
               ...stage,
               projectName: project.name,
@@ -275,7 +306,7 @@ const KanbanBoard: React.FC = () => {
       }
     });
     
-    console.log(`Etapas com status ${status}:`, allStages.length);
+    console.log(`Etapas com status ${status}:`, allStages.map(s => `${s.name} (${s.projectName})`));
     return allStages;
   };
 
@@ -285,10 +316,12 @@ const KanbanBoard: React.FC = () => {
   };
 
   const handleRefresh = () => {
-    console.log('Forçando atualização do Kanban...');
+    console.log('=== FORÇANDO ATUALIZAÇÃO COMPLETA DO KANBAN ===');
     refetchProjects();
     queryClient.invalidateQueries({ queryKey: ['projects'] });
-    toast.success('Kanban atualizado!');
+    queryClient.invalidateQueries({ queryKey: ['kanban-projects'] });
+    setLastSyncTime(new Date());
+    toast.success('Kanban sincronizado com sucesso!');
   };
 
   const isLoading = projectsLoading;
@@ -301,6 +334,12 @@ const KanbanBoard: React.FC = () => {
     );
   }
 
+  // Verificar se há projetos que não aparecem no Kanban
+  const totalProjectsAndStages = projects.length + projects.reduce((acc, p) => acc + (p.stages?.length || 0), 0);
+  const totalCardsInKanban = activeColumns.reduce((acc, col) => {
+    return acc + getProjectsByStatus(col.status).length + getStagesByStatus(col.status).length;
+  }, 0);
+
   return (
     <div className="space-y-6 p-6 h-full">
       {/* Header */}
@@ -309,13 +348,30 @@ const KanbanBoard: React.FC = () => {
           <h1 className="text-3xl font-bold">Kanban Board</h1>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleRefresh}>
-              Atualizar
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Sincronizar
             </Button>
             <div className="text-sm text-muted-foreground">
-              Sincronizado com {projects.length} projetos
+              {projects.length} projetos · Última sync: {lastSyncTime.toLocaleTimeString('pt-BR')}
             </div>
           </div>
         </div>
+
+        {/* Alerta se houver discrepância */}
+        {totalProjectsAndStages !== totalCardsInKanban && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-yellow-600" />
+            <div className="text-sm text-yellow-800">
+              <strong>Atenção:</strong> Detectada diferença entre projetos/etapas ({totalProjectsAndStages}) e cards no Kanban ({totalCardsInKanban}).
+              <button 
+                onClick={handleRefresh}
+                className="ml-2 underline hover:no-underline"
+              >
+                Clique para sincronizar
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Filtros */}
         <div className="flex flex-wrap gap-4 items-center">
@@ -363,7 +419,7 @@ const KanbanBoard: React.FC = () => {
       <div className="flex-1 overflow-hidden">
         <DragDropContext onDragEnd={handleDragEnd}>
           <div className="overflow-x-auto pb-4">
-            <div className="flex gap-4 min-w-max" style={{ width: `${activeColumns.length * 320}px` }}>
+            <div className="flex gap-4 min-w-max" style={{ width: `${Math.max(activeColumns.length * 320, 1200)}px` }}>
               {activeColumns.map(column => {
                 const projectsInColumn = getProjectsByStatus(column.status);
                 const stagesInColumn = getStagesByStatus(column.status);

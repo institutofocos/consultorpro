@@ -49,8 +49,10 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, stage, onClick, type }
     const totalStages = project.stages?.length || 0;
     const progress = totalStages > 0 ? (completedStages / totalStages) * 100 : 0;
     
-    const statusDisplay = getStatusDisplay(project.status);
-    const statusStyle = getStatusBadgeStyle(project.status);
+    // Garantir que sempre temos um status
+    const projectStatus = project.status || 'planned';
+    const statusDisplay = getStatusDisplay(projectStatus);
+    const statusStyle = getStatusBadgeStyle(projectStatus);
 
     return (
       <Card 
@@ -64,9 +66,16 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, stage, onClick, type }
               <h4 className="font-semibold text-sm line-clamp-2 mb-1">
                 {project.name}
               </h4>
-              <Badge style={statusStyle} variant="secondary" className="text-xs">
-                {statusDisplay.label}
-              </Badge>
+              <div className="flex gap-1 flex-wrap">
+                <Badge style={statusStyle} variant="secondary" className="text-xs">
+                  {statusDisplay.label}
+                </Badge>
+                {project.project_id && (
+                  <Badge variant="outline" className="text-xs">
+                    {project.project_id}
+                  </Badge>
+                )}
+              </div>
             </div>
             {getPriorityIcon(project.totalValue)}
           </div>
@@ -157,8 +166,10 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ project, stage, onClick, type }
   }
 
   if (type === 'stage' && stage) {
-    const statusDisplay = getStatusDisplay(stage.status || 'iniciar_projeto');
-    const statusStyle = getStatusBadgeStyle(stage.status || 'iniciar_projeto');
+    // Garantir que sempre temos um status para etapas
+    const stageStatus = stage.status || 'iniciar_projeto';
+    const statusDisplay = getStatusDisplay(stageStatus);
+    const statusStyle = getStatusBadgeStyle(stageStatus);
 
     return (
       <Card 
