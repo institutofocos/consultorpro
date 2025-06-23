@@ -8,10 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Users, Plus, Edit2, Trash2 } from "lucide-react";
+import { Users, Plus, Edit2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { createUserWithProfile } from "@/services/auth";
 import UserEditModal from './UserEditModal';
 import ModulePermissionsSelector, { ModulePermission } from './ModulePermissionsSelector';
 
@@ -40,6 +40,7 @@ const UserManagement: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [newUser, setNewUser] = useState<NewUser>({
     full_name: '',
     email: '',
@@ -65,7 +66,7 @@ const UserManagement: React.FC = () => {
       setIsLoading(true);
       console.log('Loading users...');
 
-      // Carregar perfis de usuário
+      // Load user profiles from the database
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
         .select('*')
@@ -73,85 +74,27 @@ const UserManagement: React.FC = () => {
 
       if (profilesError) {
         console.error('Error loading user profiles:', profilesError);
-        throw profilesError;
+        throw new Error(`Erro ao carregar perfis de usuário: ${profilesError.message}`);
       }
 
-      // Carregar consultores
-      const { data: consultants, error: consultantsError } = await supabase
-        .from('consultants')
-        .select('id, name, email, created_at')
-        .order('created_at', { ascending: false });
+      console.log('User profiles loaded:', profiles?.length || 0);
 
-      if (consultantsError) {
-        console.error('Error loading consultants:', consultantsError);
-      }
+      const allUsers: User[] = profiles?.map(profile => ({
+        id: profile.id,
+        full_name: profile.full_name || 'Nome não informado',
+        role: profile.role || 'client',
+        email: profile.email || undefined,
+        phone: profile.phone || undefined,
+        created_at: profile.created_at,
+        last_login: profile.last_login || undefined,
+        is_active: profile.is_active !== false
+      })) || [];
 
-      // Carregar clientes
-      const { data: clients, error: clientsError } = await supabase
-        .from('clients')
-        .select('id, name, contact_name, email, created_at')
-        .order('created_at', { ascending: false });
-
-      if (clientsError) {
-        console.error('Error loading clients:', clientsError);
-      }
-
-      // Combinar todos os usuários
-      const allUsers: User[] = [];
-
-      // Adicionar perfis de usuário
-      if (profiles && profiles.length > 0) {
-        allUsers.push(...profiles.map(profile => ({
-          id: profile.id,
-          full_name: profile.full_name,
-          role: profile.role,
-          email: profile.email || profile.username || undefined,
-          phone: profile.phone || undefined,
-          created_at: profile.created_at,
-          last_login: profile.last_login || undefined,
-          is_active: profile.is_active !== false
-        })));
-      }
-
-      // Adicionar consultores que não estão nos perfis
-      if (consultants && consultants.length > 0) {
-        consultants.forEach(consultant => {
-          const existingProfile = profiles?.find(p => p.full_name === consultant.name);
-          if (!existingProfile) {
-            allUsers.push({
-              id: consultant.id,
-              full_name: consultant.name,
-              role: 'consultant',
-              email: consultant.email,
-              created_at: consultant.created_at || new Date().toISOString(),
-              is_active: true
-            });
-          }
-        });
-      }
-
-      // Adicionar clientes que não estão nos perfis
-      if (clients && clients.length > 0) {
-        clients.forEach(client => {
-          const existingProfile = profiles?.find(p => p.full_name === client.contact_name);
-          if (!existingProfile) {
-            allUsers.push({
-              id: client.id,
-              full_name: client.contact_name || client.name,
-              role: 'client',
-              email: client.email || undefined,
-              created_at: client.created_at || new Date().toISOString(),
-              is_active: true
-            });
-          }
-        });
-      }
-
-      console.log('Users loaded:', allUsers.length);
+      console.log('All users processed:', allUsers.length);
       setUsers(allUsers);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading users:', error);
-      toast.error('Erro ao carregar usuários');
+      toast.error(error.message || 'Erro ao carregar usuários');
     } finally {
       setIsLoading(false);
     }
@@ -159,50 +102,25 @@ const UserManagement: React.FC = () => {
 
   const handleCreateUser = async () => {
     try {
-      if (!newUser.full_name || !newUser.email || !newUser.password) {
+      if (!newUser.full_name?.trim() || !newUser.email?.trim() || !newUser.password?.trim()) {
         toast.error('Preencha todos os campos obrigatórios');
         return;
       }
 
-      setIsLoading(true);
+      console.log('Creating user:', newUser);
+      setIsCreatingUser(true);
 
-      // Criar usuário no Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: newUser.email,
-        password: newUser.password,
-        options: {
-          data: {
-            full_name: newUser.full_name,
-            role: newUser.role
-          }
-        }
+      const result = await createUserWithProfile({
+        email: newUser.email.trim(),
+        password: newUser.password.trim(),
+        full_name: newUser.full_name.trim(),
+        role: newUser.role as 'admin' | 'consultant' | 'client',
+        permissions: newUser.permissions
       });
 
-      if (authError) {
-        console.error('Error creating user:', authError);
-        throw authError;
-      }
-
-      // Se o usuário foi criado, criar as permissões de módulo
-      if (authData.user && newUser.permissions.length > 0) {
-        const permissionsToInsert = newUser.permissions.map(permission => ({
-          user_id: authData.user!.id,
-          module_name: permission.module_name,
-          can_view: permission.can_view,
-          can_edit: permission.can_edit
-        }));
-
-        const { error: permissionsError } = await supabase
-          .from('module_permissions')
-          .insert(permissionsToInsert);
-
-        if (permissionsError) {
-          console.error('Error creating permissions:', permissionsError);
-          toast.error('Usuário criado, mas erro ao configurar permissões');
-        }
-      }
-
+      console.log('User created successfully:', result);
       toast.success('Usuário criado com sucesso!');
+      
       setIsDialogOpen(false);
       setNewUser({ 
         full_name: '', 
@@ -211,12 +129,14 @@ const UserManagement: React.FC = () => {
         role: 'client',
         permissions: []
       });
-      loadUsers();
-    } catch (error) {
+      
+      await loadUsers();
+    } catch (error: any) {
       console.error('Error creating user:', error);
-      toast.error('Erro ao criar usuário');
+      const errorMessage = error?.message || 'Erro desconhecido ao criar usuário';
+      toast.error(errorMessage);
     } finally {
-      setIsLoading(false);
+      setIsCreatingUser(false);
     }
   };
 
@@ -247,104 +167,118 @@ const UserManagement: React.FC = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Gerenciamento de Usuários</h1>
-          <p className="text-muted-foreground">Gerencie usuários, consultores e clientes do sistema</p>
+          <p className="text-muted-foreground">Gerencie usuários do sistema</p>
         </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Usuário
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl">
-            <DialogHeader>
-              <DialogTitle>Criar Novo Usuário</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-6 max-h-[70vh] overflow-y-auto">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="new_full_name">Nome Completo *</Label>
-                  <Input
-                    id="new_full_name"
-                    value={newUser.full_name}
-                    onChange={(e) => setNewUser(prev => ({ ...prev, full_name: e.target.value }))}
-                    placeholder="Nome completo do usuário"
-                  />
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={loadUsers} 
+            disabled={isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
+
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Usuário
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl">
+              <DialogHeader>
+                <DialogTitle>Criar Novo Usuário</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-6 max-h-[70vh] overflow-y-auto">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="new_full_name">Nome Completo *</Label>
+                    <Input
+                      id="new_full_name"
+                      value={newUser.full_name}
+                      onChange={(e) => setNewUser(prev => ({ ...prev, full_name: e.target.value }))}
+                      placeholder="Nome completo do usuário"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="new_email">Email *</Label>
+                    <Input
+                      id="new_email"
+                      type="email"
+                      value={newUser.email}
+                      onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="email@exemplo.com"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="new_password">Senha *</Label>
+                    <Input
+                      id="new_password"
+                      type="password"
+                      value={newUser.password}
+                      onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
+                      placeholder="Senha de acesso"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="new_role">Tipo de Usuário *</Label>
+                    <Select value={newUser.role} onValueChange={(value) => setNewUser(prev => ({ ...prev, role: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o tipo de usuário" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {userRoles.map(role => (
+                          <SelectItem key={role.value} value={role.value}>
+                            {role.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
-                <div>
-                  <Label htmlFor="new_email">Email *</Label>
-                  <Input
-                    id="new_email"
-                    type="email"
-                    value={newUser.email}
-                    onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="email@exemplo.com"
-                  />
-                </div>
+                <ModulePermissionsSelector
+                  permissions={newUser.permissions}
+                  onChange={(permissions) => setNewUser(prev => ({ ...prev, permissions }))}
+                />
 
-                <div>
-                  <Label htmlFor="new_password">Senha *</Label>
-                  <Input
-                    id="new_password"
-                    type="password"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
-                    placeholder="Senha de acesso"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="new_role">Tipo de Usuário *</Label>
-                  <Select value={newUser.role} onValueChange={(value) => setNewUser(prev => ({ ...prev, role: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o tipo de usuário" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {userRoles.map(role => (
-                        <SelectItem key={role.value} value={role.value}>
-                          {role.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleCreateUser} disabled={isCreatingUser}>
+                    {isCreatingUser ? 'Criando...' : 'Criar Usuário'}
+                  </Button>
                 </div>
               </div>
-
-              <ModulePermissionsSelector
-                permissions={newUser.permissions}
-                onChange={(permissions) => setNewUser(prev => ({ ...prev, permissions }))}
-              />
-
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleCreateUser} disabled={isLoading}>
-                  {isLoading ? 'Criando...' : 'Criar Usuário'}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Usuários do Sistema
+            Usuários do Sistema ({users.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="text-center py-8">
+              <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
               <p>Carregando usuários...</p>
             </div>
           ) : users.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
+              <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>Nenhum usuário encontrado</p>
+              <p className="text-sm">Crie o primeiro usuário do sistema</p>
             </div>
           ) : (
             <Table>
@@ -393,7 +327,6 @@ const UserManagement: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Modal de Edição */}
       <UserEditModal
         user={editingUser}
         open={showEditModal}

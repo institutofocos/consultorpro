@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { createUserWithProfile } from "@/services/auth";
 
 export const fetchConsultants = async () => {
   try {
@@ -26,7 +27,7 @@ export const createConsultant = async (consultant: any) => {
     console.log('=== INICIANDO CRIAÇÃO DE CONSULTOR ===');
     console.log('Dados do consultor:', consultant);
 
-    // Remover campos que não existem na tabela
+    // Remover campos que não existem na tabela de consultores
     const {
       username,
       password,
@@ -53,36 +54,34 @@ export const createConsultant = async (consultant: any) => {
 
     console.log('Dados limpos do consultor:', consultantData);
 
-    // Primeiro, criar o usuário no Supabase Auth
+    // Primeiro, criar o usuário e perfil usando o serviço de auth
     const defaultPassword = 'consultor123';
-    console.log('Criando usuário no Supabase Auth...');
+    console.log('Criando usuário e perfil para o consultor...');
     
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    const userResult = await createUserWithProfile({
       email: consultantData.email,
       password: defaultPassword,
-      email_confirm: true,
-      user_metadata: {
-        full_name: consultantData.name,
-        role: 'consultant'
-      }
+      full_name: consultantData.name,
+      role: 'consultant',
+      permissions: [
+        { module_name: 'dashboard', can_view: true, can_edit: false },
+        { module_name: 'projects', can_view: true, can_edit: false },
+        { module_name: 'demands', can_view: true, can_edit: false },
+        { module_name: 'calendar', can_view: true, can_edit: false }
+      ]
     });
 
-    if (authError) {
-      console.error('Erro ao criar usuário no Auth:', authError);
-      throw new Error(`Erro ao criar usuário: ${authError.message}`);
-    }
-
-    console.log('Usuário criado no Auth:', authData.user?.id);
+    console.log('Usuário e perfil criados:', userResult.user.id);
 
     // Usar o ID do usuário criado para o consultor
     const consultantWithUserId = {
       ...consultantData,
-      id: authData.user!.id
+      id: userResult.user.id
     };
 
-    console.log('Criando consultor na tabela com ID do usuário...');
+    console.log('Criando consultor na tabela...');
 
-    // Criar o consultor na tabela (usando o ID do usuário do Auth)
+    // Criar o consultor na tabela usando o ID do usuário
     const { data: consultantResult, error: consultantError } = await supabase
       .from('consultants')
       .insert(consultantWithUserId)
@@ -93,7 +92,7 @@ export const createConsultant = async (consultant: any) => {
       console.error('Erro ao criar consultor na tabela:', consultantError);
       // Se falhou, tentar limpar o usuário criado
       try {
-        await supabase.auth.admin.deleteUser(authData.user!.id);
+        await supabase.auth.admin.deleteUser(userResult.user.id);
       } catch (cleanupError) {
         console.error('Erro ao limpar usuário:', cleanupError);
       }
@@ -101,62 +100,13 @@ export const createConsultant = async (consultant: any) => {
     }
 
     console.log('Consultor criado na tabela:', consultantResult);
-
-    // Criar o perfil do usuário manualmente
-    console.log('Criando perfil do usuário...');
-    const { error: profileError } = await supabase
-      .from('user_profiles')
-      .upsert({
-        id: authData.user!.id,
-        full_name: consultantData.name,
-        role: 'consultant',
-        email: consultantData.email,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
-
-    if (profileError) {
-      console.error('Erro ao criar perfil:', profileError);
-      // Não falhar aqui, apenas logar
-    }
-
-    // Criar permissões de módulo para o consultor
-    console.log('Criando permissões de módulo...');
-    const modulePermissions = [
-      { module_name: 'dashboard', can_view: true, can_edit: false },
-      { module_name: 'projects', can_view: true, can_edit: false },
-      { module_name: 'demands', can_view: true, can_edit: false },
-      { module_name: 'calendar', can_view: true, can_edit: false }
-    ];
-
-    const permissionsToInsert = modulePermissions.map(permission => ({
-      user_id: authData.user!.id,
-      module_name: permission.module_name,
-      can_view: permission.can_view,
-      can_edit: permission.can_edit,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }));
-
-    const { error: permissionsError } = await supabase
-      .from('module_permissions')
-      .insert(permissionsToInsert);
-
-    if (permissionsError) {
-      console.error('Erro ao criar permissões:', permissionsError);
-      // Não falhar aqui, apenas logar
-    }
-
     console.log('=== CONSULTOR E USUÁRIO CRIADOS COM SUCESSO ===');
-    console.log('ID do usuário:', authData.user!.id);
-    console.log('Email:', consultantData.email);
-    console.log('Senha padrão:', defaultPassword);
     
     return {
       ...consultantResult,
       userCreated: true,
       defaultPassword,
-      userId: authData.user!.id
+      userId: userResult.user.id
     };
   } catch (error) {
     console.error('=== ERRO NA CRIAÇÃO DO CONSULTOR ===', error);
