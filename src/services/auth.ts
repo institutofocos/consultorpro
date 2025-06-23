@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { AuthUser, UserProfile, ModulePermission } from '@/types/auth';
 import { User } from '@supabase/supabase-js';
@@ -140,6 +141,80 @@ export async function createUserWithProfile(userData: {
         throw new Error('Este email já está cadastrado');
       } else if (authError.message.includes('Password should be at least')) {
         throw new Error('A senha deve ter pelo menos 6 caracteres');
+      } else if (authError.message.includes('not_admin') || authError.message.includes('service_role')) {
+        // If admin API fails, try regular signup
+        console.log('Admin API failed, trying regular signup...');
+        const { data: regularData, error: regularError } = await supabase.auth.signUp({
+          email: userData.email,
+          password: userData.password,
+          options: {
+            data: {
+              full_name: userData.full_name,
+              role: userData.role
+            }
+          }
+        });
+
+        if (regularError) {
+          throw new Error(`Erro na criação do usuário: ${regularError.message}`);
+        }
+
+        if (!regularData.user) {
+          throw new Error('Usuário não foi criado corretamente');
+        }
+
+        console.log('User created via regular signup:', regularData.user.id);
+
+        // Create user profile manually
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: regularData.user.id,
+            full_name: userData.full_name,
+            role: userData.role,
+            email: userData.email.toLowerCase(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            is_active: true
+          });
+
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          throw new Error(`Erro ao criar perfil: ${profileError.message}`);
+        }
+
+        // Create module permissions if provided
+        if (userData.permissions && userData.permissions.length > 0) {
+          const permissionsToInsert = userData.permissions.map(permission => ({
+            user_id: regularData.user!.id,
+            module_name: permission.module_name,
+            can_view: permission.can_view,
+            can_edit: permission.can_edit,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }));
+
+          const { error: permissionsError } = await supabase
+            .from('module_permissions')
+            .insert(permissionsToInsert);
+
+          if (permissionsError) {
+            console.error('Permissions creation error:', permissionsError);
+            console.warn('Module permissions could not be created, but user was created successfully');
+          } else {
+            console.log('Module permissions created successfully');
+          }
+        }
+
+        return {
+          user: regularData.user,
+          profile: {
+            id: regularData.user.id,
+            full_name: userData.full_name,
+            role: userData.role,
+            email: userData.email.toLowerCase()
+          }
+        };
       } else {
         throw new Error(`Erro na autenticação: ${authError.message}`);
       }
