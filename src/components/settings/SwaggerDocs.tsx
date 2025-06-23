@@ -11,7 +11,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 
 const SwaggerDocs: React.FC = () => {
   const navigate = useNavigate();
-  const [isMainUpdatesOpen, setIsMainUpdatesOpen] = useState(true);
+  const [isMainUpdatesOpen, setIsMainUpdatesOpen] = useState(false);
+  const [isSwaggerDocsOpen, setIsSwaggerDocsOpen] = useState(false);
   
   // Swagger specification in OpenAPI format
   const spec = {
@@ -1037,17 +1038,34 @@ const SwaggerDocs: React.FC = () => {
         </AlertDescription>
       </Alert>
 
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle>Swagger Documentation</CardTitle>
-          <CardDescription>
-            Documentação interativa da API ConsultorPRO usando OpenAPI
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <SwaggerUI spec={spec} />
-        </CardContent>
-      </Card>
+      <Collapsible open={isSwaggerDocsOpen} onOpenChange={setIsSwaggerDocsOpen}>
+        <Card className="shadow-card">
+          <CardHeader>
+            <CollapsibleTrigger asChild>
+              <div className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <CardTitle>Swagger Documentation</CardTitle>
+                  <CardDescription>
+                    Documentação interativa da API ConsultorPRO usando OpenAPI
+                  </CardDescription>
+                </div>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  {isSwaggerDocsOpen ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
+              <SwaggerUI spec={spec} />
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
     </div>
   );
 };
