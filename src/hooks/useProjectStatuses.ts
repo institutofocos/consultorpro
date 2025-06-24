@@ -35,7 +35,7 @@ export const useProjectStatuses = () => {
       console.log('Status configurados encontrados:', data?.length || 0);
       console.log('Status configurados:', data);
       
-      // Retornar APENAS os status configurados nas regras
+      // Garantir que sempre temos pelo menos o status "Iniciar Projeto"
       const configuredStatuses = (data || []).map(status => ({
         id: status.id,
         name: status.name,
@@ -46,6 +46,21 @@ export const useProjectStatuses = () => {
         is_cancellation_status: status.is_cancellation_status,
         order_index: status.order_index
       }));
+
+      // Se não existe o status "iniciar_projeto", adicioná-lo como primeiro
+      const hasIniciarProjeto = configuredStatuses.some(s => s.name === 'iniciar_projeto');
+      if (!hasIniciarProjeto) {
+        configuredStatuses.unshift({
+          id: 'temp-iniciar-projeto',
+          name: 'iniciar_projeto',
+          display_name: 'Iniciar Projeto',
+          color: '#9CA3AF',
+          is_active: true,
+          is_completion_status: false,
+          is_cancellation_status: false,
+          order_index: 0
+        });
+      }
 
       console.log('Status processados para o Kanban:', configuredStatuses);
       return configuredStatuses;

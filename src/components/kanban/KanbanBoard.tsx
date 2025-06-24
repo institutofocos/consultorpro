@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -264,7 +263,32 @@ const KanbanBoard: React.FC = () => {
     }
   };
 
+  // Função para verificar se um projeto deve aparecer na coluna "Iniciar Projeto"
+  const shouldShowInIniciarProjeto = (project: Project) => {
+    // Projetos com status 'iniciar_projeto' ou projetos que não foram iniciados
+    return project.status === 'iniciar_projeto' || 
+           project.status === 'planned' || 
+           (!project.status) ||
+           (project.stages && project.stages.length > 0 && 
+            project.stages.every(stage => !stage.completed && !stage.start_date));
+  };
+
+  // Função para verificar se uma etapa deve aparecer na coluna "Iniciar Projeto"
+  const shouldShowStageInIniciarProjeto = (stage: Stage) => {
+    // Etapas com status 'iniciar_projeto' ou etapas que não foram iniciadas
+    return stage.status === 'iniciar_projeto' || 
+           (!stage.status) ||
+           (!stage.start_date && !stage.completed);
+  };
+
   const getProjectsByStatus = (status: string) => {
+    if (status === 'iniciar_projeto') {
+      // Para a coluna "Iniciar Projeto", mostrar projetos que ainda não foram iniciados
+      const projectsToShow = projects.filter(shouldShowInIniciarProjeto);
+      console.log(`Projetos para "Iniciar Projeto":`, projectsToShow.map(p => p.name));
+      return projectsToShow;
+    }
+    
     const projectsInStatus = projects.filter(project => project.status === status);
     console.log(`Projetos com status ${status}:`, projectsInStatus.map(p => p.name));
     return projectsInStatus;
@@ -276,8 +300,18 @@ const KanbanBoard: React.FC = () => {
     projects.forEach(project => {
       if (project.stages) {
         project.stages.forEach(stage => {
-          const stageStatus = stage.status || 'iniciar_projeto';
-          if (stageStatus === status) {
+          let shouldInclude = false;
+          
+          if (status === 'iniciar_projeto') {
+            // Para a coluna "Iniciar Projeto", mostrar etapas que ainda não foram iniciadas
+            shouldInclude = shouldShowStageInIniciarProjeto(stage);
+          } else {
+            // Para outras colunas, usar o status da etapa
+            const stageStatus = stage.status || 'iniciar_projeto';
+            shouldInclude = stageStatus === status;
+          }
+          
+          if (shouldInclude) {
             // Buscar o nome do consultor responsável pela etapa
             let consultantName = '';
             if (stage.consultantId) {
@@ -290,7 +324,7 @@ const KanbanBoard: React.FC = () => {
               projectName: project.name,
               clientName: project.clientName,
               consultantName: consultantName,
-              serviceName: project.serviceName // Adicionar o nome do serviço
+              serviceName: project.serviceName
             });
           }
         });
