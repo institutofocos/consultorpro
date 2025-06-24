@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,18 +14,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { createUserWithProfile } from "@/services/auth";
 import UserEditModal from './UserEditModal';
 import ModulePermissionsSelector, { ModulePermissionInput } from './ModulePermissionsSelector';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface User {
   id: string;
   full_name: string;
-  role: string;
-  email?: string;
+  email: string;
   phone?: string;
+  role: string;
+  is_active: boolean;
+  email_confirmed: boolean;
   created_at: string;
+  updated_at: string;
   last_login?: string;
-  is_active?: boolean;
-  email_confirmed?: boolean;
 }
 
 interface NewUser {
@@ -65,49 +66,26 @@ const UserManagement: React.FC = () => {
   const loadUsers = async () => {
     try {
       setIsLoading(true);
-      console.log('Loading users from profiles and auth...');
+      console.log('Loading users from user_profiles...');
 
-      // First, try to load user profiles
-      const { data: profiles, error: profilesError } = await supabase
+      const { data: users, error } = await supabase
         .from('user_profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Also get auth users to check email confirmation status
-      const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
-
-      if (profilesError) {
-        console.error('Error loading user profiles:', profilesError);
-        toast.error(`Erro ao carregar perfis: ${profilesError.message}`);
+      if (error) {
+        console.error('Error loading users:', error);
+        toast.error(`Erro ao carregar usuários: ${error.message}`);
         return;
       }
 
-      console.log('User profiles loaded:', profiles?.length || 0);
-      console.log('Auth users loaded:', authData?.users?.length || 0);
-
-      // Combine profile data with auth data
-      const allUsers: User[] = profiles?.map(profile => {
-        const authUser: SupabaseUser | undefined = authData?.users?.find((au: SupabaseUser) => au.id === profile.id);
-        return {
-          id: profile.id,
-          full_name: profile.full_name || 'Nome não informado',
-          role: profile.role || 'client',
-          email: profile.email || undefined,
-          phone: profile.phone || undefined,
-          created_at: profile.created_at,
-          last_login: profile.last_login || undefined,
-          is_active: profile.is_active !== false,
-          email_confirmed: authUser?.email_confirmed_at ? true : false
-        };
-      }) || [];
-
-      console.log('All users processed:', allUsers.length);
-      setUsers(allUsers);
+      console.log('Users loaded:', users?.length || 0);
+      setUsers(users || []);
       
-      if (allUsers.length === 0) {
+      if (!users || users.length === 0) {
         toast.info('Nenhum usuário encontrado no sistema.');
       } else {
-        toast.success(`${allUsers.length} usuário(s) carregado(s) com sucesso!`);
+        toast.success(`${users.length} usuário(s) carregado(s) com sucesso!`);
       }
     } catch (error: any) {
       console.error('Error loading users:', error);
@@ -144,7 +122,7 @@ const UserManagement: React.FC = () => {
         email: newUser.email.trim(),
         password: newUser.password.trim(),
         full_name: newUser.full_name.trim(),
-        role: newUser.role as 'admin' | 'consultant' | 'client',
+        role: newUser.role as 'admin' | 'consultant' | 'manager' | 'financial' | 'client',
         permissions: newUser.permissions
       });
 
@@ -206,8 +184,8 @@ const UserManagement: React.FC = () => {
     return roleConfig?.label || role;
   };
 
-  const getStatusBadge = (isActive?: boolean, emailConfirmed?: boolean) => {
-    if (isActive === false) {
+  const getStatusBadge = (isActive: boolean, emailConfirmed: boolean) => {
+    if (!isActive) {
       return <Badge variant="secondary" className="text-xs">Inativo</Badge>;
     }
     if (!emailConfirmed) {
@@ -363,7 +341,7 @@ const UserManagement: React.FC = () => {
                 {users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.full_name}</TableCell>
-                    <TableCell>{user.email || '-'}</TableCell>
+                    <TableCell>{user.email}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
                         {getRoleLabel(user.role)}

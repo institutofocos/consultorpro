@@ -12,12 +12,14 @@ import { supabase } from "@/integrations/supabase/client";
 interface User {
   id: string;
   full_name: string;
-  role: string;
-  email?: string;
+  email: string;
   phone?: string;
+  role: string;
+  is_active: boolean;
+  email_confirmed: boolean;
   created_at: string;
+  updated_at: string;
   last_login?: string;
-  is_active?: boolean;
 }
 
 interface UserEditModalProps {
@@ -68,7 +70,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
 
     setIsLoading(true);
     try {
-      // Atualizar perfil do usuário
+      // Update user profile
       const { error: profileError } = await supabase
         .from('user_profiles')
         .update({
@@ -82,48 +84,15 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
         .eq('id', user.id);
 
       if (profileError) {
-        console.error('Erro ao atualizar perfil:', profileError);
+        console.error('Error updating profile:', profileError);
         throw profileError;
-      }
-
-      // Se for um consultor, atualizar na tabela de consultores também
-      if (formData.role === 'consultant') {
-        const { error: consultantError } = await supabase
-          .from('consultants')
-          .upsert({
-            id: user.id,
-            name: formData.full_name,
-            email: formData.email,
-            updated_at: new Date().toISOString()
-          });
-
-        if (consultantError) {
-          console.error('Erro ao atualizar consultor:', consultantError);
-        }
-      }
-
-      // Se for um cliente, atualizar na tabela de clientes também
-      if (formData.role === 'client') {
-        const { error: clientError } = await supabase
-          .from('clients')
-          .upsert({
-            id: user.id,
-            contact_name: formData.full_name,
-            name: formData.full_name,
-            email: formData.email,
-            created_at: user.created_at
-          });
-
-        if (clientError) {
-          console.error('Erro ao atualizar cliente:', clientError);
-        }
       }
 
       toast.success('Usuário atualizado com sucesso!');
       onUserUpdated();
       onOpenChange(false);
     } catch (error) {
-      console.error('Erro ao atualizar usuário:', error);
+      console.error('Error updating user:', error);
       toast.error('Erro ao atualizar usuário');
     } finally {
       setIsLoading(false);
@@ -151,7 +120,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
       toast.success(`Usuário ${newStatus ? 'ativado' : 'desativado'} com sucesso!`);
       onUserUpdated();
     } catch (error) {
-      console.error('Erro ao alterar status do usuário:', error);
+      console.error('Error changing user status:', error);
       toast.error('Erro ao alterar status do usuário');
     } finally {
       setIsLoading(false);

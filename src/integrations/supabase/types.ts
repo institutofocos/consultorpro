@@ -652,8 +652,8 @@ export type Database = {
       }
       module_permissions: {
         Row: {
-          can_edit: boolean
-          can_view: boolean
+          can_edit: boolean | null
+          can_view: boolean | null
           created_at: string | null
           id: string
           module_name: string
@@ -661,8 +661,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          can_edit?: boolean
-          can_view?: boolean
+          can_edit?: boolean | null
+          can_view?: boolean | null
           created_at?: string | null
           id?: string
           module_name: string
@@ -670,15 +670,23 @@ export type Database = {
           user_id: string
         }
         Update: {
-          can_edit?: boolean
-          can_view?: boolean
+          can_edit?: boolean | null
+          can_view?: boolean | null
           created_at?: string | null
           id?: string
           module_name?: string
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "module_permissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_methods: {
         Row: {
@@ -1395,49 +1403,40 @@ export type Database = {
       }
       user_profiles: {
         Row: {
-          created_at: string
-          email: string | null
+          created_at: string | null
+          email: string
+          email_confirmed: boolean | null
           full_name: string
           id: string
           is_active: boolean | null
           last_login: string | null
-          password_hash: string | null
           phone: string | null
-          profile_photo_url: string | null
           role: string
-          updated_at: string
-          user_type: string | null
-          username: string | null
+          updated_at: string | null
         }
         Insert: {
-          created_at?: string
-          email?: string | null
+          created_at?: string | null
+          email: string
+          email_confirmed?: boolean | null
           full_name: string
           id: string
           is_active?: boolean | null
           last_login?: string | null
-          password_hash?: string | null
           phone?: string | null
-          profile_photo_url?: string | null
           role: string
-          updated_at?: string
-          user_type?: string | null
-          username?: string | null
+          updated_at?: string | null
         }
         Update: {
-          created_at?: string
-          email?: string | null
+          created_at?: string | null
+          email?: string
+          email_confirmed?: boolean | null
           full_name?: string
           id?: string
           is_active?: boolean | null
           last_login?: string | null
-          password_hash?: string | null
           phone?: string | null
-          profile_photo_url?: string | null
           role?: string
-          updated_at?: string
-          user_type?: string | null
-          username?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
