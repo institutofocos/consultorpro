@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { createUserWithProfile } from "@/services/auth";
 import UserEditModal from './UserEditModal';
 import ModulePermissionsSelector, { ModulePermissionInput } from './ModulePermissionsSelector';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface User {
   id: string;
@@ -73,7 +74,7 @@ const UserManagement: React.FC = () => {
         .order('created_at', { ascending: false });
 
       // Also get auth users to check email confirmation status
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
 
       if (profilesError) {
         console.error('Error loading user profiles:', profilesError);
@@ -82,11 +83,11 @@ const UserManagement: React.FC = () => {
       }
 
       console.log('User profiles loaded:', profiles?.length || 0);
-      console.log('Auth users loaded:', authUsers?.users?.length || 0);
+      console.log('Auth users loaded:', authData?.users?.length || 0);
 
       // Combine profile data with auth data
       const allUsers: User[] = profiles?.map(profile => {
-        const authUser = authUsers?.users?.find(au => au.id === profile.id);
+        const authUser: SupabaseUser | undefined = authData?.users?.find((au: SupabaseUser) => au.id === profile.id);
         return {
           id: profile.id,
           full_name: profile.full_name || 'Nome não informado',
