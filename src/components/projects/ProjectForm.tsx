@@ -51,7 +51,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     managerPhone: '',
     totalHours: 0,
     hourlyRate: 0,
-    status: 'planned',
+    status: 'iniciar_projeto', // SEMPRE INICIAR COM STATUS "iniciar_projeto"
     tags: [],
     tagIds: [],
     stages: [],
@@ -96,7 +96,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         managerPhone: project.managerPhone || '',
         totalHours: project.totalHours || 0,
         hourlyRate: project.hourlyRate || 0,
-        status: project.status || 'planned',
+        status: project.status || 'iniciar_projeto',
         tags: project.tags || [],
         tagIds: project.tagIds || [],
         stages: project.stages || [],
@@ -394,7 +394,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         managerPhone: formData.managerPhone || '',
         totalHours: Number(formData.totalHours || 0),
         hourlyRate: Number(formData.hourlyRate || 0),
-        status: formData.status,
+        status: project ? formData.status : 'iniciar_projeto',
         tags: formData.tags || [],
         tagIds: formData.tagIds || [],
         stages: formData.stages || [],
@@ -403,6 +403,10 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
 
       console.log('=== DADOS COMPLETAMENTE LIMPOS ===');
       console.log('Objeto seguro (SEM qualquer campo de usuário ou project_id):', JSON.stringify(safeProjectData, null, 2));
+      
+      if (!project) {
+        console.log('✅ Novo projeto será criado com status "iniciar_projeto"');
+      }
 
       // VERIFICAÇÃO FINAL DE SEGURANÇA - GARANTIR QUE NÃO HÁ CAMPOS PROIBIDOS
       const prohibitedFields = ['user_id', 'userId', 'user', 'user_type', 'userType', 'project_id', 'projectId'];
@@ -423,7 +427,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         savedProject = await updateProject(safeProjectData);
         toast.success('Projeto atualizado com sucesso!');
       } else {
-        console.log('Criando novo projeto');
+        console.log('Criando novo projeto com status "iniciar_projeto"');
         savedProject = await createProject(safeProjectData);
         toast.success('Projeto criado com sucesso!');
         

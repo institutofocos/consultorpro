@@ -445,7 +445,7 @@ export const createProject = async (project: any) => {
     const cleanProjectData = {
       name: String(project.name || ''),
       description: String(project.description || ''),
-      status: project.mainConsultantId ? 'em_producao' : 'em_planejamento',
+      status: 'iniciar_projeto', // SEMPRE INICIAR COM STATUS "iniciar_projeto"
       client_id: project.clientId || null,
       service_id: project.serviceId || null,
       main_consultant_id: project.mainConsultantId || null,
@@ -469,6 +469,7 @@ export const createProject = async (project: any) => {
 
     console.log('=== DADOS LIMPOS PARA INSERÇÃO ===');
     console.log('Objeto final (SEM project_id e outros campos proibidos):', JSON.stringify(cleanProjectData, null, 2));
+    console.log('✅ Status definido como "iniciar_projeto" para novo projeto');
     
     // VERIFICAÇÃO DE SEGURANÇA - garantir que não há campos proibidos
     const forbiddenFields = ['user_id', 'userId', 'user', 'tags', 'tagIds', 'stages', 'project_id', 'projectId'];
@@ -494,7 +495,7 @@ export const createProject = async (project: any) => {
       throw error;
     }
 
-    console.log('✅ Projeto criado com sucesso:', data);
+    console.log('✅ Projeto criado com sucesso com status "iniciar_projeto":', data);
 
     // Vincular tags se existirem
     if (project.tagIds && project.tagIds.length > 0) {
@@ -540,9 +541,8 @@ export const createProject = async (project: any) => {
       }
     }
 
-    await updateProjectStatusAutomatically(data.id);
-
-    console.log('=== PROJETO CRIADO COM SUCESSO ===');
+    // NÃO chamar updateProjectStatusAutomatically aqui porque queremos manter o status inicial
+    console.log('=== PROJETO CRIADO COM SUCESSO COM STATUS "iniciar_projeto" ===');
     return data;
   } catch (error) {
     console.error('=== ERRO NA CRIAÇÃO DO PROJETO ===');
