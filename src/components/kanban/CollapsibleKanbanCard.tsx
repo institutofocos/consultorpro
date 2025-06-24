@@ -11,7 +11,7 @@ import { useProjectStatuses } from '@/hooks/useProjectStatuses';
 
 interface CollapsibleKanbanCardProps {
   project?: Project;
-  stage?: Stage & { projectName?: string; clientName?: string; consultantName?: string };
+  stage?: Stage & { projectName?: string; clientName?: string; consultantName?: string; serviceName?: string };
   onClick: () => void;
   type: 'project' | 'stage';
   isHighlighted?: boolean;
@@ -355,6 +355,15 @@ const CollapsibleKanbanCard: React.FC<CollapsibleKanbanCardProps> = ({
 
           {/* Informações sempre visíveis */}
           <div className="space-y-2">
+            {/* Serviço */}
+            {stage.serviceName && (
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">
+                  {stage.serviceName}
+                </Badge>
+              </div>
+            )}
+            
             {/* Datas */}
             <div className="flex justify-between text-xs text-gray-600">
               <span>Início: {formatDate(stage.startDate)}</span>

@@ -271,7 +271,7 @@ const KanbanBoard: React.FC = () => {
   };
 
   const getStagesByStatus = (status: string) => {
-    const allStages: (Stage & { projectName?: string; clientName?: string; consultantName?: string })[] = [];
+    const allStages: (Stage & { projectName?: string; clientName?: string; consultantName?: string; serviceName?: string })[] = [];
     
     projects.forEach(project => {
       if (project.stages) {
@@ -289,14 +289,15 @@ const KanbanBoard: React.FC = () => {
               ...stage,
               projectName: project.name,
               clientName: project.clientName,
-              consultantName: consultantName
+              consultantName: consultantName,
+              serviceName: project.serviceName // Adicionar o nome do serviço
             });
           }
         });
       }
     });
     
-    console.log(`Etapas com status ${status}:`, allStages.map(s => `${s.name} (${s.projectName}) - Consultor: ${s.consultantName}`));
+    console.log(`Etapas com status ${status}:`, allStages.map(s => `${s.name} (${s.projectName}) - Consultor: ${s.consultantName} - Serviço: ${s.serviceName}`));
     return allStages;
   };
 
