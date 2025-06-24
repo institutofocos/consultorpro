@@ -66,6 +66,15 @@ const UserManagement: React.FC = () => {
       setIsLoading(true);
       console.log('Loading users...');
 
+      // Usar função is_admin() para verificar se pode carregar todos os usuários
+      const { data: canViewAll, error: permError } = await supabase
+        .rpc('is_admin');
+
+      if (permError) {
+        console.warn('Could not check admin permissions:', permError);
+      }
+
+      // Tentar carregar perfis de usuários com tratamento de erro específico para RLS
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
         .select('*')
@@ -73,6 +82,28 @@ const UserManagement: React.FC = () => {
 
       if (profilesError) {
         console.error('Error loading user profiles:', profilesError);
+        
+        // Verificar se é erro de RLS ou recursão infinita
+        if (profilesError.message.includes('infinite recursion') || 
+            profilesError.message.includes('policy')) {
+          toast.error('Erro nas políticas de segurança. Verifique as configurações RLS.');
+          
+          // Log detalhado do erro
+          console.error('RLS Policy Error Details:', {
+            message: profilesError.message,
+            code: profilesError.code,
+            hint: profilesError.hint
+          });
+          
+          // Tentar recarregar após um tempo
+          setTimeout(() => {
+            console.log('Tentando recarregar usuários após erro RLS...');
+            loadUsers();
+          }, 3000);
+          
+          return;
+        }
+        
         toast.error(`Erro ao carregar usuários: ${profilesError.message}`);
         return;
       }
