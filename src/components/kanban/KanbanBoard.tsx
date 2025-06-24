@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -279,8 +280,8 @@ const KanbanBoard: React.FC = () => {
           if (stageStatus === status) {
             // Buscar o nome do consultor responsável pela etapa
             let consultantName = '';
-            if (stage.consultant_id) {
-              const consultant = consultants.find(c => c.id === stage.consultant_id);
+            if (stage.consultantId) {
+              const consultant = consultants.find(c => c.id === stage.consultantId);
               consultantName = consultant?.name || '';
             }
 
