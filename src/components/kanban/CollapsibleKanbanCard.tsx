@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Calendar, DollarSign, MoreVertical, ChevronDown, ChevronUp, Building, User, Clock, ExternalLink, TrendingUp } from 'lucide-react';
+import { Calendar, DollarSign, MoreVertical, ChevronDown, ChevronUp, Building, User, Clock, ExternalLink, TrendingUp, Star, StarOff } from 'lucide-react';
 import { Project, Stage } from '@/components/projects/types';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -15,13 +14,19 @@ interface CollapsibleKanbanCardProps {
   stage?: Stage & { projectName?: string; clientName?: string };
   onClick: () => void;
   type: 'project' | 'stage';
+  isHighlighted?: boolean;
+  onHighlight?: (projectId: string) => void;
+  onRemoveHighlight?: () => void;
 }
 
 const CollapsibleKanbanCard: React.FC<CollapsibleKanbanCardProps> = ({ 
   project, 
   stage, 
   onClick, 
-  type 
+  type,
+  isHighlighted = false,
+  onHighlight,
+  onRemoveHighlight
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const { getStatusDisplay, getStatusBadgeStyle } = useProjectStatuses();
@@ -54,6 +59,23 @@ const CollapsibleKanbanCard: React.FC<CollapsibleKanbanCardProps> = ({
     setIsCollapsed(!isCollapsed);
   };
 
+  const handleHighlight = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (type === 'project' && project && onHighlight) {
+      onHighlight(project.id);
+    } else if (type === 'stage' && stage && onHighlight) {
+      // Para etapas, destacar o projeto pai
+      onHighlight(stage.projectId);
+    }
+  };
+
+  const handleRemoveHighlight = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onRemoveHighlight) {
+      onRemoveHighlight();
+    }
+  };
+
   if (type === 'project' && project) {
     const progressPercentage = project.stages && project.stages.length > 0 
       ? Math.round((project.stages.filter(s => s.completed).length / project.stages.length) * 100)
@@ -61,16 +83,25 @@ const CollapsibleKanbanCard: React.FC<CollapsibleKanbanCardProps> = ({
 
     return (
       <Card 
-        className="cursor-pointer hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500"
+        className={`cursor-pointer hover:shadow-lg transition-all duration-200 border-l-4 ${
+          isHighlighted 
+            ? 'border-l-yellow-500 bg-yellow-50 shadow-lg ring-2 ring-yellow-200' 
+            : 'border-l-blue-500'
+        }`}
         onClick={onClick}
       >
         <CardContent className="p-4 space-y-3">
           {/* Header com título e menu */}
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
-              <h4 className="font-semibold text-sm line-clamp-2 mb-2">
-                {project.name}
-              </h4>
+              <div className="flex items-center gap-2 mb-2">
+                <h4 className="font-semibold text-sm line-clamp-2">
+                  {project.name}
+                </h4>
+                {isHighlighted && (
+                  <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 flex-shrink-0" />
+                )}
+              </div>
               <div className="flex gap-1 flex-wrap mb-2">
                 {project.projectId && (
                   <Badge variant="outline" className="text-xs">
@@ -100,6 +131,17 @@ const CollapsibleKanbanCard: React.FC<CollapsibleKanbanCardProps> = ({
                     </>
                   )}
                 </DropdownMenuItem>
+                {!isHighlighted ? (
+                  <DropdownMenuItem onClick={handleHighlight}>
+                    <Star className="h-4 w-4 mr-2" />
+                    Destacar projeto
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={handleRemoveHighlight}>
+                    <StarOff className="h-4 w-4 mr-2" />
+                    Remover destaque
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -252,16 +294,25 @@ const CollapsibleKanbanCard: React.FC<CollapsibleKanbanCardProps> = ({
 
     return (
       <Card 
-        className="cursor-pointer hover:shadow-lg transition-all duration-200 border-l-4 border-l-green-500"
+        className={`cursor-pointer hover:shadow-lg transition-all duration-200 border-l-4 ${
+          isHighlighted 
+            ? 'border-l-yellow-500 bg-yellow-50 shadow-lg ring-2 ring-yellow-200' 
+            : 'border-l-green-500'
+        }`}
         onClick={onClick}
       >
         <CardContent className="p-4 space-y-3">
           {/* Header com título e menu */}
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
-              <h4 className="font-semibold text-sm line-clamp-2 mb-1">
-                {stage.name}
-              </h4>
+              <div className="flex items-center gap-2 mb-1">
+                <h4 className="font-semibold text-sm line-clamp-2">
+                  {stage.name}
+                </h4>
+                {isHighlighted && (
+                  <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 flex-shrink-0" />
+                )}
+              </div>
               <div className="text-xs text-gray-500 mb-2 truncate">
                 Projeto: {stage.projectName}
               </div>
@@ -287,6 +338,17 @@ const CollapsibleKanbanCard: React.FC<CollapsibleKanbanCardProps> = ({
                     </>
                   )}
                 </DropdownMenuItem>
+                {!isHighlighted ? (
+                  <DropdownMenuItem onClick={handleHighlight}>
+                    <Star className="h-4 w-4 mr-2" />
+                    Destacar projeto
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={handleRemoveHighlight}>
+                    <StarOff className="h-4 w-4 mr-2" />
+                    Remover destaque
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

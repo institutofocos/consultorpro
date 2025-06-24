@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -29,6 +30,7 @@ const KanbanBoard: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
+  const [highlightedProjectId, setHighlightedProjectId] = useState<string | null>(null);
   
   const queryClient = useQueryClient();
   const { statuses, getStatusDisplay, isLoading: statusesLoading } = useProjectStatuses();
@@ -236,6 +238,32 @@ const KanbanBoard: React.FC = () => {
     }
   };
 
+  // Funções para gerenciar destaque
+  const handleHighlight = (projectId: string) => {
+    setHighlightedProjectId(projectId);
+    toast.success('Projeto destacado com sucesso!');
+  };
+
+  const handleRemoveHighlight = () => {
+    setHighlightedProjectId(null);
+    toast.success('Destaque removido com sucesso!');
+  };
+
+  // Verificar se um item deve ser destacado
+  const isHighlighted = (itemId: string, itemType: 'project' | 'stage') => {
+    if (!highlightedProjectId) return false;
+    
+    if (itemType === 'project') {
+      return itemId === highlightedProjectId;
+    } else {
+      // Para etapas, verificar se pertencem ao projeto destacado
+      const stage = projects
+        .flatMap(p => p.stages || [])
+        .find(s => s.id === itemId);
+      return stage?.projectId === highlightedProjectId;
+    }
+  };
+
   const getProjectsByStatus = (status: string) => {
     const projectsInStatus = projects.filter(project => project.status === status);
     console.log(`Projetos com status ${status}:`, projectsInStatus.map(p => p.name));
@@ -399,6 +427,9 @@ const KanbanBoard: React.FC = () => {
                                     project={project}
                                     onClick={() => handleProjectClick(project)}
                                     type="project"
+                                    isHighlighted={isHighlighted(project.id, 'project')}
+                                    onHighlight={handleHighlight}
+                                    onRemoveHighlight={handleRemoveHighlight}
                                   />
                                 </div>
                               )}
@@ -423,6 +454,9 @@ const KanbanBoard: React.FC = () => {
                                     stage={stage}
                                     onClick={() => {/* Modal de detalhes da etapa pode ser implementado */}}
                                     type="stage"
+                                    isHighlighted={isHighlighted(stage.id, 'stage')}
+                                    onHighlight={handleHighlight}
+                                    onRemoveHighlight={handleRemoveHighlight}
                                   />
                                 </div>
                               )}
