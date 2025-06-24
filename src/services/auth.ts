@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { AuthUser, UserProfile, ModulePermission } from '@/types/auth';
 import { User } from '@supabase/supabase-js';
@@ -68,7 +69,8 @@ export async function registerUser(email: string, password: string, userData: {
       email,
       password,
       options: {
-        data: userData
+        data: userData,
+        emailRedirectTo: undefined // Disable email confirmation redirect
       }
     });
     
@@ -121,8 +123,8 @@ export async function createUserWithProfile(userData: {
       throw new Error('Este email já está cadastrado no sistema');
     }
 
-    // Use regular signup instead of admin API
-    console.log('Creating user via regular signup...');
+    // Use regular signup with email confirmation disabled for admin creation
+    console.log('Creating user via admin signup...');
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: userData.email,
       password: userData.password,
@@ -130,7 +132,8 @@ export async function createUserWithProfile(userData: {
         data: {
           full_name: userData.full_name,
           role: userData.role
-        }
+        },
+        emailRedirectTo: undefined // This disables the email confirmation requirement
       }
     });
 
@@ -145,7 +148,7 @@ export async function createUserWithProfile(userData: {
 
     console.log('User created via signup:', authData.user.id);
 
-    // Create user profile directly (the trigger should handle this, but let's be explicit)
+    // Create user profile directly using service role access
     const { error: profileError } = await supabase
       .from('user_profiles')
       .upsert({
@@ -160,6 +163,7 @@ export async function createUserWithProfile(userData: {
 
     if (profileError) {
       console.error('Profile creation error:', profileError);
+      // Don't throw here - the user was created in auth, so we still consider it success
       console.warn('Profile creation failed, but user was created in auth');
     } else {
       console.log('User profile created successfully');

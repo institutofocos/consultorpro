@@ -23,6 +23,7 @@ interface User {
   created_at: string;
   last_login?: string;
   is_active?: boolean;
+  email_confirmed?: boolean;
 }
 
 interface NewUser {
@@ -63,60 +64,49 @@ const UserManagement: React.FC = () => {
   const loadUsers = async () => {
     try {
       setIsLoading(true);
-      console.log('Loading users...');
+      console.log('Loading users from profiles and auth...');
 
-      // Load user profiles directly - RLS policies will handle permissions
+      // First, try to load user profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
+      // Also get auth users to check email confirmation status
+      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+
       if (profilesError) {
         console.error('Error loading user profiles:', profilesError);
-        
-        // Check if it's an RLS or recursion error
-        if (profilesError.message.includes('infinite recursion') || 
-            profilesError.message.includes('policy')) {
-          toast.error('Erro nas políticas de segurança. Tentando novamente...');
-          
-          // Log detailed error
-          console.error('RLS Policy Error Details:', {
-            message: profilesError.message,
-            code: profilesError.code,
-            hint: profilesError.hint
-          });
-          
-          // Try to reload after a short delay
-          setTimeout(() => {
-            console.log('Retrying to load users after RLS error...');
-            loadUsers();
-          }, 3000);
-          
-          return;
-        }
-        
-        toast.error(`Erro ao carregar usuários: ${profilesError.message}`);
+        toast.error(`Erro ao carregar perfis: ${profilesError.message}`);
         return;
       }
 
       console.log('User profiles loaded:', profiles?.length || 0);
+      console.log('Auth users loaded:', authUsers?.users?.length || 0);
 
-      const allUsers: User[] = profiles?.map(profile => ({
-        id: profile.id,
-        full_name: profile.full_name || 'Nome não informado',
-        role: profile.role || 'client',
-        email: profile.email || undefined,
-        phone: profile.phone || undefined,
-        created_at: profile.created_at,
-        last_login: profile.last_login || undefined,
-        is_active: profile.is_active !== false
-      })) || [];
+      // Combine profile data with auth data
+      const allUsers: User[] = profiles?.map(profile => {
+        const authUser = authUsers?.users?.find(au => au.id === profile.id);
+        return {
+          id: profile.id,
+          full_name: profile.full_name || 'Nome não informado',
+          role: profile.role || 'client',
+          email: profile.email || undefined,
+          phone: profile.phone || undefined,
+          created_at: profile.created_at,
+          last_login: profile.last_login || undefined,
+          is_active: profile.is_active !== false,
+          email_confirmed: authUser?.email_confirmed_at ? true : false
+        };
+      }) || [];
 
       console.log('All users processed:', allUsers.length);
       setUsers(allUsers);
       
       if (allUsers.length === 0) {
         toast.info('Nenhum usuário encontrado no sistema.');
+      } else {
+        toast.success(`${allUsers.length} usuário(s) carregado(s) com sucesso!`);
       }
     } catch (error: any) {
       console.error('Error loading users:', error);
@@ -215,12 +205,14 @@ const UserManagement: React.FC = () => {
     return roleConfig?.label || role;
   };
 
-  const getStatusBadge = (isActive?: boolean) => {
-    return isActive !== false ? (
-      <Badge variant="default" className="text-xs">Ativo</Badge>
-    ) : (
-      <Badge variant="secondary" className="text-xs">Inativo</Badge>
-    );
+  const getStatusBadge = (isActive?: boolean, emailConfirmed?: boolean) => {
+    if (isActive === false) {
+      return <Badge variant="secondary" className="text-xs">Inativo</Badge>;
+    }
+    if (!emailConfirmed) {
+      return <Badge variant="outline" className="text-xs text-orange-600">Pendente Email</Badge>;
+    }
+    return <Badge variant="default" className="text-xs">Ativo</Badge>;
   };
 
   return (
@@ -377,7 +369,7 @@ const UserManagement: React.FC = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {getStatusBadge(user.is_active)}
+                      {getStatusBadge(user.is_active, user.email_confirmed)}
                     </TableCell>
                     <TableCell>{new Date(user.created_at).toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell>{user.last_login ? new Date(user.last_login).toLocaleDateString('pt-BR') : '-'}</TableCell>
