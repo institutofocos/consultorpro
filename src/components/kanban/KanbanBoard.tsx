@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -278,7 +279,7 @@ const KanbanBoard: React.FC = () => {
     // Etapas com status 'iniciar_projeto' ou etapas que não foram iniciadas
     return stage.status === 'iniciar_projeto' || 
            (!stage.status) ||
-           (!stage.start_date && !stage.completed);
+           (!stage.startDate && !stage.completed);
   };
 
   const getProjectsByStatus = (status: string) => {
