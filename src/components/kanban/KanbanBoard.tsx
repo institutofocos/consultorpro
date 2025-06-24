@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -271,24 +270,32 @@ const KanbanBoard: React.FC = () => {
   };
 
   const getStagesByStatus = (status: string) => {
-    const allStages: (Stage & { projectName?: string; clientName?: string })[] = [];
+    const allStages: (Stage & { projectName?: string; clientName?: string; consultantName?: string })[] = [];
     
     projects.forEach(project => {
       if (project.stages) {
         project.stages.forEach(stage => {
           const stageStatus = stage.status || 'iniciar_projeto';
           if (stageStatus === status) {
+            // Buscar o nome do consultor responsável pela etapa
+            let consultantName = '';
+            if (stage.consultant_id) {
+              const consultant = consultants.find(c => c.id === stage.consultant_id);
+              consultantName = consultant?.name || '';
+            }
+
             allStages.push({
               ...stage,
               projectName: project.name,
-              clientName: project.clientName
+              clientName: project.clientName,
+              consultantName: consultantName
             });
           }
         });
       }
     });
     
-    console.log(`Etapas com status ${status}:`, allStages.map(s => `${s.name} (${s.projectName})`));
+    console.log(`Etapas com status ${status}:`, allStages.map(s => `${s.name} (${s.projectName}) - Consultor: ${s.consultantName}`));
     return allStages;
   };
 
