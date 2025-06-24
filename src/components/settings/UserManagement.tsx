@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Users, Plus, Edit2, RefreshCw } from "lucide-react";
+import { Users, Plus, Edit2, RefreshCw, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { createUserWithProfile } from "@/services/auth";
 import UserEditModal from './UserEditModal';
@@ -66,7 +66,6 @@ const UserManagement: React.FC = () => {
       setIsLoading(true);
       console.log('Loading users...');
 
-      // Load user profiles from the database with better error handling
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
         .select('*')
@@ -74,15 +73,7 @@ const UserManagement: React.FC = () => {
 
       if (profilesError) {
         console.error('Error loading user profiles:', profilesError);
-        
-        // Show more specific error messages
-        if (profilesError.code === 'PGRST301') {
-          toast.error('Erro de permissão ao carregar usuários. Verifique as configurações de segurança.');
-        } else if (profilesError.code === '42P01') {
-          toast.error('Tabela de usuários não encontrada. Verifique a configuração do banco de dados.');
-        } else {
-          toast.error(`Erro ao carregar usuários: ${profilesError.message}`);
-        }
+        toast.error(`Erro ao carregar usuários: ${profilesError.message}`);
         return;
       }
 
@@ -156,23 +147,33 @@ const UserManagement: React.FC = () => {
         permissions: []
       });
       
-      await loadUsers();
+      // Aguardar um pouco para garantir que o usuário foi salvo no banco
+      setTimeout(() => {
+        loadUsers();
+      }, 1000);
+      
     } catch (error: any) {
       console.error('Error creating user:', error);
       
-      // Handle specific errors
-      if (error?.message?.includes('already registered') || error?.message?.includes('User already registered')) {
-        toast.error('Este email já está cadastrado no sistema');
-      } else if (error?.message?.includes('Password should be at least')) {
-        toast.error('A senha deve ter pelo menos 6 caracteres');
-      } else if (error?.message?.includes('Invalid email')) {
-        toast.error('Email inválido');
-      } else if (error?.message?.includes('duplicate key value')) {
-        toast.error('Usuário já existe no sistema');
-      } else {
-        const errorMessage = error?.message || 'Erro desconhecido ao criar usuário';
-        toast.error(`Erro ao criar usuário: ${errorMessage}`);
+      let errorMessage = 'Erro desconhecido ao criar usuário';
+      
+      if (error?.message) {
+        if (error.message.includes('already registered') || error.message.includes('User already registered')) {
+          errorMessage = 'Este email já está cadastrado no sistema';
+        } else if (error.message.includes('Password should be at least')) {
+          errorMessage = 'A senha deve ter pelo menos 6 caracteres';
+        } else if (error.message.includes('Invalid email')) {
+          errorMessage = 'Email inválido';
+        } else if (error.message.includes('duplicate key value')) {
+          errorMessage = 'Usuário já existe no sistema';
+        } else if (error.message.includes('rate_limit')) {
+          errorMessage = 'Muitas tentativas. Aguarde alguns minutos e tente novamente';
+        } else {
+          errorMessage = error.message;
+        }
       }
+      
+      toast.error(`Erro ao criar usuário: ${errorMessage}`);
     } finally {
       setIsCreatingUser(false);
     }
@@ -230,6 +231,17 @@ const UserManagement: React.FC = () => {
                 <DialogTitle>Criar Novo Usuário</DialogTitle>
               </DialogHeader>
               <div className="space-y-6 max-h-[70vh] overflow-y-auto">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-center gap-2 text-blue-800">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span className="font-medium">Informação Importante</span>
+                  </div>
+                  <p className="text-blue-700 text-sm mt-1">
+                    O usuário receberá um email de confirmação para ativar a conta. 
+                    Certifique-se de que o email esteja correto.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="new_full_name">Nome Completo *</Label>

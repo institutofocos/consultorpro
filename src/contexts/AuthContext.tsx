@@ -22,47 +22,70 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Create a default admin user to bypass login
-  const defaultUser: AuthUser = {
-    id: 'default-admin-id',
-    email: 'admin@example.com',
-    profile: {
-      id: 'default-admin-id',
-      full_name: 'Admin User',
-      role: 'admin',
-      created_at: new Date(),
-      updated_at: new Date()
-    },
-    permissions: [
-      // Add permissions for all modules
-      ...['dashboard', 'consultants', 'clients', 'projects', 'services', 
-          'tags', 'kpis', 'okrs', 'financial', 'activities', 
-          'notes', 'chat', 'reports', 'settings', 'demands'].map(module => ({
-        id: `${module}-permission`,
-        user_id: 'default-admin-id',
-        module_name: module,
-        can_view: true,
-        can_edit: true,
-        created_at: new Date(),
-        updated_at: new Date()
-      }))
-    ]
-  };
-  
-  const [user, setUser] = useState<AuthUser | null>(defaultUser);
-  const [loading, setLoading] = useState(false); // Set loading to false immediately
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const refreshUser = async () => {
-    // In bypass mode, always return the default user
-    return defaultUser;
+    try {
+      const currentUser = await getCurrentUser();
+      setUser(currentUser);
+      return currentUser;
+    } catch (error) {
+      console.error('Error refreshing user:', error);
+      setUser(null);
+      return null;
+    }
   };
 
-  // No need to listen for auth state changes or load user data
-  // We're bypassing authentication entirely
+  useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
+        
+        if (session?.user) {
+          // User is signed in, fetch their profile
+          setTimeout(async () => {
+            try {
+              const currentUser = await getCurrentUser();
+              setUser(currentUser);
+            } catch (error) {
+              console.error('Error getting current user:', error);
+              setUser(null);
+            } finally {
+              setLoading(false);
+            }
+          }, 0);
+        } else {
+          // User is signed out
+          setUser(null);
+          setLoading(false);
+        }
+      }
+    );
+
+    // Get initial session
+    const getInitialSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const currentUser = await getCurrentUser();
+          setUser(currentUser);
+        }
+      } catch (error) {
+        console.error('Error getting initial session:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getInitialSession();
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const checkPermission = (moduleName: string, actionType: 'view' | 'edit'): boolean => {
-    // In bypass mode, all permissions are granted
-    return true;
+    return hasPermission(user, moduleName, actionType);
   };
 
   return (
