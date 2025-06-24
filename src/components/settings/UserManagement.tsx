@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -66,15 +65,7 @@ const UserManagement: React.FC = () => {
       setIsLoading(true);
       console.log('Loading users...');
 
-      // Usar função is_admin() para verificar se pode carregar todos os usuários
-      const { data: canViewAll, error: permError } = await supabase
-        .rpc('is_admin');
-
-      if (permError) {
-        console.warn('Could not check admin permissions:', permError);
-      }
-
-      // Tentar carregar perfis de usuários com tratamento de erro específico para RLS
+      // Load user profiles directly - RLS policies will handle permissions
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
         .select('*')
@@ -83,21 +74,21 @@ const UserManagement: React.FC = () => {
       if (profilesError) {
         console.error('Error loading user profiles:', profilesError);
         
-        // Verificar se é erro de RLS ou recursão infinita
+        // Check if it's an RLS or recursion error
         if (profilesError.message.includes('infinite recursion') || 
             profilesError.message.includes('policy')) {
-          toast.error('Erro nas políticas de segurança. Verifique as configurações RLS.');
+          toast.error('Erro nas políticas de segurança. Tentando novamente...');
           
-          // Log detalhado do erro
+          // Log detailed error
           console.error('RLS Policy Error Details:', {
             message: profilesError.message,
             code: profilesError.code,
             hint: profilesError.hint
           });
           
-          // Tentar recarregar após um tempo
+          // Try to reload after a short delay
           setTimeout(() => {
-            console.log('Tentando recarregar usuários após erro RLS...');
+            console.log('Retrying to load users after RLS error...');
             loadUsers();
           }, 3000);
           
@@ -178,7 +169,7 @@ const UserManagement: React.FC = () => {
         permissions: []
       });
       
-      // Aguardar um pouco para garantir que o usuário foi salvo no banco
+      // Wait a moment to ensure user is saved to database
       setTimeout(() => {
         loadUsers();
       }, 1000);
