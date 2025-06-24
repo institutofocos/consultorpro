@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -271,7 +270,7 @@ const KanbanBoard: React.FC = () => {
            project.status === 'planned' || 
            (!project.status) ||
            (project.stages && project.stages.length > 0 && 
-            project.stages.every(stage => !stage.completed && !stage.start_date));
+            project.stages.every(stage => !stage.completed && !stage.startDate));
   };
 
   // Função para verificar se uma etapa deve aparecer na coluna "Iniciar Projeto"
