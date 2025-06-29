@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, AlertCircle } from "lucide-react";
 
 interface Project {
   id: string;
@@ -25,6 +25,7 @@ interface Stage {
 
 interface PriorityTablesProps {
   projectsToDeliver: Project[];
+  overdueProjects?: Project[];
   stagesToDeliver: Stage[];
   overdueStages: Stage[];
   formatDate: (dateString: string) => string;
@@ -33,6 +34,7 @@ interface PriorityTablesProps {
 
 export const PriorityTables: React.FC<PriorityTablesProps> = ({
   projectsToDeliver,
+  overdueProjects = [],
   stagesToDeliver,
   overdueStages,
   formatDate,
@@ -102,6 +104,40 @@ export const PriorityTables: React.FC<PriorityTablesProps> = ({
           </CardContent>
         </Card>
       </div>
+      
+      {/* Projetos Atrasados */}
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-orange-500" />
+            Projetos Atrasados ({overdueProjects.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="max-h-64 overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Projeto</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Valor</TableHead>
+                  <TableHead>Vencimento</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {overdueProjects.slice(0, 15).map((project) => (
+                  <TableRow key={project.id} className="text-orange-600">
+                    <TableCell className="font-medium">{project.name}</TableCell>
+                    <TableCell>{project.clientName || 'N/A'}</TableCell>
+                    <TableCell>{formatCurrency(project.totalValue || 0)}</TableCell>
+                    <TableCell className="font-medium">{formatDate(project.endDate || '')}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
       
       {/* Etapas Atrasadas */}
       <Card className="shadow-card">

@@ -53,6 +53,7 @@ export const Dashboard: React.FC = () => {
   const [services, setServices] = useState([]);
   const [projects, setProjects] = useState([]);
   const [projectsToDeliver, setProjectsToDeliver] = useState([]);
+  const [overdueProjects, setOverdueProjects] = useState([]);
   const [stagesToDeliver, setStagesToDeliver] = useState([]);
   const [overdueStages, setOverdueStages] = useState([]);
   const [openStages, setOpenStages] = useState([]);
@@ -131,11 +132,20 @@ export const Dashboard: React.FC = () => {
         setProjectsToDeliver(projectsToDeliverList);
         console.log('Projetos a serem entregues:', projectsToDeliverList.length);
         
+        // Calculate overdue projects (projetos atrasados)
+        const today = new Date();
+        const overdueProjectsList = projectsData?.filter(project => 
+          project.endDate && 
+          !finalCompletionStatuses.includes(project.status) &&
+          isBefore(new Date(project.endDate), today)
+        ) || [];
+        setOverdueProjects(overdueProjectsList);
+        console.log('Projetos atrasados:', overdueProjectsList.length);
+        
         // Calculate stages to deliver (etapas não concluídas)
         const allStages = [];
         const stagesToDeliverList = [];
         const overdueStagesList = [];
-        const today = new Date();
         
         projectsData?.forEach(project => {
           if (project.stages) {
@@ -468,12 +478,18 @@ export const Dashboard: React.FC = () => {
       />
       
       {/* Main Priority Cards - Projetos e Etapas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           title="Projetos a Serem Entregues" 
           value={projectsToDeliver.length.toString()} 
           icon={<Briefcase size={24} className="text-white" />} 
           color="bg-blue-500"
+        />
+        <StatCard 
+          title="Projetos Atrasados" 
+          value={overdueProjects.length.toString()} 
+          icon={<AlertCircle size={24} className="text-white" />} 
+          color="bg-orange-500"
         />
         <StatCard 
           title="Etapas a Serem Entregues" 
@@ -559,13 +575,6 @@ export const Dashboard: React.FC = () => {
           color="bg-green-500"
         />
       </div>
-      
-      {/* Open and Completed Stages */}
-      <StagesTables
-        openStages={openStages}
-        completedStages={completedStages}
-        formatCurrency={formatCurrency}
-      />
       
       {/* Top Consultants and Services */}
       <TopPerformers
