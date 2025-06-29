@@ -48,7 +48,7 @@ const ReportsGantt: React.FC = () => {
     const fetchGanttData = async () => {
       try {
         setLoading(true);
-        console.log('=== INICIANDO BUSCA DE DADOS GANTT (LÓGICA EXATA DO DASHBOARD) ===');
+        console.log('=== INICIANDO BUSCA DE DADOS GANTT (DEBUG DETALHADO) ===');
         
         // Fetch consultants
         const { data: consultantsData } = await supabase
@@ -61,65 +61,104 @@ const ReportsGantt: React.FC = () => {
           console.log('Consultores carregados:', consultantsData.length);
         }
 
-        // Buscar dados dos projetos usando a MESMA função do Dashboard
+        // Buscar dados dos projetos
+        console.log('Buscando projetos...');
         const projectsData = await fetchProjects();
-        console.log('Projetos carregados (MESMA FONTE DO DASHBOARD):', projectsData?.length || 0);
+        console.log('Projetos retornados pela fetchProjects:', projectsData?.length || 0);
+        
+        if (projectsData) {
+          console.log('Primeiros 3 projetos para debug:', projectsData.slice(0, 3).map(p => ({
+            id: p.id,
+            name: p.name,
+            status: p.status,
+            endDate: p.endDate,
+            stages: p.stages?.length || 0
+          })));
+        }
 
         if (projectsData && statuses.length > 0) {
-          // USAR A MESMA LÓGICA DO DASHBOARD PARA CALCULAR VALORES
+          console.log('Status configurados:', statuses.map(s => ({ name: s.name, is_completion: s.is_completion_status })));
           
-          // Determinar status de conclusão EXATAMENTE como no Dashboard
+          // Determinar status de conclusão
           const completionStatuses = statuses
             .filter(s => s.is_completion_status)
             .map(s => s.name);
           
-          // Se não há status de conclusão configurados, usar 'concluido' como fallback - IGUAL AO DASHBOARD
           const finalCompletionStatuses = completionStatuses.length > 0 
             ? completionStatuses 
             : ['concluido', 'completed', 'finalizados'];
           
-          console.log('Status de conclusão (IGUAL DASHBOARD):', finalCompletionStatuses);
+          console.log('Status de conclusão finais:', finalCompletionStatuses);
           
           const today = new Date();
           today.setHours(0, 0, 0, 0);
+          console.log('Data de hoje (zerada):', today.toISOString());
           
-          // PROJETOS ATRASADOS - USAR EXATAMENTE A MESMA LÓGICA DO DASHBOARD
-          const overdueProjectsList = projectsData.filter(project => 
-            project.endDate && 
-            !finalCompletionStatuses.includes(project.status) &&
-            isBefore(new Date(project.endDate), today)
-          );
+          // PROJETOS ATRASADOS - DEBUG DETALHADO
+          console.log('=== CALCULANDO PROJETOS ATRASADOS ===');
+          let overdueProjectsCount = 0;
           
-          const overdueProjectsCount = overdueProjectsList.length;
-          console.log('Projetos em atraso calculados:', overdueProjectsCount);
+          projectsData.forEach((project, index) => {
+            if (project.endDate) {
+              const projectEndDate = new Date(project.endDate);
+              projectEndDate.setHours(0, 0, 0, 0);
+              
+              const isOverdue = isBefore(projectEndDate, today);
+              const isNotCompleted = !finalCompletionStatuses.includes(project.status);
+              
+              console.log(`Projeto ${index + 1}: ${project.name}`);
+              console.log(`  - Status: ${project.status}`);
+              console.log(`  - Data fim: ${project.endDate} (${projectEndDate.toISOString()})`);
+              console.log(`  - É antes de hoje? ${isOverdue}`);
+              console.log(`  - Não está concluído? ${isNotCompleted}`);
+              console.log(`  - É atrasado? ${isOverdue && isNotCompleted}`);
+              
+              if (isOverdue && isNotCompleted) {
+                overdueProjectsCount++;
+                console.log(`  *** PROJETO ATRASADO ENCONTRADO! Total atual: ${overdueProjectsCount}`);
+              }
+            } else {
+              console.log(`Projeto sem data fim: ${project.name}`);
+            }
+          });
           
-          // ETAPAS ATRASADAS - PROCESSAR TODAS AS ETAPAS DE TODOS OS PROJETOS
+          console.log(`TOTAL DE PROJETOS ATRASADOS: ${overdueProjectsCount}`);
+          
+          // ETAPAS ATRASADAS - DEBUG DETALHADO
+          console.log('=== CALCULANDO ETAPAS ATRASADAS ===');
           let overdueStagesCount = 0;
           const allTasks: Task[] = [];
           
-          projectsData.forEach(project => {
+          projectsData.forEach((project, projectIndex) => {
+            console.log(`Processando etapas do projeto ${projectIndex + 1}: ${project.name}`);
+            console.log(`  - Número de etapas: ${project.stages?.length || 0}`);
+            
             if (project.stages && project.stages.length > 0) {
-              project.stages.forEach(stage => {
-                // Verificar se etapa está atrasada usando MESMA LÓGICA DO DASHBOARD
+              project.stages.forEach((stage, stageIndex) => {
+                console.log(`  Etapa ${stageIndex + 1}: ${stage.name}`);
+                console.log(`    - Status: ${stage.status || 'iniciar_projeto'}`);
+                console.log(`    - Data fim: ${stage.endDate}`);
+                console.log(`    - Completed: ${stage.completed}`);
+                
                 if (stage.endDate) {
                   const stageEndDate = new Date(stage.endDate);
                   stageEndDate.setHours(0, 0, 0, 0);
                   
-                  const isNotCompleted = !finalCompletionStatuses.includes(stage.status || 'iniciar_projeto') && 
-                                        (stage.status || 'iniciar_projeto') !== 'cancelado' && 
-                                        (stage.status || 'iniciar_projeto') !== 'cancelled';
-                  
+                  const isStageOverdue = isBefore(stageEndDate, today);
+                  const stageStatus = stage.status || 'iniciar_projeto';
+                  const isStageNotCompleted = !finalCompletionStatuses.includes(stageStatus) && 
+                                              stageStatus !== 'cancelado' && 
+                                              stageStatus !== 'cancelled';
                   const stageNotCompleted = stage.completed !== undefined ? !stage.completed : true;
                   
-                  if (isBefore(stageEndDate, today) && isNotCompleted && stageNotCompleted) {
+                  console.log(`    - É antes de hoje? ${isStageOverdue}`);
+                  console.log(`    - Status não é conclusão? ${isStageNotCompleted}`);
+                  console.log(`    - Não está marcada como completa? ${stageNotCompleted}`);
+                  console.log(`    - É etapa atrasada? ${isStageOverdue && isStageNotCompleted && stageNotCompleted}`);
+                  
+                  if (isStageOverdue && isStageNotCompleted && stageNotCompleted) {
                     overdueStagesCount++;
-                    console.log('Etapa em atraso encontrada:', {
-                      stageName: stage.name,
-                      endDate: stage.endDate,
-                      status: stage.status,
-                      completed: stage.completed,
-                      projectName: project.name
-                    });
+                    console.log(`    *** ETAPA ATRASADA ENCONTRADA! Total atual: ${overdueStagesCount}`);
                   }
                 }
                 
@@ -156,14 +195,19 @@ const ReportsGantt: React.FC = () => {
             }
           });
 
-          console.log('=== RESULTADOS FINAIS (LÓGICA EXATA DO DASHBOARD) ===');
+          console.log('=== RESULTADOS FINAIS ===');
           console.log('Projetos em atraso:', overdueProjectsCount);
           console.log('Etapas em atraso:', overdueStagesCount);
           console.log('Total de tasks criadas:', allTasks.length);
           
+          // Force update states
+          console.log('Atualizando estados...');
           setTasks(allTasks);
           setOverdueProjects(overdueProjectsCount);
           setOverdueStages(overdueStagesCount);
+          console.log('Estados atualizados!');
+        } else {
+          console.log('Dados não disponíveis:', { projectsData: !!projectsData, statusesLength: statuses.length });
         }
 
       } catch (error) {
@@ -185,7 +229,7 @@ const ReportsGantt: React.FC = () => {
 
   // Debug effect to monitor state changes
   useEffect(() => {
-    console.log('=== ESTADO FINAL DO GANTT ===');
+    console.log('=== MUDANÇA DE ESTADO ===');
     console.log('Projetos em atraso (state):', overdueProjects);
     console.log('Etapas em atraso (state):', overdueStages);
     console.log('Loading:', loading);
@@ -230,6 +274,20 @@ const ReportsGantt: React.FC = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Debug Info - Temporary */}
+      <Card className="border-orange-200 bg-orange-50">
+        <CardContent className="p-4">
+          <div className="text-sm">
+            <strong>Debug Info:</strong><br/>
+            Projetos atrasados: {overdueProjects}<br/>
+            Etapas atrasadas: {overdueStages}<br/>
+            Total de tasks: {tasks.length}<br/>
+            Status configurados: {statuses.length}<br/>
+            Loading: {loading ? 'Sim' : 'Não'}
           </div>
         </CardContent>
       </Card>
