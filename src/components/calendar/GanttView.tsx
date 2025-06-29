@@ -33,9 +33,16 @@ interface Task {
 interface GanttViewProps {
   tasks: Task[];
   selectedConsultantId: string;
+  overdueProjects?: number;
+  overdueStages?: number;
 }
 
-const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) => {
+const GanttView: React.FC<GanttViewProps> = ({ 
+  tasks, 
+  selectedConsultantId, 
+  overdueProjects = 0, 
+  overdueStages = 0 
+}) => {
   const [viewStartDate, setViewStartDate] = useState<Date>(() => startOfWeek(new Date()));
   const [timelineWeeks, setTimelineWeeks] = useState(8); // 8 weeks view
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
@@ -55,7 +62,7 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
 
   const timeline = generateTimeline();
 
-  // UPDATED: Function to check if an item is overdue - EXACTLY matching dashboard logic
+  // Function to check if an item is overdue - for visual styling only
   const isOverdue = (endDate: string, status: string, completed?: boolean) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -198,74 +205,6 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
         return acc;
       }, {} as typeof groupedTasks)
     : groupedTasks;
-
-  // UPDATED: Calculate overdue counts to EXACTLY match dashboard logic
-  const calculateOverdueCounts = () => {
-    console.log('=== CALCULANDO CONTADORES DE ATRASO NO GANTT ===');
-    
-    // Create a set to track unique overdue projects (to avoid counting same project multiple times)
-    const overdueProjectIds = new Set<string>();
-    let overdueStages = 0;
-    
-    // Get all unique projects first to check project-level overdue status
-    const allProjects = new Map<string, { endDate: string; status: string; name: string }>();
-    
-    // First pass: collect project information
-    Object.entries(filteredGroupedTasks).forEach(([projectId, projectData]) => {
-      // For project overdue calculation, we need to determine the project's end date and status
-      // We'll use the latest end date among all tasks and check if any task makes the project overdue
-      if (projectData.tasks.length > 0) {
-        const latestEndDate = projectData.tasks.reduce((latest, task) => {
-          return new Date(task.end_date) > new Date(latest) ? task.end_date : latest;
-        }, projectData.tasks[0].end_date);
-        
-        // For project status, we'll consider it overdue if it has any overdue tasks
-        // This matches the dashboard logic where projects are overdue based on their tasks
-        allProjects.set(projectId, {
-          endDate: latestEndDate,
-          status: 'em_producao', // We'll determine overdue status based on tasks
-          name: projectData.project_name
-        });
-      }
-    });
-    
-    // Second pass: count overdue stages and determine overdue projects
-    Object.entries(filteredGroupedTasks).forEach(([projectId, projectData]) => {
-      let projectHasOverdueStages = false;
-      
-      projectData.tasks.forEach(task => {
-        // Check if this stage/task is overdue
-        if (isOverdue(task.end_date, task.status, task.completed)) {
-          overdueStages++;
-          projectHasOverdueStages = true;
-          console.log('Etapa em atraso encontrada:', {
-            taskName: task.name,
-            endDate: task.end_date,
-            status: task.status,
-            completed: task.completed,
-            projectName: task.project_name
-          });
-        }
-      });
-      
-      // If project has overdue stages, add it to overdue projects
-      if (projectHasOverdueStages) {
-        overdueProjectIds.add(projectId);
-        console.log('Projeto em atraso:', projectData.project_name);
-      }
-    });
-    
-    const overdueProjects = overdueProjectIds.size;
-    
-    console.log('=== RESULTADOS FINAIS GANTT ===');
-    console.log('Projetos em atraso:', overdueProjects);
-    console.log('Etapas em atraso:', overdueStages);
-    console.log('IDs dos projetos em atraso:', Array.from(overdueProjectIds));
-    
-    return { overdueProjects, overdueStages };
-  };
-
-  const { overdueProjects, overdueStages } = calculateOverdueCounts();
 
   return (
     <div className="space-y-4">
