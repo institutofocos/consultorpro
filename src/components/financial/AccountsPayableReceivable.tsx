@@ -1,234 +1,306 @@
-
 import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from 'sonner';
-import { cn } from "@/lib/utils";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { 
-  CheckCircle, 
-  XCircle, 
-  RefreshCw, 
-  Calendar, 
-  ChevronLeft, 
-  ChevronRight, 
-  Eye,
-  RotateCcw
-} from "lucide-react";
+import { cn } from "@/lib/utils";
 import { 
   AccountsPayable, 
-  AccountsReceivable,
+  AccountsReceivable, 
+  updateAccountsReceivableStatus, 
   updateAccountsPayableStatus,
-  updateAccountsReceivableStatus,
-  deleteAccountsPayable,
-  deleteAccountsReceivable,
-  cancelAccountsPayable,
   cancelAccountsReceivable,
-  reactivateAccountsPayable,
+  cancelAccountsPayable,
+  deleteAccountsReceivable,
+  deleteAccountsPayable,
   reactivateAccountsReceivable,
+  reactivateAccountsPayable,
+  fetchAccountsHistory,
   fetchAccountsPayable,
-  fetchAccountsReceivable,
-  FinancialFilter
-} from "@/integrations/supabase/financial";
+  fetchAccountsReceivable
+} from '@/integrations/supabase/financial';
+import { CalendarIcon, CheckCircle, CreditCard, X, History, Trash2, RotateCcw, Undo } from 'lucide-react';
+import { toast } from 'sonner';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import MonthNavigation from "./MonthNavigation";
 import FinancialHistoryModal from "./FinancialHistoryModal";
 
 interface AccountsPayableReceivableProps {
   payables: {
-    data: AccountsPayable[] | undefined;
+    data: AccountsPayable[] | null;
     isLoading: boolean;
   };
   receivables: {
-    data: AccountsReceivable[] | undefined;
+    data: AccountsReceivable[] | null;
     isLoading: boolean;
   };
-  filters?: FinancialFilter;
+  currentMonth: Date;
+  onMonthChange: (date: Date) => void;
 }
 
 const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({ 
   payables, 
-  receivables,
-  filters = {}
+  receivables, 
+  currentMonth, 
+  onMonthChange 
 }) => {
   const queryClient = useQueryClient();
+  const [selectedReceivable, setSelectedReceivable] = useState<string | null>(null);
+  const [selectedPayable, setSelectedPayable] = useState<string | null>(null);
+  const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
+  const [isMarkingReceived, setIsMarkingReceived] = useState(false);
+  const [isMarkingPaid, setIsMarkingPaid] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showReactivateModal, setShowReactivateModal] = useState(false);
+  const [showUndoModal, setShowUndoModal] = useState(false);
+  const [deletePin, setDeletePin] = useState('');
+  const [reactivatePin, setReactivatePin] = useState('');
+  const [undoPin, setUndoPin] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'payable' | 'receivable' } | null>(null);
+  const [reactivateTarget, setReactivateTarget] = useState<{ id: string; type: 'payable' | 'receivable' } | null>(null);
+  const [undoTarget, setUndoTarget] = useState<{ id: string; type: 'payable' | 'receivable'; currentStatus: string } | null>(null);
+  const [activeTab, setActiveTab] = useState('payable');
   const [showAllTransactions, setShowAllTransactions] = useState(false);
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [highlightTransactionId, setHighlightTransactionId] = useState<string | null>(null);
 
-  // Buscar todas as transações quando o toggle está ativo (ignorando filtros)
+  // Fetch all transactions when "Todos Lançamentos" is enabled
   const { data: allPayables, isLoading: allPayablesLoading } = useQuery({
-    queryKey: ['accounts-payable-all'],
+    queryKey: ['all-accounts-payable'],
     queryFn: () => fetchAccountsPayable({}), // No filters to get all data
     enabled: showAllTransactions,
   });
 
   const { data: allReceivables, isLoading: allReceivablesLoading } = useQuery({
-    queryKey: ['accounts-receivable-all'],
+    queryKey: ['all-accounts-receivable'],
     queryFn: () => fetchAccountsReceivable({}), // No filters to get all data
     enabled: showAllTransactions,
   });
 
-  // Function to check if a transaction is overdue
-  const isOverdue = (dueDate: string, status: string) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
-    
-    const due = new Date(dueDate);
-    due.setHours(0, 0, 0, 0);
-    
-    // Check if due date is before today and status is not completed
-    return due < today && status === 'pending';
-  };
-
   // Verificar se há uma transação para destacar quando o componente carregar
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const transactionId = urlParams.get('highlight');
-    const transactionType = urlParams.get('type');
-    
-    if (transactionId && transactionType) {
-      setHighlightTransactionId(transactionId);
-      
-      // Scroll para a transação após um delay para garantir que a tabela foi renderizada
-      setTimeout(() => {
-        const element = document.querySelector(`[data-transaction-id="${transactionId}"]`);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          
-          // Remover o highlight após alguns segundos
-          setTimeout(() => {
-            setHighlightTransactionId(null);
-            // Limpar a URL
-            const newUrl = window.location.pathname;
-            window.history.replaceState({}, '', newUrl);
-          }, 3000);
+    const highlightData = sessionStorage.getItem('highlightTransaction');
+    if (highlightData) {
+      try {
+        const transactionToHighlight = JSON.parse(highlightData);
+        console.log('🎯 Dados da transação para destacar:', transactionToHighlight);
+
+        // Se há um mês específico para navegar, mudar o mês primeiro
+        if (transactionToHighlight.targetMonth) {
+          const targetDate = new Date(transactionToHighlight.targetMonth);
+          console.log('📅 Navegando para o mês:', format(targetDate, 'MMMM/yyyy', { locale: ptBR }));
+          onMonthChange(targetDate);
         }
-      }, 500);
+
+        // Definir a tab correta
+        const correctTab = transactionToHighlight.type === 'receivable' ? 'receivable' : 'payable';
+        setActiveTab(correctTab);
+
+        // Aguardar a renderização e carregamento dos dados
+        setTimeout(() => {
+          highlightTransactionRow(transactionToHighlight);
+        }, 2000); // Aumentar o tempo para permitir o carregamento dos dados
+
+        // Limpar o sessionStorage após usar
+        sessionStorage.removeItem('highlightTransaction');
+      } catch (error) {
+        console.error('Erro ao processar dados de destaque:', error);
+      }
     }
-  }, [payables.data, receivables.data]);
+  }, [payables.data, receivables.data, onMonthChange]);
+
+  const highlightTransactionRow = (transactionData: any) => {
+    console.log('🔍 Procurando transação para destacar:', transactionData);
+    
+    // Aguardar um pouco mais para garantir que os dados foram carregados
+    const findAndHighlight = () => {
+      const transactionRows = document.querySelectorAll(`[data-transaction-type="${transactionData.type}"]`);
+      let targetRow = null;
+
+      console.log(`🔍 Encontradas ${transactionRows.length} linhas do tipo ${transactionData.type}`);
+
+      transactionRows.forEach(row => {
+        const rowElement = row as HTMLElement;
+        const rowId = rowElement.getAttribute('data-transaction-id');
+        const rowDueDate = rowElement.getAttribute('data-due-date');
+        const rowText = rowElement.textContent || '';
+
+        console.log('🔍 Verificando linha:', {
+          rowId,
+          rowDueDate,
+          targetId: transactionData.id,
+          targetDueDate: transactionData.dueDate,
+          descriptionMatch: rowText.includes(transactionData.description?.substring(0, 20) || '')
+        });
+
+        // Comparar por ID, data de vencimento e parte da descrição
+        if (rowId === transactionData.id || 
+            (rowDueDate === transactionData.dueDate && 
+             rowText.includes(transactionData.description?.substring(0, 20) || '')) ||
+            (rowText.includes(transactionData.entityName || '') && 
+             rowDueDate === transactionData.dueDate)) {
+          targetRow = rowElement;
+          console.log('✅ Linha encontrada para destaque!');
+        }
+      });
+
+      if (targetRow) {
+        // Fazer scroll até a linha
+        targetRow.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+
+        // Adicionar destaque à linha
+        targetRow.classList.add('bg-blue-100', 'border-2', 'border-blue-500', 'shadow-lg', 'transition-all', 'duration-300');
+        
+        // Remover o destaque após 8 segundos (mais tempo para o usuário ver)
+        setTimeout(() => {
+          targetRow?.classList.remove('bg-blue-100', 'border-2', 'border-blue-500', 'shadow-lg');
+        }, 8000);
+
+        toast.success(`Transação localizada: ${transactionData.description?.substring(0, 30) || 'Transação'}...`);
+      } else {
+        console.warn('❌ Transação não encontrada na lista atual');
+        // Tentar novamente após mais um tempo
+        setTimeout(findAndHighlight, 1000);
+      }
+    };
+
+    findAndHighlight();
+  };
+
+  // Determine which data to use based on showAllTransactions toggle
+  const currentPayables = showAllTransactions ? allPayables : payables.data;
+  const currentReceivables = showAllTransactions ? allReceivables : receivables.data;
+  const currentPayablesLoading = showAllTransactions ? allPayablesLoading : payables.isLoading;
+  const currentReceivablesLoading = showAllTransactions ? allReceivablesLoading : receivables.isLoading;
+
+  // Fetch history data - sempre que o modal for aberto
+  const { data: historyData, isLoading: historyLoading, refetch: refetchHistory } = useQuery({
+    queryKey: ['accounts-history'],
+    queryFn: () => fetchAccountsHistory(),
+    enabled: showHistory,
+  });
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  const formatDate = (dateString: string) => {
-    return format(new Date(dateString), 'dd/MM/yyyy', { locale: ptBR });
+  const getStatusBadge = (status: string, type: 'payable' | 'receivable') => {
+    switch(status) {
+      case 'pending':
+        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Pendente</Badge>;
+      case 'paid':
+        return <Badge variant="outline" className="bg-green-100 text-green-800">Pago</Badge>;
+      case 'received':
+        return <Badge variant="outline" className="bg-green-100 text-green-800">Recebido</Badge>;
+      case 'canceled':
+        return <Badge variant="outline" className="bg-red-100 text-red-800">Cancelado</Badge>;
+      case 'deleted':
+        return <Badge variant="outline" className="bg-gray-100 text-gray-800">Excluído</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
   };
 
-  const getStatusBadge = (status: string, type: 'payable' | 'receivable') => {
-    if (type === 'payable') {
-      switch(status) {
-        case 'pending':
-          return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Pendente</Badge>;
-        case 'paid':
-          return <Badge variant="outline" className="bg-green-100 text-green-800">Pago</Badge>;
+  const getStageStatusBadge = (status?: string) => {
+    if (!status) return null;
+    
+    const statusMap: Record<string, { label: string; className: string }> = {
+      'iniciar_projeto': { label: 'Iniciar Projeto', className: 'bg-blue-100 text-blue-800' },
+      'em_producao': { label: 'Em Produção', className: 'bg-orange-100 text-orange-800' },
+      'aguardando_aprovacao': { label: 'Aguardando Aprovação', className: 'bg-yellow-100 text-yellow-800' },
+      'aguardando_assinatura': { label: 'Aguardando Assinatura', className: 'bg-purple-100 text-purple-800' },
+      'concluido': { label: 'Concluído', className: 'bg-green-100 text-green-800' },
+    };
+
+    const statusInfo = statusMap[status] || { label: status, className: 'bg-gray-100 text-gray-800' };
+    
+    return (
+      <Badge variant="outline" className={statusInfo.className}>
+        {statusInfo.label}
+      </Badge>
+    );
+  };
+
+  // Function to determine what the previous status should be for undo
+  const getPreviousStatus = (currentStatus: string, type: 'payable' | 'receivable') => {
+    if (type === 'receivable') {
+      switch (currentStatus) {
+        case 'received':
+          return 'pending';
         case 'canceled':
-          return <Badge variant="outline" className="bg-red-100 text-red-800">Cancelado</Badge>;
+          return 'pending';
+        case 'deleted':
+          return 'pending';
         default:
-          return <Badge variant="outline">{status}</Badge>;
+          return 'pending';
       }
     } else {
-      switch(status) {
-        case 'pending':
-          return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Pendente</Badge>;
-        case 'received':
-          return <Badge variant="outline" className="bg-green-100 text-green-800">Recebido</Badge>;
+      switch (currentStatus) {
+        case 'paid':
+          return 'pending';
         case 'canceled':
-          return <Badge variant="outline" className="bg-red-100 text-red-800">Cancelado</Badge>;
+          return 'pending';
+        case 'deleted':
+          return 'pending';
         default:
-          return <Badge variant="outline">{status}</Badge>;
+          return 'pending';
       }
     }
   };
 
-  // Mutations for payables
-  const updatePayableStatusMutation = useMutation({
-    mutationFn: async ({ id, status, paymentDate }: { id: string, status: string, paymentDate?: string }) => {
-      return await updateAccountsPayableStatus(id, status as any, paymentDate);
-    },
-    onSuccess: () => {
-      toast.success("Status atualizado com sucesso");
-      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
-      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
-    },
-    onError: (error) => {
-      toast.error("Erro ao atualizar status: " + error.message);
-    },
-  });
-
-  const deletePayableMutation = useMutation({
-    mutationFn: deleteAccountsPayable,
-    onSuccess: () => {
-      toast.success("Conta a pagar removida com sucesso");
-      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
-      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
-    },
-    onError: (error) => {
-      toast.error("Erro ao remover conta: " + error.message);
-    },
-  });
-
-  const cancelPayableMutation = useMutation({
-    mutationFn: cancelAccountsPayable,
-    onSuccess: () => {
-      toast.success("Conta a pagar cancelada com sucesso");
-      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
-      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
-    },
-    onError: (error) => {
-      toast.error("Erro ao cancelar conta: " + error.message);
-    },
-  });
-
-  const reactivatePayableMutation = useMutation({
-    mutationFn: reactivateAccountsPayable,
-    onSuccess: () => {
-      toast.success("Conta a pagar reativada com sucesso");
-      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
-      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
-    },
-    onError: (error) => {
-      toast.error("Erro ao reativar conta: " + error.message);
-    },
-  });
-
-  // Mutations for receivables
   const updateReceivableStatusMutation = useMutation({
-    mutationFn: async ({ id, status, paymentDate }: { id: string, status: string, paymentDate?: string }) => {
-      return await updateAccountsReceivableStatus(id, status as any, paymentDate);
-    },
+    mutationFn: ({ id, status, paymentDate }: { id: string, status: 'pending' | 'received' | 'canceled', paymentDate?: string }) => 
+      updateAccountsReceivableStatus(id, status, paymentDate),
     onSuccess: () => {
       toast.success("Status atualizado com sucesso");
+      // Invalidar múltiplas queries para garantir que todos os dados sejam atualizados
       queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
+      // Forçar atualização do histórico se o modal estiver aberto
+      if (showHistory) {
+        refetchHistory();
+      }
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error("Erro ao atualizar status: " + error.message);
     },
   });
 
-  const deleteReceivableMutation = useMutation({
-    mutationFn: deleteAccountsReceivable,
+  const updatePayableStatusMutation = useMutation({
+    mutationFn: ({ id, status, paymentDate }: { id: string, status: 'pending' | 'paid' | 'canceled', paymentDate?: string }) => 
+      updateAccountsPayableStatus(id, status, paymentDate),
     onSuccess: () => {
-      toast.success("Conta a receber removida com sucesso");
-      queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
+      toast.success("Status atualizado com sucesso");
+      // Invalidar múltiplas queries para garantir que todos os dados sejam atualizados
+      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
+      // Forçar atualização do histórico se o modal estiver aberto
+      if (showHistory) {
+        refetchHistory();
+      }
     },
-    onError: (error) => {
-      toast.error("Erro ao remover conta: " + error.message);
+    onError: (error: any) => {
+      toast.error("Erro ao atualizar status: " + error.message);
     },
   });
 
@@ -238,9 +310,61 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
       toast.success("Conta a receber cancelada com sucesso");
       queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
+      if (showHistory) {
+        refetchHistory();
+      }
     },
-    onError: (error) => {
-      toast.error("Erro ao cancelar conta: " + error.message);
+    onError: (error: any) => {
+      toast.error("Erro ao cancelar conta a receber: " + error.message);
+    },
+  });
+
+  const cancelPayableMutation = useMutation({
+    mutationFn: cancelAccountsPayable,
+    onSuccess: () => {
+      toast.success("Conta a pagar cancelada com sucesso");
+      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
+      if (showHistory) {
+        refetchHistory();
+      }
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao cancelar conta a pagar: " + error.message);
+    },
+  });
+
+  const deleteReceivableMutation = useMutation({
+    mutationFn: deleteAccountsReceivable,
+    onSuccess: () => {
+      toast.success("Conta a receber excluída com sucesso");
+      queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
+      if (showHistory) {
+        refetchHistory();
+      }
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao excluir conta a receber: " + error.message);
+    },
+  });
+
+  const deletePayableMutation = useMutation({
+    mutationFn: deleteAccountsPayable,
+    onSuccess: () => {
+      toast.success("Conta a pagar excluída com sucesso");
+      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
+      if (showHistory) {
+        refetchHistory();
+      }
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao excluir conta a pagar: " + error.message);
     },
   });
 
@@ -250,39 +374,71 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
       toast.success("Conta a receber reativada com sucesso");
       queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] });
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
+      if (showHistory) {
+        refetchHistory();
+      }
     },
-    onError: (error) => {
-      toast.error("Erro ao reativar conta: " + error.message);
+    onError: (error: any) => {
+      toast.error("Erro ao reativar conta a receber: " + error.message);
     },
   });
 
-  const handlePayableStatusChange = (payable: AccountsPayable, newStatus: string) => {
-    const paymentDate = newStatus === 'paid' ? format(new Date(), 'yyyy-MM-dd') : undefined;
-    updatePayableStatusMutation.mutate({ 
-      id: payable.id, 
-      status: newStatus, 
-      paymentDate 
+  const reactivatePayableMutation = useMutation({
+    mutationFn: reactivateAccountsPayable,
+    onSuccess: () => {
+      toast.success("Conta a pagar reativada com sucesso");
+      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-history'] });
+      if (showHistory) {
+        refetchHistory();
+      }
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao reativar conta a pagar: " + error.message);
+    },
+  });
+
+  const handleMarkAsReceived = (receivableId: string) => {
+    setSelectedReceivable(receivableId);
+    setIsMarkingReceived(true);
+  };
+
+  const handleMarkAsPaid = (payableId: string) => {
+    setSelectedPayable(payableId);
+    setIsMarkingPaid(true);
+  };
+
+  const handleConfirmReceived = async () => {
+    if (!selectedReceivable) return;
+    
+    await updateReceivableStatusMutation.mutate({
+      id: selectedReceivable, 
+      status: 'received',
+      paymentDate: paymentDate ? format(paymentDate, 'yyyy-MM-dd') : undefined
     });
+    
+    setIsMarkingReceived(false);
+    setSelectedReceivable(null);
   };
 
-  const handleReceivableStatusChange = (receivable: AccountsReceivable, newStatus: string) => {
-    const paymentDate = newStatus === 'received' ? format(new Date(), 'yyyy-MM-dd') : undefined;
-    updateReceivableStatusMutation.mutate({ 
-      id: receivable.id, 
-      status: newStatus, 
-      paymentDate 
+  const handleConfirmPaid = async () => {
+    if (!selectedPayable) return;
+    
+    await updatePayableStatusMutation.mutate({
+      id: selectedPayable, 
+      status: 'paid',
+      paymentDate: paymentDate ? format(paymentDate, 'yyyy-MM-dd') : undefined
     });
+    
+    setIsMarkingPaid(false);
+    setSelectedPayable(null);
   };
 
-  const handleDeletePayable = (id: string) => {
-    if (confirm("Tem certeza que deseja remover esta conta a pagar?")) {
-      deletePayableMutation.mutate(id);
-    }
-  };
-
-  const handleDeleteReceivable = (id: string) => {
-    if (confirm("Tem certeza que deseja remover esta conta a receber?")) {
-      deleteReceivableMutation.mutate(id);
+  const handleCancelReceivable = (id: string) => {
+    if (confirm("Tem certeza que deseja cancelar esta conta a receber?")) {
+      cancelReceivableMutation.mutate(id);
     }
   };
 
@@ -292,331 +448,619 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
     }
   };
 
-  const handleCancelReceivable = (id: string) => {
-    if (confirm("Tem certeza que deseja cancelar esta conta a receber?")) {
-      cancelReceivableMutation.mutate(id);
-    }
+  const handleDeleteClick = (id: string, type: 'payable' | 'receivable') => {
+    setDeleteTarget({ id, type });
+    setDeletePin('');
+    setShowDeleteModal(true);
   };
 
-  const handleReactivatePayable = (id: string) => {
-    if (confirm("Tem certeza que deseja reativar esta conta a pagar?")) {
-      reactivatePayableMutation.mutate(id);
+  const handleDeleteConfirm = () => {
+    if (deletePin !== '9136') {
+      toast.error("PIN incorreto");
+      return;
     }
+
+    if (!deleteTarget) return;
+
+    if (deleteTarget.type === 'receivable') {
+      deleteReceivableMutation.mutate(deleteTarget.id);
+    } else {
+      deletePayableMutation.mutate(deleteTarget.id);
+    }
+
+    setShowDeleteModal(false);
+    setDeleteTarget(null);
+    setDeletePin('');
   };
 
-  const handleReactivateReceivable = (id: string) => {
-    if (confirm("Tem certeza que deseja reativar esta conta a receber?")) {
-      reactivateReceivableMutation.mutate(id);
-    }
+  const handleReactivateClick = (id: string, type: 'payable' | 'receivable') => {
+    setReactivateTarget({ id, type });
+    setReactivatePin('');
+    setShowReactivateModal(true);
   };
 
-  // Use filtered data or all data based on toggle
-  const displayPayables = showAllTransactions ? allPayables : payables.data;
-  const displayReceivables = showAllTransactions ? allReceivables : receivables.data;
-  const isPayablesLoading = showAllTransactions ? allPayablesLoading : payables.isLoading;
-  const isReceivablesLoading = showAllTransactions ? allReceivablesLoading : receivables.isLoading;
+  const handleReactivateConfirm = () => {
+    if (reactivatePin !== '9136') {
+      toast.error("PIN incorreto");
+      return;
+    }
+
+    if (!reactivateTarget) return;
+
+    if (reactivateTarget.type === 'receivable') {
+      reactivateReceivableMutation.mutate(reactivateTarget.id);
+    } else {
+      reactivatePayableMutation.mutate(reactivateTarget.id);
+    }
+
+    setShowReactivateModal(false);
+    setReactivateTarget(null);
+    setReactivatePin('');
+  };
+
+  const handleUndoClick = (id: string, type: 'payable' | 'receivable', currentStatus: string) => {
+    setUndoTarget({ id, type, currentStatus });
+    setUndoPin('');
+    setShowUndoModal(true);
+  };
+
+  const handleUndoConfirm = () => {
+    if (undoPin !== '9136') {
+      toast.error("PIN incorreto");
+      return;
+    }
+
+    if (!undoTarget) return;
+
+    const previousStatus = getPreviousStatus(undoTarget.currentStatus, undoTarget.type);
+
+    if (undoTarget.type === 'receivable') {
+      updateReceivableStatusMutation.mutate({
+        id: undoTarget.id,
+        status: previousStatus as 'pending' | 'received' | 'canceled'
+      });
+    } else {
+      updatePayableStatusMutation.mutate({
+        id: undoTarget.id,
+        status: previousStatus as 'pending' | 'paid' | 'canceled'
+      });
+    }
+
+    setShowUndoModal(false);
+    setUndoTarget(null);
+    setUndoPin('');
+  };
+
+  // Função para abrir o histórico e forçar atualização
+  const handleOpenHistory = () => {
+    console.log('Opening history modal');
+    setShowHistory(true);
+    // Força buscar os dados mais recentes
+    setTimeout(() => {
+      refetchHistory();
+    }, 100);
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Toggle para mostrar todos os lançamentos */}
-      <div className="flex items-center space-x-2">
-        <Switch
-          id="show-all-transactions"
-          checked={showAllTransactions}
-          onCheckedChange={setShowAllTransactions}
-        />
-        <Label htmlFor="show-all-transactions">
-          Mostrar todos os lançamentos (ignora filtros de período)
-        </Label>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Contas a Pagar */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              Contas a Pagar
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowHistoryModal(true)}
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                Ver Histórico
-              </Button>
-            </CardTitle>
-            <CardDescription>
-              Pagamentos pendentes e realizados
-              {showAllTransactions && (
-                <span className="text-blue-600 font-medium"> (Todos os lançamentos)</span>
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isPayablesLoading ? (
-                  Array.from({ length: 3 }).map((_, index) => (
-                    <TableRow key={index}>
-                      <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    </TableRow>
-                  ))
-                ) : !displayPayables || displayPayables.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
-                      Nenhuma conta a pagar encontrada
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  displayPayables.map((payable) => (
-                    <TableRow 
-                      key={payable.id}
-                      data-transaction-id={payable.id}
-                      data-transaction-type="payable"
-                      data-due-date={payable.due_date}
-                      className={cn(
-                        "hover:bg-gray-50 transition-colors",
-                        isOverdue(payable.due_date, payable.status) && "bg-red-50 hover:bg-red-100 border-l-4 border-red-500",
-                        highlightTransactionId === payable.id && "bg-blue-50 border-l-4 border-blue-500"
-                      )}
-                    >
-                      <TableCell>
-                        {format(new Date(payable.due_date), 'dd/MM/yyyy')}
-                        {payable.payment_date && (
-                          <div className="text-xs text-muted-foreground">
-                            Pago em: {format(new Date(payable.payment_date), 'dd/MM/yyyy')}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="max-w-xs">
-                          <div className="font-medium truncate" title={payable.description}>
-                            {payable.description}
-                          </div>
-                          {payable.consultant_name && (
-                            <div className="text-xs text-muted-foreground">
-                              {payable.consultant_name}
-                            </div>
-                          )}
-                          {payable.project_name && (
-                            <div className="text-xs text-muted-foreground">
-                              {payable.project_name}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {formatCurrency(payable.amount)}
-                      </TableCell>
-                      <TableCell>
-                        {getStatusBadge(payable.status, 'payable')}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-1">
-                          {payable.status === 'pending' && (
-                            <>
-                              <Select
-                                onValueChange={(value) => handlePayableStatusChange(payable, value)}
-                              >
-                                <SelectTrigger className="w-auto h-8 text-xs">
-                                  <SelectValue placeholder="Ação" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="paid">Marcar como Pago</SelectItem>
-                                  <SelectItem value="canceled">Cancelar</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </>
-                          )}
-                          {payable.status === 'paid' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handlePayableStatusChange(payable, 'pending')}
-                            >
-                              <RefreshCw className="h-3 w-3" />
-                            </Button>
-                          )}
-                          {payable.status === 'canceled' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleReactivatePayable(payable.id)}
-                              title="Reativar"
-                            >
-                              <RotateCcw className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+    <>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex justify-between items-center mb-4">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="payable">Contas a Pagar</TabsTrigger>
+            <TabsTrigger value="receivable">Contas a Receber</TabsTrigger>
+          </TabsList>
+          
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="show-all-transactions"
+                checked={showAllTransactions}
+                onCheckedChange={setShowAllTransactions}
+              />
+              <label htmlFor="show-all-transactions" className="text-sm font-medium">
+                Todos Lançamentos
+              </label>
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleOpenHistory}
+              className="flex items-center gap-2"
+            >
+              <History className="h-4 w-4" />
+              Histórico
+            </Button>
+          </div>
+        </div>
+        
+        <TabsContent value="payable">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Contas a Pagar</CardTitle>
+                  <CardDescription>
+                    Pagamentos pendentes e realizados para consultores (incluindo repasses automáticos de etapas)
+                  </CardDescription>
+                </div>
+                {!showAllTransactions && (
+                  <MonthNavigation 
+                    currentDate={currentMonth}
+                    onMonthChange={onMonthChange}
+                  />
                 )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        {/* Contas a Receber */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              Contas a Receber
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowHistoryModal(true)}
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                Ver Histórico
-              </Button>
-            </CardTitle>
-            <CardDescription>
-              Recebimentos pendentes e realizados
-              {showAllTransactions && (
-                <span className="text-blue-600 font-medium"> (Todos os lançamentos)</span>
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isReceivablesLoading ? (
-                  Array.from({ length: 3 }).map((_, index) => (
-                    <TableRow key={index}>
-                      <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    </TableRow>
-                  ))
-                ) : !displayReceivables || displayReceivables.length === 0 ? (
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
-                      Nenhuma conta a receber encontrada
-                    </TableCell>
+                    <TableHead>Vencimento</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Projeto</TableHead>
+                    <TableHead>Etapa</TableHead>
+                    <TableHead>Status da Etapa</TableHead>
+                    <TableHead>Consultor</TableHead>
+                    <TableHead>Valor</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Ações</TableHead>
                   </TableRow>
-                ) : (
-                  displayReceivables.map((receivable) => (
-                    <TableRow 
-                      key={receivable.id}
-                      data-transaction-id={receivable.id}
-                      data-transaction-type="receivable"
-                      data-due-date={receivable.due_date}
-                      className={cn(
-                        "hover:bg-gray-50 transition-colors",
-                        isOverdue(receivable.due_date, receivable.status) && "bg-red-50 hover:bg-red-100 border-l-4 border-red-500",
-                        highlightTransactionId === receivable.id && "bg-blue-50 border-l-4 border-blue-500"
-                      )}
-                    >
-                      <TableCell>
-                        {format(new Date(receivable.due_date), 'dd/MM/yyyy')}
-                        {receivable.payment_date && (
-                          <div className="text-xs text-muted-foreground">
-                            Recebido em: {format(new Date(receivable.payment_date), 'dd/MM/yyyy')}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="max-w-xs">
-                          <div className="font-medium truncate" title={receivable.description}>
-                            {receivable.description}
-                          </div>
-                          {receivable.client_name && (
-                            <div className="text-xs text-muted-foreground">
-                              {receivable.client_name}
-                            </div>
-                          )}
-                          {receivable.project_name && (
-                            <div className="text-xs text-muted-foreground">
-                              {receivable.project_name}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {formatCurrency(receivable.amount)}
-                      </TableCell>
-                      <TableCell>
-                        {getStatusBadge(receivable.status, 'receivable')}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-1">
-                          {receivable.status === 'pending' && (
-                            <>
-                              <Select
-                                onValueChange={(value) => handleReceivableStatusChange(receivable, value)}
-                              >
-                                <SelectTrigger className="w-auto h-8 text-xs">
-                                  <SelectValue placeholder="Ação" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="received">Marcar como Recebido</SelectItem>
-                                  <SelectItem value="canceled">Cancelar</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </>
-                          )}
-                          {receivable.status === 'received' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleReceivableStatusChange(receivable, 'pending')}
-                            >
-                              <RefreshCw className="h-3 w-3" />
-                            </Button>
-                          )}
-                          {receivable.status === 'canceled' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleReactivateReceivable(receivable.id)}
-                              title="Reativar"
-                            >
-                              <RotateCcw className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
+                </TableHeader>
+                <TableBody>
+                  {currentPayablesLoading ? (
+                    Array.from({ length: 3 }).map((_, index) => (
+                      <TableRow key={index}>
+                        {Array.from({ length: 9 }).map((_, cellIndex) => (
+                          <TableCell key={cellIndex}>
+                            <Skeleton className="h-5 w-full" />
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : !currentPayables || currentPayables.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center py-8">
+                        Nenhuma conta a pagar encontrada
                       </TableCell>
                     </TableRow>
-                  ))
+                  ) : (
+                    currentPayables.map(payable => (
+                      <TableRow 
+                        key={payable.id}
+                        data-transaction-id={payable.id}
+                        data-transaction-type="payable"
+                        data-due-date={payable.due_date}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
+                        <TableCell>
+                          {format(new Date(payable.due_date), 'dd/MM/yyyy')}
+                        </TableCell>
+                        <TableCell>{payable.description}</TableCell>
+                        <TableCell>{payable.project_name || '-'}</TableCell>
+                        <TableCell>{payable.stage_name || '-'}</TableCell>
+                        <TableCell>
+                          {getStageStatusBadge(payable.stage_status)}
+                        </TableCell>
+                        <TableCell>{payable.consultant_name || '-'}</TableCell>
+                        <TableCell className="font-medium">
+                          {formatCurrency(payable.amount)}
+                        </TableCell>
+                        <TableCell>
+                          {getStatusBadge(payable.status, 'payable')}
+                          {payable.payment_date && (
+                            <div className="text-xs text-muted-foreground">
+                              Pago em: {format(new Date(payable.payment_date), 'dd/MM/yyyy')}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            {payable.status === 'pending' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleMarkAsPaid(payable.id)}
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-50 p-2"
+                                  title="Marcar como pago"
+                                >
+                                  <CreditCard className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCancelPayable(payable.id)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
+                                  title="Cancelar"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeleteClick(payable.id, 'payable')}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
+                                  title="Excluir"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                            {payable.status === 'deleted' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleReactivateClick(payable.id, 'payable')}
+                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-2"
+                                title="Reativar"
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {payable.status !== 'pending' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUndoClick(payable.id, 'payable', payable.status)}
+                                className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 p-2"
+                                title="Desfazer última ação"
+                              >
+                                <Undo className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="receivable">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Contas a Receber</CardTitle>
+                  <CardDescription>
+                    Recebimentos pendentes e realizados das etapas dos projetos
+                  </CardDescription>
+                </div>
+                {!showAllTransactions && (
+                  <MonthNavigation 
+                    currentDate={currentMonth}
+                    onMonthChange={onMonthChange}
+                  />
                 )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Vencimento</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Projeto</TableHead>
+                    <TableHead>Etapa</TableHead>
+                    <TableHead>Status da Etapa</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Consultor</TableHead>
+                    <TableHead>Valor</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {currentReceivablesLoading ? (
+                    Array.from({ length: 3 }).map((_, index) => (
+                      <TableRow key={index}>
+                        {Array.from({ length: 10 }).map((_, cellIndex) => (
+                          <TableCell key={cellIndex}>
+                            <Skeleton className="h-5 w-full" />
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : !currentReceivables || currentReceivables.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center py-8">
+                        Nenhuma conta a receber encontrada
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    currentReceivables.map(receivable => (
+                      <TableRow 
+                        key={receivable.id}
+                        data-transaction-id={receivable.id}
+                        data-transaction-type="receivable"
+                        data-due-date={receivable.due_date}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
+                        <TableCell>
+                          {format(new Date(receivable.due_date), 'dd/MM/yyyy')}
+                        </TableCell>
+                        <TableCell>{receivable.description}</TableCell>
+                        <TableCell className="font-medium">
+                          {receivable.project_name || '-'}
+                        </TableCell>
+                        <TableCell>
+                          {receivable.stage_name || '-'}
+                        </TableCell>
+                        <TableCell>
+                          {getStageStatusBadge(receivable.stage_status)}
+                        </TableCell>
+                        <TableCell>{receivable.client_name || '-'}</TableCell>
+                        <TableCell>{receivable.consultant_name || '-'}</TableCell>
+                        <TableCell className="font-medium">
+                          {formatCurrency(receivable.amount)}
+                        </TableCell>
+                        <TableCell>
+                          {getStatusBadge(receivable.status, 'receivable')}
+                          {receivable.payment_date && (
+                            <div className="text-xs text-muted-foreground">
+                              Recebido em: {format(new Date(receivable.payment_date), 'dd/MM/yyyy')}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            {receivable.status === 'pending' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleMarkAsReceived(receivable.id)}
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-50 p-2"
+                                  title="Marcar como recebido"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCancelReceivable(receivable.id)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
+                                  title="Cancelar"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeleteClick(receivable.id, 'receivable')}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
+                                  title="Excluir"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                            {receivable.status === 'deleted' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleReactivateClick(receivable.id, 'receivable')}
+                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-2"
+                                title="Reativar"
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {receivable.status !== 'pending' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUndoClick(receivable.id, 'receivable', receivable.status)}
+                                className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 p-2"
+                                title="Desfazer última ação"
+                              >
+                                <Undo className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Payment Dialog for Receivables */}
+      <Dialog open={isMarkingReceived} onOpenChange={setIsMarkingReceived}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar recebimento</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">Data do recebimento</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !paymentDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {paymentDate ? format(paymentDate, "dd/MM/yyyy", { locale: ptBR }) : <span>Selecione uma data</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={paymentDate}
+                    onSelect={setPaymentDate}
+                    initialFocus
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsMarkingReceived(false)}>Cancelar</Button>
+            <Button onClick={handleConfirmReceived}>Confirmar recebimento</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Dialog for Payables */}
+      <Dialog open={isMarkingPaid} onOpenChange={setIsMarkingPaid}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar pagamento</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">Data do pagamento</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !paymentDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {paymentDate ? format(paymentDate, "dd/MM/yyyy", { locale: ptBR }) : <span>Selecione uma data</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={paymentDate}
+                    onSelect={setPaymentDate}
+                    initialFocus
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsMarkingPaid(false)}>Cancelar</Button>
+            <Button onClick={handleConfirmPaid}>Confirmar pagamento</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Exclusão</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Para confirmar a exclusão, digite o PIN de segurança:
+            </p>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">PIN</label>
+              <Input
+                type="password"
+                value={deletePin}
+                onChange={(e) => setDeletePin(e.target.value)}
+                placeholder="Digite o PIN"
+                maxLength={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>Cancelar</Button>
+            <Button 
+              onClick={handleDeleteConfirm}
+              variant="destructive"
+              disabled={deletePin.length !== 4}
+            >
+              Confirmar Exclusão
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reactivate Confirmation Modal */}
+      <Dialog open={showReactivateModal} onOpenChange={setShowReactivateModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Reativação</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Para confirmar a reativação, digite o PIN de segurança:
+            </p>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">PIN</label>
+              <Input
+                type="password"
+                value={reactivatePin}
+                onChange={(e) => setReactivatePin(e.target.value)}
+                placeholder="Digite o PIN"
+                maxLength={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReactivateModal(false)}>Cancelar</Button>
+            <Button 
+              onClick={handleReactivateConfirm}
+              disabled={reactivatePin.length !== 4}
+            >
+              Confirmar Reativação
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Undo Confirmation Modal */}
+      <Dialog open={showUndoModal} onOpenChange={setShowUndoModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Desfazer Ação</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Para confirmar que deseja desfazer a última ação, digite o PIN de segurança:
+            </p>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">PIN</label>
+              <Input
+                type="password"
+                value={undoPin}
+                onChange={(e) => setUndoPin(e.target.value)}
+                placeholder="Digite o PIN"
+                maxLength={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUndoModal(false)}>Cancelar</Button>
+            <Button 
+              onClick={handleUndoConfirm}
+              disabled={undoPin.length !== 4}
+            >
+              Confirmar Desfazer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Financial History Modal */}
       <FinancialHistoryModal
-        isOpen={showHistoryModal}
-        onClose={() => setShowHistoryModal(false)}
-        filters={filters}
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+        history={historyData || []}
+        isLoading={historyLoading}
       />
-    </div>
+    </>
   );
 };
 

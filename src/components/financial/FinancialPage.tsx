@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PlusCircle } from 'lucide-react';
@@ -27,36 +26,51 @@ import ManualTransactionForm from "./ManualTransactionForm";
 
 const FinancialPage = () => {
   const queryClient = useQueryClient();
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [filters, setFilters] = useState<FinancialFilter>({});
   const [showAddTransaction, setShowAddTransaction] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<any>(null);
 
-  // Fetch financial data for current month with filters applied
+  // Update filters when month changes
+  const getMonthFilters = () => {
+    const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    
+    return {
+      ...filters,
+      startDate: format(startOfMonth, 'yyyy-MM-dd'),
+      endDate: format(endOfMonth, 'yyyy-MM-dd')
+    };
+  };
+
+  const activeFilters = getMonthFilters();
+
+  // Fetch financial data for current month
   const { data: summary, isLoading: summaryLoading } = useQuery({
-    queryKey: ['financial-summary', filters],
-    queryFn: () => fetchFinancialSummary(filters),
+    queryKey: ['financial-summary', activeFilters],
+    queryFn: () => fetchFinancialSummary(activeFilters),
   });
 
-  // Fetch financial data for current year with filters applied
+  // Fetch financial data for current year
   const { data: yearSummary, isLoading: yearSummaryLoading } = useQuery({
     queryKey: ['financial-summary-year', filters],
     queryFn: () => fetchFinancialSummaryYear(filters),
   });
 
-  // Fetch financial data for general (all time) with filters applied
+  // Fetch financial data for general (all time)
   const { data: generalSummary, isLoading: generalSummaryLoading } = useQuery({
     queryKey: ['financial-summary-general', filters],
     queryFn: () => fetchFinancialSummaryGeneral(filters),
   });
 
   const { data: payables, isLoading: payablesLoading } = useQuery({
-    queryKey: ['accounts-payable', filters],
-    queryFn: () => fetchAccountsPayable(filters),
+    queryKey: ['accounts-payable', activeFilters],
+    queryFn: () => fetchAccountsPayable(activeFilters),
   });
 
   const { data: receivables, isLoading: receivablesLoading } = useQuery({
-    queryKey: ['accounts-receivable', filters],
-    queryFn: () => fetchAccountsReceivable(filters),
+    queryKey: ['accounts-receivable', activeFilters],
+    queryFn: () => fetchAccountsReceivable(activeFilters),
   });
 
   // Fetch auxiliary data
@@ -311,6 +325,10 @@ const FinancialPage = () => {
     setFilters({});
   };
 
+  const handleMonthChange = (newDate: Date) => {
+    setCurrentMonth(newDate);
+  };
+
   const handleAddTransaction = async (data: any) => {
     console.log('Transaction data received:', data);
     
@@ -370,7 +388,15 @@ const FinancialPage = () => {
         </div>
       </div>
 
-      {/* Filters moved to top */}
+      {/* Summary Cards */}
+      <FinancialSummary
+        summary={summary}
+        yearSummary={yearSummary}
+        generalSummary={generalSummary}
+        isLoading={isAnySummaryLoading}
+      />
+
+      {/* Filters */}
       <FinancialFilters
         consultants={consultants || []}
         services={services || []}
@@ -388,14 +414,6 @@ const FinancialPage = () => {
         onFilterReset={handleFilterReset}
       />
 
-      {/* Summary Cards */}
-      <FinancialSummary
-        summary={summary}
-        yearSummary={yearSummary}
-        generalSummary={generalSummary}
-        isLoading={isAnySummaryLoading}
-      />
-
       {/* Accounts Payable/Receivable */}
       <AccountsPayableReceivable
         payables={{
@@ -406,7 +424,8 @@ const FinancialPage = () => {
           data: receivables,
           isLoading: receivablesLoading,
         }}
-        filters={filters}
+        currentMonth={currentMonth}
+        onMonthChange={handleMonthChange}
       />
 
       {/* Manual Transaction Form Dialog */}

@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 import { ManualTransaction } from '@/integrations/supabase/financial';
 
 interface ManualTransactionsTableProps {
@@ -31,18 +30,6 @@ const ManualTransactionsTable: React.FC<ManualTransactionsTableProps> = ({
 }) => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  };
-
-  // Function to check if a transaction is overdue
-  const isOverdue = (dueDate: string, status: string) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
-    
-    const due = new Date(dueDate);
-    due.setHours(0, 0, 0, 0);
-    
-    // Check if due date is before today and status is not completed
-    return due < today && status === 'pending';
   };
 
   const getStatusBadge = (status: string, type: string) => {
@@ -105,13 +92,7 @@ const ManualTransactionsTable: React.FC<ManualTransactionsTableProps> = ({
           </TableRow>
         ) : (
           transactions.map(transaction => (
-            <TableRow 
-              key={transaction.id}
-              className={cn(
-                "hover:bg-gray-50 transition-colors",
-                isOverdue(transaction.due_date, transaction.status) && "bg-red-50 hover:bg-red-100 border-l-4 border-red-500"
-              )}
-            >
+            <TableRow key={transaction.id}>
               <TableCell>
                 {format(new Date(transaction.due_date), 'dd/MM/yyyy')}
                 {transaction.is_recurring && (
