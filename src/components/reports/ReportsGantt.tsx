@@ -43,88 +43,77 @@ const ReportsGantt: React.FC = () => {
 
   const { statuses } = useProjectStatuses();
 
-  // Calculate overdue counts using the same logic as Dashboard
-  const calculateOverdueCounts = (allTasks: Task[]) => {
+  // Calculate overdue counts using the EXACT same logic as Dashboard
+  const calculateOverdueCounts = (allTasks: Task[], projectsData: any[]) => {
     console.log('=== CALCULANDO CONTADORES DE ATRASO NO REPORTS GANTT ===');
     console.log('Total de tasks recebidas:', allTasks.length);
+    console.log('Total de projetos recebidos:', projectsData.length);
     console.log('Status configurados:', statuses.length);
     
-    // Get projects data for overdue project calculation
-    const projectsMap = new Map();
-    const overdueProjectIds = new Set<string>();
-    let overdueStagesCount = 0;
-    
-    // Determine completion statuses from configured statuses
+    // Determinar status de conclusão usando EXATAMENTE a mesma lógica do Dashboard
     const completionStatuses = statuses
       .filter(s => s.is_completion_status)
       .map(s => s.name);
     
-    // If no completion statuses configured, use fallback
+    // Se não há status de conclusão configurados, usar 'concluido' como fallback - IGUAL AO DASHBOARD
     const finalCompletionStatuses = completionStatuses.length > 0 
       ? completionStatuses 
       : ['concluido', 'completed', 'finalizados'];
     
-    console.log('Status de conclusão finais:', finalCompletionStatuses);
-    
-    // Group tasks by project
-    allTasks.forEach(task => {
-      if (!projectsMap.has(task.project_id)) {
-        projectsMap.set(task.project_id, {
-          id: task.project_id,
-          name: task.project_name,
-          tasks: []
-        });
-      }
-      projectsMap.get(task.project_id).tasks.push(task);
-    });
-    
-    console.log('Projetos agrupados:', projectsMap.size);
+    console.log('Status de conclusão finais (GANTT):', finalCompletionStatuses);
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Check each project and its stages
-    projectsMap.forEach((project) => {
-      let projectHasOverdueStages = false;
-      
-      project.tasks.forEach((task: Task) => {
-        // Check if this stage/task is overdue
-        const taskEndDate = new Date(task.end_date);
-        taskEndDate.setHours(0, 0, 0, 0);
-        
-        const isNotCompleted = !finalCompletionStatuses.includes(task.status) && 
-                              task.status !== 'cancelado' && 
-                              task.status !== 'cancelled';
-        
-        const stageNotCompleted = task.completed !== undefined ? !task.completed : true;
-        
-        if (isBefore(taskEndDate, today) && isNotCompleted && stageNotCompleted) {
-          overdueStagesCount++;
-          projectHasOverdueStages = true;
-          console.log('Etapa em atraso encontrada:', {
-            taskName: task.name,
-            endDate: task.end_date,
-            status: task.status,
-            completed: task.completed,
-            projectName: task.project_name,
-            isNotCompleted,
-            stageNotCompleted,
-            taskEndDate: taskEndDate.toISOString(),
-            today: today.toISOString()
-          });
-        }
+    // PROJETOS ATRASADOS - USAR EXATAMENTE A MESMA LÓGICA DO DASHBOARD
+    const overdueProjectsList = projectsData.filter(project => 
+      project.endDate && 
+      !finalCompletionStatuses.includes(project.status) &&
+      isBefore(new Date(project.endDate), today)
+    );
+    
+    const overdueProjectsCount = overdueProjectsList.length;
+    
+    console.log('Projetos atrasados (usando lógica do Dashboard):', overdueProjectsCount);
+    overdueProjectsList.forEach(project => {
+      console.log('Projeto atrasado:', {
+        name: project.name,
+        endDate: project.endDate,
+        status: project.status,
+        isNotCompleted: !finalCompletionStatuses.includes(project.status)
       });
+    });
+    
+    // ETAPAS ATRASADAS - USAR EXATAMENTE A MESMA LÓGICA DO DASHBOARD
+    let overdueStagesCount = 0;
+    
+    allTasks.forEach(task => {
+      const taskEndDate = new Date(task.end_date);
+      taskEndDate.setHours(0, 0, 0, 0);
       
-      // If project has overdue stages, add it to overdue projects
-      if (projectHasOverdueStages) {
-        overdueProjectIds.add(project.id);
-        console.log('Projeto em atraso:', project.name);
+      const isNotCompleted = !finalCompletionStatuses.includes(task.status) && 
+                            task.status !== 'cancelado' && 
+                            task.status !== 'cancelled';
+      
+      const stageNotCompleted = task.completed !== undefined ? !task.completed : true;
+      
+      if (isBefore(taskEndDate, today) && isNotCompleted && stageNotCompleted) {
+        overdueStagesCount++;
+        console.log('Etapa em atraso encontrada:', {
+          taskName: task.name,
+          endDate: task.end_date,
+          status: task.status,
+          completed: task.completed,
+          projectName: task.project_name,
+          isNotCompleted,
+          stageNotCompleted,
+          taskEndDate: taskEndDate.toISOString(),
+          today: today.toISOString()
+        });
       }
     });
     
-    const overdueProjectsCount = overdueProjectIds.size;
-    
-    console.log('=== RESULTADOS FINAIS REPORTS GANTT ===');
+    console.log('=== RESULTADOS FINAIS REPORTS GANTT (SINCRONIZADO COM DASHBOARD) ===');
     console.log('Projetos em atraso:', overdueProjectsCount);
     console.log('Etapas em atraso:', overdueStagesCount);
     console.log('================================');
@@ -136,7 +125,7 @@ const ReportsGantt: React.FC = () => {
     const fetchGanttData = async () => {
       try {
         setLoading(true);
-        console.log('=== INICIANDO BUSCA DE DADOS GANTT ===');
+        console.log('=== INICIANDO BUSCA DE DADOS GANTT (SINCRONIZADO) ===');
         
         // Fetch consultants
         const { data: consultantsData } = await supabase
@@ -149,12 +138,14 @@ const ReportsGantt: React.FC = () => {
           console.log('Consultores carregados:', consultantsData.length);
         }
 
-        // Fetch projects and stages
+        // Fetch projects and stages - BUSCAR DADOS COMPLETOS COMO NO DASHBOARD
         const { data: projectsData } = await supabase
           .from('projects')
           .select(`
             id,
             name,
+            status,
+            end_date,
             service_id,
             services(name),
             project_stages(
@@ -179,6 +170,15 @@ const ReportsGantt: React.FC = () => {
 
         if (projectsData) {
           const allTasks: Task[] = [];
+          
+          // Transformar dados dos projetos para o formato esperado pelo Dashboard
+          const formattedProjectsData = projectsData.map(project => ({
+            id: project.id,
+            name: project.name,
+            status: project.status,
+            endDate: project.end_date,
+            stages: project.project_stages
+          }));
           
           projectsData.forEach(project => {
             if (project.project_stages && project.project_stages.length > 0) {
@@ -210,10 +210,11 @@ const ReportsGantt: React.FC = () => {
           console.log('Total de tasks criadas:', allTasks.length);
           setTasks(allTasks);
           
-          // Calculate overdue counts
-          const { overdueProjects: overdueProjectsCount, overdueStages: overdueStagesCount } = calculateOverdueCounts(allTasks);
+          // Calculate overdue counts using EXACTLY the same logic as Dashboard
+          const { overdueProjects: overdueProjectsCount, overdueStages: overdueStagesCount } = 
+            calculateOverdueCounts(allTasks, formattedProjectsData);
           
-          console.log('Definindo contadores finais:', {
+          console.log('Definindo contadores finais (SINCRONIZADO COM DASHBOARD):', {
             overdueProjects: overdueProjectsCount,
             overdueStages: overdueStagesCount
           });
@@ -231,7 +232,7 @@ const ReportsGantt: React.FC = () => {
     };
 
     // Only fetch data when statuses are loaded
-    if (statuses.length >= 0) { // Changed from > 0 to >= 0 to handle empty status arrays
+    if (statuses.length >= 0) {
       console.log('Status carregados, iniciando busca de dados...');
       fetchGanttData();
     } else {
@@ -241,7 +242,7 @@ const ReportsGantt: React.FC = () => {
 
   // Debug effect to monitor state changes
   useEffect(() => {
-    console.log('=== MUDANÇA DE ESTADO ===');
+    console.log('=== MUDANÇA DE ESTADO (SINCRONIZADO) ===');
     console.log('Projetos em atraso (state):', overdueProjects);
     console.log('Etapas em atraso (state):', overdueStages);
     console.log('Loading:', loading);
@@ -286,19 +287,6 @@ const ReportsGantt: React.FC = () => {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Debug Info - TEMPORÁRIO */}
-      <Card className="border-yellow-200 bg-yellow-50">
-        <CardContent className="p-4">
-          <div className="text-sm text-yellow-800">
-            <p><strong>Debug Info:</strong></p>
-            <p>Projetos em atraso: {overdueProjects}</p>
-            <p>Etapas em atraso: {overdueStages}</p>
-            <p>Total de tasks: {tasks.length}</p>
-            <p>Status configurados: {statuses.length}</p>
           </div>
         </CardContent>
       </Card>
