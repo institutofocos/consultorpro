@@ -66,84 +66,32 @@ const UserManagement: React.FC = () => {
   const loadUsers = async () => {
     try {
       setIsLoading(true);
-      console.log('Iniciando carregamento de usuários...');
+      console.log('🔄 Carregando usuários...');
 
-      // Primeira tentativa: buscar da tabela user_profiles
-      const { data: profileUsers, error: profileError } = await supabase
+      // Buscar TODOS os usuários da tabela user_profiles
+      const { data: users, error } = await supabase
         .from('user_profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
-      console.log('Resultado user_profiles:', { profileUsers, profileError });
-
-      if (!profileError && profileUsers && profileUsers.length > 0) {
-        console.log(`Encontrados ${profileUsers.length} usuários em user_profiles`);
-        setUsers(profileUsers);
-        toast.success(`${profileUsers.length} usuário(s) carregado(s) com sucesso!`);
-        return;
+      if (error) {
+        console.error('❌ Erro ao buscar usuários:', error);
+        throw error;
       }
 
-      // Segunda tentativa: buscar usuários do Auth
-      console.log('Tentando buscar usuários do Auth...');
-      
-      try {
-        const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
-        
-        if (authError) {
-          console.error('Erro ao acessar Auth:', authError);
-          throw authError;
-        }
+      console.log('✅ Usuários encontrados:', users?.length || 0);
+      console.log('📋 Lista de usuários:', users);
 
-        if (authData?.users && authData.users.length > 0) {
-          console.log(`Encontrados ${authData.users.length} usuários no Auth`);
-          
-          const authUsers: User[] = authData.users.map(authUser => ({
-            id: authUser.id,
-            full_name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Usuário',
-            email: authUser.email || '',
-            phone: authUser.user_metadata?.phone || authUser.phone || '',
-            role: authUser.user_metadata?.role || 'client',
-            is_active: !authUser.banned_until,
-            email_confirmed: !!authUser.email_confirmed_at,
-            created_at: authUser.created_at,
-            updated_at: authUser.updated_at || authUser.created_at,
-            last_login: authUser.last_sign_in_at || undefined
-          }));
-
-          setUsers(authUsers);
-          toast.success(`${authUsers.length} usuário(s) carregado(s) do Auth!`);
-
-          // Tentar criar perfis para usuários que não têm
-          for (const authUser of authUsers) {
-            try {
-              await supabase
-                .from('user_profiles')
-                .upsert({
-                  id: authUser.id,
-                  full_name: authUser.full_name,
-                  email: authUser.email,
-                  phone: authUser.phone,
-                  role: authUser.role,
-                  is_active: authUser.is_active,
-                  email_confirmed: authUser.email_confirmed
-                }, { onConflict: 'id' });
-            } catch (error) {
-              console.error('Erro ao criar perfil para:', authUser.email, error);
-            }
-          }
-          return;
-        }
-      } catch (authError) {
-        console.error('Erro ao acessar Auth:', authError);
+      if (users && users.length > 0) {
+        setUsers(users);
+        toast.success(`${users.length} usuário(s) carregado(s) com sucesso!`);
+      } else {
+        setUsers([]);
+        toast.info('Nenhum usuário encontrado no sistema.');
       }
-
-      // Se chegou até aqui, não há usuários
-      console.log('Nenhum usuário encontrado em nenhuma fonte');
-      setUsers([]);
-      toast.info('Nenhum usuário encontrado no sistema.');
       
     } catch (error: any) {
-      console.error('Erro geral ao carregar usuários:', error);
+      console.error('💥 Erro ao carregar usuários:', error);
       setUsers([]);
       toast.error(`Erro ao carregar usuários: ${error.message || 'Erro desconhecido'}`);
     } finally {
@@ -169,7 +117,7 @@ const UserManagement: React.FC = () => {
         return;
       }
 
-      console.log('Criando usuário:', newUser);
+      console.log('🔄 Criando usuário:', newUser);
       setIsCreatingUser(true);
 
       const result = await createUserWithProfile({
@@ -180,7 +128,7 @@ const UserManagement: React.FC = () => {
         permissions: newUser.permissions
       });
 
-      console.log('Usuário criado com sucesso:', result);
+      console.log('✅ Usuário criado com sucesso:', result);
       toast.success(`Usuário "${newUser.full_name}" criado com sucesso!`);
       
       setIsDialogOpen(false);
@@ -192,11 +140,13 @@ const UserManagement: React.FC = () => {
         permissions: []
       });
       
-      // Recarregar imediatamente
-      await loadUsers();
+      // Aguardar um pouco e recarregar para garantir que o usuário apareça
+      setTimeout(() => {
+        loadUsers();
+      }, 1000);
       
     } catch (error: any) {
-      console.error('Error creating user:', error);
+      console.error('💥 Erro ao criar usuário:', error);
       
       let errorMessage = 'Erro desconhecido ao criar usuário';
       
@@ -385,48 +335,56 @@ const UserManagement: React.FC = () => {
               </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Criado em</TableHead>
-                  <TableHead>Último Acesso</TableHead>
-                  <TableHead>Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.full_name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {getRoleLabel(user.role)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(user.is_active, user.email_confirmed)}
-                    </TableCell>
-                    <TableCell>{new Date(user.created_at).toLocaleDateString('pt-BR')}</TableCell>
-                    <TableCell>{user.last_login ? new Date(user.last_login).toLocaleDateString('pt-BR') : '-'}</TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleEditUser(user)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <p className="text-green-800 text-sm">
+                  ✅ {users.length} usuário(s) encontrado(s) e carregado(s) com sucesso!
+                </p>
+              </div>
+              
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Criado em</TableHead>
+                    <TableHead>Último Acesso</TableHead>
+                    <TableHead>Ações</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{user.full_name}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {getRoleLabel(user.role)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(user.is_active, user.email_confirmed)}
+                      </TableCell>
+                      <TableCell>{new Date(user.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                      <TableCell>{user.last_login ? new Date(user.last_login).toLocaleDateString('pt-BR') : '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEditUser(user)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
