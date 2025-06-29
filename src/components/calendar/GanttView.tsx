@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ChevronLeft, ChevronRight, Calendar, User, Clock, AlertTriangle } from 'lucide-react';
-import { format, addDays, startOfWeek, differenceInDays, parseISO, addWeeks, subWeeks, isToday } from 'date-fns';
+import { format, addDays, startOfWeek, differenceInDays, parseISO, addWeeks, subWeeks, isAfter, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatDateBR } from '@/utils/dateUtils';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
@@ -27,6 +27,7 @@ interface Task {
   consultant_name: string;
   project_name: string;
   service_name: string;
+  completed?: boolean;
 }
 
 interface GanttViewProps {
@@ -54,21 +55,33 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
 
   const timeline = generateTimeline();
 
-  // Function to check if an item is overdue - UPDATED to match dashboard logic
-  const isOverdue = (endDate: string, status: string) => {
+  // UPDATED: Function to check if an item is overdue - EXACTLY matching dashboard logic
+  const isOverdue = (endDate: string, status: string, completed?: boolean) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const itemEndDate = new Date(endDate);
     itemEndDate.setHours(0, 0, 0, 0);
     
+    // Determine completion statuses from configured statuses
+    const completionStatuses = statuses
+      .filter(s => s.is_completion_status)
+      .map(s => s.name);
+    
+    // If no completion statuses configured, use fallback
+    const finalCompletionStatuses = completionStatuses.length > 0 
+      ? completionStatuses 
+      : ['concluido', 'completed', 'finalizados'];
+    
     // Check if end date is before today and status is not completed/concluded
-    // This should match exactly the dashboard logic
-    return itemEndDate < today && 
-           status !== 'concluido' && 
-           status !== 'concluído' && 
-           status !== 'completed' &&
-           status !== 'cancelado' &&
-           status !== 'cancelled';
+    // For stages, also check the completed flag
+    const isNotCompleted = !finalCompletionStatuses.includes(status) && 
+                          status !== 'cancelado' && 
+                          status !== 'cancelled';
+    
+    // For stages (tasks), also consider the completed flag
+    const stageNotCompleted = completed !== undefined ? !completed : true;
+    
+    return isBefore(itemEndDate, today) && isNotCompleted && stageNotCompleted;
   };
 
   // Calculate current date position
@@ -186,27 +199,68 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
       }, {} as typeof groupedTasks)
     : groupedTasks;
 
-  // UPDATED: Calculate overdue counts to match dashboard logic exactly
+  // UPDATED: Calculate overdue counts to EXACTLY match dashboard logic
   const calculateOverdueCounts = () => {
-    let overdueProjects = 0;
-    let overdueStages = 0;
+    console.log('=== CALCULANDO CONTADORES DE ATRASO NO GANTT ===');
     
     // Create a set to track unique overdue projects (to avoid counting same project multiple times)
     const overdueProjectIds = new Set<string>();
+    let overdueStages = 0;
     
-    // Count overdue stages (individual tasks) and track overdue projects
-    Object.values(filteredGroupedTasks).forEach(projectData => {
-      projectData.tasks.forEach(task => {
-        if (isOverdue(task.end_date, task.status)) {
-          overdueStages++;
-          // Add project to overdue projects set
-          overdueProjectIds.add(task.project_id);
-        }
-      });
+    // Get all unique projects first to check project-level overdue status
+    const allProjects = new Map<string, { endDate: string; status: string; name: string }>();
+    
+    // First pass: collect project information
+    Object.entries(filteredGroupedTasks).forEach(([projectId, projectData]) => {
+      // For project overdue calculation, we need to determine the project's end date and status
+      // We'll use the latest end date among all tasks and check if any task makes the project overdue
+      if (projectData.tasks.length > 0) {
+        const latestEndDate = projectData.tasks.reduce((latest, task) => {
+          return new Date(task.end_date) > new Date(latest) ? task.end_date : latest;
+        }, projectData.tasks[0].end_date);
+        
+        // For project status, we'll consider it overdue if it has any overdue tasks
+        // This matches the dashboard logic where projects are overdue based on their tasks
+        allProjects.set(projectId, {
+          endDate: latestEndDate,
+          status: 'em_producao', // We'll determine overdue status based on tasks
+          name: projectData.project_name
+        });
+      }
     });
     
-    // The number of overdue projects is the size of the set (unique project IDs)
-    overdueProjects = overdueProjectIds.size;
+    // Second pass: count overdue stages and determine overdue projects
+    Object.entries(filteredGroupedTasks).forEach(([projectId, projectData]) => {
+      let projectHasOverdueStages = false;
+      
+      projectData.tasks.forEach(task => {
+        // Check if this stage/task is overdue
+        if (isOverdue(task.end_date, task.status, task.completed)) {
+          overdueStages++;
+          projectHasOverdueStages = true;
+          console.log('Etapa em atraso encontrada:', {
+            taskName: task.name,
+            endDate: task.end_date,
+            status: task.status,
+            completed: task.completed,
+            projectName: task.project_name
+          });
+        }
+      });
+      
+      // If project has overdue stages, add it to overdue projects
+      if (projectHasOverdueStages) {
+        overdueProjectIds.add(projectId);
+        console.log('Projeto em atraso:', projectData.project_name);
+      }
+    });
+    
+    const overdueProjects = overdueProjectIds.size;
+    
+    console.log('=== RESULTADOS FINAIS GANTT ===');
+    console.log('Projetos em atraso:', overdueProjects);
+    console.log('Etapas em atraso:', overdueStages);
+    console.log('IDs dos projetos em atraso:', Array.from(overdueProjectIds));
     
     return { overdueProjects, overdueStages };
   };
@@ -351,7 +405,7 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
                     const position = calculateTaskPosition(task.start_date, task.end_date);
                     const statusColor = getStatusColor(task.status);
                     const statusBadgeStyle = getStatusBadgeStyle(task.status);
-                    const taskIsOverdue = isOverdue(task.end_date, task.status);
+                    const taskIsOverdue = isOverdue(task.end_date, task.status, task.completed);
                     
                     if (!position.visible) return null;
 
