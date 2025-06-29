@@ -92,6 +92,18 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
     enabled: showAllTransactions,
   });
 
+  // Function to check if a transaction is overdue
+  const isOverdue = (dueDate: string, status: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+    
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
+    
+    // Check if due date is before today and status is not completed
+    return due < today && status === 'pending';
+  };
+
   // Verificar se há uma transação para destacar quando o componente carregar
   useEffect(() => {
     const highlightData = sessionStorage.getItem('highlightTransaction');
@@ -629,7 +641,10 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                         data-transaction-id={payable.id}
                         data-transaction-type="payable"
                         data-due-date={payable.due_date}
-                        className="hover:bg-gray-50 transition-colors"
+                        className={cn(
+                          "hover:bg-gray-50 transition-colors",
+                          isOverdue(payable.due_date, payable.status) && "bg-red-50 hover:bg-red-100 border-l-4 border-red-500"
+                        )}
                       >
                         <TableCell>
                           {format(new Date(payable.due_date), 'dd/MM/yyyy')}
@@ -776,7 +791,10 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                         data-transaction-id={receivable.id}
                         data-transaction-type="receivable"
                         data-due-date={receivable.due_date}
-                        className="hover:bg-gray-50 transition-colors"
+                        className={cn(
+                          "hover:bg-gray-50 transition-colors",
+                          isOverdue(receivable.due_date, receivable.status) && "bg-red-50 hover:bg-red-100 border-l-4 border-red-500"
+                        )}
                       >
                         <TableCell>
                           {format(new Date(receivable.due_date), 'dd/MM/yyyy')}
