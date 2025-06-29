@@ -25,6 +25,7 @@ const MonthNavigation: React.FC<MonthNavigationProps> = ({ currentDate, onMonthC
 
   const currentMonthName = format(currentDate, 'MMMM', { locale: ptBR });
   const capitalizedMonthName = currentMonthName.charAt(0).toUpperCase() + currentMonthName.slice(1);
+  const currentYear = format(currentDate, 'yyyy');
 
   return (
     <div className="flex items-center gap-2">
@@ -37,8 +38,8 @@ const MonthNavigation: React.FC<MonthNavigationProps> = ({ currentDate, onMonthC
         <ChevronLeft className="h-4 w-4" />
       </Button>
       
-      <span className="text-sm font-medium min-w-[80px] text-center">
-        {capitalizedMonthName}
+      <span className="text-sm font-medium min-w-[120px] text-center">
+        {capitalizedMonthName} | {currentYear}
       </span>
       
       <Button
