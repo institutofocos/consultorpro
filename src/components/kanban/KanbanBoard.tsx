@@ -16,6 +16,7 @@ import CollapsibleKanbanCard from './CollapsibleKanbanCard';
 import ProjectDetailsModal from './ProjectDetailsModal';
 import { fetchProjects } from '@/integrations/supabase/projects';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
+import { format } from 'date-fns';
 
 interface KanbanColumn {
   id: string;
@@ -33,13 +34,16 @@ const KanbanBoard: React.FC = () => {
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
   const [highlightedProjectId, setHighlightedProjectId] = useState<string | null>(null);
   const [showStages, setShowStages] = useState<boolean>(true);
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [showOverdueOnly, setShowOverdueOnly] = useState<boolean>(false);
   
   const queryClient = useQueryClient();
   const { statuses, getStatusDisplay, isLoading: statusesLoading } = useProjectStatuses();
 
   // Buscar projetos usando a função do sistema de projetos
-  const { data: projects = [], isLoading: projectsLoading, refetch: refetchProjects } = useQuery({
-    queryKey: ['kanban-projects', searchTerm, selectedConsultant, selectedService],
+  const { data: allProjects = [], isLoading: projectsLoading, refetch: refetchProjects } = useQuery({
+    queryKey: ['kanban-projects'],
     queryFn: async () => {
       console.log('=== BUSCANDO PROJETOS PARA KANBAN ===');
       try {
@@ -56,32 +60,8 @@ const KanbanBoard: React.FC = () => {
           }
         });
         
-        // Aplicar filtros
-        let filteredProjects = allProjects;
-        
-        if (searchTerm) {
-          filteredProjects = filteredProjects.filter(project => 
-            project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()))
-          );
-        }
-        
-        if (selectedConsultant) {
-          filteredProjects = filteredProjects.filter(project => 
-            project.mainConsultantId === selectedConsultant || 
-            project.supportConsultantId === selectedConsultant
-          );
-        }
-        
-        if (selectedService) {
-          filteredProjects = filteredProjects.filter(project => 
-            project.serviceId === selectedService
-          );
-        }
-        
-        console.log('Projetos após filtros:', filteredProjects.length);
         setLastSyncTime(new Date());
-        return filteredProjects;
+        return allProjects;
       } catch (error) {
         console.error('Erro ao buscar projetos para Kanban:', error);
         toast.error('Erro ao carregar projetos para o Kanban');
@@ -92,6 +72,76 @@ const KanbanBoard: React.FC = () => {
     refetchOnWindowFocus: true,
     refetchInterval: 5000, // Refetch a cada 5 segundos para garantir sincronia
   });
+
+  // Aplicar todos os filtros aos projetos
+  const projects = useMemo(() => {
+    let filteredProjects = allProjects;
+
+    // Filtro por termo de busca
+    if (searchTerm) {
+      filteredProjects = filteredProjects.filter(project => 
+        project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    // Filtro por consultor
+    if (selectedConsultant) {
+      filteredProjects = filteredProjects.filter(project => 
+        project.mainConsultantId === selectedConsultant || 
+        project.supportConsultantId === selectedConsultant ||
+        (project.stages && project.stages.some(stage => stage.consultantId === selectedConsultant))
+      );
+    }
+
+    // Filtro por serviço
+    if (selectedService) {
+      filteredProjects = filteredProjects.filter(project => 
+        project.serviceId === selectedService
+      );
+    }
+
+    // Filtro por data de início
+    if (startDate) {
+      filteredProjects = filteredProjects.filter(project => {
+        if (!project.startDate) return false;
+        return new Date(project.startDate) >= new Date(startDate);
+      });
+    }
+
+    // Filtro por data de fim
+    if (endDate) {
+      filteredProjects = filteredProjects.filter(project => {
+        if (!project.endDate) return false;
+        return new Date(project.endDate) <= new Date(endDate);
+      });
+    }
+
+    // Filtro para cards vencidos
+    if (showOverdueOnly) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      filteredProjects = filteredProjects.filter(project => {
+        // Verificar se o projeto está vencido
+        if (project.endDate && new Date(project.endDate) < today) {
+          return true;
+        }
+        
+        // Verificar se alguma etapa está vencida
+        if (project.stages) {
+          return project.stages.some(stage => 
+            stage.endDate && new Date(stage.endDate) < today && !stage.completed
+          );
+        }
+        
+        return false;
+      });
+    }
+
+    console.log('Projetos após filtros:', filteredProjects.length);
+    return filteredProjects;
+  }, [allProjects, searchTerm, selectedConsultant, selectedService, startDate, endDate, showOverdueOnly]);
 
   // Buscar consultores
   const { data: consultants = [] } = useQuery({
@@ -357,6 +407,16 @@ const KanbanBoard: React.FC = () => {
     toast.success('Kanban sincronizado com sucesso!');
   };
 
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedConsultant('');
+    setSelectedService('');
+    setStartDate('');
+    setEndDate('');
+    setShowOverdueOnly(false);
+    toast.success('Filtros limpos com sucesso!');
+  };
+
   const isLoading = projectsLoading || statusesLoading;
 
   if (isLoading) {
@@ -384,7 +444,7 @@ const KanbanBoard: React.FC = () => {
           </div>
         </div>
 
-        {/* Filtros e Toggle de Etapas */}
+        {/* Filtros principais */}
         <div className="flex flex-wrap gap-4 items-center">
           <div className="flex items-center gap-2">
             <Search className="h-4 w-4" />
@@ -398,7 +458,7 @@ const KanbanBoard: React.FC = () => {
 
           <Select value={selectedConsultant} onValueChange={setSelectedConsultant}>
             <SelectTrigger className="w-48">
-              <SelectValue placeholder="Consultor" />
+              <SelectValue placeholder="Todos os consultores" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">Todos os consultores</SelectItem>
@@ -412,7 +472,7 @@ const KanbanBoard: React.FC = () => {
 
           <Select value={selectedService} onValueChange={setSelectedService}>
             <SelectTrigger className="w-48">
-              <SelectValue placeholder="Serviço" />
+              <SelectValue placeholder="Todos os serviços" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">Todos os serviços</SelectItem>
@@ -423,6 +483,56 @@ const KanbanBoard: React.FC = () => {
               ))}
             </SelectContent>
           </Select>
+
+          <Button variant="outline" size="sm" onClick={clearFilters}>
+            <Filter className="h-4 w-4 mr-2" />
+            Limpar Filtros
+          </Button>
+        </div>
+
+        {/* Filtros avançados */}
+        <div className="flex flex-wrap gap-4 items-center">
+          {/* Filtros de data */}
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            <Label htmlFor="start-date" className="text-sm font-medium">
+              Data Início:
+            </Label>
+            <Input
+              id="start-date"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-40"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            <Label htmlFor="end-date" className="text-sm font-medium">
+              Data Fim:
+            </Label>
+            <Input
+              id="end-date"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-40"
+            />
+          </div>
+
+          {/* Toggle para cards vencidos */}
+          <div className="flex items-center space-x-2 border rounded-lg px-3 py-2 bg-white">
+            <AlertTriangle className="h-4 w-4 text-red-500" />
+            <Label htmlFor="overdue-cards" className="text-sm font-medium">
+              Cards Vencidos
+            </Label>
+            <Switch
+              id="overdue-cards"
+              checked={showOverdueOnly}
+              onCheckedChange={setShowOverdueOnly}
+            />
+          </div>
 
           {/* Toggle para mostrar/ocultar etapas */}
           <div className="flex items-center space-x-2 border rounded-lg px-3 py-2 bg-white">
