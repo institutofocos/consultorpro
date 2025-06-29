@@ -54,18 +54,21 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
 
   const timeline = generateTimeline();
 
-  // Function to check if an item is overdue
+  // Function to check if an item is overdue - UPDATED to match dashboard logic
   const isOverdue = (endDate: string, status: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const itemEndDate = new Date(endDate);
     itemEndDate.setHours(0, 0, 0, 0);
     
-    // Check if end date is before today and status is not "concluído"
+    // Check if end date is before today and status is not completed/concluded
+    // This should match exactly the dashboard logic
     return itemEndDate < today && 
            status !== 'concluido' && 
            status !== 'concluído' && 
-           status !== 'completed';
+           status !== 'completed' &&
+           status !== 'cancelado' &&
+           status !== 'cancelled';
   };
 
   // Calculate current date position
@@ -183,39 +186,27 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
       }, {} as typeof groupedTasks)
     : groupedTasks;
 
-  // Calculate overdue counts
+  // UPDATED: Calculate overdue counts to match dashboard logic exactly
   const calculateOverdueCounts = () => {
     let overdueProjects = 0;
     let overdueStages = 0;
     
-    // Count overdue projects (considering each project group as one project)
-    Object.entries(filteredGroupedTasks).forEach(([projectId, projectData]) => {
-      // We need to determine the project's overall end date and status
-      // For this example, we'll use the latest end date among tasks and check if any are overdue
-      const projectTasks = projectData.tasks;
-      if (projectTasks.length > 0) {
-        // Find the latest end date among all tasks in this project
-        const latestEndDate = projectTasks.reduce((latest, task) => {
-          return new Date(task.end_date) > new Date(latest) ? task.end_date : latest;
-        }, projectTasks[0].end_date);
-        
-        // Check if any task in the project indicates the project is overdue
-        // We'll consider a project overdue if it has any overdue tasks
-        const hasOverdueTasks = projectTasks.some(task => isOverdue(task.end_date, task.status));
-        if (hasOverdueTasks) {
-          overdueProjects++;
-        }
-      }
-    });
+    // Create a set to track unique overdue projects (to avoid counting same project multiple times)
+    const overdueProjectIds = new Set<string>();
     
-    // Count overdue stages (individual tasks)
+    // Count overdue stages (individual tasks) and track overdue projects
     Object.values(filteredGroupedTasks).forEach(projectData => {
       projectData.tasks.forEach(task => {
         if (isOverdue(task.end_date, task.status)) {
           overdueStages++;
+          // Add project to overdue projects set
+          overdueProjectIds.add(task.project_id);
         }
       });
     });
+    
+    // The number of overdue projects is the size of the set (unique project IDs)
+    overdueProjects = overdueProjectIds.size;
     
     return { overdueProjects, overdueStages };
   };
