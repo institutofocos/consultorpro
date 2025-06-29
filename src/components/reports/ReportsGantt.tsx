@@ -140,6 +140,19 @@ const ReportsGantt: React.FC = () => {
             if (project.stages && project.stages.length > 0) {
               project.stages.forEach(stage => {
                 if (stage.startDate && stage.endDate) {
+                  // Get consultant name - fix the property access
+                  let consultantName = 'Não atribuído';
+                  if (stage.consultantId) {
+                    // Try to find consultant in the consultants list
+                    const consultant = consultantsData?.find(c => c.id === stage.consultantId);
+                    if (consultant) {
+                      consultantName = consultant.name;
+                    } else if (stage.consultant?.name) {
+                      // Fallback to consultant data from stage if available
+                      consultantName = stage.consultant.name;
+                    }
+                  }
+                  
                   allTasks.push({
                     id: stage.id,
                     name: stage.name,
@@ -153,7 +166,7 @@ const ReportsGantt: React.FC = () => {
                     days: stage.days || 0,
                     project_id: project.id,
                     consultant_id: stage.consultantId || '',
-                    consultant_name: stage.consultantName || 'Não atribuído',
+                    consultant_name: consultantName,
                     project_name: project.name,
                     service_name: project.serviceName || 'Sem serviço',
                     completed: stage.completed
