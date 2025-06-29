@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { AuthUser, UserProfile, ModulePermission } from '@/types/auth';
 import { User } from '@supabase/supabase-js';
@@ -97,34 +96,13 @@ export async function createUserWithProfile(userData: {
   email: string;
   password: string;
   full_name: string;
-  role: 'admin' | 'consultant' | 'client';
+  role: 'admin' | 'consultant' | 'manager' | 'financial' | 'client';
   permissions?: ModulePermissionInput[];
 }) {
-  console.log('Creating user with profile:', userData);
-  
   try {
-    // Validate input data
-    if (!userData.email || !userData.password || !userData.full_name) {
-      throw new Error('Email, senha e nome são obrigatórios');
-    }
+    console.log('Creating user with data:', userData);
 
-    if (userData.password.length < 6) {
-      throw new Error('A senha deve ter pelo menos 6 caracteres');
-    }
-
-    // Check if user already exists in our profiles table
-    const { data: existingProfile } = await supabase
-      .from('user_profiles')
-      .select('email')
-      .eq('email', userData.email.toLowerCase())
-      .single();
-
-    if (existingProfile) {
-      throw new Error('Este email já está cadastrado no sistema');
-    }
-
-    // Use regular signup with email confirmation disabled for admin creation
-    console.log('Creating user via admin signup...');
+    // Create user in Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: userData.email,
       password: userData.password,
@@ -132,64 +110,59 @@ export async function createUserWithProfile(userData: {
         data: {
           full_name: userData.full_name,
           role: userData.role
-        },
-        emailRedirectTo: undefined // This disables the email confirmation requirement
+        }
       }
     });
 
     if (authError) {
       console.error('Auth signup error:', authError);
-      throw new Error(`Erro na criação do usuário: ${authError.message}`);
+      throw authError;
     }
 
     if (!authData.user) {
-      throw new Error('Usuário não foi criado corretamente');
+      throw new Error('User creation failed - no user returned');
     }
 
-    console.log('User created via signup:', authData.user.id);
+    console.log('Auth user created:', authData.user.id);
 
-    // Create user profile directly using service role access
+    // Create user profile
     const { error: profileError } = await supabase
       .from('user_profiles')
-      .upsert({
+      .insert({
         id: authData.user.id,
         full_name: userData.full_name,
+        email: userData.email,
         role: userData.role,
-        email: userData.email.toLowerCase(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        is_active: true
+        is_active: true,
+        email_confirmed: authData.user.email_confirmed_at !== null
       });
 
     if (profileError) {
       console.error('Profile creation error:', profileError);
-      // Don't throw here - the user was created in auth, so we still consider it success
-      console.warn('Profile creation failed, but user was created in auth');
-    } else {
-      console.log('User profile created successfully');
+      throw profileError;
     }
 
-    // Create module permissions if provided
+    console.log('User profile created');
+
+    // Create module permissions
     if (userData.permissions && userData.permissions.length > 0) {
-      const permissionsToInsert = userData.permissions.map(permission => ({
-        user_id: authData.user!.id,
+      const permissionsData = userData.permissions.map(permission => ({
+        user_id: authData.user.id,
         module_name: permission.module_name,
         can_view: permission.can_view,
-        can_edit: permission.can_edit,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        can_edit: permission.can_edit
       }));
 
       const { error: permissionsError } = await supabase
         .from('module_permissions')
-        .insert(permissionsToInsert);
+        .insert(permissionsData);
 
       if (permissionsError) {
         console.error('Permissions creation error:', permissionsError);
-        console.warn('Module permissions could not be created, but user was created successfully');
-      } else {
-        console.log('Module permissions created successfully');
+        throw permissionsError;
       }
+
+      console.log('Module permissions created');
     }
 
     return {
@@ -197,12 +170,13 @@ export async function createUserWithProfile(userData: {
       profile: {
         id: authData.user.id,
         full_name: userData.full_name,
-        role: userData.role,
-        email: userData.email.toLowerCase()
+        email: userData.email,
+        role: userData.role
       }
     };
+
   } catch (error) {
-    console.error('Create user with profile error:', error);
+    console.error('Error in createUserWithProfile:', error);
     throw error;
   }
 }
