@@ -42,7 +42,7 @@ export const PriorityTables: React.FC<PriorityTablesProps> = ({
 }) => {
   return (
     <>
-      {/* Priority Tables - Projetos e Etapas */}
+      {/* Priority Tables - Projetos e Etapas a Serem Entregues */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="shadow-card">
           <CardHeader>
@@ -105,77 +105,78 @@ export const PriorityTables: React.FC<PriorityTablesProps> = ({
         </Card>
       </div>
       
-      {/* Projetos Atrasados */}
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-orange-500" />
-            Projetos Atrasados ({overdueProjects.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="max-h-64 overflow-y-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Projeto</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Vencimento</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {overdueProjects.slice(0, 15).map((project) => (
-                  <TableRow key={project.id} className="text-orange-600">
-                    <TableCell className="font-medium">{project.name}</TableCell>
-                    <TableCell>{project.clientName || 'N/A'}</TableCell>
-                    <TableCell>{formatCurrency(project.totalValue || 0)}</TableCell>
-                    <TableCell className="font-medium">{formatDate(project.endDate || '')}</TableCell>
+      {/* Priority Tables - Projetos e Etapas Atrasados */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-orange-500" />
+              Projetos Atrasados ({overdueProjects.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="max-h-64 overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Projeto</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Valor</TableHead>
+                    <TableHead>Vencimento</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-      
-      {/* Etapas Atrasadas */}
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-red-500" />
-            Etapas Atrasadas ({overdueStages.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="max-h-64 overflow-y-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Etapa</TableHead>
-                  <TableHead>Projeto</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead>Consultor</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {overdueStages.slice(0, 15).map((stage) => (
-                  <TableRow key={`${stage.projectId}-${stage.id}`} className="text-red-600">
-                    <TableCell className="font-medium">{stage.name}</TableCell>
-                    <TableCell>{stage.projectName || 'N/A'}</TableCell>
-                    <TableCell>{stage.clientName || 'N/A'}</TableCell>
-                    <TableCell>{formatCurrency(stage.value || 0)}</TableCell>
-                    <TableCell className="font-medium">{formatDate(stage.endDate || '')}</TableCell>
-                    <TableCell>{stage.consultantName || 'N/A'}</TableCell>
+                </TableHeader>
+                <TableBody>
+                  {overdueProjects.slice(0, 15).map((project) => (
+                    <TableRow key={project.id} className="text-orange-600">
+                      <TableCell className="font-medium">{project.name}</TableCell>
+                      <TableCell>{project.clientName || 'N/A'}</TableCell>
+                      <TableCell>{formatCurrency(project.totalValue || 0)}</TableCell>
+                      <TableCell className="font-medium">{formatDate(project.endDate || '')}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Etapas Atrasadas ({overdueStages.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="max-h-64 overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Etapa</TableHead>
+                    <TableHead>Projeto</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Valor</TableHead>
+                    <TableHead>Vencimento</TableHead>
+                    <TableHead>Consultor</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {overdueStages.slice(0, 15).map((stage) => (
+                    <TableRow key={`${stage.projectId}-${stage.id}`} className="text-red-600">
+                      <TableCell className="font-medium">{stage.name}</TableCell>
+                      <TableCell>{stage.projectName || 'N/A'}</TableCell>
+                      <TableCell>{stage.clientName || 'N/A'}</TableCell>
+                      <TableCell>{formatCurrency(stage.value || 0)}</TableCell>
+                      <TableCell className="font-medium">{formatDate(stage.endDate || '')}</TableCell>
+                      <TableCell>{stage.consultantName || 'N/A'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </>
   );
 };

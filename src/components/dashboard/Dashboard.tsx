@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Briefcase, Target, Calendar, DollarSign, Clock, CheckCircle, AlertCircle, AlertTriangle, FileText
@@ -533,9 +534,10 @@ export const Dashboard: React.FC = () => {
         />
       </div>
       
-      {/* Priority Tables - Projetos e Etapas */}
+      {/* Priority Tables - Projetos, Etapas a Serem Entregues e Atrasados */}
       <PriorityTables
         projectsToDeliver={projectsToDeliver}
+        overdueProjects={overdueProjects}
         stagesToDeliver={stagesToDeliver}
         overdueStages={overdueStages}
         formatDate={formatDate}
