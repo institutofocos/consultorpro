@@ -73,9 +73,22 @@ const KanbanBoard: React.FC = () => {
     refetchInterval: 5000, // Refetch a cada 5 segundos para garantir sincronia
   });
 
+  // Função para verificar se um item está vencido
+  const isOverdue = (endDate: string | null) => {
+    if (!endDate) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const itemEndDate = new Date(endDate);
+    itemEndDate.setHours(0, 0, 0, 0);
+    return itemEndDate < today;
+  };
+
   // Aplicar todos os filtros aos projetos
   const projects = useMemo(() => {
     let filteredProjects = allProjects;
+
+    console.log('=== APLICANDO FILTROS AOS PROJETOS ===');
+    console.log('Filtro Cards Vencidos ativo:', showOverdueOnly);
 
     // Filtro por termo de busca
     if (searchTerm) {
@@ -117,29 +130,42 @@ const KanbanBoard: React.FC = () => {
       });
     }
 
-    // Filtro para cards vencidos
+    // Filtro para cards vencidos - MODIFICADO PARA SER MAIS PRECISO
     if (showOverdueOnly) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      console.log('Aplicando filtro de cards vencidos...');
       
       filteredProjects = filteredProjects.filter(project => {
         // Verificar se o projeto está vencido
-        if (project.endDate && new Date(project.endDate) < today) {
-          return true;
-        }
+        const projectOverdue = isOverdue(project.endDate);
         
         // Verificar se alguma etapa está vencida
-        if (project.stages) {
-          return project.stages.some(stage => 
-            stage.endDate && new Date(stage.endDate) < today && !stage.completed
-          );
+        const hasOverdueStage = project.stages ? 
+          project.stages.some(stage => isOverdue(stage.endDate) && !stage.completed) : 
+          false;
+        
+        const shouldInclude = projectOverdue || hasOverdueStage;
+        
+        if (shouldInclude) {
+          console.log(`Projeto ${project.name} incluído:`);
+          console.log(`  - Projeto vencido: ${projectOverdue} (data fim: ${project.endDate})`);
+          console.log(`  - Tem etapa vencida: ${hasOverdueStage}`);
+          if (project.stages) {
+            project.stages.forEach(stage => {
+              const stageOverdue = isOverdue(stage.endDate) && !stage.completed;
+              if (stageOverdue) {
+                console.log(`    - Etapa vencida: ${stage.name} (data fim: ${stage.endDate})`);
+              }
+            });
+          }
         }
         
-        return false;
+        return shouldInclude;
       });
+      
+      console.log(`Projetos após filtro de vencidos: ${filteredProjects.length}`);
     }
 
-    console.log('Projetos após filtros:', filteredProjects.length);
+    console.log('Projetos após todos os filtros:', filteredProjects.length);
     return filteredProjects;
   }, [allProjects, searchTerm, selectedConsultant, selectedService, startDate, endDate, showOverdueOnly]);
 
