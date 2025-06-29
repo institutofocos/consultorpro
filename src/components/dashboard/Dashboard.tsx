@@ -91,26 +91,29 @@ export const Dashboard: React.FC = () => {
           .order('name');
         setConsultants(consultantData || []);
         
-        // Fetch clients
         const { data: clientData } = await supabase
           .from('clients')
           .select('id, name')
           .order('name');
         setClients(clientData || []);
         
-        // Fetch services
         const { data: serviceData } = await supabase
           .from('services')
           .select('id, name')
           .order('name');
         setServices(serviceData || []);
         
-        // Fetch projects using the integrated function
         const projectsData = await fetchProjects();
         setProjects(projectsData || []);
         
         console.log('Projetos carregados:', projectsData?.length || 0);
         console.log('Status configurados:', statuses);
+        
+        // Mapear status configurados por nome
+        const statusMap = statuses.reduce((acc, status) => {
+          acc[status.name] = status;
+          return acc;
+        }, {});
         
         // Determinar quais status são de conclusão
         const completionStatuses = statuses
@@ -129,14 +132,11 @@ export const Dashboard: React.FC = () => {
         // Apply filters to projects data
         const filteredProjectsData = applyFilters(projectsData || []);
         
-        // Calculate projects to deliver (não concluídos) - usando dados filtrados
         const projectsToDeliverList = filteredProjectsData.filter(project => 
           !finalCompletionStatuses.includes(project.status)
         );
         setProjectsToDeliver(projectsToDeliverList);
-        console.log('Projetos a serem entregues:', projectsToDeliverList.length);
         
-        // Calculate overdue projects (projetos atrasados) - usando dados filtrados
         const today = new Date();
         const overdueProjectsList = filteredProjectsData.filter(project => 
           project.endDate && 
@@ -144,13 +144,18 @@ export const Dashboard: React.FC = () => {
           isBefore(new Date(project.endDate), today)
         );
         setOverdueProjects(overdueProjectsList);
-        console.log('Projetos atrasados:', overdueProjectsList.length);
         
-        // Calculate stages to deliver (etapas não concluídas) and delivered stages
         const allStages = [];
         const stagesToDeliverList = [];
         const overdueStagesList = [];
         const deliveredStagesList = [];
+        
+        // Listas financeiras baseadas nos status configurados
+        const awaitingInvoiceList = [];
+        const invoicesIssuedList = [];
+        const awaitingPaymentList = [];
+        const awaitingConsultantPaymentList = [];
+        const consultantsPaidList = [];
         
         filteredProjectsData.forEach(project => {
           if (project.stages) {
@@ -189,6 +194,32 @@ export const Dashboard: React.FC = () => {
                   isBefore(new Date(stage.endDate), today)) {
                 overdueStagesList.push(stageWithProject);
               }
+              
+              // SINCRONIZAÇÃO COM STATUS CONFIGURADOS - Cartões Financeiros
+              // Etapas Aguardando NF - status "aguardando_nota_fiscal"
+              if (stageStatus === 'aguardando_nota_fiscal') {
+                awaitingInvoiceList.push(stageWithProject);
+              }
+              
+              // Notas Fiscais Emitidas - status "aguardando_pagamento" 
+              if (stageStatus === 'aguardando_pagamento') {
+                invoicesIssuedList.push(stageWithProject);
+              }
+              
+              // Aguardando Recebimento - mesmo que "aguardando_pagamento"
+              if (stageStatus === 'aguardando_pagamento') {
+                awaitingPaymentList.push(stageWithProject);
+              }
+              
+              // Aguardando Repasse - status "aguardando_repasse"
+              if (stageStatus === 'aguardando_repasse') {
+                awaitingConsultantPaymentList.push(stageWithProject);
+              }
+              
+              // Consultores Pagos - status "concluido" ou outros status de conclusão
+              if (finalCompletionStatuses.includes(stageStatus)) {
+                consultantsPaidList.push(stageWithProject);
+              }
             });
           }
         });
@@ -197,11 +228,20 @@ export const Dashboard: React.FC = () => {
         setOverdueStages(overdueStagesList);
         setDeliveredStages(deliveredStagesList);
         
-        console.log('Etapas a serem entregues:', stagesToDeliverList.length);
-        console.log('Etapas atrasadas:', overdueStagesList.length);
-        console.log('Etapas entregues:', deliveredStagesList.length);
+        // Definir os dados financeiros sincronizados com os status
+        setAwaitingInvoice(awaitingInvoiceList);
+        setInvoicesIssued(invoicesIssuedList);
+        setAwaitingPayment(awaitingPaymentList);
+        setAwaitingConsultantPayment(awaitingConsultantPaymentList);
+        setConsultantsPaid(consultantsPaidList);
         
-        // Calculate stats
+        console.log('=== CARTÕES FINANCEIROS SINCRONIZADOS ===');
+        console.log('Aguardando NF:', awaitingInvoiceList.length);
+        console.log('NF Emitidas:', invoicesIssuedList.length);
+        console.log('Aguardando Recebimento:', awaitingPaymentList.length);
+        console.log('Aguardando Repasse:', awaitingConsultantPaymentList.length);
+        console.log('Consultores Pagos:', consultantsPaidList.length);
+        
         const totalConsultants = consultantData?.length || 0;
         const totalClients = clientData?.length || 0;
         const deliveredStagesCount = deliveredStagesList.length;
@@ -594,7 +634,7 @@ export const Dashboard: React.FC = () => {
         formatCurrency={formatCurrency}
       />
       
-      {/* Financial Stats Cards */}
+      {/* Financial Stats Cards - SINCRONIZADOS COM STATUS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <StatCard 
           title="Etapas Aguardando NF" 
