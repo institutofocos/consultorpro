@@ -278,20 +278,6 @@ const ReportsGantt: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Debug Info - Temporary */}
-      <Card className="border-orange-200 bg-orange-50">
-        <CardContent className="p-4">
-          <div className="text-sm">
-            <strong>Debug Info:</strong><br/>
-            Projetos atrasados: {overdueProjects}<br/>
-            Etapas atrasadas: {overdueStages}<br/>
-            Total de tasks: {tasks.length}<br/>
-            Status configurados: {statuses.length}<br/>
-            Loading: {loading ? 'Sim' : 'Não'}
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Gantt Chart */}
       <GanttView 
         tasks={tasks} 
