@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ChevronLeft, ChevronRight, Calendar, User, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, User, Clock, AlertTriangle } from 'lucide-react';
 import { format, addDays, startOfWeek, differenceInDays, parseISO, addWeeks, subWeeks, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatDateBR } from '@/utils/dateUtils';
@@ -52,6 +53,20 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
   };
 
   const timeline = generateTimeline();
+
+  // Function to check if an item is overdue
+  const isOverdue = (endDate: string, status: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const itemEndDate = new Date(endDate);
+    itemEndDate.setHours(0, 0, 0, 0);
+    
+    // Check if end date is before today and status is not "concluído"
+    return itemEndDate < today && 
+           status !== 'concluido' && 
+           status !== 'concluído' && 
+           status !== 'completed';
+  };
 
   // Calculate current date position
   const calculateCurrentDatePosition = () => {
@@ -168,6 +183,45 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
       }, {} as typeof groupedTasks)
     : groupedTasks;
 
+  // Calculate overdue counts
+  const calculateOverdueCounts = () => {
+    let overdueProjects = 0;
+    let overdueStages = 0;
+    
+    // Count overdue projects (considering each project group as one project)
+    Object.entries(filteredGroupedTasks).forEach(([projectId, projectData]) => {
+      // We need to determine the project's overall end date and status
+      // For this example, we'll use the latest end date among tasks and check if any are overdue
+      const projectTasks = projectData.tasks;
+      if (projectTasks.length > 0) {
+        // Find the latest end date among all tasks in this project
+        const latestEndDate = projectTasks.reduce((latest, task) => {
+          return new Date(task.end_date) > new Date(latest) ? task.end_date : latest;
+        }, projectTasks[0].end_date);
+        
+        // Check if any task in the project indicates the project is overdue
+        // We'll consider a project overdue if it has any overdue tasks
+        const hasOverdueTasks = projectTasks.some(task => isOverdue(task.end_date, task.status));
+        if (hasOverdueTasks) {
+          overdueProjects++;
+        }
+      }
+    });
+    
+    // Count overdue stages (individual tasks)
+    Object.values(filteredGroupedTasks).forEach(projectData => {
+      projectData.tasks.forEach(task => {
+        if (isOverdue(task.end_date, task.status)) {
+          overdueStages++;
+        }
+      });
+    });
+    
+    return { overdueProjects, overdueStages };
+  };
+
+  const { overdueProjects, overdueStages } = calculateOverdueCounts();
+
   return (
     <div className="space-y-4">
       {/* Navigation Controls */}
@@ -187,11 +241,24 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
           </Button>
         </div>
         
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4" />
-          <span className="text-sm font-medium">
-            {format(viewStartDate, 'dd/MM/yyyy', { locale: ptBR })} - {format(addDays(viewStartDate, timelineWeeks * 7 - 1), 'dd/MM/yyyy', { locale: ptBR })}
-          </span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            <span className="text-sm font-medium">
+              {format(viewStartDate, 'dd/MM/yyyy', { locale: ptBR })} - {format(addDays(viewStartDate, timelineWeeks * 7 - 1), 'dd/MM/yyyy', { locale: ptBR })}
+            </span>
+            {(overdueProjects > 0 || overdueStages > 0) && (
+              <div className="flex items-center gap-2 ml-4">
+                <AlertTriangle className="h-4 w-4 text-red-500" />
+                <span className="text-sm text-red-600 font-medium">
+                  {overdueProjects > 0 && `${overdueProjects} projeto${overdueProjects > 1 ? 's' : ''}`}
+                  {overdueProjects > 0 && overdueStages > 0 && ', '}
+                  {overdueStages > 0 && `${overdueStages} etapa${overdueStages > 1 ? 's' : ''}`}
+                  {' '}em atraso
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
         <Select value={timelineWeeks.toString()} onValueChange={(value) => setTimelineWeeks(parseInt(value))}>
@@ -293,6 +360,7 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
                     const position = calculateTaskPosition(task.start_date, task.end_date);
                     const statusColor = getStatusColor(task.status);
                     const statusBadgeStyle = getStatusBadgeStyle(task.status);
+                    const taskIsOverdue = isOverdue(task.end_date, task.status);
                     
                     if (!position.visible) return null;
 
@@ -302,7 +370,10 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
                           <div className="w-80 flex-shrink-0 p-3 border-r">
                             <div className="flex items-center gap-2">
                               <div className="flex-1">
-                                <div className="font-medium text-sm">{task.name}</div>
+                                <div className={`font-medium text-sm flex items-center gap-2 ${taskIsOverdue ? 'text-red-700' : ''}`}>
+                                  {taskIsOverdue && <AlertTriangle className="h-3 w-3 text-red-500" />}
+                                  {task.name}
+                                </div>
                                 <div className="text-xs text-muted-foreground flex items-center gap-2">
                                   <User className="h-3 w-3" />
                                   {task.consultant_name}
@@ -339,11 +410,17 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
                                 <div
                                   className={`absolute top-2 bottom-2 rounded cursor-move hover:opacity-80 transition-opacity flex items-center px-2 text-white text-xs font-medium shadow-sm ${
                                     draggedTask === task.id ? 'opacity-50' : ''
+                                  } ${
+                                    taskIsOverdue 
+                                      ? 'border-2 border-red-500 shadow-red-200 ring-1 ring-red-300' 
+                                      : ''
                                   }`}
                                   style={{
                                     left: position.left,
                                     width: position.width,
-                                    backgroundColor: statusColor
+                                    backgroundColor: taskIsOverdue 
+                                      ? `${statusColor}CC` // Make color slightly transparent for overdue items
+                                      : statusColor
                                   }}
                                   draggable
                                   onDragStart={() => handleDragStart(task.id)}
@@ -352,6 +429,7 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
                                   <div className="flex items-center gap-1 truncate">
                                     <Clock className="h-3 w-3" />
                                     <span>{task.days}d</span>
+                                    {taskIsOverdue && <AlertTriangle className="h-3 w-3 text-red-200" />}
                                     {parseFloat(position.width) > 10 && (
                                       <span className="truncate ml-1">{task.name}</span>
                                     )}
@@ -373,6 +451,9 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
                                     <div>Valor: R$ {task.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                                     <div>Consultor: {task.consultant_name}</div>
                                     <div>Status: {getStatusDisplayText(task.status)}</div>
+                                    {taskIsOverdue && (
+                                      <div className="text-red-400 font-medium">⚠️ Em atraso</div>
+                                    )}
                                   </div>
                                 </div>
                               </TooltipContent>
@@ -436,6 +517,11 @@ const GanttView: React.FC<GanttViewProps> = ({ tasks, selectedConsultantId }) =>
             <div className="flex items-center gap-2 text-sm">
               <div className="w-1 h-4 bg-green-500"></div>
               <span>Hoje</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <div className="w-4 h-4 bg-red-500 rounded border-2 border-red-700"></div>
+              <AlertTriangle className="h-4 w-4 text-red-500" />
+              <span>Em atraso</span>
             </div>
           </div>
         </CardContent>
