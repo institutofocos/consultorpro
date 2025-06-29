@@ -140,16 +140,13 @@ const ReportsGantt: React.FC = () => {
             if (project.stages && project.stages.length > 0) {
               project.stages.forEach(stage => {
                 if (stage.startDate && stage.endDate) {
-                  // Get consultant name - fix the property access
+                  // Get consultant name - fixed property access
                   let consultantName = 'Não atribuído';
                   if (stage.consultantId) {
                     // Try to find consultant in the consultants list
                     const consultant = consultantsData?.find(c => c.id === stage.consultantId);
                     if (consultant) {
                       consultantName = consultant.name;
-                    } else if (stage.consultant?.name) {
-                      // Fallback to consultant data from stage if available
-                      consultantName = stage.consultant.name;
                     }
                   }
                   
