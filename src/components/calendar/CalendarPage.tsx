@@ -278,20 +278,21 @@ const CalendarPage: React.FC = () => {
   };
 
   const handleViewModeChange = (newViewMode: ViewMode) => {
+    // SEMPRE usar a data atual, independente da navegação anterior
     const today = new Date();
     
+    setViewMode(newViewMode);
+    
     if (newViewMode === 'month') {
-      // Always set to current month when switching to month view
-      setCurrentDate(today);
+      // Sempre definir para o mês atual
+      setCurrentDate(new Date(today.getFullYear(), today.getMonth(), 1));
     } else if (newViewMode === 'week') {
-      // Always set to current week starting from Monday when switching to week view
+      // Sempre definir para a semana atual começando na segunda-feira
       setCurrentDate(startOfWeek(today, { weekStartsOn: 1 }));
     } else if (newViewMode === 'day') {
-      // Always set to today when switching to day view
+      // Sempre definir para o dia atual
       setCurrentDate(today);
     }
-    
-    setViewMode(newViewMode);
   };
 
   const renderGanttView = () => {
