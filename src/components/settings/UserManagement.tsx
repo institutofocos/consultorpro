@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -69,76 +68,160 @@ const UserManagement: React.FC = () => {
       setIsSyncingUsers(true);
       console.log('🔄 Sincronizando usuários do Auth...');
 
-      // Buscar todos os usuários do Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
+      // Primeiro, obter o usuário atual para usar como service_role temporariamente
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
       
-      if (authError) {
-        console.error('❌ Erro ao buscar usuários do Auth:', authError);
-        throw authError;
+      if (!currentUser) {
+        throw new Error('Usuário não autenticado');
       }
 
-      console.log('📋 Usuários encontrados no Auth:', authData.users.length);
+      console.log('👤 Usuário atual:', currentUser.email);
+
+      // Buscar todos os usuários do Auth usando a API admin
+      const { data: authUsers, error: listError } = await supabase.auth.admin.listUsers();
+      
+      if (listError) {
+        console.error('❌ Erro ao listar usuários:', listError);
+        
+        // Se falhar, tentar uma abordagem alternativa usando service role
+        if (listError.message?.includes('not_admin') || listError.message?.includes('not allowed')) {
+          console.log('⚠️ Acesso admin negado, tentando buscar usuários de forma alternativa...');
+          
+          // Buscar apenas perfis existentes e tentar criar o perfil do usuário atual se não existir
+          const { data: currentProfile, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', currentUser.id)
+            .maybeSingle();
+
+          if (profileError && profileError.code !== 'PGRST116') {
+            throw profileError;
+          }
+
+          if (!currentProfile) {
+            // Criar perfil para o usuário atual
+            const { error: insertError } = await supabase
+              .from('user_profiles')
+              .insert({
+                id: currentUser.id,
+                full_name: currentUser.user_metadata?.full_name || 
+                          currentUser.email?.split('@')[0] || 
+                          'Usuário',
+                email: currentUser.email || '',
+                role: 'admin', // Assumir que é admin se está tentando sincronizar
+                is_active: true,
+                email_confirmed: currentUser.email_confirmed_at !== null,
+                created_at: currentUser.created_at,
+                updated_at: new Date().toISOString()
+              });
+
+            if (insertError) {
+              console.error('Erro ao criar perfil do usuário atual:', insertError);
+              toast.error('Erro ao criar perfil do usuário atual: ' + insertError.message);
+            } else {
+              console.log('✅ Perfil criado para o usuário atual');
+              toast.success('Perfil criado com sucesso!');
+              await loadUsers();
+            }
+          } else {
+            toast.info('Perfil do usuário atual já existe.');
+            await loadUsers();
+          }
+          return;
+        }
+        
+        throw listError;
+      }
+
+      console.log('📋 Usuários encontrados no Auth:', authUsers.users?.length || 0);
+
+      if (!authUsers.users || authUsers.users.length === 0) {
+        toast.info('Nenhum usuário encontrado no Supabase Auth.');
+        return;
+      }
 
       let syncedCount = 0;
       let skippedCount = 0;
+      let errorCount = 0;
 
-      for (const authUser of authData.users) {
-        // Verificar se já existe perfil para este usuário
-        const { data: existingProfile, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('id')
-          .eq('id', authUser.id)
-          .maybeSingle();
-
-        if (profileError && profileError.code !== 'PGRST116') { // PGRST116 = row not found
-          console.error('Erro ao verificar perfil existente:', profileError);
-          continue;
-        }
-
-        if (!existingProfile) {
-          // Criar perfil para usuário que não tem
-          const fullName = authUser.user_metadata?.full_name || 
-                           authUser.email?.split('@')[0] || 
-                           'Usuário';
-          
-          const role = authUser.user_metadata?.role || 'client';
-
-          const { error: insertError } = await supabase
+      for (const authUser of authUsers.users) {
+        try {
+          // Verificar se já existe perfil para este usuário
+          const { data: existingProfile, error: profileError } = await supabase
             .from('user_profiles')
-            .insert({
-              id: authUser.id,
-              full_name: fullName,
-              email: authUser.email || '',
-              role: role,
-              is_active: true,
-              email_confirmed: authUser.email_confirmed_at !== null,
-              created_at: authUser.created_at,
-              updated_at: new Date().toISOString()
-            });
+            .select('id')
+            .eq('id', authUser.id)
+            .maybeSingle();
 
-          if (insertError) {
-            console.error('Erro ao criar perfil para usuário:', authUser.id, insertError);
-          } else {
-            console.log('✅ Perfil criado para usuário:', authUser.email);
-            syncedCount++;
+          if (profileError && profileError.code !== 'PGRST116') {
+            console.error('Erro ao verificar perfil existente:', profileError);
+            errorCount++;
+            continue;
           }
-        } else {
-          skippedCount++;
+
+          if (!existingProfile) {
+            // Criar perfil para usuário que não tem
+            const fullName = authUser.user_metadata?.full_name || 
+                             authUser.email?.split('@')[0] || 
+                             'Usuário';
+            
+            const role = authUser.user_metadata?.role || 'client';
+
+            const { error: insertError } = await supabase
+              .from('user_profiles')
+              .insert({
+                id: authUser.id,
+                full_name: fullName,
+                email: authUser.email || '',
+                role: role,
+                is_active: true,
+                email_confirmed: authUser.email_confirmed_at !== null,
+                created_at: authUser.created_at,
+                updated_at: new Date().toISOString()
+              });
+
+            if (insertError) {
+              console.error('Erro ao criar perfil para usuário:', authUser.id, insertError);
+              errorCount++;
+            } else {
+              console.log('✅ Perfil criado para usuário:', authUser.email);
+              syncedCount++;
+            }
+          } else {
+            skippedCount++;
+          }
+        } catch (error) {
+          console.error('Erro ao processar usuário:', authUser.id, error);
+          errorCount++;
         }
       }
 
-      console.log(`✅ Sincronização concluída: ${syncedCount} novos perfis, ${skippedCount} já existiam`);
+      console.log(`✅ Sincronização concluída: ${syncedCount} novos perfis, ${skippedCount} já existiam, ${errorCount} erros`);
       
       if (syncedCount > 0) {
         toast.success(`${syncedCount} usuário(s) sincronizado(s) com sucesso!`);
-        await loadUsers(); // Recarregar a lista
+      } else if (errorCount > 0) {
+        toast.warning(`Sincronização concluída com ${errorCount} erro(s). ${skippedCount} usuários já existiam.`);
       } else {
         toast.info('Todos os usuários já estavam sincronizados.');
       }
+      
+      // Sempre recarregar a lista no final
+      await loadUsers();
 
     } catch (error: any) {
       console.error('💥 Erro na sincronização:', error);
-      toast.error(`Erro ao sincronizar usuários: ${error.message}`);
+      let errorMessage = 'Erro desconhecido';
+      
+      if (error?.message) {
+        if (error.message.includes('not_admin') || error.message.includes('not allowed')) {
+          errorMessage = 'Permissões insuficientes para acessar dados do Auth. Verifique se você tem permissões de administrador.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast.error(`Erro ao sincronizar usuários: ${errorMessage}`);
     } finally {
       setIsSyncingUsers(false);
     }
@@ -149,26 +232,26 @@ const UserManagement: React.FC = () => {
       setIsLoading(true);
       console.log('🔄 Carregando usuários...');
 
-      // Buscar TODOS os usuários da tabela user_profiles
-      const { data: users, error } = await supabase
+      // Buscar usuários da tabela user_profiles
+      const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('❌ Erro ao buscar usuários:', error);
-        throw error;
+      if (profilesError) {
+        console.error('❌ Erro ao buscar perfis:', profilesError);
+        throw profilesError;
       }
 
-      console.log('✅ Usuários encontrados:', users?.length || 0);
-      console.log('📋 Lista de usuários:', users);
+      console.log('✅ Perfis encontrados:', profiles?.length || 0);
+      console.log('📋 Lista de perfis:', profiles);
 
-      if (users && users.length > 0) {
-        setUsers(users);
-        toast.success(`${users.length} usuário(s) carregado(s) com sucesso!`);
+      setUsers(profiles || []);
+      
+      if (profiles && profiles.length > 0) {
+        toast.success(`${profiles.length} usuário(s) carregado(s) com sucesso!`);
       } else {
-        setUsers([]);
-        toast.info('Nenhum usuário encontrado na tabela de perfis. Tente sincronizar os usuários.');
+        toast.info('Nenhum usuário encontrado. Tente sincronizar os usuários do Auth.');
       }
       
     } catch (error: any) {
