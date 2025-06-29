@@ -277,6 +277,23 @@ const CalendarPage: React.FC = () => {
     setSelectedConsultantId('');
   };
 
+  const handleViewModeChange = (newViewMode: ViewMode) => {
+    const today = new Date();
+    
+    if (newViewMode === 'month') {
+      // Always set to current month when switching to month view
+      setCurrentDate(today);
+    } else if (newViewMode === 'week') {
+      // Always set to current week starting from Monday when switching to week view
+      setCurrentDate(startOfWeek(today, { weekStartsOn: 1 }));
+    } else if (newViewMode === 'day') {
+      // Always set to today when switching to day view
+      setCurrentDate(today);
+    }
+    
+    setViewMode(newViewMode);
+  };
+
   const renderGanttView = () => {
     return <GanttView tasks={filteredTasks} selectedConsultantId={selectedConsultantId} />;
   };
@@ -597,21 +614,21 @@ const CalendarPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <Button
                 variant={viewMode === 'day' ? 'default' : 'outline'}
-                onClick={() => setViewMode('day')}
+                onClick={() => handleViewModeChange('day')}
                 size="sm"
               >
                 Hoje
               </Button>
               <Button
                 variant={viewMode === 'week' ? 'default' : 'outline'}
-                onClick={() => setViewMode('week')}
+                onClick={() => handleViewModeChange('week')}
                 size="sm"
               >
                 Semana
               </Button>
               <Button
                 variant={viewMode === 'month' ? 'default' : 'outline'}
-                onClick={() => setViewMode('month')}
+                onClick={() => handleViewModeChange('month')}
                 size="sm"
               >
                 Mês
