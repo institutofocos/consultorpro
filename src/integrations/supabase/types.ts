@@ -1631,6 +1631,10 @@ export type Database = {
         }
         Returns: string
       }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       is_project_fully_completed: {
         Args: { p_project_id: string }
         Returns: boolean
