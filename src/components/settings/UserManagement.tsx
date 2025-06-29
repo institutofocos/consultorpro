@@ -66,57 +66,60 @@ const UserManagement: React.FC = () => {
   const loadUsers = async () => {
     try {
       setIsLoading(true);
-      console.log('Loading users from user_profiles and auth...');
+      console.log('Carregando usuários de ambas as fontes...');
 
-      // Primeiro, tentar buscar usuários da tabela user_profiles
+      let allUsers: User[] = [];
+
+      // Primeiro, buscar usuários dos perfis
       const { data: profileUsers, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (profileError) {
-        console.error('Error loading user profiles:', profileError);
+        console.error('Erro ao carregar perfis:', profileError);
+      } else if (profileUsers && profileUsers.length > 0) {
+        console.log('Usuários encontrados nos perfis:', profileUsers.length);
+        allUsers = [...profileUsers];
       }
 
-      // Se não houver usuários na tabela de perfis, vamos buscar diretamente da tabela de auth
-      if (!profileUsers || profileUsers.length === 0) {
-        console.log('No users found in user_profiles, checking auth.users...');
+      // Sempre buscar também da tabela de autenticação para garantir que não perdemos nenhum usuário
+      try {
+        const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
         
-        try {
-          // Buscar usuários da tabela de autenticação
-          const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
+        if (authError) {
+          console.error('Erro ao carregar usuários de auth:', authError);
+        } else if (authData?.users) {
+          console.log('Usuários encontrados no auth:', authData.users.length);
           
-          if (authError) {
-            console.error('Error loading auth users:', authError);
-            throw authError;
-          }
+          // Converter usuários de auth para o formato esperado
+          const authUsers: User[] = authData.users.map(authUser => ({
+            id: authUser.id,
+            full_name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Usuário',
+            email: authUser.email || '',
+            phone: authUser.user_metadata?.phone || authUser.phone || '',
+            role: authUser.user_metadata?.role || 'client',
+            is_active: !authUser.banned_until,
+            email_confirmed: !!authUser.email_confirmed_at,
+            created_at: authUser.created_at,
+            updated_at: authUser.updated_at || authUser.created_at,
+            last_login: authUser.last_sign_in_at || undefined
+          }));
 
-          console.log('Auth users found:', authData?.users?.length || 0);
-
-          if (authData?.users && authData.users.length > 0) {
-            // Converter usuários de auth para o formato esperado
-            const authUsers: User[] = authData.users.map(authUser => ({
-              id: authUser.id,
-              full_name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Usuário',
-              email: authUser.email || '',
-              phone: authUser.user_metadata?.phone || authUser.phone || '',
-              role: authUser.user_metadata?.role || 'client',
-              is_active: !authUser.banned_until,
-              email_confirmed: !!authUser.email_confirmed_at,
-              created_at: authUser.created_at,
-              updated_at: authUser.updated_at || authUser.created_at,
-              last_login: authUser.last_sign_in_at || undefined
-            }));
-
-            setUsers(authUsers);
-            toast.success(`${authUsers.length} usuário(s) encontrado(s) na autenticação!`);
+          // Mesclar usuários: manter os dos perfis e adicionar os que só existem no auth
+          const existingIds = new Set(allUsers.map(u => u.id));
+          const newAuthUsers = authUsers.filter(authUser => !existingIds.has(authUser.id));
+          
+          if (newAuthUsers.length > 0) {
+            console.log('Usuários encontrados apenas no auth:', newAuthUsers.length);
+            allUsers = [...allUsers, ...newAuthUsers];
             
             // Criar perfis para usuários que não têm
-            for (const authUser of authUsers) {
+            for (const authUser of newAuthUsers) {
               try {
                 const { error: insertError } = await supabase
                   .from('user_profiles')
-                  .upsert({
+                  .insert({
                     id: authUser.id,
                     full_name: authUser.full_name,
                     email: authUser.email,
@@ -124,35 +127,35 @@ const UserManagement: React.FC = () => {
                     role: authUser.role,
                     is_active: authUser.is_active,
                     email_confirmed: authUser.email_confirmed
-                  }, { onConflict: 'id' });
+                  });
 
                 if (insertError) {
-                  console.error('Error creating profile for user:', authUser.email, insertError);
+                  console.error('Erro ao criar perfil para usuário:', authUser.email, insertError);
                 }
               } catch (error) {
-                console.error('Error upserting profile:', error);
+                console.error('Erro ao inserir perfil:', error);
               }
             }
-            
-            return;
           }
-        } catch (authError) {
-          console.error('Error accessing auth users:', authError);
-          toast.error('Erro ao acessar usuários de autenticação');
         }
-      } else {
-        console.log('Users loaded from profiles:', profileUsers.length);
-        setUsers(profileUsers || []);
-        toast.success(`${profileUsers.length} usuário(s) carregado(s) com sucesso!`);
-        return;
+      } catch (authError) {
+        console.error('Erro ao acessar autenticação:', authError);
+        // Não falhar se não conseguir acessar auth, usar apenas os perfis
       }
 
-      // Se chegou até aqui, não há usuários em lugar nenhum
-      setUsers([]);
-      toast.info('Nenhum usuário encontrado no sistema.');
+      // Definir a lista final de usuários
+      setUsers(allUsers);
+      
+      if (allUsers.length === 0) {
+        toast.info('Nenhum usuário encontrado no sistema.');
+      } else {
+        toast.success(`${allUsers.length} usuário(s) carregado(s) com sucesso!`);
+      }
+      
+      console.log('Total de usuários carregados:', allUsers.length);
       
     } catch (error: any) {
-      console.error('Error loading users:', error);
+      console.error('Erro ao carregar usuários:', error);
       toast.error('Erro inesperado ao carregar usuários');
       setUsers([]);
     } finally {
@@ -180,7 +183,7 @@ const UserManagement: React.FC = () => {
         return;
       }
 
-      console.log('Creating user:', newUser);
+      console.log('Criando usuário:', newUser);
       setIsCreatingUser(true);
 
       const result = await createUserWithProfile({
@@ -191,7 +194,7 @@ const UserManagement: React.FC = () => {
         permissions: newUser.permissions
       });
 
-      console.log('User created successfully:', result);
+      console.log('Usuário criado com sucesso:', result);
       toast.success(`Usuário "${newUser.full_name}" criado com sucesso!`);
       
       setIsDialogOpen(false);
@@ -203,8 +206,10 @@ const UserManagement: React.FC = () => {
         permissions: []
       });
       
-      // Recarregar lista imediatamente
-      await loadUsers();
+      // Aguardar um pouco e recarregar a lista para garantir que o usuário apareça
+      setTimeout(async () => {
+        await loadUsers();
+      }, 1500);
       
     } catch (error: any) {
       console.error('Error creating user:', error);
