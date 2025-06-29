@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Briefcase, Target, Calendar, DollarSign, Clock, CheckCircle, AlertCircle, AlertTriangle, FileText
@@ -532,6 +533,16 @@ export const Dashboard: React.FC = () => {
           color="bg-green-600"
         />
       </div>
+      
+      {/* Priority Tables - Projetos, Etapas a Serem Entregues e Atrasados */}
+      <PriorityTables
+        projectsToDeliver={projectsToDeliver}
+        overdueProjects={overdueProjects}
+        stagesToDeliver={stagesToDeliver}
+        overdueStages={overdueStages}
+        formatDate={formatDate}
+        formatCurrency={formatCurrency}
+      />
       
       {/* Financial Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
