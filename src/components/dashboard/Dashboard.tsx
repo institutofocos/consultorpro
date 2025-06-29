@@ -58,16 +58,14 @@ export const Dashboard: React.FC = () => {
   const [overdueStages, setOverdueStages] = useState([]);
   const [openStages, setOpenStages] = useState([]);
   const [completedStages, setCompletedStages] = useState([]);
-  const [awaitingInvoice, setAwaitingInvoice] = useState([]);
-  const [invoicesIssued, setInvoicesIssued] = useState([]);
-  const [awaitingPayment, setAwaitingPayment] = useState([]);
-  const [awaitingConsultantPayment, setAwaitingConsultantPayment] = useState([]);
-  const [consultantsPaid, setConsultantsPaid] = useState([]);
   const [upcomingProjects, setUpcomingProjects] = useState([]);
   const [upcomingStages, setUpcomingStages] = useState([]);
   const [topConsultants, setTopConsultants] = useState<ConsultantStats[]>([]);
   const [topServices, setTopServices] = useState<ServiceStats[]>([]);
   const [deliveredStages, setDeliveredStages] = useState([]);
+  
+  // Estados para cartões sincronizados com status configurados
+  const [statusBasedCards, setStatusBasedCards] = useState<{[key: string]: any[]}>({});
   
   const { statuses } = useProjectStatuses();
   
@@ -150,12 +148,13 @@ export const Dashboard: React.FC = () => {
         const overdueStagesList = [];
         const deliveredStagesList = [];
         
-        // Listas financeiras baseadas nos status configurados
-        const awaitingInvoiceList = [];
-        const invoicesIssuedList = [];
-        const awaitingPaymentList = [];
-        const awaitingConsultantPaymentList = [];
-        const consultantsPaidList = [];
+        // NOVA LÓGICA: Agrupar etapas por status sincronizado
+        const statusBasedData: {[key: string]: any[]} = {};
+        
+        // Inicializar arrays para cada status configurado
+        statuses.forEach(status => {
+          statusBasedData[status.name] = [];
+        });
         
         filteredProjectsData.forEach(project => {
           if (project.stages) {
@@ -176,8 +175,14 @@ export const Dashboard: React.FC = () => {
               
               allStages.push(stageWithProject);
               
-              // Etapas a serem entregues (não concluídas)
+              // Agrupar etapas por status configurado
               const stageStatus = stage.status || 'iniciar_projeto';
+              
+              if (statusBasedData[stageStatus]) {
+                statusBasedData[stageStatus].push(stageWithProject);
+              }
+              
+              // Etapas a serem entregues (não concluídas)
               if (!finalCompletionStatuses.includes(stageStatus) && !stage.completed) {
                 stagesToDeliverList.push(stageWithProject);
               }
@@ -194,53 +199,20 @@ export const Dashboard: React.FC = () => {
                   isBefore(new Date(stage.endDate), today)) {
                 overdueStagesList.push(stageWithProject);
               }
-              
-              // SINCRONIZAÇÃO COM STATUS CONFIGURADOS - Cartões Financeiros
-              // Etapas Aguardando NF - status "aguardando_nota_fiscal"
-              if (stageStatus === 'aguardando_nota_fiscal') {
-                awaitingInvoiceList.push(stageWithProject);
-              }
-              
-              // Notas Fiscais Emitidas - status "aguardando_pagamento" 
-              if (stageStatus === 'aguardando_pagamento') {
-                invoicesIssuedList.push(stageWithProject);
-              }
-              
-              // Aguardando Recebimento - mesmo que "aguardando_pagamento"
-              if (stageStatus === 'aguardando_pagamento') {
-                awaitingPaymentList.push(stageWithProject);
-              }
-              
-              // Aguardando Repasse - status "aguardando_repasse"
-              if (stageStatus === 'aguardando_repasse') {
-                awaitingConsultantPaymentList.push(stageWithProject);
-              }
-              
-              // Consultores Pagos - status "concluido" ou outros status de conclusão
-              if (finalCompletionStatuses.includes(stageStatus)) {
-                consultantsPaidList.push(stageWithProject);
-              }
             });
           }
         });
         
+        console.log('=== CARTÕES SINCRONIZADOS COM STATUS CONFIGURADOS ===');
+        statuses.forEach(status => {
+          const count = statusBasedData[status.name]?.length || 0;
+          console.log(`${status.display_name} (${status.name}):`, count);
+        });
+        
+        setStatusBasedCards(statusBasedData);
         setStagesToDeliver(stagesToDeliverList);
         setOverdueStages(overdueStagesList);
         setDeliveredStages(deliveredStagesList);
-        
-        // Definir os dados financeiros sincronizados com os status
-        setAwaitingInvoice(awaitingInvoiceList);
-        setInvoicesIssued(invoicesIssuedList);
-        setAwaitingPayment(awaitingPaymentList);
-        setAwaitingConsultantPayment(awaitingConsultantPaymentList);
-        setConsultantsPaid(consultantsPaidList);
-        
-        console.log('=== CARTÕES FINANCEIROS SINCRONIZADOS ===');
-        console.log('Aguardando NF:', awaitingInvoiceList.length);
-        console.log('NF Emitidas:', invoicesIssuedList.length);
-        console.log('Aguardando Recebimento:', awaitingPaymentList.length);
-        console.log('Aguardando Repasse:', awaitingConsultantPaymentList.length);
-        console.log('Consultores Pagos:', consultantsPaidList.length);
         
         const totalConsultants = consultantData?.length || 0;
         const totalClients = clientData?.length || 0;
@@ -282,11 +254,6 @@ export const Dashboard: React.FC = () => {
   const processStagesData = (stagesData) => {
     const openStagesList = [];
     const completedStagesList = [];
-    const awaitingInvoiceList = [];
-    const invoicesIssuedList = [];
-    const awaitingPaymentList = [];
-    const awaitingConsultantPaymentList = [];
-    const consultantsPaidList = [];
     
     stagesData.forEach(stage => {
       const stageData = {
@@ -305,40 +272,10 @@ export const Dashboard: React.FC = () => {
       if (stage.completed && stage.managerApproved) {
         completedStagesList.push(stageData);
       }
-      
-      // Awaiting invoice
-      if (stage.clientApproved && !stage.invoiceIssued) {
-        awaitingInvoiceList.push(stageData);
-      }
-      
-      // Invoices issued
-      if (stage.invoiceIssued && !stage.paymentReceived) {
-        invoicesIssuedList.push(stageData);
-      }
-      
-      // Awaiting payment
-      if (stage.invoiceIssued && !stage.paymentReceived) {
-        awaitingPaymentList.push(stageData);
-      }
-      
-      // Awaiting consultant payment
-      if (stage.paymentReceived && !stage.consultantsSettled) {
-        awaitingConsultantPaymentList.push(stageData);
-      }
-      
-      // Consultants paid
-      if (stage.consultantsSettled) {
-        consultantsPaidList.push(stageData);
-      }
     });
     
     setOpenStages(openStagesList);
     setCompletedStages(completedStagesList);
-    setAwaitingInvoice(awaitingInvoiceList);
-    setInvoicesIssued(invoicesIssuedList);
-    setAwaitingPayment(awaitingPaymentList);
-    setAwaitingConsultantPayment(awaitingConsultantPaymentList);
-    setConsultantsPaid(consultantsPaidList);
   };
   
   const processTopConsultants = (projectsData) => {
@@ -634,38 +571,47 @@ export const Dashboard: React.FC = () => {
         formatCurrency={formatCurrency}
       />
       
-      {/* Financial Stats Cards - SINCRONIZADOS COM STATUS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-        <StatCard 
-          title="Etapas Aguardando NF" 
-          value={awaitingInvoice.length.toString()} 
-          icon={<FileText size={24} className="text-white" />} 
-          color="bg-yellow-500"
-        />
-        <StatCard 
-          title="Notas Fiscais Emitidas" 
-          value={invoicesIssued.length.toString()} 
-          icon={<FileText size={24} className="text-white" />} 
-          color="bg-blue-500"
-        />
-        <StatCard 
-          title="Aguardando Recebimento" 
-          value={awaitingPayment.length.toString()} 
-          icon={<DollarSign size={24} className="text-white" />} 
-          color="bg-orange-500"
-        />
-        <StatCard 
-          title="Aguardando Repasse" 
-          value={awaitingConsultantPayment.length.toString()} 
-          icon={<AlertCircle size={24} className="text-white" />} 
-          color="bg-red-500"
-        />
-        <StatCard 
-          title="Consultores Pagos" 
-          value={consultantsPaid.length.toString()} 
-          icon={<CheckCircle size={24} className="text-white" />} 
-          color="bg-green-500"
-        />
+      {/* NOVOS CARTÕES SINCRONIZADOS COM STATUS CONFIGURADOS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
+        {statuses
+          .filter(status => status.is_active)
+          .map(status => {
+            const count = statusBasedCards[status.name]?.length || 0;
+            
+            // Definir ícone baseado no tipo de status
+            let icon = <FileText size={24} className="text-white" />;
+            let colorClass = "bg-gray-500";
+            
+            if (status.is_completion_status) {
+              icon = <CheckCircle size={24} className="text-white" />;
+              colorClass = "bg-green-500";
+            } else if (status.is_cancellation_status) {
+              icon = <AlertCircle size={24} className="text-white" />;
+              colorClass = "bg-red-500";
+            } else if (status.name === 'aguardando_nota_fiscal') {
+              icon = <FileText size={24} className="text-white" />;
+              colorClass = "bg-yellow-500";
+            } else if (status.name === 'aguardando_pagamento') {
+              icon = <DollarSign size={24} className="text-white" />;
+              colorClass = "bg-orange-500";
+            } else if (status.name === 'aguardando_repasse') {
+              icon = <Clock size={24} className="text-white" />;
+              colorClass = "bg-purple-500";
+            } else if (status.name === 'em_producao') {
+              icon = <Target size={24} className="text-white" />;
+              colorClass = "bg-blue-500";
+            }
+            
+            return (
+              <StatCard 
+                key={status.id}
+                title={status.display_name} 
+                value={count.toString()} 
+                icon={icon}
+                color={colorClass}
+              />
+            );
+          })}
       </div>
       
       {/* Top Consultants and Services */}
