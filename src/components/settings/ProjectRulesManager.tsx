@@ -14,6 +14,7 @@ import { Plus, Edit, Trash2, GripVertical } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 
 interface ProjectStatus {
   id: string;
@@ -81,6 +82,49 @@ const ProjectRulesManager: React.FC = () => {
     // Invalidate the project statuses cache to force refresh in other components
     queryClient.invalidateQueries({ queryKey: ['project-statuses'] });
     console.log('Invalidated project-statuses cache');
+  };
+
+  const handleDragEnd = async (result: DropResult) => {
+    if (!result.destination) {
+      return;
+    }
+
+    const items = Array.from(statuses);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    // Update the order_index for each item
+    const updatedItems = items.map((item, index) => ({
+      ...item,
+      order_index: index
+    }));
+
+    setStatuses(updatedItems);
+
+    try {
+      // Update the order in the database
+      const updates = updatedItems.map((item, index) => ({
+        id: item.id,
+        order_index: index
+      }));
+
+      for (const update of updates) {
+        const { error } = await supabase
+          .from('project_status_settings')
+          .update({ order_index: update.order_index })
+          .eq('id', update.id);
+
+        if (error) throw error;
+      }
+
+      toast.success('Ordem dos status atualizada com sucesso!');
+      invalidateProjectStatusesCache();
+    } catch (error) {
+      console.error('Erro ao atualizar ordem:', error);
+      toast.error('Erro ao atualizar ordem dos status');
+      // Revert the local state if there was an error
+      fetchStatuses();
+    }
   };
 
   const onSubmit = async (data: StatusFormData) => {
@@ -217,7 +261,7 @@ const ProjectRulesManager: React.FC = () => {
           <div>
             <CardTitle>Regras de Projetos</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Configure os status dos projetos e suas regras de negócio
+              Configure os status dos projetos e suas regras de negócio. Arraste as linhas para reorganizar a ordem.
             </p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -343,78 +387,93 @@ const ProjectRulesManager: React.FC = () => {
           </Dialog>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12"></TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Nome de Exibição</TableHead>
-                <TableHead>Cor</TableHead>
-                <TableHead>Conclusão</TableHead>
-                <TableHead>Cancelamento</TableHead>
-                <TableHead>Ativo</TableHead>
-                <TableHead className="w-24">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {statuses.map((status) => (
-                <TableRow key={status.id}>
-                  <TableCell>
-                    <GripVertical className="h-4 w-4 text-gray-400" />
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">{status.name}</TableCell>
-                  <TableCell>{status.display_name}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <div 
-                        className="w-4 h-4 rounded-full border"
-                        style={{ backgroundColor: status.color }}
-                      />
-                      <span className="text-sm">{status.color}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {status.is_completion_status ? (
-                      <span className="text-green-600 font-medium">Sim</span>
-                    ) : (
-                      <span className="text-gray-400">Não</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {status.is_cancellation_status ? (
-                      <span className="text-red-600 font-medium">Sim</span>
-                    ) : (
-                      <span className="text-gray-400">Não</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Switch
-                      checked={status.is_active}
-                      onCheckedChange={() => toggleActive(status.id, status.is_active)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEdit(status)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(status.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12"></TableHead>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Nome de Exibição</TableHead>
+                  <TableHead>Cor</TableHead>
+                  <TableHead>Conclusão</TableHead>
+                  <TableHead>Cancelamento</TableHead>
+                  <TableHead>Ativo</TableHead>
+                  <TableHead className="w-24">Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <Droppable droppableId="statuses">
+                {(provided) => (
+                  <TableBody {...provided.droppableProps} ref={provided.innerRef}>
+                    {statuses.map((status, index) => (
+                      <Draggable key={status.id} draggableId={status.id} index={index}>
+                        {(provided, snapshot) => (
+                          <TableRow
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            className={snapshot.isDragging ? "bg-muted/50" : ""}
+                          >
+                            <TableCell {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
+                              <GripVertical className="h-4 w-4 text-gray-400" />
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">{status.name}</TableCell>
+                            <TableCell>{status.display_name}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                <div 
+                                  className="w-4 h-4 rounded-full border"
+                                  style={{ backgroundColor: status.color }}
+                                />
+                                <span className="text-sm">{status.color}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {status.is_completion_status ? (
+                                <span className="text-green-600 font-medium">Sim</span>
+                              ) : (
+                                <span className="text-gray-400">Não</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {status.is_cancellation_status ? (
+                                <span className="text-red-600 font-medium">Sim</span>
+                              ) : (
+                                <span className="text-gray-400">Não</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Switch
+                                checked={status.is_active}
+                                onCheckedChange={() => toggleActive(status.id, status.is_active)}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex space-x-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEdit(status)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(status.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </TableBody>
+                )}
+              </Droppable>
+            </Table>
+          </DragDropContext>
         </CardContent>
       </Card>
     </div>
