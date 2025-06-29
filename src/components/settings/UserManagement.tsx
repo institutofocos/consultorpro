@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Users, Plus, Edit2, RefreshCw, AlertTriangle } from "lucide-react";
+import { Users, Plus, Edit2, RefreshCw, AlertTriangle, UserSync } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { createUserWithProfile } from "@/services/auth";
 import UserEditModal from './UserEditModal';
@@ -43,6 +42,7 @@ const UserManagement: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [isSyncingUsers, setIsSyncingUsers] = useState(false);
   const [newUser, setNewUser] = useState<NewUser>({
     full_name: '',
     email: '',
@@ -62,6 +62,86 @@ const UserManagement: React.FC = () => {
   useEffect(() => {
     loadUsers();
   }, []);
+
+  const syncUsersFromAuth = async () => {
+    try {
+      setIsSyncingUsers(true);
+      console.log('🔄 Sincronizando usuários do Auth...');
+
+      // Buscar todos os usuários do Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
+      
+      if (authError) {
+        console.error('❌ Erro ao buscar usuários do Auth:', authError);
+        throw authError;
+      }
+
+      console.log('📋 Usuários encontrados no Auth:', authData.users.length);
+
+      let syncedCount = 0;
+      let skippedCount = 0;
+
+      for (const authUser of authData.users) {
+        // Verificar se já existe perfil para este usuário
+        const { data: existingProfile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('id')
+          .eq('id', authUser.id)
+          .maybeSingle();
+
+        if (profileError && profileError.code !== 'PGRST116') { // PGRST116 = row not found
+          console.error('Erro ao verificar perfil existente:', profileError);
+          continue;
+        }
+
+        if (!existingProfile) {
+          // Criar perfil para usuário que não tem
+          const fullName = authUser.user_metadata?.full_name || 
+                           authUser.email?.split('@')[0] || 
+                           'Usuário';
+          
+          const role = authUser.user_metadata?.role || 'client';
+
+          const { error: insertError } = await supabase
+            .from('user_profiles')
+            .insert({
+              id: authUser.id,
+              full_name: fullName,
+              email: authUser.email || '',
+              role: role,
+              is_active: true,
+              email_confirmed: authUser.email_confirmed_at !== null,
+              created_at: authUser.created_at,
+              updated_at: new Date().toISOString()
+            });
+
+          if (insertError) {
+            console.error('Erro ao criar perfil para usuário:', authUser.id, insertError);
+          } else {
+            console.log('✅ Perfil criado para usuário:', authUser.email);
+            syncedCount++;
+          }
+        } else {
+          skippedCount++;
+        }
+      }
+
+      console.log(`✅ Sincronização concluída: ${syncedCount} novos perfis, ${skippedCount} já existiam`);
+      
+      if (syncedCount > 0) {
+        toast.success(`${syncedCount} usuário(s) sincronizado(s) com sucesso!`);
+        await loadUsers(); // Recarregar a lista
+      } else {
+        toast.info('Todos os usuários já estavam sincronizados.');
+      }
+
+    } catch (error: any) {
+      console.error('💥 Erro na sincronização:', error);
+      toast.error(`Erro ao sincronizar usuários: ${error.message}`);
+    } finally {
+      setIsSyncingUsers(false);
+    }
+  };
 
   const loadUsers = async () => {
     try {
@@ -87,7 +167,7 @@ const UserManagement: React.FC = () => {
         toast.success(`${users.length} usuário(s) carregado(s) com sucesso!`);
       } else {
         setUsers([]);
-        toast.info('Nenhum usuário encontrado no sistema.');
+        toast.info('Nenhum usuário encontrado na tabela de perfis. Tente sincronizar os usuários.');
       }
       
     } catch (error: any) {
@@ -207,6 +287,16 @@ const UserManagement: React.FC = () => {
         <div className="flex gap-2">
           <Button 
             variant="outline" 
+            onClick={syncUsersFromAuth} 
+            disabled={isSyncingUsers}
+            className="text-blue-600 border-blue-600 hover:bg-blue-50"
+          >
+            <UserSync className={`h-4 w-4 mr-2 ${isSyncingUsers ? 'animate-spin' : ''}`} />
+            {isSyncingUsers ? 'Sincronizando...' : 'Sincronizar'}
+          </Button>
+
+          <Button 
+            variant="outline" 
             onClick={loadUsers} 
             disabled={isLoading}
           >
@@ -323,16 +413,25 @@ const UserManagement: React.FC = () => {
           ) : users.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Nenhum usuário encontrado</p>
-              <p className="text-sm">Crie o primeiro usuário do sistema</p>
-              <Button 
-                className="mt-4" 
-                onClick={loadUsers}
-                variant="outline"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Tentar Novamente
-              </Button>
+              <p>Nenhum usuário encontrado na tabela de perfis</p>
+              <p className="text-sm mb-4">Os usuários podem estar apenas no Supabase Auth</p>
+              <div className="flex gap-2 justify-center">
+                <Button 
+                  onClick={syncUsersFromAuth}
+                  disabled={isSyncingUsers}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <UserSync className={`h-4 w-4 mr-2 ${isSyncingUsers ? 'animate-spin' : ''}`} />
+                  {isSyncingUsers ? 'Sincronizando...' : 'Sincronizar Usuários'}
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={loadUsers}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Tentar Novamente
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
