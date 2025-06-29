@@ -2,7 +2,7 @@
 export interface UserProfile {
   id: string;
   full_name: string;
-  role: 'admin' | 'consultant' | 'client' | 'manager' | 'commercial' | 'financial' | 'marketing' | 'intern';
+  role: 'admin' | 'consultant' | 'client' | 'manager' | 'financial';
   created_at: Date;
   updated_at: Date;
   last_login?: Date;
