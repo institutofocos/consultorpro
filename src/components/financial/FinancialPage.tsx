@@ -31,8 +31,14 @@ const FinancialPage = () => {
   const [showAddTransaction, setShowAddTransaction] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<any>(null);
 
-  // Update filters when month changes
-  const getMonthFilters = () => {
+  // Consolidate all filters into a single object for consistent usage
+  const getAllFilters = () => {
+    // If user has set specific date filters, use them
+    if (filters.startDate || filters.endDate) {
+      return filters;
+    }
+    
+    // Otherwise, use current month as default
     const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
     const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
     
@@ -43,21 +49,21 @@ const FinancialPage = () => {
     };
   };
 
-  const activeFilters = getMonthFilters();
+  const activeFilters = getAllFilters();
 
-  // Fetch financial data for current month
+  // Fetch financial data with unified filters
   const { data: summary, isLoading: summaryLoading } = useQuery({
     queryKey: ['financial-summary', activeFilters],
     queryFn: () => fetchFinancialSummary(activeFilters),
   });
 
-  // Fetch financial data for current year
+  // Year summary with consultant and service filters applied
   const { data: yearSummary, isLoading: yearSummaryLoading } = useQuery({
     queryKey: ['financial-summary-year', filters],
     queryFn: () => fetchFinancialSummaryYear(filters),
   });
 
-  // Fetch financial data for general (all time)
+  // General summary with consultant and service filters applied
   const { data: generalSummary, isLoading: generalSummaryLoading } = useQuery({
     queryKey: ['financial-summary-general', filters],
     queryFn: () => fetchFinancialSummaryGeneral(filters),
@@ -318,14 +324,21 @@ const FinancialPage = () => {
 
   // Event handlers
   const handleFilterChange = (newFilters: any) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
+    console.log('🔍 Alterando filtros:', newFilters);
+    setFilters(prev => {
+      const updatedFilters = { ...prev, ...newFilters };
+      console.log('📊 Filtros atualizados:', updatedFilters);
+      return updatedFilters;
+    });
   };
 
   const handleFilterReset = () => {
+    console.log('🔄 Resetando filtros');
     setFilters({});
   };
 
   const handleMonthChange = (newDate: Date) => {
+    console.log('📅 Alterando mês:', newDate);
     setCurrentMonth(newDate);
   };
 
@@ -388,15 +401,7 @@ const FinancialPage = () => {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <FinancialSummary
-        summary={summary}
-        yearSummary={yearSummary}
-        generalSummary={generalSummary}
-        isLoading={isAnySummaryLoading}
-      />
-
-      {/* Filters */}
+      {/* Filters moved to top */}
       <FinancialFilters
         consultants={consultants || []}
         services={services || []}
@@ -412,6 +417,14 @@ const FinancialPage = () => {
         }}
         onFilterChange={handleFilterChange}
         onFilterReset={handleFilterReset}
+      />
+
+      {/* Summary Cards */}
+      <FinancialSummary
+        summary={summary}
+        yearSummary={yearSummary}
+        generalSummary={generalSummary}
+        isLoading={isAnySummaryLoading}
       />
 
       {/* Accounts Payable/Receivable */}

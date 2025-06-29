@@ -45,6 +45,27 @@ const FinancialFilters: React.FC<FinancialFiltersProps> = ({
   onFilterChange, 
   onFilterReset
 }) => {
+  const handleDateChange = (type: 'startDate' | 'endDate', date: Date | undefined) => {
+    console.log(`📅 Alterando ${type}:`, date);
+    onFilterChange({ 
+      [type]: date ? format(date, 'yyyy-MM-dd') : undefined 
+    });
+  };
+
+  const handleConsultantChange = (value: string) => {
+    console.log('👤 Alterando consultor:', value);
+    onFilterChange({ 
+      consultantId: value === '' ? undefined : value 
+    });
+  };
+
+  const handleServiceChange = (value: string) => {
+    console.log('🔧 Alterando serviço:', value);
+    onFilterChange({ 
+      serviceId: value === '' ? undefined : value 
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -75,7 +96,7 @@ const FinancialFilters: React.FC<FinancialFiltersProps> = ({
                   <Calendar
                     mode="single"
                     selected={filters.startDate}
-                    onSelect={(date) => onFilterChange({ startDate: date })}
+                    onSelect={(date) => handleDateChange('startDate', date)}
                     initialFocus
                     locale={ptBR}
                   />
@@ -99,7 +120,7 @@ const FinancialFilters: React.FC<FinancialFiltersProps> = ({
                   <Calendar
                     mode="single"
                     selected={filters.endDate}
-                    onSelect={(date) => onFilterChange({ endDate: date })}
+                    onSelect={(date) => handleDateChange('endDate', date)}
                     initialFocus
                     locale={ptBR}
                   />
@@ -112,7 +133,7 @@ const FinancialFilters: React.FC<FinancialFiltersProps> = ({
             <label className="block text-sm font-medium mb-1">Consultor</label>
             <Select
               value={filters.consultantId || ''}
-              onValueChange={(value) => onFilterChange({ consultantId: value || undefined })}
+              onValueChange={handleConsultantChange}
             >
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Todos os consultores" />
@@ -132,7 +153,7 @@ const FinancialFilters: React.FC<FinancialFiltersProps> = ({
             <label className="block text-sm font-medium mb-1">Serviço</label>
             <Select
               value={filters.serviceId || ''}
-              onValueChange={(value) => onFilterChange({ serviceId: value || undefined })}
+              onValueChange={handleServiceChange}
             >
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Todos os serviços" />
