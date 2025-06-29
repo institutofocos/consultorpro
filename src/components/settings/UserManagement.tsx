@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Users, Plus, Edit2, RefreshCw, AlertTriangle, UserSync } from "lucide-react";
+import { Users, Plus, Edit2, RefreshCw, AlertTriangle, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { createUserWithProfile } from "@/services/auth";
 import UserEditModal from './UserEditModal';
@@ -291,7 +292,7 @@ const UserManagement: React.FC = () => {
             disabled={isSyncingUsers}
             className="text-blue-600 border-blue-600 hover:bg-blue-50"
           >
-            <UserSync className={`h-4 w-4 mr-2 ${isSyncingUsers ? 'animate-spin' : ''}`} />
+            <RotateCcw className={`h-4 w-4 mr-2 ${isSyncingUsers ? 'animate-spin' : ''}`} />
             {isSyncingUsers ? 'Sincronizando...' : 'Sincronizar'}
           </Button>
 
@@ -421,7 +422,7 @@ const UserManagement: React.FC = () => {
                   disabled={isSyncingUsers}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
-                  <UserSync className={`h-4 w-4 mr-2 ${isSyncingUsers ? 'animate-spin' : ''}`} />
+                  <RotateCcw className={`h-4 w-4 mr-2 ${isSyncingUsers ? 'animate-spin' : ''}`} />
                   {isSyncingUsers ? 'Sincronizando...' : 'Sincronizar Usuários'}
                 </Button>
                 <Button 
