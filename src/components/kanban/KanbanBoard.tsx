@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Plus, Filter, Search, Eye, Calendar, User, Clock, Tag, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Project, Stage } from '@/components/projects/types';
@@ -30,6 +32,7 @@ const KanbanBoard: React.FC = () => {
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
   const [highlightedProjectId, setHighlightedProjectId] = useState<string | null>(null);
+  const [showStages, setShowStages] = useState<boolean>(true);
   
   const queryClient = useQueryClient();
   const { statuses, getStatusDisplay, isLoading: statusesLoading } = useProjectStatuses();
@@ -295,6 +298,11 @@ const KanbanBoard: React.FC = () => {
   };
 
   const getStagesByStatus = (status: string) => {
+    // Se showStages estiver desativado, não retornar nenhuma etapa
+    if (!showStages) {
+      return [];
+    }
+
     const allStages: (Stage & { projectName?: string; clientName?: string; consultantName?: string; serviceName?: string })[] = [];
     
     projects.forEach(project => {
@@ -376,7 +384,7 @@ const KanbanBoard: React.FC = () => {
           </div>
         </div>
 
-        {/* Filtros */}
+        {/* Filtros e Toggle de Etapas */}
         <div className="flex flex-wrap gap-4 items-center">
           <div className="flex items-center gap-2">
             <Search className="h-4 w-4" />
@@ -415,6 +423,18 @@ const KanbanBoard: React.FC = () => {
               ))}
             </SelectContent>
           </Select>
+
+          {/* Toggle para mostrar/ocultar etapas */}
+          <div className="flex items-center space-x-2 border rounded-lg px-3 py-2 bg-white">
+            <Label htmlFor="show-stages" className="text-sm font-medium">
+              Mostrar etapas
+            </Label>
+            <Switch
+              id="show-stages"
+              checked={showStages}
+              onCheckedChange={setShowStages}
+            />
+          </div>
         </div>
       </div>
 
@@ -479,7 +499,7 @@ const KanbanBoard: React.FC = () => {
                             </Draggable>
                           ))}
 
-                          {/* Etapas */}
+                          {/* Etapas - só mostrar se showStages estiver ativo */}
                           {stagesInColumn.map((stage, index) => (
                             <Draggable 
                               key={`stage-${stage.id}`} 
