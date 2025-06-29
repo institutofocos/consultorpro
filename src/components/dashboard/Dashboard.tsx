@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Briefcase, Target, Calendar, DollarSign, Clock, CheckCircle, AlertCircle, AlertTriangle, FileText
@@ -68,13 +67,14 @@ export const Dashboard: React.FC = () => {
   const [upcomingStages, setUpcomingStages] = useState([]);
   const [topConsultants, setTopConsultants] = useState<ConsultantStats[]>([]);
   const [topServices, setTopServices] = useState<ServiceStats[]>([]);
+  const [deliveredStages, setDeliveredStages] = useState([]);
   
   const { statuses } = useProjectStatuses();
   
   const [stats, setStats] = useState({
     totalConsultants: '0',
     totalClients: '0',
-    pendingProjects: '0',
+    deliveredStages: '0',
     completedProjects: '0'
   });
   
@@ -126,29 +126,33 @@ export const Dashboard: React.FC = () => {
         
         console.log('Status de conclusão finais:', finalCompletionStatuses);
         
-        // Calculate projects to deliver (não concluídos)
-        const projectsToDeliverList = projectsData?.filter(project => 
+        // Apply filters to projects data
+        const filteredProjectsData = applyFilters(projectsData || []);
+        
+        // Calculate projects to deliver (não concluídos) - usando dados filtrados
+        const projectsToDeliverList = filteredProjectsData.filter(project => 
           !finalCompletionStatuses.includes(project.status)
-        ) || [];
+        );
         setProjectsToDeliver(projectsToDeliverList);
         console.log('Projetos a serem entregues:', projectsToDeliverList.length);
         
-        // Calculate overdue projects (projetos atrasados)
+        // Calculate overdue projects (projetos atrasados) - usando dados filtrados
         const today = new Date();
-        const overdueProjectsList = projectsData?.filter(project => 
+        const overdueProjectsList = filteredProjectsData.filter(project => 
           project.endDate && 
           !finalCompletionStatuses.includes(project.status) &&
           isBefore(new Date(project.endDate), today)
-        ) || [];
+        );
         setOverdueProjects(overdueProjectsList);
         console.log('Projetos atrasados:', overdueProjectsList.length);
         
-        // Calculate stages to deliver (etapas não concluídas)
+        // Calculate stages to deliver (etapas não concluídas) and delivered stages
         const allStages = [];
         const stagesToDeliverList = [];
         const overdueStagesList = [];
+        const deliveredStagesList = [];
         
-        projectsData?.forEach(project => {
+        filteredProjectsData.forEach(project => {
           if (project.stages) {
             project.stages.forEach(stage => {
               const stageWithProject = {
@@ -173,6 +177,11 @@ export const Dashboard: React.FC = () => {
                 stagesToDeliverList.push(stageWithProject);
               }
               
+              // Etapas entregues (concluídas)
+              if (finalCompletionStatuses.includes(stageStatus) || stage.completed) {
+                deliveredStagesList.push(stageWithProject);
+              }
+              
               // Etapas atrasadas (data vencida e não concluídas)
               if (stage.endDate && 
                   !finalCompletionStatuses.includes(stageStatus) && 
@@ -186,20 +195,22 @@ export const Dashboard: React.FC = () => {
         
         setStagesToDeliver(stagesToDeliverList);
         setOverdueStages(overdueStagesList);
+        setDeliveredStages(deliveredStagesList);
         
         console.log('Etapas a serem entregues:', stagesToDeliverList.length);
         console.log('Etapas atrasadas:', overdueStagesList.length);
+        console.log('Etapas entregues:', deliveredStagesList.length);
         
         // Calculate stats
         const totalConsultants = consultantData?.length || 0;
         const totalClients = clientData?.length || 0;
-        const pendingProjects = projectsToDeliverList.length;
-        const completedProjects = (projectsData?.length || 0) - pendingProjects;
+        const deliveredStagesCount = deliveredStagesList.length;
+        const completedProjects = (filteredProjectsData?.length || 0) - projectsToDeliverList.length;
         
         setStats({
           totalConsultants: totalConsultants.toString(),
           totalClients: totalClients.toString(),
-          pendingProjects: pendingProjects.toString(),
+          deliveredStages: deliveredStagesCount.toString(),
           completedProjects: completedProjects.toString()
         });
         
@@ -209,12 +220,11 @@ export const Dashboard: React.FC = () => {
         }
         
         // Process top consultants and services
-        processTopConsultants(projectsData || []);
-        processTopServices(projectsData || [], serviceData || []);
+        processTopConsultants(filteredProjectsData || []);
+        processTopServices(filteredProjectsData || [], serviceData || []);
         
-        // Apply filters and set filtered data
-        const filteredProjects = applyFilters(projectsData || []);
-        setUpcomingProjects(filteredProjects);
+        // Set filtered data
+        setUpcomingProjects(filteredProjectsData);
         
         // Filter stages
         const filteredStages = applyStageFilters(allStages);
@@ -366,23 +376,38 @@ export const Dashboard: React.FC = () => {
     const today = now.toISOString().split('T')[0];
     
     if (timeFilter === TIME_FILTERS.TODAY) {
-      filtered = filtered.filter(p => p.endDate === today);
+      filtered = filtered.filter(p => {
+        if (!p.endDate) return false;
+        return p.endDate === today;
+      });
     } else if (timeFilter === TIME_FILTERS.THIS_WEEK) {
       const weekStart = startOfWeek(now).toISOString().split('T')[0];
       const weekEnd = endOfWeek(now).toISOString().split('T')[0];
-      filtered = filtered.filter(p => p.endDate >= weekStart && p.endDate <= weekEnd);
+      filtered = filtered.filter(p => {
+        if (!p.endDate) return false;
+        return p.endDate >= weekStart && p.endDate <= weekEnd;
+      });
     } else if (timeFilter === TIME_FILTERS.THIS_MONTH) {
       const monthStart = startOfMonth(now).toISOString().split('T')[0];
       const monthEnd = endOfMonth(now).toISOString().split('T')[0];
-      filtered = filtered.filter(p => p.endDate >= monthStart && p.endDate <= monthEnd);
+      filtered = filtered.filter(p => {
+        if (!p.endDate) return false;
+        return p.endDate >= monthStart && p.endDate <= monthEnd;
+      });
     }
     
     // Apply date range filter
     if (dateFrom) {
-      filtered = filtered.filter(p => p.endDate >= dateFrom);
+      filtered = filtered.filter(p => {
+        if (!p.endDate) return false;
+        return p.endDate >= dateFrom;
+      });
     }
     if (dateTo) {
-      filtered = filtered.filter(p => p.endDate <= dateTo);
+      filtered = filtered.filter(p => {
+        if (!p.endDate) return false;
+        return p.endDate <= dateTo;
+      });
     }
     
     // Apply consultant filter
@@ -398,6 +423,16 @@ export const Dashboard: React.FC = () => {
       filtered = filtered.filter(p => p.serviceId === serviceFilter);
     }
     
+    console.log('Filtros aplicados:', {
+      timeFilter,
+      dateFrom,
+      dateTo,
+      consultantFilter,
+      serviceFilter,
+      originalCount: projectsData.length,
+      filteredCount: filtered.length
+    });
+    
     return filtered;
   };
   
@@ -409,23 +444,38 @@ export const Dashboard: React.FC = () => {
     const today = now.toISOString().split('T')[0];
     
     if (timeFilter === TIME_FILTERS.TODAY) {
-      filtered = filtered.filter(s => s.endDate === today);
+      filtered = filtered.filter(s => {
+        if (!s.endDate) return false;
+        return s.endDate === today;
+      });
     } else if (timeFilter === TIME_FILTERS.THIS_WEEK) {
       const weekStart = startOfWeek(now).toISOString().split('T')[0];
       const weekEnd = endOfWeek(now).toISOString().split('T')[0];
-      filtered = filtered.filter(s => s.endDate >= weekStart && s.endDate <= weekEnd);
+      filtered = filtered.filter(s => {
+        if (!s.endDate) return false;
+        return s.endDate >= weekStart && s.endDate <= weekEnd;
+      });
     } else if (timeFilter === TIME_FILTERS.THIS_MONTH) {
       const monthStart = startOfMonth(now).toISOString().split('T')[0];
       const monthEnd = endOfMonth(now).toISOString().split('T')[0];
-      filtered = filtered.filter(s => s.endDate >= monthStart && s.endDate <= monthEnd);
+      filtered = filtered.filter(s => {
+        if (!s.endDate) return false;
+        return s.endDate >= monthStart && s.endDate <= monthEnd;
+      });
     }
     
     // Apply date range filter
     if (dateFrom) {
-      filtered = filtered.filter(s => s.endDate >= dateFrom);
+      filtered = filtered.filter(s => {
+        if (!s.endDate) return false;
+        return s.endDate >= dateFrom;
+      });
     }
     if (dateTo) {
-      filtered = filtered.filter(s => s.endDate <= dateTo);
+      filtered = filtered.filter(s => {
+        if (!s.endDate) return false;
+        return s.endDate <= dateTo;
+      });
     }
     
     // Apply consultant filter
@@ -521,10 +571,10 @@ export const Dashboard: React.FC = () => {
           color="bg-indigo-500"
         />
         <StatCard 
-          title="Projetos Pendentes" 
-          value={stats.pendingProjects} 
-          icon={<Clock size={24} className="text-white" />} 
-          color="bg-orange-500"
+          title="Etapas Entregues" 
+          value={stats.deliveredStages} 
+          icon={<CheckCircle size={24} className="text-white" />} 
+          color="bg-green-600"
         />
         <StatCard 
           title="Projetos Concluídos" 
