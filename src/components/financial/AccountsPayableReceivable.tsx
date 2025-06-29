@@ -16,6 +16,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -30,7 +31,9 @@ import {
   deleteAccountsPayable,
   reactivateAccountsReceivable,
   reactivateAccountsPayable,
-  fetchAccountsHistory
+  fetchAccountsHistory,
+  fetchAccountsPayable,
+  fetchAccountsReceivable
 } from '@/integrations/supabase/financial';
 import { CalendarIcon, CheckCircle, CreditCard, X, History, Trash2, RotateCcw, Undo } from 'lucide-react';
 import { toast } from 'sonner';
@@ -74,6 +77,20 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
   const [reactivateTarget, setReactivateTarget] = useState<{ id: string; type: 'payable' | 'receivable' } | null>(null);
   const [undoTarget, setUndoTarget] = useState<{ id: string; type: 'payable' | 'receivable'; currentStatus: string } | null>(null);
   const [activeTab, setActiveTab] = useState('payable');
+  const [showAllTransactions, setShowAllTransactions] = useState(false);
+
+  // Fetch all transactions when "Todos Lançamentos" is enabled
+  const { data: allPayables, isLoading: allPayablesLoading } = useQuery({
+    queryKey: ['all-accounts-payable'],
+    queryFn: () => fetchAccountsPayable({}), // No filters to get all data
+    enabled: showAllTransactions,
+  });
+
+  const { data: allReceivables, isLoading: allReceivablesLoading } = useQuery({
+    queryKey: ['all-accounts-receivable'],
+    queryFn: () => fetchAccountsReceivable({}), // No filters to get all data
+    enabled: showAllTransactions,
+  });
 
   // Verificar se há uma transação para destacar quando o componente carregar
   useEffect(() => {
@@ -167,6 +184,12 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
 
     findAndHighlight();
   };
+
+  // Determine which data to use based on showAllTransactions toggle
+  const currentPayables = showAllTransactions ? allPayables : payables.data;
+  const currentReceivables = showAllTransactions ? allReceivables : receivables.data;
+  const currentPayablesLoading = showAllTransactions ? allPayablesLoading : payables.isLoading;
+  const currentReceivablesLoading = showAllTransactions ? allReceivablesLoading : receivables.isLoading;
 
   // Fetch history data - sempre que o modal for aberto
   const { data: historyData, isLoading: historyLoading, refetch: refetchHistory } = useQuery({
@@ -527,14 +550,26 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
             <TabsTrigger value="receivable">Contas a Receber</TabsTrigger>
           </TabsList>
           
-          <Button
-            variant="outline"
-            onClick={handleOpenHistory}
-            className="flex items-center gap-2"
-          >
-            <History className="h-4 w-4" />
-            Histórico
-          </Button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="show-all-transactions"
+                checked={showAllTransactions}
+                onCheckedChange={setShowAllTransactions}
+              />
+              <label htmlFor="show-all-transactions" className="text-sm font-medium">
+                Todos Lançamentos
+              </label>
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleOpenHistory}
+              className="flex items-center gap-2"
+            >
+              <History className="h-4 w-4" />
+              Histórico
+            </Button>
+          </div>
         </div>
         
         <TabsContent value="payable">
@@ -547,10 +582,12 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                     Pagamentos pendentes e realizados para consultores (incluindo repasses automáticos de etapas)
                   </CardDescription>
                 </div>
-                <MonthNavigation 
-                  currentDate={currentMonth}
-                  onMonthChange={onMonthChange}
-                />
+                {!showAllTransactions && (
+                  <MonthNavigation 
+                    currentDate={currentMonth}
+                    onMonthChange={onMonthChange}
+                  />
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -569,7 +606,7 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {payables.isLoading ? (
+                  {currentPayablesLoading ? (
                     Array.from({ length: 3 }).map((_, index) => (
                       <TableRow key={index}>
                         {Array.from({ length: 9 }).map((_, cellIndex) => (
@@ -579,14 +616,14 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                         ))}
                       </TableRow>
                     ))
-                  ) : !payables.data || payables.data.length === 0 ? (
+                  ) : !currentPayables || currentPayables.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={9} className="text-center py-8">
                         Nenhuma conta a pagar encontrada
                       </TableCell>
                     </TableRow>
                   ) : (
-                    payables.data.map(payable => (
+                    currentPayables.map(payable => (
                       <TableRow 
                         key={payable.id}
                         data-transaction-id={payable.id}
@@ -691,10 +728,12 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                     Recebimentos pendentes e realizados das etapas dos projetos
                   </CardDescription>
                 </div>
-                <MonthNavigation 
-                  currentDate={currentMonth}
-                  onMonthChange={onMonthChange}
-                />
+                {!showAllTransactions && (
+                  <MonthNavigation 
+                    currentDate={currentMonth}
+                    onMonthChange={onMonthChange}
+                  />
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -714,7 +753,7 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {receivables.isLoading ? (
+                  {currentReceivablesLoading ? (
                     Array.from({ length: 3 }).map((_, index) => (
                       <TableRow key={index}>
                         {Array.from({ length: 10 }).map((_, cellIndex) => (
@@ -724,14 +763,14 @@ const AccountsPayableReceivable: React.FC<AccountsPayableReceivableProps> = ({
                         ))}
                       </TableRow>
                     ))
-                  ) : !receivables.data || receivables.data.length === 0 ? (
+                  ) : !currentReceivables || currentReceivables.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={10} className="text-center py-8">
                         Nenhuma conta a receber encontrada
                       </TableCell>
                     </TableRow>
                   ) : (
-                    receivables.data.map(receivable => (
+                    currentReceivables.map(receivable => (
                       <TableRow 
                         key={receivable.id}
                         data-transaction-id={receivable.id}
