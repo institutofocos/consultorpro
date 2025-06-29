@@ -482,6 +482,19 @@ export const Dashboard: React.FC = () => {
     }).format(Number(value) || 0);
   };
   
+  // Calcular número de colunas baseado no número de status ativos
+  const activeStatuses = statuses.filter(status => status.is_active);
+  const statusCount = activeStatuses.length;
+  
+  // Determinar classes de grid responsivo baseado na quantidade
+  const getGridClasses = () => {
+    if (statusCount <= 2) return 'grid-cols-1 md:grid-cols-2';
+    if (statusCount <= 3) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+    if (statusCount <= 4) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4';
+    if (statusCount <= 6) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6';
+    return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6';
+  };
+  
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
@@ -571,11 +584,10 @@ export const Dashboard: React.FC = () => {
         formatCurrency={formatCurrency}
       />
       
-      {/* NOVOS CARTÕES SINCRONIZADOS COM STATUS CONFIGURADOS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
-        {statuses
-          .filter(status => status.is_active)
-          .map(status => {
+      {/* CARTÕES SINCRONIZADOS COM STATUS CONFIGURADOS - GRID RESPONSIVO */}
+      {activeStatuses.length > 0 && (
+        <div className={`grid ${getGridClasses()} gap-6`}>
+          {activeStatuses.map(status => {
             const count = statusBasedCards[status.name]?.length || 0;
             
             // Definir ícone baseado no tipo de status
@@ -612,7 +624,8 @@ export const Dashboard: React.FC = () => {
               />
             );
           })}
-      </div>
+        </div>
+      )}
       
       {/* Top Consultants and Services */}
       <TopPerformers
