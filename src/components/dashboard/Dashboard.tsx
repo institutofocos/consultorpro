@@ -1,48 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-  Legend
-} from 'recharts';
-import { ArrowUpRight, Users, Briefcase, Target, Calendar, Filter, FileText, DollarSign, Clock, CheckCircle, AlertCircle, AlertTriangle } from "lucide-react";
+  Users, Briefcase, Target, Calendar, DollarSign, Clock, CheckCircle, AlertCircle, AlertTriangle, FileText
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  Select, 
-  SelectContent, 
-  SelectGroup, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isAfter, isBefore } from "date-fns";
 import { Project, Stage } from '../projects/types';
 import { toast } from "sonner";
-import { 
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { fetchProjects } from '@/integrations/supabase/projects';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
+
+// Import new components
+import { StatCard } from './StatCard';
+import { FilterSection } from './FilterSection';
+import { PriorityTables } from './PriorityTables';
+import { TopPerformers } from './TopPerformers';
+import { StagesTables } from './StagesTables';
+import { DeliveryTables } from './DeliveryTables';
 
 // Time period filter options
 const TIME_FILTERS = {
@@ -51,15 +24,6 @@ const TIME_FILTERS = {
   THIS_MONTH: 'thisMonth',
   ALL: 'all'
 };
-
-const STATUS_COLORS = {
-  active: 'bg-green-500',
-  completed: 'bg-blue-500',
-  planned: 'bg-gray-400',
-  delayed: 'bg-red-500'
-};
-
-const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444'];
 
 // Type definitions for statistics
 interface ConsultantStats {
@@ -74,34 +38,6 @@ interface ServiceStats {
   projects: number;
   totalRevenue: number;
 }
-
-const StatCard = ({ title, value, icon, color, change }: { 
-  title: string, 
-  value: string, 
-  icon: React.ReactNode,
-  color: string,
-  change?: string
-}) => (
-  <Card className="shadow-card card-hover">
-    <CardContent className="p-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <h3 className="text-2xl font-bold mt-1">{value}</h3>
-          {change && (
-            <div className="flex items-center mt-2 text-green-500">
-              <ArrowUpRight size={16} />
-              <span className="text-xs font-medium ml-1">{change}</span>
-            </div>
-          )}
-        </div>
-        <div className={`p-2 rounded-lg ${color}`}>
-          {icon}
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-);
 
 export const Dashboard: React.FC = () => {
   // State for filters
@@ -516,86 +452,20 @@ export const Dashboard: React.FC = () => {
       </div>
       
       {/* Filters */}
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filtros
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div>
-              <Label htmlFor="time-filter">Período</Label>
-              <Select value={timeFilter} onValueChange={setTimeFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Período" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={TIME_FILTERS.TODAY}>Hoje</SelectItem>
-                  <SelectItem value={TIME_FILTERS.THIS_WEEK}>Esta Semana</SelectItem>
-                  <SelectItem value={TIME_FILTERS.THIS_MONTH}>Este Mês</SelectItem>
-                  <SelectItem value={TIME_FILTERS.ALL}>Todos</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="date-from">Data Início</Label>
-              <Input
-                id="date-from"
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="date-to">Data Fim</Label>
-              <Input
-                id="date-to"
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="consultant-filter">Consultor</Label>
-              <Select value={consultantFilter} onValueChange={setConsultantFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Consultor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos Consultores</SelectItem>
-                  {consultants.map(consultant => (
-                    <SelectItem key={consultant.id} value={consultant.id}>
-                      {consultant.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="service-filter">Serviço</Label>
-              <Select value={serviceFilter} onValueChange={setServiceFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Serviço" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos Serviços</SelectItem>
-                  {services.map(service => (
-                    <SelectItem key={service.id} value={service.id}>
-                      {service.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <FilterSection
+        timeFilter={timeFilter}
+        setTimeFilter={setTimeFilter}
+        dateFrom={dateFrom}
+        setDateFrom={setDateFrom}
+        dateTo={dateTo}
+        setDateTo={setDateTo}
+        consultantFilter={consultantFilter}
+        setConsultantFilter={setConsultantFilter}
+        serviceFilter={serviceFilter}
+        setServiceFilter={setServiceFilter}
+        consultants={consultants}
+        services={services}
+      />
       
       {/* Main Priority Cards - Projetos e Etapas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -648,105 +518,13 @@ export const Dashboard: React.FC = () => {
       </div>
       
       {/* Priority Tables - Projetos e Etapas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>Projetos a Serem Entregues ({projectsToDeliver.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="max-h-64 overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Projeto</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead>Entrega</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {projectsToDeliver.slice(0, 10).map((project, idx) => (
-                    <TableRow key={project.id}>
-                      <TableCell className="font-medium">{project.name}</TableCell>
-                      <TableCell>{project.clientName || 'N/A'}</TableCell>
-                      <TableCell>{formatCurrency(project.totalValue)}</TableCell>
-                      <TableCell>{formatDate(project.endDate)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>Etapas a Serem Entregues ({stagesToDeliver.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="max-h-64 overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Etapa</TableHead>
-                    <TableHead>Projeto</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead>Entrega</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {stagesToDeliver.slice(0, 10).map((stage, idx) => (
-                    <TableRow key={`${stage.projectId}-${stage.id}`}>
-                      <TableCell className="font-medium">{stage.name}</TableCell>
-                      <TableCell>{stage.projectName || 'N/A'}</TableCell>
-                      <TableCell>{formatCurrency(stage.value)}</TableCell>
-                      <TableCell>{formatDate(stage.endDate)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      
-      {/* Etapas Atrasadas */}
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-red-500" />
-            Etapas Atrasadas ({overdueStages.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="max-h-64 overflow-y-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Etapa</TableHead>
-                  <TableHead>Projeto</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead>Consultor</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {overdueStages.slice(0, 15).map((stage, idx) => (
-                  <TableRow key={`${stage.projectId}-${stage.id}`} className="text-red-600">
-                    <TableCell className="font-medium">{stage.name}</TableCell>
-                    <TableCell>{stage.projectName || 'N/A'}</TableCell>
-                    <TableCell>{stage.clientName || 'N/A'}</TableCell>
-                    <TableCell>{formatCurrency(stage.value)}</TableCell>
-                    <TableCell className="font-medium">{formatDate(stage.endDate)}</TableCell>
-                    <TableCell>{stage.consultantName || 'N/A'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+      <PriorityTables
+        projectsToDeliver={projectsToDeliver}
+        stagesToDeliver={stagesToDeliver}
+        overdueStages={overdueStages}
+        formatDate={formatDate}
+        formatCurrency={formatCurrency}
+      />
       
       {/* Financial Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
@@ -783,175 +561,26 @@ export const Dashboard: React.FC = () => {
       </div>
       
       {/* Open and Completed Stages */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>Etapas em Aberto ({openStages.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="max-h-64 overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Etapa</TableHead>
-                    <TableHead>Projeto</TableHead>
-                    <TableHead>Valor</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {openStages.slice(0, 10).map((stage, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="font-medium">{stage.name}</TableCell>
-                      <TableCell>{stage.projectName}</TableCell>
-                      <TableCell>{formatCurrency(stage.value)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>Etapas Finalizadas ({completedStages.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="max-h-64 overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Etapa</TableHead>
-                    <TableHead>Projeto</TableHead>
-                    <TableHead>Valor</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {completedStages.slice(0, 10).map((stage, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="font-medium">{stage.name}</TableCell>
-                      <TableCell>{stage.projectName}</TableCell>
-                      <TableCell>{formatCurrency(stage.value)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <StagesTables
+        openStages={openStages}
+        completedStages={completedStages}
+        formatCurrency={formatCurrency}
+      />
       
       {/* Top Consultants and Services */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>Top Consultores</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {topConsultants.map((consultant, i) => (
-                <div key={i} className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <div className="font-medium">{consultant.name}</div>
-                    <div className="text-muted-foreground">
-                      {consultant.projects} projetos | {consultant.totalHours}h
-                    </div>
-                  </div>
-                  <Progress value={(consultant.projects / 10) * 100} className="h-2" />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <div>{formatCurrency(consultant.totalValue)}</div>
-                    <div>{consultant.projects} projetos</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>Top 5 Serviços</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topServices}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value: number) => [formatCurrency(value), 'Receita']}
-                  />
-                  <Bar dataKey="totalRevenue" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <TopPerformers
+        topConsultants={topConsultants}
+        topServices={topServices}
+        formatCurrency={formatCurrency}
+      />
       
       {/* Projects and Stages Delivery */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>Projetos a Serem Entregues ({upcomingProjects.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="max-h-96 overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Projeto</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead>Entrega</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {upcomingProjects.slice(0, 20).map((project, idx) => (
-                    <TableRow key={project.id}>
-                      <TableCell className="font-medium">{project.name}</TableCell>
-                      <TableCell>{project.clientName || 'N/A'}</TableCell>
-                      <TableCell>{formatCurrency(project.totalValue)}</TableCell>
-                      <TableCell>{formatDate(project.endDate)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>Etapas a Serem Entregues ({upcomingStages.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="max-h-96 overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Etapa</TableHead>
-                    <TableHead>Projeto</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead>Entrega</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {upcomingStages.slice(0, 20).map((stage, idx) => (
-                    <TableRow key={`${stage.projectId}-${stage.id}`}>
-                      <TableCell className="font-medium">{stage.name}</TableCell>
-                      <TableCell>{stage.projectName || 'N/A'}</TableCell>
-                      <TableCell>{formatCurrency(stage.value)}</TableCell>
-                      <TableCell>{formatDate(stage.endDate)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <DeliveryTables
+        upcomingProjects={upcomingProjects}
+        upcomingStages={upcomingStages}
+        formatDate={formatDate}
+        formatCurrency={formatCurrency}
+      />
     </div>
   );
 };
