@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -287,7 +288,7 @@ const CalendarPage: React.FC = () => {
       // Sempre definir para o mês atual
       setCurrentDate(new Date(today.getFullYear(), today.getMonth(), 1));
     } else if (newViewMode === 'week') {
-      // Sempre definir para a semana atual começando na segunda-feira
+      // SEMPRE definir para a semana atual começando na segunda-feira
       setCurrentDate(startOfWeek(today, { weekStartsOn: 1 }));
     } else if (newViewMode === 'day') {
       // Sempre definir para o dia atual
@@ -396,7 +397,8 @@ const CalendarPage: React.FC = () => {
   };
 
   const renderWeekView = () => {
-    const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
+    // SEMPRE usar segunda-feira como início da semana
+    const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
     const days = [];
     
     for (let i = 0; i < 7; i++) {
@@ -547,8 +549,9 @@ const CalendarPage: React.FC = () => {
       case 'day':
         return format(currentDate, 'd MMMM yyyy', { locale: ptBR });
       case 'week':
-        const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
-        const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 });
+        // SEMPRE usar segunda-feira como início da semana no título
+        const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+        const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
         return `${format(weekStart, 'd MMM', { locale: ptBR })} - ${format(weekEnd, 'd MMM yyyy', { locale: ptBR })}`;
       case 'month':
         return format(currentDate, 'MMMM yyyy', { locale: ptBR });
