@@ -66,33 +66,37 @@ const UserManagement: React.FC = () => {
   const loadUsers = async () => {
     try {
       setIsLoading(true);
-      console.log('Carregando usuários de ambas as fontes...');
+      console.log('Iniciando carregamento de usuários...');
 
-      let allUsers: User[] = [];
-
-      // Primeiro, buscar usuários dos perfis
+      // Primeira tentativa: buscar da tabela user_profiles
       const { data: profileUsers, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (profileError) {
-        console.error('Erro ao carregar perfis:', profileError);
-      } else if (profileUsers && profileUsers.length > 0) {
-        console.log('Usuários encontrados nos perfis:', profileUsers.length);
-        allUsers = [...profileUsers];
+      console.log('Resultado user_profiles:', { profileUsers, profileError });
+
+      if (!profileError && profileUsers && profileUsers.length > 0) {
+        console.log(`Encontrados ${profileUsers.length} usuários em user_profiles`);
+        setUsers(profileUsers);
+        toast.success(`${profileUsers.length} usuário(s) carregado(s) com sucesso!`);
+        return;
       }
 
-      // Sempre buscar também da tabela de autenticação para garantir que não perdemos nenhum usuário
+      // Segunda tentativa: buscar usuários do Auth
+      console.log('Tentando buscar usuários do Auth...');
+      
       try {
         const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
         
         if (authError) {
-          console.error('Erro ao carregar usuários de auth:', authError);
-        } else if (authData?.users) {
-          console.log('Usuários encontrados no auth:', authData.users.length);
+          console.error('Erro ao acessar Auth:', authError);
+          throw authError;
+        }
+
+        if (authData?.users && authData.users.length > 0) {
+          console.log(`Encontrados ${authData.users.length} usuários no Auth`);
           
-          // Converter usuários de auth para o formato esperado
           const authUsers: User[] = authData.users.map(authUser => ({
             id: authUser.id,
             full_name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Usuário',
@@ -106,58 +110,42 @@ const UserManagement: React.FC = () => {
             last_login: authUser.last_sign_in_at || undefined
           }));
 
-          // Mesclar usuários: manter os dos perfis e adicionar os que só existem no auth
-          const existingIds = new Set(allUsers.map(u => u.id));
-          const newAuthUsers = authUsers.filter(authUser => !existingIds.has(authUser.id));
-          
-          if (newAuthUsers.length > 0) {
-            console.log('Usuários encontrados apenas no auth:', newAuthUsers.length);
-            allUsers = [...allUsers, ...newAuthUsers];
-            
-            // Criar perfis para usuários que não têm
-            for (const authUser of newAuthUsers) {
-              try {
-                const { error: insertError } = await supabase
-                  .from('user_profiles')
-                  .insert({
-                    id: authUser.id,
-                    full_name: authUser.full_name,
-                    email: authUser.email,
-                    phone: authUser.phone,
-                    role: authUser.role,
-                    is_active: authUser.is_active,
-                    email_confirmed: authUser.email_confirmed
-                  });
+          setUsers(authUsers);
+          toast.success(`${authUsers.length} usuário(s) carregado(s) do Auth!`);
 
-                if (insertError) {
-                  console.error('Erro ao criar perfil para usuário:', authUser.email, insertError);
-                }
-              } catch (error) {
-                console.error('Erro ao inserir perfil:', error);
-              }
+          // Tentar criar perfis para usuários que não têm
+          for (const authUser of authUsers) {
+            try {
+              await supabase
+                .from('user_profiles')
+                .upsert({
+                  id: authUser.id,
+                  full_name: authUser.full_name,
+                  email: authUser.email,
+                  phone: authUser.phone,
+                  role: authUser.role,
+                  is_active: authUser.is_active,
+                  email_confirmed: authUser.email_confirmed
+                }, { onConflict: 'id' });
+            } catch (error) {
+              console.error('Erro ao criar perfil para:', authUser.email, error);
             }
           }
+          return;
         }
       } catch (authError) {
-        console.error('Erro ao acessar autenticação:', authError);
-        // Não falhar se não conseguir acessar auth, usar apenas os perfis
+        console.error('Erro ao acessar Auth:', authError);
       }
 
-      // Definir a lista final de usuários
-      setUsers(allUsers);
-      
-      if (allUsers.length === 0) {
-        toast.info('Nenhum usuário encontrado no sistema.');
-      } else {
-        toast.success(`${allUsers.length} usuário(s) carregado(s) com sucesso!`);
-      }
-      
-      console.log('Total de usuários carregados:', allUsers.length);
+      // Se chegou até aqui, não há usuários
+      console.log('Nenhum usuário encontrado em nenhuma fonte');
+      setUsers([]);
+      toast.info('Nenhum usuário encontrado no sistema.');
       
     } catch (error: any) {
-      console.error('Erro ao carregar usuários:', error);
-      toast.error('Erro inesperado ao carregar usuários');
+      console.error('Erro geral ao carregar usuários:', error);
       setUsers([]);
+      toast.error(`Erro ao carregar usuários: ${error.message || 'Erro desconhecido'}`);
     } finally {
       setIsLoading(false);
     }
@@ -170,14 +158,12 @@ const UserManagement: React.FC = () => {
         return;
       }
 
-      // Email validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(newUser.email.trim())) {
         toast.error('Digite um email válido');
         return;
       }
 
-      // Password validation
       if (newUser.password.length < 6) {
         toast.error('A senha deve ter pelo menos 6 caracteres');
         return;
@@ -206,10 +192,8 @@ const UserManagement: React.FC = () => {
         permissions: []
       });
       
-      // Aguardar um pouco e recarregar a lista para garantir que o usuário apareça
-      setTimeout(async () => {
-        await loadUsers();
-      }, 1500);
+      // Recarregar imediatamente
+      await loadUsers();
       
     } catch (error: any) {
       console.error('Error creating user:', error);
@@ -391,6 +375,14 @@ const UserManagement: React.FC = () => {
               <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>Nenhum usuário encontrado</p>
               <p className="text-sm">Crie o primeiro usuário do sistema</p>
+              <Button 
+                className="mt-4" 
+                onClick={loadUsers}
+                variant="outline"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Tentar Novamente
+              </Button>
             </div>
           ) : (
             <Table>
