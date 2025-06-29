@@ -51,6 +51,14 @@ const GanttView: React.FC<GanttViewProps> = ({
   // Use the project statuses hook
   const { statuses, getStatusDisplay, getStatusBadgeStyle } = useProjectStatuses();
 
+  // Debug logs para verificar os valores recebidos
+  useEffect(() => {
+    console.log('=== GANTT VIEW - VALORES RECEBIDOS ===');
+    console.log('Projetos em atraso:', overdueProjects);
+    console.log('Etapas em atraso:', overdueStages);
+    console.log('Total de tasks:', tasks.length);
+  }, [overdueProjects, overdueStages, tasks.length]);
+
   // Generate timeline based on view start date and weeks
   const generateTimeline = () => {
     const timeline = [];
@@ -225,37 +233,30 @@ const GanttView: React.FC<GanttViewProps> = ({
           </Button>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6">
+          {/* Date Range */}
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            <span className="text-sm font-medium">
+              {format(viewStartDate, 'dd/MM/yyyy', { locale: ptBR })} - {format(addDays(viewStartDate, timelineWeeks * 7 - 1), 'dd/MM/yyyy', { locale: ptBR })}
+            </span>
+          </div>
+          
+          {/* Overdue Information - SEMPRE VISÍVEL PARA DEBUG */}
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              <span className="text-sm font-medium">
-                {format(viewStartDate, 'dd/MM/yyyy', { locale: ptBR })} - {format(addDays(viewStartDate, timelineWeeks * 7 - 1), 'dd/MM/yyyy', { locale: ptBR })}
+            <div className="flex items-center gap-2 px-3 py-1 bg-orange-50 border border-orange-200 rounded-lg">
+              <AlertTriangle className="h-4 w-4 text-orange-500" />
+              <span className="text-sm font-medium text-orange-700">
+                {overdueProjects} projeto{overdueProjects !== 1 ? 's' : ''} atrasado{overdueProjects !== 1 ? 's' : ''}
               </span>
             </div>
             
-            {/* Overdue Projects and Stages Display */}
-            {(overdueProjects > 0 || overdueStages > 0) && (
-              <div className="flex items-center gap-4">
-                {overdueProjects > 0 && (
-                  <div className="flex items-center gap-2 px-3 py-1 bg-orange-50 border border-orange-200 rounded-lg">
-                    <AlertTriangle className="h-4 w-4 text-orange-500" />
-                    <span className="text-sm font-medium text-orange-700">
-                      {overdueProjects} projeto{overdueProjects > 1 ? 's' : ''} atrasado{overdueProjects > 1 ? 's' : ''}
-                    </span>
-                  </div>
-                )}
-                
-                {overdueStages > 0 && (
-                  <div className="flex items-center gap-2 px-3 py-1 bg-red-50 border border-red-200 rounded-lg">
-                    <AlertTriangle className="h-4 w-4 text-red-500" />
-                    <span className="text-sm font-medium text-red-700">
-                      {overdueStages} etapa{overdueStages > 1 ? 's' : ''} atrasada{overdueStages > 1 ? 's' : ''}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="flex items-center gap-2 px-3 py-1 bg-red-50 border border-red-200 rounded-lg">
+              <AlertTriangle className="h-4 w-4 text-red-500" />
+              <span className="text-sm font-medium text-red-700">
+                {overdueStages} etapa{overdueStages !== 1 ? 's' : ''} atrasada{overdueStages !== 1 ? 's' : ''}
+              </span>
+            </div>
           </div>
         </div>
 

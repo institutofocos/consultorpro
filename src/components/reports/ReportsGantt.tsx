@@ -46,6 +46,8 @@ const ReportsGantt: React.FC = () => {
   // Calculate overdue counts using the same logic as Dashboard
   const calculateOverdueCounts = (allTasks: Task[]) => {
     console.log('=== CALCULANDO CONTADORES DE ATRASO NO REPORTS GANTT ===');
+    console.log('Total de tasks recebidas:', allTasks.length);
+    console.log('Status configurados:', statuses.length);
     
     // Get projects data for overdue project calculation
     const projectsMap = new Map();
@@ -76,6 +78,8 @@ const ReportsGantt: React.FC = () => {
       projectsMap.get(task.project_id).tasks.push(task);
     });
     
+    console.log('Projetos agrupados:', projectsMap.size);
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -102,7 +106,11 @@ const ReportsGantt: React.FC = () => {
             endDate: task.end_date,
             status: task.status,
             completed: task.completed,
-            projectName: task.project_name
+            projectName: task.project_name,
+            isNotCompleted,
+            stageNotCompleted,
+            taskEndDate: taskEndDate.toISOString(),
+            today: today.toISOString()
           });
         }
       });
@@ -119,6 +127,7 @@ const ReportsGantt: React.FC = () => {
     console.log('=== RESULTADOS FINAIS REPORTS GANTT ===');
     console.log('Projetos em atraso:', overdueProjectsCount);
     console.log('Etapas em atraso:', overdueStagesCount);
+    console.log('================================');
     
     return { overdueProjects: overdueProjectsCount, overdueStages: overdueStagesCount };
   };
@@ -127,6 +136,7 @@ const ReportsGantt: React.FC = () => {
     const fetchGanttData = async () => {
       try {
         setLoading(true);
+        console.log('=== INICIANDO BUSCA DE DADOS GANTT ===');
         
         // Fetch consultants
         const { data: consultantsData } = await supabase
@@ -136,6 +146,7 @@ const ReportsGantt: React.FC = () => {
         
         if (consultantsData) {
           setConsultants(consultantsData);
+          console.log('Consultores carregados:', consultantsData.length);
         }
 
         // Fetch projects and stages
@@ -163,6 +174,8 @@ const ReportsGantt: React.FC = () => {
             )
           `)
           .order('name');
+
+        console.log('Projetos carregados:', projectsData?.length || 0);
 
         if (projectsData) {
           const allTasks: Task[] = [];
@@ -194,10 +207,17 @@ const ReportsGantt: React.FC = () => {
             }
           });
 
+          console.log('Total de tasks criadas:', allTasks.length);
           setTasks(allTasks);
           
           // Calculate overdue counts
           const { overdueProjects: overdueProjectsCount, overdueStages: overdueStagesCount } = calculateOverdueCounts(allTasks);
+          
+          console.log('Definindo contadores finais:', {
+            overdueProjects: overdueProjectsCount,
+            overdueStages: overdueStagesCount
+          });
+          
           setOverdueProjects(overdueProjectsCount);
           setOverdueStages(overdueStagesCount);
         }
@@ -211,10 +231,22 @@ const ReportsGantt: React.FC = () => {
     };
 
     // Only fetch data when statuses are loaded
-    if (statuses.length > 0) {
+    if (statuses.length >= 0) { // Changed from > 0 to >= 0 to handle empty status arrays
+      console.log('Status carregados, iniciando busca de dados...');
       fetchGanttData();
+    } else {
+      console.log('Aguardando carregamento de status...');
     }
   }, [statuses]);
+
+  // Debug effect to monitor state changes
+  useEffect(() => {
+    console.log('=== MUDANÇA DE ESTADO ===');
+    console.log('Projetos em atraso (state):', overdueProjects);
+    console.log('Etapas em atraso (state):', overdueStages);
+    console.log('Loading:', loading);
+    console.log('Tasks:', tasks.length);
+  }, [overdueProjects, overdueStages, loading, tasks.length]);
 
   if (loading) {
     return (
@@ -254,6 +286,19 @@ const ReportsGantt: React.FC = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Debug Info - TEMPORÁRIO */}
+      <Card className="border-yellow-200 bg-yellow-50">
+        <CardContent className="p-4">
+          <div className="text-sm text-yellow-800">
+            <p><strong>Debug Info:</strong></p>
+            <p>Projetos em atraso: {overdueProjects}</p>
+            <p>Etapas em atraso: {overdueStages}</p>
+            <p>Total de tasks: {tasks.length}</p>
+            <p>Status configurados: {statuses.length}</p>
           </div>
         </CardContent>
       </Card>
