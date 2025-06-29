@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -25,11 +24,6 @@ import ConsultantServicesModal from './ConsultantServicesModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
 import { Tables } from '@/integrations/supabase/types';
-import { 
-  calculateConsultantWorkedHours, 
-  calculateConsultantAvailableHours, 
-  calculateConsultantActiveProjects 
-} from '@/integrations/supabase/consultants';
 
 export type Consultant = {
   id: string;
@@ -50,6 +44,7 @@ export type Consultant = {
   url?: string;
   services: string[];
   activeProjects?: number;
+  activeStages?: number;
 };
 
 // Helper to map database model to frontend model
@@ -71,9 +66,104 @@ const mapConsultantFromDB = (consultant: Tables<"consultants"> & { services?: st
     url: consultant.url || '',
     services: consultant.services || [],
     activeProjects: 0,
+    activeStages: 0,
     availableHours: 0,
     workedHours: 0,
   };
+};
+
+// Calculate worked hours from non-completed stages
+const calculateConsultantWorkedHoursFromStages = async (consultantId: string): Promise<number> => {
+  try {
+    console.log(`=== CALCULANDO HORAS TRABALHADAS PARA CONSULTOR: ${consultantId} ===`);
+    
+    const { data: stageHours, error: stageError } = await supabase
+      .from('project_stages')
+      .select('hours, name, completed, status')
+      .eq('consultant_id', consultantId)
+      .eq('completed', false); // Apenas etapas não concluídas
+
+    if (stageError) {
+      console.error('Error fetching stage hours:', stageError);
+      return 0;
+    }
+
+    console.log(`Etapas não concluídas para consultor ${consultantId}:`, stageHours);
+    
+    let totalStageHours = 0;
+    if (stageHours && stageHours.length > 0) {
+      totalStageHours = stageHours.reduce((sum, stage) => {
+        console.log(`  - Etapa "${stage.name}": ${stage.hours || 0}h (concluída: ${stage.completed})`);
+        return sum + (stage.hours || 0);
+      }, 0);
+    }
+
+    console.log(`Total de horas trabalhadas (etapas não concluídas): ${totalStageHours}`);
+    return totalStageHours;
+  } catch (error) {
+    console.error('Error calculating consultant worked hours:', error);
+    return 0;
+  }
+};
+
+// Calculate active projects count (non-completed)
+const calculateConsultantActiveProjectsCount = async (consultantId: string): Promise<number> => {
+  try {
+    console.log(`=== CALCULANDO PROJETOS ATIVOS PARA CONSULTOR: ${consultantId} ===`);
+    
+    // Buscar projetos onde é consultor principal ou de apoio, excluindo concluídos
+    const { data: projects, error } = await supabase
+      .from('projects')
+      .select('id, name, status')
+      .or(`main_consultant_id.eq.${consultantId},support_consultant_id.eq.${consultantId}`)
+      .not('status', 'eq', 'concluido')
+      .not('status', 'eq', 'completed')
+      .not('status', 'eq', 'cancelado');
+
+    if (error) {
+      console.error('Error fetching active projects:', error);
+      return 0;
+    }
+
+    console.log(`Projetos ativos para consultor ${consultantId}:`, projects);
+    
+    const projectCount = projects?.length || 0;
+    console.log(`=== TOTAL DE PROJETOS ATIVOS: ${projectCount} ===`);
+    
+    return projectCount;
+  } catch (error) {
+    console.error('Error calculating consultant active projects:', error);
+    return 0;
+  }
+};
+
+// Calculate active stages count (non-completed)
+const calculateConsultantActiveStagesCount = async (consultantId: string): Promise<number> => {
+  try {
+    console.log(`=== CALCULANDO ETAPAS ATIVAS PARA CONSULTOR: ${consultantId} ===`);
+    
+    // Buscar etapas não concluídas
+    const { data: stages, error } = await supabase
+      .from('project_stages')
+      .select('id, name, completed, status')
+      .eq('consultant_id', consultantId)
+      .eq('completed', false); // Apenas etapas não concluídas
+
+    if (error) {
+      console.error('Error fetching active stages:', error);
+      return 0;
+    }
+
+    console.log(`Etapas ativas para consultor ${consultantId}:`, stages);
+    
+    const stageCount = stages?.length || 0;
+    console.log(`=== TOTAL DE ETAPAS ATIVAS: ${stageCount} ===`);
+    
+    return stageCount;
+  } catch (error) {
+    console.error('Error calculating consultant active stages:', error);
+    return 0;
+  }
 };
 
 export const ConsultantList: React.FC = () => {
@@ -84,6 +174,7 @@ export const ConsultantList: React.FC = () => {
   const [availableHours, setAvailableHours] = useState<{[key: string]: number}>({});
   const [workedHours, setWorkedHours] = useState<{[key: string]: number}>({});
   const [activeProjects, setActiveProjects] = useState<{[key: string]: number}>({});
+  const [activeStages, setActiveStages] = useState<{[key: string]: number}>({});
   const [lastCreatedUser, setLastCreatedUser] = useState<{
     name: string;
     email: string;
@@ -139,28 +230,32 @@ export const ConsultantList: React.FC = () => {
         const mappedConsultants = consultantsWithServices.map(mapConsultantFromDB);
         setConsultants(mappedConsultants);
 
-        // Calculate worked hours, available hours, and active projects for each consultant
+        // Calculate metrics for each consultant
         const workedHoursMap: {[key: string]: number} = {};
         const availableHoursMap: {[key: string]: number} = {};
         const activeProjectsMap: {[key: string]: number} = {};
+        const activeStagesMap: {[key: string]: number} = {};
         
         for (const consultant of mappedConsultants) {
           console.log(`Calculating stats for consultant ${consultant.name} (${consultant.id})`);
           
-          const workedHoursValue = await calculateConsultantWorkedHours(consultant.id);
-          const availableHoursValue = await calculateConsultantAvailableHours(consultant.id, consultant.hoursPerMonth);
-          const activeProjectsValue = await calculateConsultantActiveProjects(consultant.id);
+          const workedHoursValue = await calculateConsultantWorkedHoursFromStages(consultant.id);
+          const availableHoursValue = Math.max(0, consultant.hoursPerMonth - workedHoursValue);
+          const activeProjectsValue = await calculateConsultantActiveProjectsCount(consultant.id);
+          const activeStagesValue = await calculateConsultantActiveStagesCount(consultant.id);
           
-          console.log(`Consultant ${consultant.name}: worked=${workedHoursValue}, available=${availableHoursValue}, projects=${activeProjectsValue}`);
+          console.log(`Consultant ${consultant.name}: worked=${workedHoursValue}, available=${availableHoursValue}, projects=${activeProjectsValue}, stages=${activeStagesValue}`);
           
           workedHoursMap[consultant.id] = workedHoursValue;
           availableHoursMap[consultant.id] = availableHoursValue;
           activeProjectsMap[consultant.id] = activeProjectsValue;
+          activeStagesMap[consultant.id] = activeStagesValue;
         }
         
         setWorkedHours(workedHoursMap);
         setAvailableHours(availableHoursMap);
         setActiveProjects(activeProjectsMap);
+        setActiveStages(activeStagesMap);
         
       } catch (error) {
         console.error('Error fetching consultants:', error);
@@ -217,24 +312,28 @@ export const ConsultantList: React.FC = () => {
         const mappedConsultants = consultantsWithServices.map(mapConsultantFromDB);
         setConsultants(mappedConsultants);
 
-        // Recalculate hours and projects for all consultants
+        // Recalculate metrics for all consultants
         const workedHoursMap: {[key: string]: number} = {};
         const availableHoursMap: {[key: string]: number} = {};
         const activeProjectsMap: {[key: string]: number} = {};
+        const activeStagesMap: {[key: string]: number} = {};
         
         for (const consultant of mappedConsultants) {
-          const workedHoursValue = await calculateConsultantWorkedHours(consultant.id);
-          const availableHoursValue = await calculateConsultantAvailableHours(consultant.id, consultant.hoursPerMonth);
-          const activeProjectsValue = await calculateConsultantActiveProjects(consultant.id);
+          const workedHoursValue = await calculateConsultantWorkedHoursFromStages(consultant.id);
+          const availableHoursValue = Math.max(0, consultant.hoursPerMonth - workedHoursValue);
+          const activeProjectsValue = await calculateConsultantActiveProjectsCount(consultant.id);
+          const activeStagesValue = await calculateConsultantActiveStagesCount(consultant.id);
           
           workedHoursMap[consultant.id] = workedHoursValue;
           availableHoursMap[consultant.id] = availableHoursValue;
           activeProjectsMap[consultant.id] = activeProjectsValue;
+          activeStagesMap[consultant.id] = activeStagesValue;
         }
         
         setWorkedHours(workedHoursMap);
         setAvailableHours(availableHoursMap);
         setActiveProjects(activeProjectsMap);
+        setActiveStages(activeStagesMap);
       }
       
       // Reset form state
@@ -362,6 +461,7 @@ export const ConsultantList: React.FC = () => {
                     <TableHead>Horas Trabalhadas</TableHead>
                     <TableHead>Horas Livres</TableHead>
                     <TableHead>Projetos</TableHead>
+                    <TableHead>Etapas</TableHead>
                     <TableHead>URL</TableHead>
                     <TableHead>Serviços Habilitados</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
@@ -370,7 +470,7 @@ export const ConsultantList: React.FC = () => {
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                         Carregando consultores...
                       </TableCell>
                     </TableRow>
@@ -383,6 +483,7 @@ export const ConsultantList: React.FC = () => {
                         <TableCell>{workedHours[consultant.id] || 0}h</TableCell>
                         <TableCell>{availableHours[consultant.id] || consultant.hoursPerMonth}h</TableCell>
                         <TableCell>{activeProjects[consultant.id] || 0}</TableCell>
+                        <TableCell>{activeStages[consultant.id] || 0}</TableCell>
                         <TableCell>
                           {consultant.url ? (
                             <Button 
@@ -419,7 +520,7 @@ export const ConsultantList: React.FC = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                         Nenhum consultor encontrado
                       </TableCell>
                     </TableRow>
