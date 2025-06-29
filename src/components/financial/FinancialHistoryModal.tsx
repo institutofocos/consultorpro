@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -18,6 +19,11 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import FinancialHistoryFilters from './FinancialHistoryFilters';
 import { useConsultants } from '@/hooks/useConsultants';
+import { 
+  fetchAccountsPayable,
+  fetchAccountsReceivable,
+  FinancialFilter
+} from "@/integrations/supabase/financial";
 
 interface HistoryItem {
   id: string;
@@ -37,15 +43,13 @@ interface HistoryItem {
 interface FinancialHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  history: HistoryItem[];
-  isLoading: boolean;
+  filters?: FinancialFilter;
 }
 
 const FinancialHistoryModal: React.FC<FinancialHistoryModalProps> = ({
   isOpen,
   onClose,
-  history,
-  isLoading
+  filters = {}
 }) => {
   const navigate = useNavigate();
   const [startDate, setStartDate] = useState<Date | undefined>();
@@ -55,7 +59,67 @@ const FinancialHistoryModal: React.FC<FinancialHistoryModalProps> = ({
 
   const { data: consultants = [] } = useConsultants();
 
+  // Fetch all history data
+  const { data: payablesData, isLoading: payablesLoading } = useQuery({
+    queryKey: ['accounts-payable-history'],
+    queryFn: () => fetchAccountsPayable({}), // Fetch all payables
+    enabled: isOpen,
+  });
+
+  const { data: receivablesData, isLoading: receivablesLoading } = useQuery({
+    queryKey: ['accounts-receivable-history'],
+    queryFn: () => fetchAccountsReceivable({}), // Fetch all receivables
+    enabled: isOpen,
+  });
+
+  const isLoading = payablesLoading || receivablesLoading;
+
+  // Transform data to HistoryItem format
+  const history = useMemo(() => {
+    const items: HistoryItem[] = [];
+
+    if (payablesData) {
+      payablesData.forEach(payable => {
+        items.push({
+          id: payable.id,
+          type: 'payable',
+          description: payable.description,
+          amount: payable.amount,
+          status: payable.status,
+          due_date: payable.due_date,
+          payment_date: payable.payment_date,
+          created_at: payable.created_at,
+          updated_at: payable.updated_at,
+          entity_name: payable.consultant_name || 'N/A',
+          project_name: payable.project_name,
+        });
+      });
+    }
+
+    if (receivablesData) {
+      receivablesData.forEach(receivable => {
+        items.push({
+          id: receivable.id,
+          type: 'receivable',
+          description: receivable.description,
+          amount: receivable.amount,
+          status: receivable.status,
+          due_date: receivable.due_date,
+          payment_date: receivable.payment_date,
+          created_at: receivable.created_at,
+          updated_at: receivable.updated_at,
+          entity_name: receivable.client_name || 'N/A',
+          project_name: receivable.project_name,
+        });
+      });
+    }
+
+    return items;
+  }, [payablesData, receivablesData]);
+
   const filteredHistory = useMemo(() => {
+    if (!history) return [];
+    
     let filtered = [...history];
 
     // Filtro por período
