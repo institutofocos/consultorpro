@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -51,7 +50,13 @@ const ClientList = () => {
       
       // Calculate stats
       const projectCount = projects.length;
-      const activeProjectCount = projects.filter(p => p.status !== 'completed' && p.status !== 'cancelled').length;
+      // Exclude projects with "concluído" status from active count
+      const activeProjectCount = projects.filter(p => 
+        p.status !== 'completed' && 
+        p.status !== 'cancelled' && 
+        p.status !== 'concluido' && 
+        p.status !== 'concluído'
+      ).length;
       const totalSpent = projects.reduce((sum, project) => sum + (project.total_value || 0), 0);
       
       return {
