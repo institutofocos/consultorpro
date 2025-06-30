@@ -23,25 +23,27 @@ const TimerControls: React.FC<TimerControlsProps> = ({
   const [timeSpent, setTimeSpent] = useState(initialTimeSpent || 0);
   const [timerStatus, setTimerStatus] = useState(initialTimerStatus || 'stopped');
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [displayTime, setDisplayTime] = useState(timeSpent);
-  const [timerStartedAt, setTimerStartedAt] = useState<string | null>(initialTimerStartedAt || null);
+  const [displayTime, setDisplayTime] = useState(initialTimeSpent || 0);
+  const [timerStartedAt, setTimerStartedAt] = useState<Date | null>(
+    initialTimerStartedAt ? new Date(initialTimerStartedAt) : null
+  );
 
   // Update display time every second when timer is running
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
     if (timerStatus === 'running' && timerStartedAt) {
-      console.log('Starting real-time timer update, started at:', timerStartedAt);
+      console.log('Timer is running, updating display time every second');
       
       interval = setInterval(() => {
-        const startTime = new Date(timerStartedAt).getTime();
-        const currentTime = new Date().getTime();
-        const elapsedMinutes = Math.floor((currentTime - startTime) / (1000 * 60));
+        const currentTime = new Date();
+        const elapsedMs = currentTime.getTime() - timerStartedAt.getTime();
+        const elapsedMinutes = Math.floor(elapsedMs / (1000 * 60));
         const newDisplayTime = timeSpent + elapsedMinutes;
         
-        console.log('Timer update:', {
-          startTime: new Date(timerStartedAt).toLocaleString(),
-          currentTime: new Date().toLocaleString(),
+        console.log('Timer tick:', {
+          startTime: timerStartedAt.toLocaleString(),
+          currentTime: currentTime.toLocaleString(),
           elapsedMinutes,
           baseTimeSpent: timeSpent,
           newDisplayTime
@@ -50,6 +52,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
         setDisplayTime(newDisplayTime);
       }, 1000);
     } else {
+      console.log('Timer not running, display time is static:', timeSpent);
       setDisplayTime(timeSpent);
     }
 
@@ -69,71 +72,96 @@ const TimerControls: React.FC<TimerControlsProps> = ({
 
   const startTimer = async () => {
     try {
-      const now = new Date().toISOString();
-      console.log('Starting timer at:', now);
+      const now = new Date();
+      const nowISO = now.toISOString();
+      console.log('=== INICIANDO TIMER ===');
+      console.log('Hora atual:', now.toLocaleString());
+      console.log('Tempo acumulado atual:', timeSpent);
       
       // Create new work session
       const { data: sessionData, error: sessionError } = await supabase
         .from('stage_work_sessions')
         .insert({
           stage_id: taskId,
-          start_time: now,
+          start_time: nowISO,
           status: 'active'
         })
         .select()
         .single();
 
-      if (sessionError) throw sessionError;
+      if (sessionError) {
+        console.error('Erro ao criar sessão:', sessionError);
+        throw sessionError;
+      }
+
+      console.log('Sessão criada:', sessionData);
 
       // Update stage timer status
       const { error: updateError } = await supabase
         .from('project_stages')
         .update({
           timer_status: 'running',
-          timer_started_at: now
+          timer_started_at: nowISO
         })
         .eq('id', taskId);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Erro ao atualizar status da etapa:', updateError);
+        throw updateError;
+      }
 
+      console.log('Status da etapa atualizado para running');
+
+      // Update local state IMMEDIATELY
       setCurrentSessionId(sessionData.id);
       setTimerStatus('running');
       setTimerStartedAt(now);
+      
+      console.log('Estados locais atualizados:', {
+        sessionId: sessionData.id,
+        status: 'running',
+        startTime: now.toLocaleString()
+      });
+      
       toast.success('Timer iniciado!');
-      console.log('Timer started successfully:', { sessionId: sessionData.id, startTime: now });
     } catch (error) {
-      console.error('Error starting timer:', error);
+      console.error('Erro ao iniciar timer:', error);
       toast.error('Erro ao iniciar timer');
     }
   };
 
   const pauseTimer = async () => {
     try {
-      if (!currentSessionId || !timerStartedAt) return;
+      if (!currentSessionId || !timerStartedAt) {
+        console.log('Não é possível pausar - faltam dados:', { currentSessionId, timerStartedAt });
+        return;
+      }
 
-      const now = new Date().toISOString();
-      const startTime = new Date(timerStartedAt).getTime();
-      const currentTime = new Date().getTime();
-      const sessionDuration = Math.floor((currentTime - startTime) / (1000 * 60));
+      const now = new Date();
+      const nowISO = now.toISOString();
+      const elapsedMs = now.getTime() - timerStartedAt.getTime();
+      const sessionDuration = Math.floor(elapsedMs / (1000 * 60));
       const newTotalTime = timeSpent + sessionDuration;
 
-      console.log('Pausing timer:', {
-        sessionDuration,
-        previousTimeSpent: timeSpent,
-        newTotalTime
-      });
+      console.log('=== PAUSANDO TIMER ===');
+      console.log('Duração da sessão (minutos):', sessionDuration);
+      console.log('Tempo anterior:', timeSpent);
+      console.log('Novo tempo total:', newTotalTime);
 
       // Update work session
       const { error: sessionError } = await supabase
         .from('stage_work_sessions')
         .update({
-          end_time: now,
+          end_time: nowISO,
           duration_minutes: sessionDuration,
           status: 'completed'
         })
         .eq('id', currentSessionId);
 
-      if (sessionError) throw sessionError;
+      if (sessionError) {
+        console.error('Erro ao finalizar sessão:', sessionError);
+        throw sessionError;
+      }
 
       // Update stage with accumulated time
       const { error: updateError } = await supabase
@@ -145,28 +173,42 @@ const TimerControls: React.FC<TimerControlsProps> = ({
         })
         .eq('id', taskId);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Erro ao atualizar tempo da etapa:', updateError);
+        throw updateError;
+      }
 
+      console.log('Tempo salvo no banco:', newTotalTime);
+
+      // Update local state
       setTimeSpent(newTotalTime);
+      setDisplayTime(newTotalTime);
       setTimerStatus('paused');
       setCurrentSessionId(null);
       setTimerStartedAt(null);
+      
+      // Notify parent component
       onTimeUpdate?.(newTotalTime);
+      
+      console.log('Timer pausado com sucesso. Novo tempo total:', newTotalTime);
       toast.success('Timer pausado!');
     } catch (error) {
-      console.error('Error pausing timer:', error);
+      console.error('Erro ao pausar timer:', error);
       toast.error('Erro ao pausar timer');
     }
   };
 
   const stopTimer = async () => {
     try {
+      console.log('=== PARANDO TIMER ===');
+      
+      // If timer is running, pause first to save current session
       if (timerStatus === 'running' && currentSessionId) {
-        // First pause to save current session
+        console.log('Timer estava rodando, pausando primeiro...');
         await pauseTimer();
       }
 
-      // Reset timer status
+      // Reset timer status to stopped
       const { error } = await supabase
         .from('project_stages')
         .update({
@@ -175,14 +217,19 @@ const TimerControls: React.FC<TimerControlsProps> = ({
         })
         .eq('id', taskId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao parar timer:', error);
+        throw error;
+      }
 
       setTimerStatus('stopped');
       setCurrentSessionId(null);
       setTimerStartedAt(null);
+      
+      console.log('Timer parado completamente');
       toast.success('Timer parado!');
     } catch (error) {
-      console.error('Error stopping timer:', error);
+      console.error('Erro ao parar timer:', error);
       toast.error('Erro ao parar timer');
     }
   };
@@ -208,6 +255,15 @@ const TimerControls: React.FC<TimerControlsProps> = ({
         return 'Parado';
     }
   };
+
+  console.log('TimerControls render:', {
+    taskId,
+    timeSpent,
+    displayTime,
+    timerStatus,
+    timerStartedAt: timerStartedAt?.toLocaleString(),
+    currentSessionId
+  });
 
   return (
     <div className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-4">
