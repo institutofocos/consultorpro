@@ -3,7 +3,6 @@ import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TimezoneSettings from './TimezoneSettings';
 import WebhookManagement from './WebhookManagement';
-import UserManagement from './UserManagement';
 import ProjectRulesManager from './ProjectRulesManager';
 import APIKeyManager from './APIKeyManager';
 import SwaggerDocs from './SwaggerDocs';
@@ -19,9 +18,8 @@ const SettingsPage = () => {
         <p className="text-muted-foreground">Gerencie as configurações do sistema</p>
       </div>
 
-      <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid grid-cols-4 lg:grid-cols-9">
-          <TabsTrigger value="users">Usuários</TabsTrigger>
+      <Tabs defaultValue="project-rules" className="space-y-4">
+        <TabsList className="grid grid-cols-3 lg:grid-cols-8">
           <TabsTrigger value="project-rules">Regras</TabsTrigger>
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
@@ -31,10 +29,6 @@ const SettingsPage = () => {
           <TabsTrigger value="docs">Docs</TabsTrigger>
           <TabsTrigger value="system">Sistema</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="users">
-          <UserManagement />
-        </TabsContent>
 
         <TabsContent value="project-rules">
           <ProjectRulesManager />

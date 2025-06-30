@@ -650,44 +650,6 @@ export type Database = {
           },
         ]
       }
-      module_permissions: {
-        Row: {
-          can_edit: boolean | null
-          can_view: boolean | null
-          created_at: string | null
-          id: string
-          module_name: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          can_edit?: boolean | null
-          can_view?: boolean | null
-          created_at?: string | null
-          id?: string
-          module_name: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          can_edit?: boolean | null
-          can_view?: boolean | null
-          created_at?: string | null
-          id?: string
-          module_name?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "module_permissions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       payment_methods: {
         Row: {
           created_at: string
@@ -1454,45 +1416,6 @@ export type Database = {
           },
         ]
       }
-      user_profiles: {
-        Row: {
-          created_at: string | null
-          email: string
-          email_confirmed: boolean | null
-          full_name: string
-          id: string
-          is_active: boolean | null
-          last_login: string | null
-          phone: string | null
-          role: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          email: string
-          email_confirmed?: boolean | null
-          full_name: string
-          id: string
-          is_active?: boolean | null
-          last_login?: string | null
-          phone?: string | null
-          role: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          email?: string
-          email_confirmed?: boolean | null
-          full_name?: string
-          id?: string
-          is_active?: boolean | null
-          last_login?: string | null
-          phone?: string | null
-          role?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       webhook_logs: {
         Row: {
           attempt_count: number | null
@@ -1655,10 +1578,6 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
-      get_current_user_role: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
       get_project_consolidated_data: {
         Args: { p_project_id: string }
         Returns: Json
@@ -1687,10 +1606,6 @@ export type Database = {
           p_user_name?: string
         }
         Returns: string
-      }
-      is_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
       }
       is_project_fully_completed: {
         Args: { p_project_id: string }
