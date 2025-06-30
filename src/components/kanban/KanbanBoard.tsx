@@ -19,10 +19,10 @@ interface SupabaseProject {
   id: string;
   name: string;
   description?: string;
-  client?: { id: string; name: string }; // Single object, not array
-  service?: { id: string; name: string }; // Single object, not array
-  main_consultant?: { id: string; name: string }; // Single object, not array
-  support_consultant?: { id: string; name: string }; // Single object, not array
+  client?: { id: string; name: string }[]; // Array from join
+  service?: { id: string; name: string }[]; // Array from join
+  main_consultant?: { id: string; name: string }[]; // Array from join
+  support_consultant?: { id: string; name: string }[]; // Array from join
   status: string;
   start_date: string;
   end_date: string;
@@ -98,24 +98,24 @@ const KanbanBoard: React.FC = () => {
       endDate: supabaseProject.end_date,
       totalValue: supabaseProject.total_value,
       taxPercent: supabaseProject.tax_percent || 16,
-      // Handle consultant data (single objects from joins) - map to the Project interface format
-      clients: supabaseProject.client ? {
-        id: supabaseProject.client.id,
-        name: supabaseProject.client.name,
+      // Handle consultant data (arrays from joins) - map to the Project interface format
+      clients: supabaseProject.client?.[0] ? {
+        id: supabaseProject.client[0].id,
+        name: supabaseProject.client[0].name,
         contact_name: ''
       } : undefined,
-      services: supabaseProject.service ? {
-        id: supabaseProject.service.id,
-        name: supabaseProject.service.name
+      services: supabaseProject.service?.[0] ? {
+        id: supabaseProject.service[0].id,
+        name: supabaseProject.service[0].name
       } : undefined,
-      main_consultant: supabaseProject.main_consultant ? {
-        id: supabaseProject.main_consultant.id,
-        name: supabaseProject.main_consultant.name,
+      main_consultant: supabaseProject.main_consultant?.[0] ? {
+        id: supabaseProject.main_consultant[0].id,
+        name: supabaseProject.main_consultant[0].name,
         email: ''
       } : undefined,
-      support_consultant: supabaseProject.support_consultant ? {
-        id: supabaseProject.support_consultant.id,
-        name: supabaseProject.support_consultant.name,
+      support_consultant: supabaseProject.support_consultant?.[0] ? {
+        id: supabaseProject.support_consultant[0].id,
+        name: supabaseProject.support_consultant[0].name,
         email: ''
       } : undefined,
       // Map IDs to camelCase
@@ -124,10 +124,10 @@ const KanbanBoard: React.FC = () => {
       mainConsultantId: supabaseProject.main_consultant_id,
       supportConsultantId: supabaseProject.support_consultant_id,
       // Add required fields for Project interface
-      clientName: supabaseProject.client?.name,
-      serviceName: supabaseProject.service?.name,
-      mainConsultantName: supabaseProject.main_consultant?.name,
-      supportConsultantName: supabaseProject.support_consultant?.name,
+      clientName: supabaseProject.client?.[0]?.name,
+      serviceName: supabaseProject.service?.[0]?.name,
+      mainConsultantName: supabaseProject.main_consultant?.[0]?.name,
+      supportConsultantName: supabaseProject.support_consultant?.[0]?.name,
     };
   };
 
