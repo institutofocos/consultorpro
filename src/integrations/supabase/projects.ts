@@ -7,20 +7,70 @@ export const fetchProjects = async () => {
       .select(`
         *,
         clients(name),
-        services(name),
-        stages(*)
+        services(name)
       `)
       .order('created_at', { ascending: false });
 
     if (error) {
       console.error("Error fetching projects:", error);
-      return null;
+      return [];
     }
 
-    return projects;
+    if (!projects) {
+      return [];
+    }
+
+    // Transform the data to match the expected format
+    const transformedProjects = await Promise.all(projects.map(async (project) => {
+      // Fetch stages separately
+      const { data: stages, error: stagesError } = await supabase
+        .from('project_stages')
+        .select('*')
+        .eq('project_id', project.id)
+        .order('stage_order');
+
+      if (stagesError) {
+        console.error("Error fetching stages for project:", project.id, stagesError);
+      }
+
+      return {
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        clientId: project.client_id,
+        clientName: project.clients?.name || '',
+        serviceId: project.service_id,
+        serviceName: project.services?.name || '',
+        mainConsultantId: project.main_consultant_id,
+        mainConsultantCommission: project.main_consultant_commission,
+        supportConsultantId: project.support_consultant_id,
+        supportConsultantCommission: project.support_consultant_commission,
+        startDate: project.start_date,
+        endDate: project.end_date,
+        totalValue: project.total_value,
+        totalHours: project.total_hours,
+        hourlyRate: project.hourly_rate,
+        taxPercent: project.tax_percent,
+        thirdPartyExpenses: project.third_party_expenses,
+        mainConsultantValue: project.main_consultant_value,
+        supportConsultantValue: project.support_consultant_value,
+        managerName: project.manager_name,
+        managerEmail: project.manager_email,
+        managerPhone: project.manager_phone,
+        status: project.status,
+        tags: project.tags || [],
+        url: project.url,
+        projectId: project.project_id,
+        createdAt: project.created_at,
+        updatedAt: project.updated_at,
+        stages: stages || []
+      };
+    }));
+
+    return transformedProjects;
   } catch (error) {
     console.error("Unexpected error fetching projects:", error);
-    return null;
+    return [];
   }
 };
 
@@ -31,8 +81,7 @@ export const fetchProjectById = async (projectId: string) => {
       .select(`
         *,
         clients(name),
-        services(name),
-        stages(*)
+        services(name)
       `)
       .eq('id', projectId)
       .single();
@@ -42,7 +91,50 @@ export const fetchProjectById = async (projectId: string) => {
       return null;
     }
 
-    return project;
+    // Fetch stages separately
+    const { data: stages, error: stagesError } = await supabase
+      .from('project_stages')
+      .select('*')
+      .eq('project_id', project.id)
+      .order('stage_order');
+
+    if (stagesError) {
+      console.error("Error fetching stages for project:", project.id, stagesError);
+    }
+
+    // Transform the data to match the expected format
+    return {
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      clientId: project.client_id,
+      clientName: project.clients?.name || '',
+      serviceId: project.service_id,
+      serviceName: project.services?.name || '',
+      mainConsultantId: project.main_consultant_id,
+      mainConsultantCommission: project.main_consultant_commission,
+      supportConsultantId: project.support_consultant_id,
+      supportConsultantCommission: project.support_consultant_commission,
+      startDate: project.start_date,
+      endDate: project.end_date,
+      totalValue: project.total_value,
+      totalHours: project.total_hours,
+      hourlyRate: project.hourly_rate,
+      taxPercent: project.tax_percent,
+      thirdPartyExpenses: project.third_party_expenses,
+      mainConsultantValue: project.main_consultant_value,
+      supportConsultantValue: project.support_consultant_value,
+      managerName: project.manager_name,
+      managerEmail: project.manager_email,
+      managerPhone: project.manager_phone,
+      status: project.status,
+      tags: project.tags || [],
+      url: project.url,
+      projectId: project.project_id,
+      createdAt: project.created_at,
+      updatedAt: project.updated_at,
+      stages: stages || []
+    };
   } catch (error) {
     console.error("Unexpected error fetching project by ID:", error);
     return null;
@@ -223,3 +315,20 @@ export const assignConsultantsToDemand = async (
     throw error;
   }
 };
+
+export const fetchProjectTags = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('project_tags')
+      .select('*')
+      .order('name');
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching project tags:", error);
+    return [];
+  }
+};
+
+export const fetchTags = fetchProjectTags; // Alias for backward compatibility
