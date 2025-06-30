@@ -1,779 +1,225 @@
-
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
   try {
-    console.log('Fetching projects with consultants only...');
-    const { data, error } = await supabase
+    const { data: projects, error } = await supabase
       .from('projects')
       .select(`
         *,
-        clients:client_id(id, name),
-        services:service_id(id, name),
-        main_consultant:consultants!main_consultant_id(id, name),
-        support_consultant:consultants!support_consultant_id(id, name),
-        project_stages!project_stages_project_id_fkey(
-          id,
-          name,
-          description,
-          status,
-          start_date,
-          end_date,
-          completed,
-          value,
-          hours,
-          days,
-          consultant_id,
-          stage_order,
-          client_approved,
-          manager_approved,
-          invoice_issued,
-          payment_received,
-          consultants_settled,
-          attachment,
-          valor_de_repasse,
-          created_at,
-          updated_at,
-          consultant:consultants!consultant_id(id, name)
-        ),
-        project_tag_relations(
-          tag:project_tags(id, name, color)
-        )
+        clients(name),
+        services(name),
+        stages(*)
       `)
-      .not('main_consultant_id', 'is', null)
       .order('created_at', { ascending: false });
-    
+
     if (error) {
-      console.error('Error fetching projects:', error);
+      console.error("Error fetching projects:", error);
+      return null;
+    }
+
+    return projects;
+  } catch (error) {
+    console.error("Unexpected error fetching projects:", error);
+    return null;
+  }
+};
+
+export const fetchProjectById = async (projectId: string) => {
+  try {
+    const { data: project, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        clients(name),
+        services(name),
+        stages(*)
+      `)
+      .eq('id', projectId)
+      .single();
+
+    if (error) {
+      console.error("Error fetching project by ID:", error);
+      return null;
+    }
+
+    return project;
+  } catch (error) {
+    console.error("Unexpected error fetching project by ID:", error);
+    return null;
+  }
+};
+
+export const createProject = async (projectData: any) => {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .insert([projectData])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error creating project:", error);
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error("Unexpected error creating project:", error);
+    return { data: null, error: { message: 'Unexpected error' } };
+  }
+};
+
+export const updateProject = async (projectId: string, projectData: any) => {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .update(projectData)
+      .eq('id', projectId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating project:", error);
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error("Unexpected error updating project:", error);
+    return { data: null, error: { message: 'Unexpected error' } };
+  }
+};
+
+export const deleteProject = async (projectId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', projectId);
+
+    if (error) {
+      console.error("Error deleting project:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Unexpected error deleting project:", error);
+    return false;
+  }
+};
+
+export const fetchDemandsWithoutConsultants = async () => {
+  console.log('=== fetchDemandsWithoutConsultants: INICIANDO ===');
+  
+  try {
+    const { data: projects, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        clients(name),
+        services(id, name)
+      `)
+      .is('main_consultant_id', null)
+      .is('support_consultant_id', null)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Erro na busca de projetos sem consultores:', error);
       throw error;
     }
 
-    console.log('Raw projects data (with consultants only):', data);
+    console.log('Projetos encontrados (sem consultores):', projects?.length || 0);
+    console.log('Primeiros 3 projetos:', projects?.slice(0, 3));
 
-    const transformedData = data?.map(project => {
-      console.log('Transforming project:', project);
+    if (!projects || projects.length === 0) {
+      console.log('Nenhum projeto encontrado sem consultores');
       
-      const projectTags = project.project_tag_relations?.map(rel => rel.tag).filter(Boolean) || [];
-      console.log('Project tags for', project.name, ':', projectTags);
+      // Debug: verificar quantos projetos existem no total
+      const { data: allProjects, error: allError } = await supabase
+        .from('projects')
+        .select('id, name, main_consultant_id, support_consultant_id')
+        .order('created_at', { ascending: false });
+      
+      if (!allError && allProjects) {
+        console.log('Total de projetos no sistema:', allProjects.length);
+        console.log('Projetos com consultores:', allProjects.filter(p => p.main_consultant_id || p.support_consultant_id).length);
+        console.log('Projetos sem consultores:', allProjects.filter(p => !p.main_consultant_id && !p.support_consultant_id).length);
+      }
+      
+      return [];
+    }
+
+    // Transformar os dados para o formato esperado
+    const transformedData = projects.map(project => {
+      console.log('Transformando projeto:', project.name, 'ID:', project.id);
       
       return {
         id: project.id,
         name: project.name,
         description: project.description,
-        serviceId: project.service_id,
-        clientId: project.client_id,
-        mainConsultantId: project.main_consultant_id,
-        mainConsultantCommission: project.main_consultant_commission || 0,
-        supportConsultantId: project.support_consultant_id,
-        supportConsultantCommission: project.support_consultant_commission || 0,
-        startDate: project.start_date,
-        endDate: project.end_date,
-        totalValue: project.total_value || 0,
-        taxPercent: project.tax_percent || 16,
-        thirdPartyExpenses: project.third_party_expenses || 0,
-        consultantValue: project.main_consultant_value || 0,
-        supportConsultantValue: project.support_consultant_value || 0,
-        managerName: project.manager_name,
-        managerEmail: project.manager_email,
-        managerPhone: project.manager_phone,
-        totalHours: project.total_hours || 0,
-        hourlyRate: project.hourly_rate || 0,
-        url: project.url || '',
+        start_date: project.start_date,
+        end_date: project.end_date,
+        total_value: project.total_value,
+        totalHours: project.total_hours,
+        totalDays: calculateDaysBetweenDates(project.start_date, project.end_date),
+        clientName: project.clients?.name || 'Cliente não especificado',
+        serviceName: project.services?.name || 'Serviço não especificado',
+        services: project.services,
+        tags: project.tags || [],
         status: project.status,
-        tags: projectTags.map(tag => tag.name),
-        tagIds: projectTags.map(tag => tag.id),
-        tagNames: projectTags.map(tag => tag.name),
-        stages: project.project_stages?.map(stage => ({
-          id: stage.id,
-          projectId: project.id,
-          name: stage.name,
-          description: stage.description || '',
-          days: stage.days || 1,
-          hours: stage.hours || 8,
-          value: stage.value || 0,
-          startDate: stage.start_date,
-          endDate: stage.end_date,
-          consultantId: stage.consultant_id,
-          completed: stage.completed || false,
-          clientApproved: stage.client_approved || false,
-          managerApproved: stage.manager_approved || false,
-          invoiceIssued: stage.invoice_issued || false,
-          paymentReceived: stage.payment_received || false,
-          consultantsSettled: stage.consultants_settled || false,
-          attachment: stage.attachment,
-          stageOrder: stage.stage_order || 1,
-          status: stage.status || 'iniciar_projeto',
-          valorDeRepasse: Number(stage.valor_de_repasse) || 0,
-          createdAt: stage.created_at,
-          updatedAt: stage.updated_at
-        })) || [],
-        mainConsultantName: project.main_consultant?.name,
-        supportConsultantName: project.support_consultant?.name,
-        serviceName: project.services?.name,
-        clientName: project.clients?.name,
-        completedStages: project.project_stages?.filter(stage => stage.completed).length || 0,
-        createdAt: project.created_at,
-        updatedAt: project.updated_at
+        created_at: project.created_at,
+        updated_at: project.updated_at
       };
-    }) || [];
+    });
 
-    console.log('Transformed projects data (with consultants only):', transformedData);
+    console.log('Dados transformados:', transformedData.length, 'demandas');
     return transformedData;
+
   } catch (error) {
-    console.error('Error fetching projects:', error);
-    return [];
+    console.error('Erro na função fetchDemandsWithoutConsultants:', error);
+    throw error;
   }
 };
 
-export const fetchDemandsWithoutConsultants = async () => {
-  try {
-    console.log('Fetching demands (projects without consultants)...');
-    const { data, error } = await supabase
-      .from('projects')
-      .select(`
-        *,
-        clients:client_id(id, name),
-        services:service_id(id, name)
-      `)
-      .is('main_consultant_id', null)
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-
-    console.log('Raw demands data (without consultants):', data);
-
-    const transformedData = data?.map(project => ({
-      ...project,
-      clientName: project.clients?.name,
-      serviceName: project.services?.name
-    })) || [];
-
-    console.log('Transformed demands data:', transformedData);
-    return transformedData;
-  } catch (error) {
-    console.error('Error fetching demands:', error);
-    return [];
-  }
-};
-
-// Function to calculate project status based on business rules and configured statuses
-export const calculateProjectStatus = async (project: any): Promise<string> => {
-  try {
-    // First, fetch the configured active statuses
-    const { data: activeStatuses, error } = await supabase
-      .from('project_status_settings')
-      .select('*')
-      .eq('is_active', true)
-      .order('order_index');
-
-    if (error) {
-      console.error('Error fetching active statuses:', error);
-      // Fallback to original logic if can't fetch configured statuses
-      return calculateLegacyProjectStatus(project);
-    }
-
-    // Check if project has a valid configured status
-    const currentStatusSetting = activeStatuses?.find(s => s.name === project.status);
-    if (currentStatusSetting) {
-      return project.status; // Keep current status if it's valid and active
-    }
-
-    // Auto-assign status based on business rules using configured statuses
-    
-    // Rule 1: If no consultant assigned, look for planning status
-    if (!project.main_consultant_id) {
-      const planningStatus = activeStatuses?.find(s => 
-        s.name.includes('planejamento') || s.name.includes('planning')
-      );
-      return planningStatus?.name || 'em_planejamento';
-    }
-    
-    // Rule 2: If consultant assigned but not all stages completed, look for production status
-    if (project.main_consultant_id && project.project_stages) {
-      const totalStages = project.project_stages.length;
-      const completedStages = project.project_stages.filter((stage: any) => stage.completed).length;
-      
-      // Rule 3: If all stages are completed, look for completion status
-      if (totalStages > 0 && completedStages === totalStages) {
-        const completionStatus = activeStatuses?.find(s => s.is_completion_status);
-        return completionStatus?.name || 'concluido';
-      }
-      
-      // Look for production status
-      const productionStatus = activeStatuses?.find(s => 
-        s.name.includes('producao') || s.name.includes('production')
-      );
-      return productionStatus?.name || 'em_producao';
-    }
-    
-    // Default to first active status if available
-    return activeStatuses?.[0]?.name || 'em_producao';
-  } catch (error) {
-    console.error('Error in calculateProjectStatus:', error);
-    return calculateLegacyProjectStatus(project);
-  }
-};
-
-// Legacy status calculation for fallback
-const calculateLegacyProjectStatus = (project: any): string => {
-  // Rule 1: If no consultant assigned, status should be "em_planejamento"
-  if (!project.main_consultant_id) {
-    return 'em_planejamento';
-  }
+// Função auxiliar para calcular dias entre datas
+const calculateDaysBetweenDates = (startDate: string, endDate: string): number => {
+  if (!startDate || !endDate) return 0;
   
-  // Rule 2: If consultant assigned but not all stages completed, status should be "em_producao"
-  if (project.main_consultant_id && project.project_stages) {
-    const totalStages = project.project_stages.length;
-    const completedStages = project.project_stages.filter((stage: any) => stage.completed).length;
-    
-    // Rule 3: If all stages are completed, status should be "concluido"
-    if (totalStages > 0 && completedStages === totalStages) {
-      return 'concluido';
-    }
-    
-    return 'em_producao';
-  }
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diffTime = Math.abs(end.getTime() - start.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   
-  // If consultant assigned but no stages, status should be "em_producao"
-  return 'em_producao';
-};
-
-// Function to update project status automatically
-export const updateProjectStatusAutomatically = async (projectId: string) => {
-  try {
-    // First, fetch the project with its stages
-    const { data: project, error: fetchError } = await supabase
-      .from('projects')
-      .select(`
-        *,
-        project_stages(*)
-      `)
-      .eq('id', projectId)
-      .single();
-    
-    if (fetchError) {
-      console.error('Error fetching project for status update:', fetchError);
-      return;
-    }
-    
-    // Calculate the new status
-    const newStatus = await calculateProjectStatus(project);
-    
-    // Update the project status if it's different
-    if (project.status !== newStatus) {
-      const { error: updateError } = await supabase
-        .from('projects')
-        .update({ status: newStatus })
-        .eq('id', projectId);
-      
-      if (updateError) {
-        console.error('Error updating project status:', updateError);
-      } else {
-        console.log(`Project ${projectId} status updated to: ${newStatus}`);
-      }
-    }
-    
-    return newStatus;
-  } catch (error) {
-    console.error('Error in updateProjectStatusAutomatically:', error);
-  }
+  return diffDays;
 };
 
 export const assignConsultantsToDemand = async (
-  projectId: string,
+  demandId: string,
   mainConsultantId: string | null,
   mainConsultantCommission: number,
   supportConsultantId: string | null,
   supportConsultantCommission: number
 ) => {
   try {
-    const updateData: any = {
-      main_consultant_id: mainConsultantId,
-      main_consultant_commission: mainConsultantCommission,
-      status: mainConsultantId ? 'em_producao' : 'em_planejamento' // Auto-set status based on consultant
-    };
-
-    if (supportConsultantId) {
-      updateData.support_consultant_id = supportConsultantId;
-      updateData.support_consultant_commission = supportConsultantCommission;
-    }
-
     const { data, error } = await supabase
       .from('projects')
-      .update(updateData)
-      .eq('id', projectId)
-      .select()
-      .single();
-    
-    if (error) throw error;
-    
-    // Update status automatically after consultant assignment
-    await updateProjectStatusAutomatically(projectId);
-    
-    return data;
-  } catch (error) {
-    console.error('Error assigning consultants:', error);
-    throw error;
-  }
-};
-
-export const updateStageStatus = async (
-  stageId: string, 
-  updates: any, 
-  projectName?: string, 
-  stageName?: string
-) => {
-  try {
-    const { error } = await supabase
-      .from('project_stages')
-      .update(updates)
-      .eq('id', stageId);
-
-    if (error) throw error;
-    
-    // Get the project ID from the stage to update project status
-    const { data: stage } = await supabase
-      .from('project_stages')
-      .select('project_id')
-      .eq('id', stageId)
-      .single();
-    
-    if (stage?.project_id) {
-      // Update project status automatically after stage update
-      await updateProjectStatusAutomatically(stage.project_id);
-    }
-    
-    if (projectName && stageName) {
-      console.log(`Stage ${stageName} updated for project ${projectName}`);
-    }
-  } catch (error) {
-    console.error('Error updating stage status:', error);
-    throw error;
-  }
-};
-
-export const deleteProject = async (id: string) => {
-  try {
-    // First, check if the project has "cancelado" status
-    const { data: project, error: fetchError } = await supabase
-      .from('projects')
-      .select('status, name')
-      .eq('id', id)
-      .single();
-    
-    if (fetchError) {
-      console.error('Error fetching project for deletion:', fetchError);
-      throw fetchError;
-    }
-
-    // Allow deletion only for projects with "cancelado" status
-    if (project.status !== 'cancelado') {
-      throw new Error('Apenas projetos com status "cancelado" podem ser removidos. Altere o status do projeto para "cancelado" antes de excluí-lo.');
-    }
-
-    console.log(`Deleting project "${project.name}" with cancelado status...`);
-
-    // Delete all related project stages
-    const { error: stagesError } = await supabase
-      .from('project_stages')
-      .delete()
-      .eq('project_id', id);
-    
-    if (stagesError) {
-      console.error('Error deleting project stages:', stagesError);
-      throw stagesError;
-    }
-
-    // Delete project tag relations
-    const { error: tagsError } = await supabase
-      .from('project_tag_relations')
-      .delete()
-      .eq('project_id', id);
-    
-    if (tagsError) {
-      console.error('Error deleting project tag relations:', tagsError);
-      throw tagsError;
-    }
-
-    // Delete financial transactions related to the project
-    const { error: transactionsError } = await supabase
-      .from('financial_transactions')
-      .delete()
-      .eq('project_id', id);
-    
-    if (transactionsError) {
-      console.error('Error deleting financial transactions:', transactionsError);
-      // Don't throw error here, continue with deletion
-    }
-
-    // Delete project history
-    const { error: historyError } = await supabase
-      .from('project_history')
-      .delete()
-      .eq('project_id', id);
-    
-    if (historyError) {
-      console.error('Error deleting project history:', historyError);
-      // Don't throw error here, continue with deletion
-    }
-
-    // Finally delete the project
-    const { error } = await supabase
-      .from('projects')
-      .delete()
-      .eq('id', id);
-    
-    if (error) {
-      console.error('Error deleting project:', error);
-      throw error;
-    }
-
-    console.log(`Project "${project.name}" deleted successfully`);
-    return true;
-  } catch (error) {
-    console.error('Error deleting project:', error);
-    throw error;
-  }
-};
-
-export const createProject = async (project: any) => {
-  try {
-    console.log('=== INICIANDO CRIAÇÃO DE PROJETO ===');
-    console.log('Dados originais recebidos:', JSON.stringify(project, null, 2));
-    
-    // CRIAR OBJETO COMPLETAMENTE LIMPO - APENAS CAMPOS DA TABELA PROJECTS (SEM project_id)
-    const cleanProjectData = {
-      name: String(project.name || ''),
-      description: String(project.description || ''),
-      status: 'iniciar_projeto', // SEMPRE INICIAR COM STATUS "iniciar_projeto"
-      client_id: project.clientId || null,
-      service_id: project.serviceId || null,
-      main_consultant_id: project.mainConsultantId || null,
-      support_consultant_id: project.supportConsultantId || null,
-      start_date: project.startDate || null,
-      end_date: project.endDate || null,
-      total_value: Number(project.totalValue || 0),
-      total_hours: Number(project.totalHours || 0),
-      hourly_rate: Number(project.hourlyRate || 0),
-      main_consultant_commission: Number(project.mainConsultantCommission || 0),
-      support_consultant_commission: Number(project.supportConsultantCommission || 0),
-      main_consultant_value: Number(project.consultantValue || 0),
-      support_consultant_value: Number(project.supportConsultantValue || 0),
-      third_party_expenses: Number(project.thirdPartyExpenses || 0),
-      tax_percent: Number(project.taxPercent || 16),
-      manager_name: String(project.managerName || ''),
-      manager_email: String(project.managerEmail || ''),
-      manager_phone: String(project.managerPhone || ''),
-      url: project.url || null
-    };
-
-    console.log('=== DADOS LIMPOS PARA INSERÇÃO ===');
-    console.log('Objeto final (SEM project_id e outros campos proibidos):', JSON.stringify(cleanProjectData, null, 2));
-    console.log('✅ Status definido como "iniciar_projeto" para novo projeto');
-    
-    // VERIFICAÇÃO DE SEGURANÇA - garantir que não há campos proibidos
-    const forbiddenFields = ['user_id', 'userId', 'user', 'tags', 'tagIds', 'stages', 'project_id', 'projectId'];
-    const dataKeys = Object.keys(cleanProjectData);
-    const hasForbiddenField = dataKeys.some(key => forbiddenFields.includes(key));
-    
-    if (hasForbiddenField) {
-      console.error('⚠️ ERRO: Campo proibido detectado!', dataKeys);
-      throw new Error('Campo não permitido detectado nos dados de criação');
-    }
-    
-    console.log('✅ Verificação aprovada - dados limpos');
-    
-    const { data, error } = await supabase
-      .from('projects')
-      .insert(cleanProjectData)
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('❌ ERRO ao inserir projeto:', error);
-      console.error('Dados que causaram erro:', JSON.stringify(cleanProjectData, null, 2));
-      throw error;
-    }
-
-    console.log('✅ Projeto criado com sucesso com status "iniciar_projeto":', data);
-
-    // Vincular tags se existirem
-    if (project.tagIds && project.tagIds.length > 0) {
-      console.log('Vinculando tags ao projeto:', project.tagIds);
-      await linkProjectToTags(data.id, project.tagIds);
-    }
-
-    // Criar etapas se existirem
-    if (project.stages && project.stages.length > 0) {
-      console.log('Criando etapas do projeto:', project.stages);
-      
-      const stagesData = project.stages.map((stage: any) => ({
-        project_id: data.id,
-        name: stage.name,
-        description: stage.description || '',
-        days: Number(stage.days) || 1,
-        hours: Number(stage.hours) || 8,
-        value: Number(stage.value) || 0,
-        start_date: stage.startDate || null,
-        end_date: stage.endDate || null,
-        stage_order: Number(stage.stageOrder) || 1,
-        consultant_id: stage.consultantId || null,
-        status: stage.status || 'iniciar_projeto',
-        completed: false,
-        client_approved: false,
-        manager_approved: false,
-        invoice_issued: false,
-        payment_received: false,
-        consultants_settled: false,
-        valor_de_repasse: Number(stage.valorDeRepasse) || 0
-      }));
-
-      console.log('Dados das etapas para inserção:', stagesData);
-
-      const { error: stagesError } = await supabase
-        .from('project_stages')
-        .insert(stagesData);
-
-      if (stagesError) {
-        console.error('Erro ao criar etapas:', stagesError);
-      } else {
-        console.log('Etapas criadas com sucesso');
-      }
-    }
-
-    // NÃO chamar updateProjectStatusAutomatically aqui porque queremos manter o status inicial
-    console.log('=== PROJETO CRIADO COM SUCESSO COM STATUS "iniciar_projeto" ===');
-    return data;
-  } catch (error) {
-    console.error('=== ERRO NA CRIAÇÃO DO PROJETO ===');
-    console.error('Error creating project:', error);
-    throw error;
-  }
-};
-
-export const updateProject = async (project: any) => {
-  try {
-    console.log('=== INICIANDO ATUALIZAÇÃO DE PROJETO ===');
-    console.log('Dados originais recebidos:', JSON.stringify(project, null, 2));
-    
-    // CRIAR OBJETO COMPLETAMENTE LIMPO - APENAS CAMPOS DA TABELA PROJECTS (SEM project_id)
-    const cleanProjectData = {
-      name: String(project.name || ''),
-      description: String(project.description || ''),
-      client_id: project.clientId || null,
-      service_id: project.serviceId || null,
-      main_consultant_id: project.mainConsultantId || null,
-      support_consultant_id: project.supportConsultantId || null,
-      start_date: project.startDate || null,
-      end_date: project.endDate || null,
-      total_value: Number(project.totalValue || 0),
-      total_hours: Number(project.totalHours || 0),
-      hourly_rate: Number(project.hourlyRate || 0),
-      main_consultant_commission: Number(project.mainConsultantCommission || 0),
-      support_consultant_commission: Number(project.supportConsultantCommission || 0),
-      main_consultant_value: Number(project.consultantValue || 0),
-      support_consultant_value: Number(project.supportConsultantValue || 0),
-      third_party_expenses: Number(project.thirdPartyExpenses || 0),
-      tax_percent: Number(project.taxPercent || 16),
-      manager_name: String(project.managerName || ''),
-      manager_email: String(project.managerEmail || ''),
-      manager_phone: String(project.managerPhone || ''),
-      url: project.url || null
-    };
-
-    console.log('=== DADOS LIMPOS PARA ATUALIZAÇÃO ===');
-    console.log('Objeto final (SEM project_id e outros campos proibidos):', JSON.stringify(cleanProjectData, null, 2));
-    
-    // VERIFICAÇÃO DE SEGURANÇA
-    const forbiddenFields = ['user_id', 'userId', 'user', 'tags', 'tagIds', 'stages', 'project_id', 'projectId'];
-    const dataKeys = Object.keys(cleanProjectData);
-    const hasForbiddenField = dataKeys.some(key => forbiddenFields.includes(key));
-    
-    if (hasForbiddenField) {
-      console.error('⚠️ ERRO: Campo proibido detectado na atualização!', dataKeys);
-      throw new Error('Campo não permitido detectado nos dados de atualização');
-    }
-
-    const { data, error } = await supabase
-      .from('projects')
-      .update(cleanProjectData)
-      .eq('id', project.id)
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('❌ ERRO ao atualizar projeto:', error);
-      console.error('Dados que causaram erro:', JSON.stringify(cleanProjectData, null, 2));
-      throw error;
-    }
-
-    console.log('✅ Projeto atualizado com sucesso:', data);
-
-    // Atualizar tags se existirem
-    if (project.tagIds) {
-      await linkProjectToTags(project.id, project.tagIds);
-    }
-
-    // Atualizar etapas se existirem
-    if (project.stages && project.stages.length > 0) {
-      console.log('Atualizando etapas do projeto');
-      
-      await supabase
-        .from('project_stages')
-        .delete()
-        .eq('project_id', project.id);
-
-      const stagesData = project.stages.map((stage: any) => ({
-        project_id: project.id,
-        name: stage.name,
-        description: stage.description || '',
-        days: Number(stage.days) || 1,
-        hours: Number(stage.hours) || 8,
-        value: Number(stage.value) || 0,
-        start_date: stage.startDate || null,
-        end_date: stage.endDate || null,
-        stage_order: Number(stage.stageOrder) || 1,
-        consultant_id: stage.consultantId || null,
-        status: stage.status || 'iniciar_projeto',
-        completed: stage.completed || false,
-        client_approved: stage.clientApproved || false,
-        manager_approved: stage.managerApproved || false,
-        invoice_issued: stage.invoiceIssued || false,
-        payment_received: stage.paymentReceived || false,
-        consultants_settled: stage.consultantsSettled || false,
-        valor_de_repasse: Number(stage.valorDeRepasse) || 0
-      }));
-
-      console.log('Dados das etapas para atualização:', stagesData);
-
-      const { error: stagesError } = await supabase
-        .from('project_stages')
-        .insert(stagesData);
-
-      if (stagesError) {
-        console.error('Error updating stages:', stagesError);
-      } else {
-        console.log('Etapas atualizadas com sucesso');
-      }
-    }
-
-    await updateProjectStatusAutomatically(project.id);
-
-    console.log('=== PROJETO ATUALIZADO COM SUCESSO ===');
-    return data;
-  } catch (error) {
-    console.error('=== ERRO NA ATUALIZAÇÃO DO PROJETO ===');
-    console.error('Error updating project:', error);
-    throw error;
-  }
-};
-
-// New functions for project tags
-export const fetchProjectTags = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('project_tags')
-      .select('*')
-      .order('name');
-    
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error('Error fetching project tags:', error);
-    return [];
-  }
-};
-
-export const createProjectTag = async (tag: { name: string; color?: string }) => {
-  try {
-    const { data, error } = await supabase
-      .from('project_tags')
-      .insert({
-        name: tag.name,
-        color: tag.color || '#3b82f6'
+      .update({
+        main_consultant_id: mainConsultantId,
+        main_consultant_commission: mainConsultantCommission,
+        support_consultant_id: supportConsultantId,
+        support_consultant_commission: supportConsultantCommission
       })
-      .select()
-      .single();
-    
-    if (error) throw error;
+      .eq('id', demandId);
+
+    if (error) {
+      console.error("Error assigning consultants to demand:", error);
+      throw error;
+    }
+
     return data;
   } catch (error) {
-    console.error('Error creating project tag:', error);
+    console.error("Unexpected error assigning consultants to demand:", error);
     throw error;
-  }
-};
-
-export const linkProjectToTags = async (projectId: string, tagIds: string[]) => {
-  try {
-    // First, remove existing tag relations for this project
-    await supabase
-      .from('project_tag_relations')
-      .delete()
-      .eq('project_id', projectId);
-
-    // Then, create new relations
-    if (tagIds.length > 0) {
-      const relations = tagIds.map(tagId => ({
-        project_id: projectId,
-        tag_id: tagId
-      }));
-
-      const { error } = await supabase
-        .from('project_tag_relations')
-        .insert(relations);
-
-      if (error) throw error;
-    }
-  } catch (error) {
-    console.error('Error linking project to tags:', error);
-    throw error;
-  }
-};
-
-// Fetch basic tags for filters - update to use project_tags
-export const fetchTags = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('project_tags')
-      .select('*')
-      .order('name');
-    
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error('Error fetching tags:', error);
-    return [];
-  }
-};
-
-// Fetch consultants for filters
-export const fetchConsultants = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('consultants')
-      .select('id, name')
-      .order('name');
-    
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error('Error fetching consultants:', error);
-    return [];
-  }
-};
-
-// Fetch services for filters
-export const fetchServices = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('services')
-      .select('id, name')
-      .order('name');
-    
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.error('Error fetching services:', error);
-    return [];
   }
 };

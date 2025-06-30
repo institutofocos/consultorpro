@@ -64,19 +64,49 @@ const DemandsList = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Fetch demands
+        console.log('=== INICIANDO BUSCA DE DEMANDAS ===');
+        
+        // Verificar se conseguimos buscar dados diretamente da tabela projects
+        console.log('Testando acesso direto à tabela projects...');
+        const { data: directProjects, error: directError } = await supabase
+          .from('projects')
+          .select('*')
+          .is('main_consultant_id', null)
+          .is('support_consultant_id', null);
+        
+        console.log('Resultado da busca direta:', {
+          data: directProjects,
+          error: directError,
+          count: directProjects?.length || 0
+        });
+
+        // Tentar a função original
+        console.log('Tentando função fetchDemandsWithoutConsultants...');
         const demandsData = await fetchDemandsWithoutConsultants();
-        setDemands(demandsData);
+        console.log('Resultado da função fetchDemandsWithoutConsultants:', {
+          data: demandsData,
+          count: demandsData?.length || 0
+        });
+        
+        setDemands(demandsData || []);
         
         // Fetch consultants for the assignment dialog
         const consultantsData = await fetchConsultants();
         setConsultants(consultantsData);
+        console.log('Consultores carregados:', consultantsData?.length || 0);
         
         // Fetch services for filtering
         const servicesData = await fetchServices();
         setServices(servicesData);
+        console.log('Serviços carregados:', servicesData?.length || 0);
+        
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Erro ao buscar dados das demandas:', error);
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não foi possível carregar as demandas. Verifique sua conexão.",
+        });
       } finally {
         setLoading(false);
       }
@@ -88,7 +118,7 @@ const DemandsList = () => {
     const interval = setInterval(() => fetchData(), 30000); // Refresh every 30 seconds
     
     return () => clearInterval(interval);
-  }, []);
+  }, [toast]);
 
   // Filter consultants based on selected demand's service
   useEffect(() => {
@@ -447,6 +477,9 @@ const DemandsList = () => {
           <CardTitle className="text-xl">
             <div className="flex items-center">
               <span>Demandas Disponíveis</span>
+              {loading && (
+                <span className="ml-2 text-sm text-muted-foreground">(Carregando...)</span>
+              )}
             </div>
           </CardTitle>
         </CardHeader>
@@ -456,8 +489,19 @@ const DemandsList = () => {
               <p className="text-muted-foreground">Carregando demandas...</p>
             </div>
           ) : filteredDemands.length === 0 ? (
-            <div className="flex items-center justify-center h-32">
+            <div className="flex flex-col items-center justify-center h-32 space-y-2">
               <p className="text-muted-foreground">Não há demandas disponíveis no momento.</p>
+              <p className="text-xs text-muted-foreground">
+                Total de demandas encontradas: {demands.length}
+              </p>
+              {demands.length === 0 && (
+                <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Debug:</strong> Nenhuma demanda foi encontrada no banco de dados.
+                    Verifique se existem projetos sem consultores atribuídos.
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
