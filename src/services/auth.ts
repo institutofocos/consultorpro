@@ -58,7 +58,7 @@ export async function updateUserProfile(userId: string, userData: any) {
 }
 
 export async function resetUserPassword(email: string) {
-  const redirectUrl = `${window.location.origin}/`;
+  const redirectUrl = `${window.location.origin}/reset-password`;
   
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: redirectUrl,

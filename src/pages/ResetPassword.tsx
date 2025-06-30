@@ -8,24 +8,51 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Eye, EyeOff, Lock, Mail, KeyRound, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Lock, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const ResetPassword = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [email, setEmail] = useState(searchParams.get('email') || '');
-  const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [session, setSession] = useState(null);
 
   useEffect(() => {
-    if (searchParams.get('email')) {
-      setEmail(searchParams.get('email') || '');
-    }
+    // Verificar se há uma sessão ativa para reset de senha
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      
+      if (!session) {
+        // Se não há sessão, verificar se há tokens na URL
+        const accessToken = searchParams.get('access_token');
+        const refreshToken = searchParams.get('refresh_token');
+        
+        if (accessToken && refreshToken) {
+          // Tentar definir a sessão com os tokens da URL
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          
+          if (error) {
+            setError('Link de recuperação inválido ou expirado');
+          } else {
+            // Sessão definida com sucesso
+            const { data: { session: newSession } } = await supabase.auth.getSession();
+            setSession(newSession);
+          }
+        } else {
+          setError('Link de recuperação inválido. Solicite um novo link.');
+        }
+      }
+    };
+    
+    checkSession();
   }, [searchParams]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -45,83 +72,25 @@ const ResetPassword = () => {
       return;
     }
 
-    if (code.length !== 6) {
-      setError('O código deve ter 6 dígitos');
+    if (!session) {
+      setError('Sessão inválida. Solicite um novo link de recuperação.');
       setIsLoading(false);
       return;
     }
 
     try {
-      // Verificar o código no banco de dados
-      const { data: resetCodeData, error: codeError } = await supabase
-        .from('password_reset_codes')
-        .select('*')
-        .eq('email', email)
-        .eq('code', code)
-        .eq('used', false)
-        .gt('expires_at', new Date().toISOString())
-        .single();
-
-      if (codeError || !resetCodeData) {
-        setError('Código inválido ou expirado');
-        setIsLoading(false);
-        return;
-      }
-
-      // Usar o método nativo do Supabase para resetar a senha
-      // Primeiro, fazer login temporário com o código como senha para verificar se o usuário existe
-      const { error: resetError } = await supabase.auth.updateUser({
+      const { error } = await supabase.auth.updateUser({
         password: newPassword
       });
 
-      if (resetError) {
-        // Se falhar, tentar uma abordagem diferente usando signInWithPassword com o código
-        // e depois atualizar a senha
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: email,
-          password: code // usar o código como senha temporária
-        });
-
-        if (signInError) {
-          // Se ainda não funcionar, usar resetPasswordForEmail
-          const { error: passwordResetError } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/reset-password?email=${encodeURIComponent(email)}&code=${code}`
-          });
-
-          if (passwordResetError) {
-            setError('Erro ao processar redefinição de senha. Tente novamente.');
-            setIsLoading(false);
-            return;
-          }
-
-          toast.success('Link de redefinição enviado! Verifique seu email.');
-          setIsLoading(false);
-          return;
-        }
-
-        // Se conseguiu fazer login com o código, atualizar a senha
-        const { error: updateError } = await supabase.auth.updateUser({
-          password: newPassword
-        });
-
-        if (updateError) {
-          setError('Erro ao atualizar senha: ' + updateError.message);
-          setIsLoading(false);
-          return;
-        }
+      if (error) {
+        setError('Erro ao atualizar senha: ' + error.message);
+        return;
       }
-
-      // Marcar código como usado
-      await supabase
-        .from('password_reset_codes')
-        .update({ used: true })
-        .eq('id', resetCodeData.id);
 
       toast.success('Senha alterada com sucesso!');
       
-      // Fazer logout para forçar novo login com a nova senha
-      await supabase.auth.signOut();
-      
+      // Redirecionar para login após sucesso
       navigate('/login');
 
     } catch (error: any) {
@@ -131,6 +100,20 @@ const ResetPassword = () => {
       setIsLoading(false);
     }
   };
+
+  if (!session && !error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p>Verificando link de recuperação...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -150,7 +133,7 @@ const ResetPassword = () => {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-center">Nova Senha</CardTitle>
             <CardDescription className="text-center">
-              Digite o código de 6 dígitos enviado para seu email e sua nova senha
+              Digite sua nova senha
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -160,84 +143,61 @@ const ResetPassword = () => {
               </Alert>
             )}
 
-            <form onSubmit={handleResetPassword} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    required
-                    disabled
-                  />
-                </div>
+            {error === 'Link de recuperação inválido. Solicite um novo link.' ? (
+              <div className="text-center space-y-4">
+                <p className="text-sm text-gray-600">
+                  O link de recuperação é inválido ou expirou.
+                </p>
+                <Button asChild className="w-full">
+                  <Link to="/login">Solicitar novo link</Link>
+                </Button>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="code">Código de 6 dígitos</Label>
-                <div className="relative">
-                  <KeyRound className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="code"
-                    type="text"
-                    placeholder="123456"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    className="pl-10"
-                    maxLength={6}
-                    required
-                  />
+            ) : (
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">Nova senha</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="new-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Mínimo 6 caracteres"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="pl-10 pr-10"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="new-password">Nova senha</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="new-password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Mínimo 6 caracteres"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="pl-10 pr-10"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirmar nova senha</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="confirm-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Confirme sua nova senha"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password">Confirmar nova senha</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="confirm-password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Confirme sua nova senha"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Alterando senha...' : 'Alterar senha'}
-              </Button>
-            </form>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? 'Alterando senha...' : 'Alterar senha'}
+                </Button>
+              </form>
+            )}
           </CardContent>
         </Card>
       </div>

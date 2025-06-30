@@ -20,7 +20,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [resetEmail, setResetEmail] = useState('');
-  const [codeSent, setCodeSent] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -114,67 +114,25 @@ const Login = () => {
     }
   };
 
-  const handleSendResetCode = async (e: React.FormEvent) => {
+  const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
     try {
-      console.log('Enviando código de recuperação para:', resetEmail);
-      
-      const response = await fetch(`https://qffpioepvkfvpuqdbbnh.supabase.co/functions/v1/send-reset-code`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmZnBpb2VwdmtmdnB1cWRiYm5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MzQ5NDIsImV4cCI6MjA2MzUxMDk0Mn0.ZD1AuPVDNuqTeYz8Eyt4QZHf_Qt1K-9oZcK3_fxSx-w`,
-        },
-        body: JSON.stringify({ email: resetEmail }),
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
       });
 
-      console.log('Resposta da API:', response.status, response.statusText);
-
-      const data = await response.json();
-      console.log('Dados retornados:', data);
-
-      if (!response.ok) {
-        console.error('Erro na resposta:', data);
-        
-        // Mostrar sugestões de email se disponíveis
-        if (data.suggestions && data.suggestions.length > 0) {
-          const suggestionText = data.suggestions.length === 1 
-            ? `Você quis dizer: ${data.suggestions[0]}?`
-            : `Você quis dizer: ${data.suggestions.join(' ou ')}?`;
-          setError(`${data.error}\n\n${suggestionText}`);
-        } else {
-          setError(data.error || 'Erro ao enviar código');
-        }
+      if (error) {
+        setError(error.message);
         return;
       }
 
-      // Sucesso - código foi enviado
-      setCodeSent(true);
-      
-      if (data.emailSent) {
-        // Email foi enviado com sucesso - NÃO mostrar código
-        toast.success('Código de recuperação enviado para seu email!');
-      } else if (data.debug && data.code) {
-        // Modo desenvolvimento - mostrar código apenas quando necessário
-        toast.success('Código de recuperação gerado!');
-        toast.info(`Código de desenvolvimento: ${data.code}`, {
-          duration: 10000, // Mostrar por mais tempo
-        });
-        console.log('Código de desenvolvimento:', data.code);
-        
-        if (data.warning) {
-          toast.warning(data.warning, { duration: 8000 });
-        }
-      } else {
-        toast.success('Código de recuperação enviado!');
-      }
-      
+      setResetSent(true);
+      toast.success('Link de recuperação enviado para seu email!');
     } catch (error: any) {
-      console.error('Erro ao enviar código:', error);
-      setError('Erro de conexão. Verifique sua internet e tente novamente.');
+      setError('Erro inesperado. Tente novamente.');
     } finally {
       setIsLoading(false);
     }
@@ -211,7 +169,7 @@ const Login = () => {
 
               {error && (
                 <Alert variant="destructive">
-                  <AlertDescription style={{ whiteSpace: 'pre-line' }}>{error}</AlertDescription>
+                  <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
@@ -336,31 +294,24 @@ const Login = () => {
               </TabsContent>
 
               <TabsContent value="reset">
-                {codeSent ? (
+                {resetSent ? (
                   <div className="text-center space-y-4">
                     <div className="text-green-600 font-medium">
-                      Código de recuperação enviado!
+                      Link de recuperação enviado!
                     </div>
                     <p className="text-sm text-gray-600">
-                      Verifique seu email para o código de 6 dígitos. O código expira em 10 minutos.
+                      Verifique seu email para o link de redefinição de senha.
                     </p>
                     <Button 
-                      variant="outline" 
-                      onClick={() => navigate(`/reset-password?email=${encodeURIComponent(resetEmail)}`)}
-                      className="w-full"
-                    >
-                      Ir para página de redefinição
-                    </Button>
-                    <Button 
                       variant="ghost" 
-                      onClick={() => setCodeSent(false)}
+                      onClick={() => setResetSent(false)}
                       className="w-full"
                     >
-                      Enviar novo código
+                      Enviar novo link
                     </Button>
                   </div>
                 ) : (
-                  <form onSubmit={handleSendResetCode} className="space-y-4">
+                  <form onSubmit={handlePasswordReset} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="reset-email">Email</Label>
                       <div className="relative">
@@ -377,10 +328,10 @@ const Login = () => {
                       </div>
                     </div>
                     <p className="text-sm text-gray-600">
-                      Enviaremos um código de 6 dígitos para redefinir sua senha.
+                      Enviaremos um link para redefinir sua senha.
                     </p>
                     <Button type="submit" className="w-full" disabled={isLoading}>
-                      {isLoading ? 'Enviando...' : 'Enviar código de recuperação'}
+                      {isLoading ? 'Enviando...' : 'Enviar link de recuperação'}
                     </Button>
                   </form>
                 )}
