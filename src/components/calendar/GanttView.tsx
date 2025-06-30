@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -175,47 +174,57 @@ const GanttView: React.FC<GanttViewProps> = ({
     return statusData.label;
   };
 
-  // Calculate task position - FIXED VERSION
+  // Calculate task position - COMPLETELY FIXED VERSION
   const calculateTaskPosition = (startDate: string, endDate: string) => {
     const taskStart = startOfDay(parseISO(startDate));
     const taskEnd = startOfDay(parseISO(endDate));
     const viewStart = startOfDay(viewStartDate);
     
     let totalDays;
-    let viewEnd;
-    
     if (isThisWeek) {
       totalDays = 7; // 7 days for this week view
-      viewEnd = addDays(viewStart, 6); // Last day of the week
     } else {
       totalDays = timelineWeeks * 7;
-      viewEnd = addDays(viewStart, totalDays - 1);
     }
     
-    // Calculate days from view start to task start
+    // Calculate position: days from view start to task start
     const daysSinceViewStart = differenceInDays(taskStart, viewStart);
     
-    // Calculate the actual duration of the task in days
-    const taskDurationInDays = differenceInDays(taskEnd, taskStart) + 1; // +1 to include both start and end days
+    // Calculate task duration in days (inclusive of both start and end dates)
+    const taskDurationInDays = differenceInDays(taskEnd, taskStart) + 1;
     
-    // Calculate position as percentage
-    const leftPercent = Math.max(0, (daysSinceViewStart / totalDays) * 100);
+    // Calculate position and width as percentages
+    const leftPercent = (daysSinceViewStart / totalDays) * 100;
     
-    // Calculate width as percentage - this is the key fix
-    // The width should be proportional to the actual task duration
+    // FIXED: Width calculation - each day should be exactly 1/totalDays of the total width
     const widthPercent = (taskDurationInDays / totalDays) * 100;
     
-    // Ensure the task doesn't extend beyond the view
-    const maxWidthFromPosition = 100 - leftPercent;
-    const finalWidthPercent = Math.min(widthPercent, maxWidthFromPosition);
+    // Ensure task doesn't start before view or extend beyond view
+    const visibleLeftPercent = Math.max(0, leftPercent);
+    const maxWidthFromPosition = 100 - visibleLeftPercent;
+    const visibleWidthPercent = Math.min(widthPercent, maxWidthFromPosition);
     
     // Check if task is visible in current view
     const taskEndDaysSinceViewStart = daysSinceViewStart + taskDurationInDays - 1;
     const visible = daysSinceViewStart < totalDays && taskEndDaysSinceViewStart >= 0;
     
+    // Debug logging for troubleshooting
+    console.log(`Task: ${startDate} to ${endDate}`, {
+      taskStart: format(taskStart, 'dd/MM/yyyy'),
+      taskEnd: format(taskEnd, 'dd/MM/yyyy'),
+      viewStart: format(viewStart, 'dd/MM/yyyy'),
+      daysSinceViewStart,
+      taskDurationInDays,
+      totalDays,
+      leftPercent: `${leftPercent.toFixed(2)}%`,
+      widthPercent: `${widthPercent.toFixed(2)}%`,
+      visibleLeftPercent: `${visibleLeftPercent.toFixed(2)}%`,
+      visibleWidthPercent: `${visibleWidthPercent.toFixed(2)}%`
+    });
+    
     return {
-      left: `${leftPercent}%`,
-      width: `${Math.max(1, finalWidthPercent)}%`, // Minimum 1% width for visibility
+      left: `${visibleLeftPercent}%`,
+      width: `${Math.max(0.5, visibleWidthPercent)}%`, // Minimum 0.5% width for visibility
       visible
     };
   };
@@ -359,7 +368,7 @@ const GanttView: React.FC<GanttViewProps> = ({
             </div>
           ) : (
             <div className="overflow-x-auto">
-              {/* Timeline Header - INCREASED PADDING TOP */}
+              {/* Timeline Header */}
               <div className="flex border-b bg-muted/30 relative pt-8">
                 <div className="w-80 flex-shrink-0 p-4 border-r font-semibold">
                   Projeto / Etapa
@@ -374,22 +383,20 @@ const GanttView: React.FC<GanttViewProps> = ({
                     </div>
                   ))}
                   
-                  {/* Current Date Line with Today Date Box - ADJUSTED POSITIONING */}
+                  {/* Current Date Line with Today Date Box */}
                   {currentDatePosition.visible && (
                     <>
-                      {/* Green Date Box - POSITIONED HIGHER WITH MORE SPACE */}
                       <div 
                         className="absolute bg-green-500 text-white px-3 py-1 rounded-md text-xs font-bold whitespace-nowrap shadow-lg border border-green-600 z-50"
                         style={{ 
                           left: `calc(${currentDatePosition.left} - 50px)`,
                           transform: 'translateX(-50%)',
-                          top: '-32px' // Moved higher to prevent cutoff
+                          top: '-32px'
                         }}
                       >
                         Hoje: {format(new Date(), 'dd/MM/yyyy', { locale: ptBR })}
                       </div>
                       
-                      {/* Green Line - LINHA VERTICAL */}
                       <div 
                         className="absolute top-0 bottom-0 w-0.5 bg-green-500 z-40 pointer-events-none"
                         style={{ left: currentDatePosition.left }}
