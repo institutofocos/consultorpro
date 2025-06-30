@@ -21,27 +21,17 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true,
-    flowType: 'pkce'
-  },
-  global: {
-    headers: {
-      'apikey': SUPABASE_PUBLISHABLE_KEY,
-      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
-    }
-  },
-  db: {
-    schema: 'public'
+    detectSessionInUrl: true
   }
 });
 
-// Teste de conectividade
+// Teste de conectividade simplificado
 supabase.auth.getSession().then(({ data, error }) => {
   if (error) {
-    console.error('Erro na sessão inicial:', error);
+    console.error('Erro na verificação inicial:', error);
   } else {
-    console.log('Supabase conectado com sucesso');
+    console.log('Cliente Supabase inicializado com sucesso');
   }
 }).catch(err => {
-  console.error('Erro ao conectar com Supabase:', err);
+  console.error('Erro ao inicializar Supabase:', err);
 });

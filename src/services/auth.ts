@@ -41,13 +41,6 @@ export async function registerUser(email: string, password: string, userData?: a
   console.log('Tentativa de registro:', { email, userData });
   
   try {
-    // Verificar conectividade com Supabase antes de tentar registrar
-    const { data: testData, error: testError } = await supabase.auth.getSession();
-    if (testError) {
-      console.error('Teste de conectividade falhou:', testError);
-      throw new Error('Falha na conexão com o servidor. Verifique sua internet.');
-    }
-    
     const redirectUrl = `${window.location.origin}/`;
     console.log('URL de redirecionamento:', redirectUrl);
     
@@ -64,19 +57,17 @@ export async function registerUser(email: string, password: string, userData?: a
     });
     
     if (error) {
-      console.error('Erro detalhado no registro:', {
-        message: error.message,
-        status: error.status,
-        details: error
-      });
+      console.error('Erro detalhado no registro:', error);
       
-      // Melhorar mensagens de erro
-      if (error.message.includes('Invalid API key')) {
-        throw new Error('Erro de configuração do sistema. Contate o administrador.');
-      } else if (error.message.includes('User already registered')) {
+      // Melhorar mensagens de erro baseadas no código de erro do Supabase
+      if (error.message.includes('User already registered')) {
         throw new Error('Este email já está cadastrado. Tente fazer login.');
-      } else if (error.message.includes('Password')) {
+      } else if (error.message.includes('Password should be at least')) {
         throw new Error('A senha deve ter pelo menos 6 caracteres.');
+      } else if (error.message.includes('Unable to validate email address')) {
+        throw new Error('Email inválido. Verifique o formato do email.');
+      } else if (error.message.includes('signup is disabled')) {
+        throw new Error('Cadastro de novos usuários está temporariamente desabilitado.');
       } else {
         throw new Error(`Erro no cadastro: ${error.message}`);
       }
