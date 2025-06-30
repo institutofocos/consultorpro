@@ -49,18 +49,28 @@ const ReportsGantt: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   const { statuses } = useProjectStatuses();
-  const { userLinks, isLoading: permissionsLoading, isRestrictedToLinked } = useUserPermissions();
+  const { userLinks, isLoading: permissionsLoading, isRestrictedToLinked, isSuperAdmin } = useUserPermissions();
 
-  // Verificar se o usuário é um consultor com restrições
-  const isRestrictedConsultant = isRestrictedToLinked('projects') && userLinks?.consultant_id;
+  // Verificar se o usuário é um consultor vinculado (não super admin e tem consultant_id)
+  const isConsultantUser = !isSuperAdmin && userLinks?.consultant_id;
+  
+  // Determinar se deve mostrar o filtro (apenas para super admins ou usuários sem restrições)
+  const shouldShowFilter = isSuperAdmin || (!userLinks?.consultant_id && !isRestrictedToLinked('projects'));
+
+  console.log('=== DEBUG PERMISSÕES ===');
+  console.log('isSuperAdmin:', isSuperAdmin);
+  console.log('userLinks?.consultant_id:', userLinks?.consultant_id);
+  console.log('isRestrictedToLinked(projects):', isRestrictedToLinked('projects'));
+  console.log('isConsultantUser:', isConsultantUser);
+  console.log('shouldShowFilter:', shouldShowFilter);
 
   useEffect(() => {
-    // Se é consultor restrito, definir automaticamente o filtro para seu ID
-    if (isRestrictedConsultant && userLinks?.consultant_id) {
+    // Se é consultor vinculado, definir automaticamente o filtro para seu ID
+    if (isConsultantUser && userLinks?.consultant_id) {
       setSelectedConsultantId(userLinks.consultant_id);
-      console.log('Consultor restrito detectado, filtro definido para:', userLinks.consultant_id);
+      console.log('Consultor vinculado detectado, filtro definido para:', userLinks.consultant_id);
     }
-  }, [isRestrictedConsultant, userLinks?.consultant_id]);
+  }, [isConsultantUser, userLinks?.consultant_id]);
 
   useEffect(() => {
     const fetchGanttData = async () => {
@@ -243,8 +253,8 @@ const ReportsGantt: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Consultant Filter - Só mostra se não for consultor restrito */}
-      {!isRestrictedConsultant && (
+      {/* Consultant Filter - Só mostra se não for consultor vinculado */}
+      {shouldShowFilter && (
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-4">
@@ -273,6 +283,7 @@ const ReportsGantt: React.FC = () => {
         selectedConsultantId={selectedConsultantId}
         overdueProjects={overdueProjects}
         overdueStages={overdueStages}
+        hideConsultantFilter={isConsultantUser}
       />
     </div>
   );
