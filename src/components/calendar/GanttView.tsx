@@ -28,6 +28,9 @@ interface Task {
   project_name: string;
   service_name: string;
   completed?: boolean;
+  time_spent_minutes?: number;
+  timer_status?: string;
+  timer_started_at?: string;
 }
 
 interface GanttViewProps {

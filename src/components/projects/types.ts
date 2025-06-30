@@ -1,4 +1,3 @@
-
 export interface Stage {
   id: string;
   projectId: string;
@@ -22,6 +21,10 @@ export interface Stage {
   valorDeRepasse?: number;
   createdAt?: string;
   updatedAt?: string;
+  // Timer-related properties
+  time_spent_minutes?: number;
+  timer_status?: string;
+  timer_started_at?: string;
   // Extended properties for Kanban
   projectName?: string;
   clientName?: string;
