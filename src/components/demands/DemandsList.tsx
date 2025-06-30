@@ -696,7 +696,7 @@ const DemandsList = () => {
           </DialogHeader>
           {selectedDemandForEdit && (
             <DemandForm
-              editingDemand={selectedDemandForEdit}
+              demand={selectedDemandForEdit}
               onDemandSaved={handleDemandUpdated}
               onCancel={() => setIsEditDialogOpen(false)}
             />

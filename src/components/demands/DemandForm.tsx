@@ -11,18 +11,17 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface Demand {
   id?: string;
-  title: string;
+  name: string;
   description: string;
   client_id?: string;
   service_id?: string;
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
-  deadline?: string;
-  estimated_hours?: number;
-  budget?: number;
-  requester_name: string;
-  requester_email: string;
-  requester_phone?: string;
+  start_date: string;
+  end_date: string;
+  total_value: number;
+  status: 'planned' | 'active' | 'completed' | 'cancelled';
+  manager_name: string;
+  manager_email: string;
+  manager_phone?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -35,18 +34,17 @@ interface DemandFormProps {
 
 export default function DemandForm({ demand, onDemandSaved, onCancel }: DemandFormProps) {
   const [formData, setFormData] = useState<Demand>({
-    title: '',
+    name: '',
     description: '',
     client_id: '',
     service_id: '',
-    priority: 'medium',
-    status: 'pending',
-    deadline: '',
-    estimated_hours: 0,
-    budget: 0,
-    requester_name: '',
-    requester_email: '',
-    requester_phone: ''
+    start_date: '',
+    end_date: '',
+    total_value: 0,
+    status: 'planned',
+    manager_name: '',
+    manager_email: '',
+    manager_phone: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [clients, setClients] = useState([]);
@@ -59,7 +57,12 @@ export default function DemandForm({ demand, onDemandSaved, onCancel }: DemandFo
 
   useEffect(() => {
     if (demand) {
-      setFormData(demand);
+      setFormData({
+        ...demand,
+        start_date: demand.start_date || '',
+        end_date: demand.end_date || '',
+        total_value: demand.total_value || 0
+      });
     }
   }, [demand]);
 
@@ -88,8 +91,8 @@ export default function DemandForm({ demand, onDemandSaved, onCancel }: DemandFo
       if (!demand) {
         setFormData(prev => ({
           ...prev,
-          requester_name: user.email?.split('@')[0] || '',
-          requester_email: user.email || ''
+          manager_name: user.email?.split('@')[0] || '',
+          manager_email: user.email || ''
         }));
       }
     } catch (error) {
@@ -102,25 +105,32 @@ export default function DemandForm({ demand, onDemandSaved, onCancel }: DemandFo
     setIsLoading(true);
 
     try {
-      if (!formData.title?.trim() || !formData.description?.trim()) {
-        toast.error('Título e descrição são obrigatórios');
+      if (!formData.name?.trim() || !formData.description?.trim()) {
+        toast.error('Nome e descrição são obrigatórios');
         return;
       }
 
-      // Preparar dados da demanda
+      if (!formData.start_date || !formData.end_date) {
+        toast.error('Datas de início e fim são obrigatórias');
+        return;
+      }
+
+      // Preparar dados da demanda para a tabela projects
       const demandData = {
-        title: formData.title.trim(),
+        name: formData.name.trim(),
         description: formData.description.trim(),
         client_id: formData.client_id || null,
         service_id: formData.service_id || null,
-        priority: formData.priority,
+        start_date: formData.start_date,
+        end_date: formData.end_date,
+        total_value: formData.total_value ? Number(formData.total_value) : 0,
         status: formData.status,
-        deadline: formData.deadline || null,
-        estimated_hours: formData.estimated_hours ? Number(formData.estimated_hours) : null,
-        budget: formData.budget ? Number(formData.budget) : null,
-        requester_name: formData.requester_name.trim(),
-        requester_email: formData.requester_email.trim(),
-        requester_phone: formData.requester_phone?.trim() || null
+        manager_name: formData.manager_name.trim(),
+        manager_email: formData.manager_email.trim(),
+        manager_phone: formData.manager_phone?.trim() || null,
+        hourly_rate: 0,
+        tax_percent: 16,
+        total_hours: 0
       };
 
       let savedDemand;
@@ -128,7 +138,7 @@ export default function DemandForm({ demand, onDemandSaved, onCancel }: DemandFo
       if (demand?.id) {
         // Atualizar demanda existente
         const { data, error } = await supabase
-          .from('demands')
+          .from('projects')
           .update(demandData)
           .eq('id', demand.id)
           .select()
@@ -140,7 +150,7 @@ export default function DemandForm({ demand, onDemandSaved, onCancel }: DemandFo
       } else {
         // Criar nova demanda
         const { data, error } = await supabase
-          .from('demands')
+          .from('projects')
           .insert(demandData)
           .select()
           .single();
@@ -168,12 +178,12 @@ export default function DemandForm({ demand, onDemandSaved, onCancel }: DemandFo
         <CardContent className="space-y-4">
           {/* Informações Básicas */}
           <div>
-            <Label htmlFor="title">Título *</Label>
+            <Label htmlFor="name">Nome *</Label>
             <Input
-              id="title"
-              value={formData.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              placeholder="Digite o título da demanda"
+              id="name"
+              value={formData.name}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Digite o nome da demanda"
               required
             />
           </div>
@@ -227,23 +237,8 @@ export default function DemandForm({ demand, onDemandSaved, onCancel }: DemandFo
             </div>
           </div>
 
-          {/* Prioridade e Status */}
+          {/* Status e Valor */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="priority">Prioridade</Label>
-              <Select value={formData.priority} onValueChange={(value: any) => setFormData(prev => ({ ...prev, priority: value }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Baixa</SelectItem>
-                  <SelectItem value="medium">Média</SelectItem>
-                  <SelectItem value="high">Alta</SelectItem>
-                  <SelectItem value="urgent">Urgente</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             <div>
               <Label htmlFor="status">Status</Label>
               <Select value={formData.status} onValueChange={(value: any) => setFormData(prev => ({ ...prev, status: value }))}>
@@ -251,84 +246,85 @@ export default function DemandForm({ demand, onDemandSaved, onCancel }: DemandFo
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pending">Pendente</SelectItem>
-                  <SelectItem value="in_progress">Em Andamento</SelectItem>
-                  <SelectItem value="completed">Concluída</SelectItem>
-                  <SelectItem value="cancelled">Cancelada</SelectItem>
+                  <SelectItem value="planned">Planejado</SelectItem>
+                  <SelectItem value="active">Ativo</SelectItem>
+                  <SelectItem value="completed">Concluído</SelectItem>
+                  <SelectItem value="cancelled">Cancelado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          {/* Prazo e Estimativas */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="deadline">Prazo</Label>
-              <Input
-                id="deadline"
-                type="date"
-                value={formData.deadline}
-                onChange={(e) => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
-              />
-            </div>
 
             <div>
-              <Label htmlFor="estimated_hours">Horas Estimadas</Label>
+              <Label htmlFor="total_value">Valor Total (R$)</Label>
               <Input
-                id="estimated_hours"
-                type="number"
-                value={formData.estimated_hours || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, estimated_hours: e.target.value ? Number(e.target.value) : 0 }))}
-                placeholder="0"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="budget">Orçamento (R$)</Label>
-              <Input
-                id="budget"
+                id="total_value"
                 type="number"
                 step="0.01"
-                value={formData.budget || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, budget: e.target.value ? Number(e.target.value) : 0 }))}
+                value={formData.total_value || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, total_value: e.target.value ? Number(e.target.value) : 0 }))}
                 placeholder="0.00"
               />
             </div>
           </div>
 
-          {/* Informações do Solicitante */}
+          {/* Datas */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="start_date">Data de Início *</Label>
+              <Input
+                id="start_date"
+                type="date"
+                value={formData.start_date}
+                onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="end_date">Data de Fim *</Label>
+              <Input
+                id="end_date"
+                type="date"
+                value={formData.end_date}
+                onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
+                required
+              />
+            </div>
+          </div>
+
+          {/* Informações do Responsável */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium">Informações do Solicitante</h3>
+            <h3 className="text-lg font-medium">Informações do Responsável</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="requester_name">Nome do Solicitante *</Label>
+                <Label htmlFor="manager_name">Nome do Responsável *</Label>
                 <Input
-                  id="requester_name"
-                  value={formData.requester_name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, requester_name: e.target.value }))}
-                  placeholder="Nome do solicitante"
+                  id="manager_name"
+                  value={formData.manager_name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, manager_name: e.target.value }))}
+                  placeholder="Nome do responsável"
                   required
                 />
               </div>
 
               <div>
-                <Label htmlFor="requester_email">E-mail do Solicitante *</Label>
+                <Label htmlFor="manager_email">E-mail do Responsável *</Label>
                 <Input
-                  id="requester_email"
+                  id="manager_email"
                   type="email"
-                  value={formData.requester_email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, requester_email: e.target.value }))}
+                  value={formData.manager_email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, manager_email: e.target.value }))}
                   placeholder="email@exemplo.com"
                   required
                 />
               </div>
 
               <div>
-                <Label htmlFor="requester_phone">Telefone do Solicitante</Label>
+                <Label htmlFor="manager_phone">Telefone do Responsável</Label>
                 <Input
-                  id="requester_phone"
-                  value={formData.requester_phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, requester_phone: e.target.value }))}
+                  id="manager_phone"
+                  value={formData.manager_phone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, manager_phone: e.target.value }))}
                   placeholder="(11) 99999-9999"
                 />
               </div>
