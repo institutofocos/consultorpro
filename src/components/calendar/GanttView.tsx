@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { format, addDays, startOfWeek, differenceInDays, parseISO, addWeeks, sub
 import { ptBR } from 'date-fns/locale';
 import { formatDateBR } from '@/utils/dateUtils';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
+import StageStatusModal from './StageStatusModal';
 
 interface Task {
   id: string;
@@ -43,12 +45,20 @@ const GanttView: React.FC<GanttViewProps> = ({
   overdueStages = 0 
 }) => {
   const [viewStartDate, setViewStartDate] = useState<Date>(() => startOfWeek(new Date()));
-  const [timelineWeeks, setTimelineWeeks] = useState(8); // 8 weeks view
+  const [timelineWeeks, setTimelineWeeks] = useState(8);
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
   const [resizingTask, setResizingTask] = useState<string | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [localTasks, setLocalTasks] = useState<Task[]>(tasks);
 
   // Use the project statuses hook
   const { statuses, getStatusDisplay, getStatusBadgeStyle } = useProjectStatuses();
+
+  // Update local tasks when props change
+  useEffect(() => {
+    setLocalTasks(tasks);
+  }, [tasks]);
 
   // Generate timeline based on view start date and weeks
   const generateTimeline = () => {
@@ -88,27 +98,17 @@ const GanttView: React.FC<GanttViewProps> = ({
     return isBefore(itemEndDate, today) && isNotCompleted && stageNotCompleted;
   };
 
-  // Calculate current date position - CORRIGIDO
+  // Calculate current date position
   const calculateCurrentDatePosition = () => {
     const today = startOfDay(new Date());
     const viewStart = startOfDay(viewStartDate);
     const totalDays = timelineWeeks * 7;
     
-    // Calcular diferença em dias do início da visualização até hoje
     const daysSinceViewStart = differenceInDays(today, viewStart);
-    
-    console.log('=== DEBUG LINHA HOJE ===');
-    console.log('Hoje:', today.toISOString());
-    console.log('Início da visualização:', viewStart.toISOString());
-    console.log('Dias desde início:', daysSinceViewStart);
-    console.log('Total de dias visíveis:', totalDays);
     
     // Check if today is within the visible timeline
     const isVisible = daysSinceViewStart >= 0 && daysSinceViewStart < totalDays;
     const leftPercent = (daysSinceViewStart / totalDays) * 100;
-    
-    console.log('Visível?', isVisible);
-    console.log('Posição (%):', leftPercent);
     
     return {
       visible: isVisible,
@@ -119,7 +119,7 @@ const GanttView: React.FC<GanttViewProps> = ({
   const currentDatePosition = calculateCurrentDatePosition();
 
   // Group tasks by project
-  const groupedTasks = tasks.reduce((acc, task) => {
+  const groupedTasks = localTasks.reduce((acc, task) => {
     if (!acc[task.project_id]) {
       acc[task.project_id] = {
         project_name: task.project_name,
@@ -138,9 +138,9 @@ const GanttView: React.FC<GanttViewProps> = ({
       return statusSetting.color;
     }
     
-    // Fallback para status antigos não configurados - CORRIGIDO: iniciar_projeto agora usa azul
+    // Fallback para status antigos não configurados
     const fallbackColors: { [key: string]: string } = {
-      'iniciar_projeto': '#3b82f6', // Mudado de #6b7280 (cinza) para #3b82f6 (azul)
+      'iniciar_projeto': '#3b82f6',
       'em_producao': '#3b82f6',
       'aguardando_aprovacao': '#f59e0b',
       'aguardando_assinatura': '#8b5cf6',
@@ -157,44 +157,42 @@ const GanttView: React.FC<GanttViewProps> = ({
     return statusData.label;
   };
 
-  // Calculate task position - CORRIGIDO
+  // Calculate task position
   const calculateTaskPosition = (startDate: string, endDate: string) => {
     const start = startOfDay(parseISO(startDate));
     const end = startOfDay(parseISO(endDate));
     const viewStart = startOfDay(viewStartDate);
     const totalDays = timelineWeeks * 7;
     
-    // Calcular quantos dias desde o início da visualização até o início da tarefa
     const daysSinceViewStart = differenceInDays(start, viewStart);
-    
-    // Calcular duração da tarefa em dias (incluindo o último dia)
     const taskDuration = differenceInDays(end, start) + 1;
     
-    console.log('=== DEBUG TAREFA ===');
-    console.log('Data início:', start.toISOString());
-    console.log('Data fim:', end.toISOString());
-    console.log('Duração calculada:', taskDuration, 'dias');
-    console.log('Dias desde início da view:', daysSinceViewStart);
-    console.log('Total dias visíveis:', totalDays);
-    
-    // Calcular porcentagens
     const leftPercent = Math.max(0, (daysSinceViewStart / totalDays) * 100);
     const widthPercent = Math.min(100 - leftPercent, (taskDuration / totalDays) * 100);
     
-    console.log('Posição esquerda (%):', leftPercent);
-    console.log('Largura (%):', widthPercent);
-    
-    // Verificar se a tarefa está visível na timeline
     const taskEndDaysSinceViewStart = daysSinceViewStart + taskDuration - 1;
     const visible = daysSinceViewStart < totalDays && taskEndDaysSinceViewStart >= 0;
-    
-    console.log('Visível?', visible);
     
     return {
       left: `${leftPercent}%`,
       width: `${Math.max(1, widthPercent)}%`,
       visible
     };
+  };
+
+  // Handle task click
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    setIsStatusModalOpen(true);
+  };
+
+  // Handle status update
+  const handleStatusUpdate = (taskId: string, newStatus: string) => {
+    setLocalTasks(prevTasks => 
+      prevTasks.map(task => 
+        task.id === taskId ? { ...task, status: newStatus } : task
+      )
+    );
   };
 
   // Navigate to previous week
@@ -301,7 +299,7 @@ const GanttView: React.FC<GanttViewProps> = ({
                 </div>
                 <div className="flex-1 grid grid-cols-8 min-w-[800px] relative">
                   {timeline.map((week, index) => (
-                    <div key={index} className="p-2 text-center text-sm font-medium border-r border-muted">
+                    <div key={index} className="p-2 text-center text-sm font-medium border-r border-muted relative">
                       <div>{format(week, 'MMM', { locale: ptBR })}</div>
                       <div className="text-xs text-muted-foreground">
                         {format(week, 'dd', { locale: ptBR })}
@@ -309,21 +307,28 @@ const GanttView: React.FC<GanttViewProps> = ({
                     </div>
                   ))}
                   
-                  {/* Current Date Line with Green Date Box - POSICIONAMENTO ABSOLUTO MELHORADO */}
+                  {/* Current Date Line with Today Date Box - POSIÇÃO FIXA NO TOPO */}
                   {currentDatePosition.visible && (
-                    <div 
-                      className="absolute inset-y-0 z-50 pointer-events-none" 
-                      style={{ left: currentDatePosition.left }}
-                    >
-                      {/* Green Date Box at the top - POSICIONAMENTO FIXO */}
-                      <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-3 py-1 rounded-md text-xs font-bold whitespace-nowrap shadow-lg border border-green-600">
+                    <>
+                      {/* Green Date Box - POSIÇÃO ABSOLUTA FIXA NO TOPO DO CABEÇALHO */}
+                      <div 
+                        className="absolute -top-2 bg-green-500 text-white px-3 py-1 rounded-md text-xs font-bold whitespace-nowrap shadow-lg border border-green-600 z-50"
+                        style={{ 
+                          left: `calc(${currentDatePosition.left} - 50px)`,
+                          transform: 'translateX(-50%)'
+                        }}
+                      >
                         Hoje: {format(new Date(), 'dd/MM/yyyy', { locale: ptBR })}
                       </div>
-                      {/* Green Line - ALTURA TOTAL */}
-                      <div className="w-0.5 h-full bg-green-500 shadow-sm">
+                      
+                      {/* Green Line - LINHA VERTICAL */}
+                      <div 
+                        className="absolute top-0 bottom-0 w-0.5 bg-green-500 z-40 pointer-events-none"
+                        style={{ left: currentDatePosition.left }}
+                      >
                         <div className="absolute -top-1 -left-1 w-2 h-2 bg-green-500 rounded-full shadow-sm"></div>
                       </div>
-                    </div>
+                    </>
                   )}
                 </div>
               </div>
@@ -408,7 +413,7 @@ const GanttView: React.FC<GanttViewProps> = ({
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div
-                                  className={`absolute top-2 bottom-2 rounded cursor-move hover:opacity-80 transition-opacity flex items-center px-2 text-white text-xs font-medium shadow-sm ${
+                                  className={`absolute top-2 bottom-2 rounded cursor-pointer hover:opacity-80 transition-opacity flex items-center px-2 text-white text-xs font-medium shadow-sm ${
                                     draggedTask === task.id ? 'opacity-50' : ''
                                   } ${
                                     taskIsOverdue 
@@ -419,12 +424,13 @@ const GanttView: React.FC<GanttViewProps> = ({
                                     left: position.left,
                                     width: position.width,
                                     backgroundColor: taskIsOverdue 
-                                      ? `${statusColor}CC` // Make color slightly transparent for overdue items
+                                      ? `${statusColor}CC`
                                       : statusColor
                                   }}
                                   draggable
                                   onDragStart={() => handleDragStart(task.id)}
                                   onDragEnd={handleDragEnd}
+                                  onClick={() => handleTaskClick(task)}
                                 >
                                   <div className="flex items-center gap-1 truncate">
                                     <Clock className="h-3 w-3" />
@@ -486,7 +492,7 @@ const GanttView: React.FC<GanttViewProps> = ({
                 </div>
               ))
             ) : (
-              // Fallback legend for old statuses - CORRIGIDO: iniciar_projeto agora usa azul
+              // Fallback legend for old statuses
               <>
                 <div className="flex items-center gap-2 text-sm">
                   <div className="w-4 h-4 bg-blue-500 rounded"></div>
@@ -526,6 +532,17 @@ const GanttView: React.FC<GanttViewProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* Status Modal */}
+      <StageStatusModal
+        task={selectedTask}
+        isOpen={isStatusModalOpen}
+        onClose={() => {
+          setIsStatusModalOpen(false);
+          setSelectedTask(null);
+        }}
+        onStatusUpdate={handleStatusUpdate}
+      />
     </div>
   );
 };
