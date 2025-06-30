@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter, Plus, X, Eye, Edit, Trash2 } from 'lucide-react';
 import { fetchDemandsWithoutConsultants, assignConsultantsToDemand } from '@/integrations/supabase/projects';
@@ -23,6 +23,7 @@ import { ptBR } from 'date-fns/locale';
 import SearchableSelect from "@/components/ui/searchable-select";
 import DemandForm from './DemandForm';
 import DemandViewModal from './DemandViewModal';
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 interface ConsultantInfo {
   id: string;
@@ -60,13 +61,17 @@ const DemandsList = () => {
   const [startDateFilter, setStartDateFilter] = useState<Date | undefined>(undefined);
   const [endDateFilter, setEndDateFilter] = useState<Date | undefined>(undefined);
 
+  const { 
+    isRestrictedConsultant, 
+    getLinkedConsultantId, 
+    isSuperAdmin,
+    isLoading: permissionsLoading 
+  } = useUserPermissions();
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Fetch demands
-        const demandsData = await fetchDemandsWithoutConsultants();
-        setDemands(demandsData);
         
         // Fetch consultants for the assignment dialog
         const consultantsData = await fetchConsultants();
@@ -75,6 +80,9 @@ const DemandsList = () => {
         // Fetch services for filtering
         const servicesData = await fetchServices();
         setServices(servicesData);
+
+        // Fetch demands with automatic filtering for restricted consultants
+        await fetchFilteredDemands();
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -82,13 +90,95 @@ const DemandsList = () => {
       }
     };
 
-    fetchData();
+    if (!permissionsLoading) {
+      fetchData();
+    }
     
     // Set up a periodic refresh to check for changes
-    const interval = setInterval(() => fetchData(), 30000); // Refresh every 30 seconds
+    const interval = setInterval(() => {
+      if (!permissionsLoading) {
+        fetchData();
+      }
+    }, 30000); // Refresh every 30 seconds
     
     return () => clearInterval(interval);
-  }, []);
+  }, [permissionsLoading, isRestrictedConsultant]);
+
+  const fetchFilteredDemands = async () => {
+    try {
+      // Se o usuário é um consultor restrito, buscar apenas demandas dos serviços autorizados
+      if (isRestrictedConsultant) {
+        const linkedConsultantId = getLinkedConsultantId();
+        if (linkedConsultantId) {
+          console.log('Usuário restrito - buscando demandas para consultor:', linkedConsultantId);
+          
+          // Buscar serviços autorizados para o consultor
+          const { data: authorizedServices, error: servicesError } = await supabase
+            .from('consultant_services')
+            .select('service_id')
+            .eq('consultant_id', linkedConsultantId);
+
+          if (servicesError) {
+            console.error('Erro ao buscar serviços autorizados:', servicesError);
+            setDemands([]);
+            return;
+          }
+
+          const serviceIds = authorizedServices?.map(cs => cs.service_id) || [];
+          console.log('Serviços autorizados para o consultor:', serviceIds);
+          
+          if (serviceIds.length === 0) {
+            console.log('Consultor não tem serviços autorizados');
+            setDemands([]);
+            return;
+          }
+
+          // Buscar demandas que usam os serviços autorizados
+          const { data: filteredDemands, error: demandsError } = await supabase
+            .from('projects')
+            .select(`
+              *,
+              clients:client_id(id, name),
+              services:service_id(id, name)
+            `)
+            .in('service_id', serviceIds)
+            .is('main_consultant_id', null)
+            .is('support_consultant_id', null)
+            .order('created_at', { ascending: false });
+
+          if (demandsError) {
+            console.error('Erro ao buscar demandas filtradas:', demandsError);
+            setDemands([]);
+            return;
+          }
+
+          console.log('Demandas encontradas para o consultor:', filteredDemands?.length || 0);
+          
+          // Transformar os dados para o formato esperado
+          const transformedDemands = (filteredDemands || []).map(demand => ({
+            ...demand,
+            clientName: demand.clients?.name,
+            serviceName: demand.services?.name,
+            totalHours: demand.total_hours,
+            totalDays: Math.ceil((demand.total_hours || 0) / 8)
+          }));
+
+          setDemands(transformedDemands);
+        } else {
+          console.log('Usuário restrito mas sem consultor vinculado');
+          setDemands([]);
+        }
+      } else {
+        // Se não é restrito, buscar todas as demandas
+        console.log('Usuário não restrito - buscando todas as demandas');
+        const demandsData = await fetchDemandsWithoutConsultants();
+        setDemands(demandsData);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar demandas filtradas:', error);
+      setDemands([]);
+    }
+  };
 
   // Filter consultants based on selected demand's service
   useEffect(() => {
@@ -346,13 +436,20 @@ const DemandsList = () => {
   const handleDemandUpdated = async () => {
     setIsEditDialogOpen(false);
     // Refresh the demands list
-    const demandsData = await fetchDemandsWithoutConsultants();
-    setDemands(demandsData);
+    await fetchFilteredDemands();
     toast({
       title: "Sucesso",
       description: "Demanda atualizada com sucesso.",
     });
   };
+
+  if (loading || permissionsLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p>Carregando demandas...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -360,6 +457,11 @@ const DemandsList = () => {
         <div>
           <h1 className="text-3xl font-bold">Demandas</h1>
           <p className="text-muted-foreground">Gerencie todas as demandas de clientes</p>
+          {isRestrictedConsultant && (
+            <p className="text-sm text-blue-600 mt-1">
+              Exibindo apenas demandas dos serviços autorizados para seu perfil
+            </p>
+          )}
         </div>
         <Dialog open={isDemandDialogOpen} onOpenChange={setIsDemandDialogOpen}>
           <DialogTrigger asChild>
@@ -376,11 +478,7 @@ const DemandsList = () => {
               onDemandSaved={() => {
                 setIsDemandDialogOpen(false);
                 // Refresh the demands list
-                const fetchData = async () => {
-                  const demandsData = await fetchDemandsWithoutConsultants();
-                  setDemands(demandsData);
-                };
-                fetchData();
+                fetchFilteredDemands();
               }}
               onCancel={() => setIsDemandDialogOpen(false)}
             />
@@ -457,7 +555,12 @@ const DemandsList = () => {
             </div>
           ) : filteredDemands.length === 0 ? (
             <div className="flex items-center justify-center h-32">
-              <p className="text-muted-foreground">Não há demandas disponíveis no momento.</p>
+              <p className="text-muted-foreground">
+                {isRestrictedConsultant 
+                  ? "Não há demandas disponíveis para os serviços autorizados do seu perfil."
+                  : "Não há demandas disponíveis no momento."
+                }
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
