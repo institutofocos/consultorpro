@@ -20,7 +20,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [resetEmail, setResetEmail] = useState('');
-  const [resetSent, setResetSent] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -114,25 +114,37 @@ const Login = () => {
     }
   };
 
-  const handlePasswordReset = async (e: React.FormEvent) => {
+  const handleSendResetCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
     try {
-      const redirectUrl = `${window.location.origin}/`;
-      
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: redirectUrl,
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-reset-code`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ email: resetEmail }),
       });
 
-      if (error) {
-        setError(error.message);
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Erro ao enviar código');
         return;
       }
 
-      setResetSent(true);
-      toast.success('Email de recuperação enviado!');
+      setCodeSent(true);
+      toast.success('Código de recuperação enviado para seu email!');
+      
+      // Em desenvolvimento, mostrar o código no console
+      if (data.code) {
+        console.log('Código de desenvolvimento:', data.code);
+        toast.info(`Código de desenvolvimento: ${data.code}`);
+      }
+      
     } catch (error: any) {
       setError('Erro inesperado. Tente novamente.');
     } finally {
@@ -296,24 +308,31 @@ const Login = () => {
               </TabsContent>
 
               <TabsContent value="reset">
-                {resetSent ? (
+                {codeSent ? (
                   <div className="text-center space-y-4">
                     <div className="text-green-600 font-medium">
-                      Email de recuperação enviado!
+                      Código de recuperação enviado!
                     </div>
                     <p className="text-sm text-gray-600">
-                      Verifique sua caixa de entrada e siga as instruções para redefinir sua senha.
+                      Verifique sua caixa de entrada. O código expira em 3 minutos.
                     </p>
                     <Button 
                       variant="outline" 
-                      onClick={() => setResetSent(false)}
+                      onClick={() => navigate(`/reset-password?email=${encodeURIComponent(resetEmail)}`)}
                       className="w-full"
                     >
-                      Enviar novamente
+                      Ir para página de redefinição
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => setCodeSent(false)}
+                      className="w-full"
+                    >
+                      Enviar novo código
                     </Button>
                   </div>
                 ) : (
-                  <form onSubmit={handlePasswordReset} className="space-y-4">
+                  <form onSubmit={handleSendResetCode} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="reset-email">Email</Label>
                       <div className="relative">
@@ -330,10 +349,10 @@ const Login = () => {
                       </div>
                     </div>
                     <p className="text-sm text-gray-600">
-                      Enviaremos um link para redefinir sua senha.
+                      Enviaremos um código de 6 dígitos para redefinir sua senha.
                     </p>
                     <Button type="submit" className="w-full" disabled={isLoading}>
-                      {isLoading ? 'Enviando...' : 'Enviar link de recuperação'}
+                      {isLoading ? 'Enviando...' : 'Enviar código de recuperação'}
                     </Button>
                   </form>
                 )}

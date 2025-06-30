@@ -650,6 +650,36 @@ export type Database = {
           },
         ]
       }
+      password_reset_codes: {
+        Row: {
+          code: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          used: boolean
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          used?: boolean
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          used?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       payment_methods: {
         Row: {
           created_at: string
@@ -1545,6 +1575,10 @@ export type Database = {
       calculate_stage_total_time: {
         Args: { p_stage_id: string }
         Returns: number
+      }
+      cleanup_expired_reset_codes: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       delete_project_stage: {
         Args: { stage_id: string }
