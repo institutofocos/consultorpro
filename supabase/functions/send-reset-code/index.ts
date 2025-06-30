@@ -8,6 +8,8 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  console.log('Requisição recebida:', req.method, req.url)
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -18,13 +20,41 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     )
 
+    console.log('Parseando JSON do request...')
     const { email } = await req.json()
+    console.log('Email recebido:', email)
 
-    // Verificar se o usuário existe
+    if (!email) {
+      console.error('Email não fornecido')
+      return new Response(
+        JSON.stringify({ error: 'Email é obrigatório' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    // Verificar se o usuário existe usando o admin API
+    console.log('Verificando se o usuário existe...')
     const { data: userData, error: userError } = await supabaseClient.auth.admin.listUsers()
+    
+    if (userError) {
+      console.error('Erro ao listar usuários:', userError)
+      return new Response(
+        JSON.stringify({ error: 'Erro interno do servidor' }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
     const user = userData?.users?.find(u => u.email === email)
+    console.log('Usuário encontrado:', user ? 'Sim' : 'Não')
     
     if (!user) {
+      console.log('Email não encontrado no sistema')
       return new Response(
         JSON.stringify({ error: 'Email não encontrado' }),
         { 
@@ -34,13 +64,24 @@ serve(async (req) => {
       )
     }
 
+    // Invalidar códigos anteriores do mesmo usuário
+    console.log('Invalidando códigos anteriores...')
+    await supabaseClient
+      .from('password_reset_codes')
+      .update({ used: true })
+      .eq('email', email)
+      .eq('used', false)
+
     // Gerar código de 6 dígitos
     const code = Math.floor(100000 + Math.random() * 900000).toString()
+    console.log('Código gerado:', code)
     
     // Data de expiração (3 minutos)
     const expiresAt = new Date(Date.now() + 3 * 60 * 1000).toISOString()
+    console.log('Expira em:', expiresAt)
 
     // Salvar código no banco
+    console.log('Salvando código no banco...')
     const { error: insertError } = await supabaseClient
       .from('password_reset_codes')
       .insert({
@@ -61,27 +102,44 @@ serve(async (req) => {
       )
     }
 
+    console.log('Código salvo com sucesso!')
+
     // Simular envio de email (em produção, usar um serviço real como SendGrid, Resend, etc.)
-    console.log(`Código de recuperação para ${email}: ${code}`)
+    console.log(`=== EMAIL DE RECUPERAÇÃO ===`)
+    console.log(`Para: ${email}`)
+    console.log(`Código: ${code}`)
     console.log(`Expira em: ${expiresAt}`)
+    console.log(`Link para redefinir: ${Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.vercel.app') || 'http://localhost:3000'}/reset-password?email=${encodeURIComponent(email)}`)
+    console.log(`========================`)
     
     // TODO: Implementar envio real de email
     // Exemplo de conteúdo do email:
     const emailContent = `
-      Seu código de recuperação de senha: ${code}
+      Olá!
+      
+      Você solicitou a redefinição da sua senha no ConsultorPRO.
+      
+      Seu código de recuperação é: ${code}
       
       Este código expira em 3 minutos.
       
       Use este link para redefinir sua senha:
-      ${Deno.env.get('SUPABASE_URL')?.replace('supabase.co', 'vercel.app') || 'http://localhost:3000'}/reset-password?email=${encodeURIComponent(email)}
+      ${Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.vercel.app') || 'http://localhost:3000'}/reset-password?email=${encodeURIComponent(email)}
+      
+      Se você não solicitou esta redefinição, ignore este email.
+      
+      Atenciosamente,
+      Equipe ConsultorPRO
     `
+
+    console.log('Email simulado enviado com sucesso!')
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: 'Código enviado com sucesso',
         // Em desenvolvimento, retornar o código para teste
-        ...(Deno.env.get('ENVIRONMENT') === 'development' && { code })
+        ...(Deno.env.get('ENVIRONMENT') === 'development' && { code, debug: true })
       }),
       { 
         status: 200, 
@@ -90,9 +148,13 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Erro na função:', error)
+    console.error('Erro na função send-reset-code:', error)
     return new Response(
-      JSON.stringify({ error: 'Erro interno do servidor' }),
+      JSON.stringify({ 
+        error: 'Erro interno do servidor', 
+        details: error.message,
+        stack: error.stack 
+      }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

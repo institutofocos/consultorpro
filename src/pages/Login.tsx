@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -120,18 +119,24 @@ const Login = () => {
     setError('');
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-reset-code`, {
+      console.log('Enviando código de recuperação para:', resetEmail);
+      
+      const response = await fetch(`https://qffpioepvkfvpuqdbbnh.supabase.co/functions/v1/send-reset-code`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmZnBpb2VwdmtmdnB1cWRiYm5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MzQ5NDIsImV4cCI6MjA2MzUxMDk0Mn0.ZD1AuPVDNuqTeYz8Eyt4QZHf_Qt1K-9oZcK3_fxSx-w`,
         },
         body: JSON.stringify({ email: resetEmail }),
       });
 
+      console.log('Resposta da API:', response.status, response.statusText);
+
       const data = await response.json();
+      console.log('Dados retornados:', data);
 
       if (!response.ok) {
+        console.error('Erro na resposta:', data);
         setError(data.error || 'Erro ao enviar código');
         return;
       }
@@ -139,13 +144,14 @@ const Login = () => {
       setCodeSent(true);
       toast.success('Código de recuperação enviado para seu email!');
       
-      // Em desenvolvimento, mostrar o código no console
-      if (data.code) {
+      // Em desenvolvimento, mostrar o código no console e toast
+      if (data.code && data.debug) {
         console.log('Código de desenvolvimento:', data.code);
         toast.info(`Código de desenvolvimento: ${data.code}`);
       }
       
     } catch (error: any) {
+      console.error('Erro ao enviar código:', error);
       setError('Erro inesperado. Tente novamente.');
     } finally {
       setIsLoading(false);
