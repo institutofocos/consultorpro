@@ -36,6 +36,7 @@ interface ModulePermission {
   can_view: boolean;
   can_edit: boolean;
   can_delete: boolean;
+  restrict_to_linked: boolean; // Nova propriedade
 }
 
 interface AccessProfileModalProps {
@@ -97,7 +98,8 @@ const AccessProfileModal: React.FC<AccessProfileModalProps> = ({
             module_name: module,
             can_view: false,
             can_edit: false,
-            can_delete: false
+            can_delete: false,
+            restrict_to_linked: false
           };
         }
       });
@@ -117,7 +119,8 @@ const AccessProfileModal: React.FC<AccessProfileModalProps> = ({
           module_name: module,
           can_view: false,
           can_edit: false,
-          can_delete: false
+          can_delete: false,
+          restrict_to_linked: false
         };
       });
       setPermissions(emptyPermissions);
@@ -125,7 +128,7 @@ const AccessProfileModal: React.FC<AccessProfileModalProps> = ({
     setError('');
   }, [profile, isCreating, isOpen]);
 
-  const handlePermissionChange = (module: string, permission: 'can_view' | 'can_edit' | 'can_delete', value: boolean) => {
+  const handlePermissionChange = (module: string, permission: 'can_view' | 'can_edit' | 'can_delete' | 'restrict_to_linked', value: boolean) => {
     setPermissions(prev => ({
       ...prev,
       [module]: {
@@ -205,7 +208,8 @@ const AccessProfileModal: React.FC<AccessProfileModalProps> = ({
             module_name: perm.module_name as ModuleName,
             can_view: perm.can_view,
             can_edit: perm.can_edit,
-            can_delete: perm.can_delete
+            can_delete: perm.can_delete,
+            restrict_to_linked: perm.restrict_to_linked
           });
 
         if (permissionError) {
@@ -300,7 +304,7 @@ const AccessProfileModal: React.FC<AccessProfileModalProps> = ({
                       <h4 className="font-medium">{MODULE_LABELS[module]}</h4>
                     </div>
                     
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           id={`${module}_view`}
@@ -339,7 +343,27 @@ const AccessProfileModal: React.FC<AccessProfileModalProps> = ({
                           Excluir
                         </Label>
                       </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`${module}_restrict`}
+                          checked={permissions[module]?.restrict_to_linked || false}
+                          onCheckedChange={(checked) => 
+                            handlePermissionChange(module, 'restrict_to_linked', !!checked)
+                          }
+                          disabled={!permissions[module]?.can_view}
+                        />
+                        <Label htmlFor={`${module}_restrict`} className="text-sm">
+                          Apenas vinculados
+                        </Label>
+                      </div>
                     </div>
+                    
+                    {permissions[module]?.restrict_to_linked && (
+                      <div className="mt-2 text-xs text-muted-foreground bg-yellow-50 p-2 rounded border border-yellow-200">
+                        ⚠️ O usuário verá apenas informações relacionadas ao consultor ou cliente vinculado a ele
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +17,7 @@ interface ModulePermission {
   can_view: boolean;
   can_edit: boolean;
   can_delete: boolean;
+  restrict_to_linked?: boolean; // Nova propriedade opcional
 }
 
 interface AccessProfile {
@@ -57,10 +57,18 @@ const AccessProfilesManagement = () => {
       console.log('Perfis carregados:', data);
 
       if (data && Array.isArray(data)) {
-        // Transformar os dados para o tipo correto
+        // Transformar os dados para o tipo correto, garantindo que permissions seja um array válido
         const transformedProfiles: AccessProfile[] = data.map(profile => ({
           ...profile,
-          permissions: Array.isArray(profile.permissions) ? profile.permissions : []
+          permissions: Array.isArray(profile.permissions) 
+            ? profile.permissions.map((perm: any) => ({
+                module_name: perm.module_name || '',
+                can_view: !!perm.can_view,
+                can_edit: !!perm.can_edit,
+                can_delete: !!perm.can_delete,
+                restrict_to_linked: !!perm.restrict_to_linked
+              }))
+            : []
         }));
         
         setProfiles(transformedProfiles);
@@ -145,8 +153,14 @@ const AccessProfilesManagement = () => {
     const viewCount = permissions.filter(p => p.can_view).length;
     const editCount = permissions.filter(p => p.can_edit).length;
     const deleteCount = permissions.filter(p => p.can_delete).length;
+    const restrictedCount = permissions.filter(p => p.restrict_to_linked).length;
     
-    return `${viewCount} visualizar | ${editCount} editar | ${deleteCount} excluir`;
+    let summary = `${viewCount} visualizar | ${editCount} editar | ${deleteCount} excluir`;
+    if (restrictedCount > 0) {
+      summary += ` | ${restrictedCount} restrito`;
+    }
+    
+    return summary;
   };
 
   const handleOpenModal = (profile?: AccessProfile) => {
