@@ -4,11 +4,12 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   Users, Briefcase, BarChart2, 
   FileText, Settings, ChevronLeft, ChevronRight, Layers,
-  Building, KanbanSquare, DollarSign, Calendar
+  Building, KanbanSquare, DollarSign, Calendar, LogOut
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from "sonner";
 
 interface NavItemProps {
   to: string;
@@ -37,8 +38,18 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, isOpen }) => {
 
 export const Sidebar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(true);
-  const { user, checkPermission } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success('Logout realizado com sucesso!');
+      navigate('/login');
+    } catch (error) {
+      toast.error('Erro ao fazer logout');
+    }
+  };
 
   const navItems = [
     { to: '/', icon: <BarChart2 size={20} />, label: 'Dashboard' },
@@ -93,6 +104,31 @@ export const Sidebar: React.FC = () => {
           />
         ))}
       </nav>
+      
+      {/* User info and logout */}
+      <div className="p-3 border-t border-white/10">
+        {user && (
+          <>
+            {isOpen && (
+              <div className="text-white/80 text-xs mb-3">
+                <p className="truncate">{user.email}</p>
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              size={isOpen ? "sm" : "icon"}
+              onClick={handleLogout}
+              className={cn(
+                "text-white/80 hover:text-white hover:bg-white/10 transition-colors",
+                isOpen ? "w-full justify-start" : "w-8 h-8"
+              )}
+            >
+              <LogOut size={16} />
+              {isOpen && <span className="ml-2">Sair</span>}
+            </Button>
+          </>
+        )}
+      </div>
       
       {/* Version info */}
       <div className="p-3 text-white/60 text-xs">

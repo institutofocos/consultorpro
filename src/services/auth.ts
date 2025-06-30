@@ -1,43 +1,78 @@
 
-// Simplified auth service that doesn't interact with removed user management tables
+import { supabase } from "@/integrations/supabase/client";
 
 export async function loginWithEmail(email: string, password: string) {
-  throw new Error('User management system has been removed');
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+  
+  if (error) throw error;
+  return data;
 }
 
 export async function logoutUser() {
-  // No-op since user management is removed
-  return;
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
 }
 
 export async function getCurrentUser() {
-  return null;
+  const { data: { user } } = await supabase.auth.getUser();
+  return user;
 }
 
-export async function registerUser(email: string, password: string, userData: any) {
-  throw new Error('User management system has been removed');
+export async function registerUser(email: string, password: string, userData?: any) {
+  const redirectUrl = `${window.location.origin}/`;
+  
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: redirectUrl,
+      data: userData
+    }
+  });
+  
+  if (error) throw error;
+  return data;
 }
 
 export async function createUserWithProfile(userData: any) {
-  throw new Error('User management system has been removed');
+  return registerUser(userData.email, userData.password, {
+    full_name: userData.full_name,
+  });
 }
 
 export async function setupAdminUsers() {
-  throw new Error('User management system has been removed');
+  // Not needed anymore with the new auth system
+  return true;
 }
 
 export async function updateUserProfile(userId: string, userData: any) {
-  throw new Error('User management system has been removed');
+  const { data, error } = await supabase.auth.updateUser({
+    data: userData
+  });
+  
+  if (error) throw error;
+  return data;
 }
 
 export async function resetUserPassword(email: string) {
-  throw new Error('User management system has been removed');
+  const redirectUrl = `${window.location.origin}/`;
+  
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: redirectUrl,
+  });
+  
+  if (error) throw error;
 }
 
 export async function updateUserPermissions(userId: string, moduleName: string, permissions: any) {
-  throw new Error('User management system has been removed');
+  // Not implemented in simplified auth system
+  return true;
 }
 
 export function hasPermission(user: any, moduleName: string, actionType: 'view' | 'edit'): boolean {
-  return true; // Always allow access since user management is removed
+  // Always allow access for authenticated users in simplified system
+  return user !== null;
 }

@@ -9,6 +9,7 @@ import SwaggerDocs from './SwaggerDocs';
 import SystemReset from './SystemReset';
 import TagList from '../tags/TagList';
 import FinancialSettingsTab from './FinancialSettingsTab';
+import UserManagement from './UserManagement';
 
 const SettingsPage = () => {
   return (
@@ -19,13 +20,14 @@ const SettingsPage = () => {
       </div>
 
       <Tabs defaultValue="project-rules" className="space-y-4">
-        <TabsList className="grid grid-cols-3 lg:grid-cols-8">
+        <TabsList className="grid grid-cols-3 lg:grid-cols-9">
           <TabsTrigger value="project-rules">Regras</TabsTrigger>
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
           <TabsTrigger value="timezone">Horário</TabsTrigger>
           <TabsTrigger value="tags">Tags</TabsTrigger>
           <TabsTrigger value="financial">Financeiro</TabsTrigger>
+          <TabsTrigger value="users">Usuários</TabsTrigger>
           <TabsTrigger value="docs">Docs</TabsTrigger>
           <TabsTrigger value="system">Sistema</TabsTrigger>
         </TabsList>
@@ -52,6 +54,10 @@ const SettingsPage = () => {
 
         <TabsContent value="financial">
           <FinancialSettingsTab />
+        </TabsContent>
+
+        <TabsContent value="users">
+          <UserManagement />
         </TabsContent>
 
         <TabsContent value="docs">

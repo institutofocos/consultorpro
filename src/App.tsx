@@ -6,9 +6,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import Auth from "./pages/Auth";
-import AdminSetup from "./pages/AdminSetup";
+import Login from "./pages/Login";
 import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { useWebhookProcessor } from "@/hooks/useWebhookProcessor";
 import { useEffect } from "react";
 
@@ -47,50 +47,75 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
-              {/* Redirect from auth to dashboard */}
-              <Route path="/auth" element={<Navigate to="/" replace />} />
-              <Route path="/admin-setup" element={<Navigate to="/" replace />} />
+              {/* Public routes */}
+              <Route path="/login" element={<Login />} />
               
-              {/* Main routes with Layout wrapper */}
-              <Route path="/" element={<Layout><Dashboard /></Layout>} />
+              {/* Protected routes with Layout wrapper */}
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <Layout><Dashboard /></Layout>
+                </ProtectedRoute>
+              } />
               
               <Route path="/consultants" element={
-                <Layout><ConsultantList /></Layout>
+                <ProtectedRoute>
+                  <Layout><ConsultantList /></Layout>
+                </ProtectedRoute>
               } />
               
               <Route path="/clients" element={
-                <Layout><ClientList /></Layout>
+                <ProtectedRoute>
+                  <Layout><ClientList /></Layout>
+                </ProtectedRoute>
               } />
               
               <Route path="/projects" element={
-                <Layout><ProjectList /></Layout>
+                <ProtectedRoute>
+                  <Layout><ProjectList /></Layout>
+                </ProtectedRoute>
               } />
               
               <Route path="/services" element={
-                <Layout><ServiceList /></Layout>
+                <ProtectedRoute>
+                  <Layout><ServiceList /></Layout>
+                </ProtectedRoute>
               } />
               
               <Route path="/demands" element={
-                <Layout><DemandsList /></Layout>
+                <ProtectedRoute>
+                  <Layout><DemandsList /></Layout>
+                </ProtectedRoute>
               } />
               
               {/* Redirect calendar to gantt view by default */}
               <Route path="/calendar" element={<Navigate to="/calendar/gantt" replace />} />
               <Route path="/calendar/*" element={
-                <Layout><CalendarPage /></Layout>
+                <ProtectedRoute>
+                  <Layout><CalendarPage /></Layout>
+                </ProtectedRoute>
               } />
               
               <Route path="/kanban" element={
-                <Layout><KanbanBoard /></Layout>
+                <ProtectedRoute>
+                  <Layout><KanbanBoard /></Layout>
+                </ProtectedRoute>
               } />
               
               <Route path="/financial" element={
-                <Layout><FinancialPage /></Layout>
+                <ProtectedRoute>
+                  <Layout><FinancialPage /></Layout>
+                </ProtectedRoute>
               } />
               
               <Route path="/settings" element={
-                <Layout><SettingsPage /></Layout>
+                <ProtectedRoute>
+                  <Layout><SettingsPage /></Layout>
+                </ProtectedRoute>
               } />
+              
+              {/* Legacy routes - redirect to login */}
+              <Route path="/auth" element={<Navigate to="/login" replace />} />
+              <Route path="/admin-setup" element={<Navigate to="/login" replace />} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>

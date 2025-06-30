@@ -1578,6 +1578,16 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_auth_users: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          email: string
+          created_at: string
+          last_sign_in_at: string
+          email_confirmed_at: string
+        }[]
+      }
       get_project_consolidated_data: {
         Args: { p_project_id: string }
         Returns: Json
