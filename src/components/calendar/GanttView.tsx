@@ -310,25 +310,18 @@ const GanttView: React.FC<GanttViewProps> = ({
                     </div>
                   ))}
                   
-                  {/* Current Date Line */}
+                  {/* Current Date Line with Green Date Box */}
                   {currentDatePosition.visible && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div
-                            className="absolute top-0 bottom-0 w-0.5 bg-green-500 z-10 cursor-pointer"
-                            style={{ left: currentDatePosition.left }}
-                          >
-                            <div className="absolute -top-1 -left-1 w-2 h-2 bg-green-500 rounded-full"></div>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <div className="text-sm font-medium">
-                            Hoje: {formatDateBR(new Date())}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <div className="absolute top-0 bottom-0 z-10" style={{ left: currentDatePosition.left }}>
+                      {/* Green Date Box at the top */}
+                      <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-2 py-1 rounded text-xs font-medium whitespace-nowrap shadow-md">
+                        Hoje: {format(new Date(), 'dd/MM/yyyy', { locale: ptBR })}
+                      </div>
+                      {/* Green Line */}
+                      <div className="w-0.5 h-full bg-green-500">
+                        <div className="absolute -top-1 -left-1 w-2 h-2 bg-green-500 rounded-full"></div>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
