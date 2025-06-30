@@ -137,7 +137,16 @@ const Login = () => {
 
       if (!response.ok) {
         console.error('Erro na resposta:', data);
-        setError(data.error || 'Erro ao enviar código');
+        
+        // Mostrar sugestões de email se disponíveis
+        if (data.suggestions && data.suggestions.length > 0) {
+          const suggestionText = data.suggestions.length === 1 
+            ? `Você quis dizer: ${data.suggestions[0]}?`
+            : `Você quis dizer: ${data.suggestions.join(' ou ')}?`;
+          setError(`${data.error}\n\n${suggestionText}`);
+        } else {
+          setError(data.error || 'Erro ao enviar código');
+        }
         return;
       }
 

@@ -54,9 +54,41 @@ serve(async (req) => {
     console.log('Usuário encontrado:', user ? 'Sim' : 'Não')
     
     if (!user) {
-      console.log('Email não encontrado no sistema')
+      console.log('Email não encontrado no sistema:', email)
+      
+      // Buscar emails similares para sugerir
+      const similarEmails = userData?.users
+        ?.map(u => u.email)
+        ?.filter(userEmail => {
+          if (!userEmail) return false;
+          // Verificar se tem domínio similar
+          const emailDomain = email.split('@')[1];
+          const userDomain = userEmail.split('@')[1];
+          if (emailDomain === userDomain) {
+            // Verificar se o nome do usuário é similar (diferença de 1-2 caracteres)
+            const emailName = email.split('@')[0];
+            const userName = userEmail.split('@')[0];
+            const maxDiff = Math.min(2, Math.floor(emailName.length * 0.2));
+            let differences = 0;
+            for (let i = 0; i < Math.max(emailName.length, userName.length); i++) {
+              if (emailName[i] !== userName[i]) differences++;
+              if (differences > maxDiff) return false;
+            }
+            return differences <= maxDiff;
+          }
+          return false;
+        })
+        ?.slice(0, 3); // Máximo 3 sugestões
+
+      const errorMessage = similarEmails && similarEmails.length > 0
+        ? `Email não encontrado. Você quis dizer: ${similarEmails.join(' ou ')}?`
+        : 'Email não encontrado. Verifique se o email está correto e se você possui uma conta cadastrada.';
+
       return new Response(
-        JSON.stringify({ error: 'Email não encontrado' }),
+        JSON.stringify({ 
+          error: errorMessage,
+          suggestions: similarEmails 
+        }),
         { 
           status: 404, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
