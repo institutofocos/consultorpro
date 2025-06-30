@@ -46,7 +46,7 @@ const GanttView: React.FC<GanttViewProps> = ({
   overdueProjects = 0, 
   overdueStages = 0 
 }) => {
-  console.log('GanttView component rendered - NO TEXT anywhere in top right');
+  console.log('GanttView component rendered - FIXING TODAY LINE POSITION');
   
   // Set default values to "Esta Semana" (this week)
   const [viewStartDate, setViewStartDate] = useState<Date>(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -114,10 +114,16 @@ const GanttView: React.FC<GanttViewProps> = ({
     return isBefore(itemEndDate, today) && isNotCompleted && stageNotCompleted;
   };
 
-  // Calculate current date position
+  // Calculate current date position - FIXED VERSION
   const calculateCurrentDatePosition = () => {
     const today = startOfDay(new Date());
     const viewStart = startOfDay(viewStartDate);
+    
+    console.log('=== CALCULATING TODAY POSITION ===');
+    console.log('Today:', format(today, 'dd/MM/yyyy'));
+    console.log('View Start:', format(viewStart, 'dd/MM/yyyy'));
+    console.log('Is This Week:', isThisWeek);
+    console.log('Timeline Weeks:', timelineWeeks);
     
     let totalDays;
     if (isThisWeek) {
@@ -127,14 +133,19 @@ const GanttView: React.FC<GanttViewProps> = ({
     }
     
     const daysSinceViewStart = differenceInDays(today, viewStart);
+    console.log('Days since view start:', daysSinceViewStart);
+    console.log('Total days in view:', totalDays);
     
     // Check if today is within the visible timeline
     const isVisible = daysSinceViewStart >= 0 && daysSinceViewStart < totalDays;
     const leftPercent = (daysSinceViewStart / totalDays) * 100;
     
+    console.log('Is visible:', isVisible);
+    console.log('Left percent:', leftPercent);
+    
     return {
       visible: isVisible,
-      left: `${Math.max(0, 100)}%`
+      left: `${Math.max(0, leftPercent)}%`
     };
   };
 
@@ -416,7 +427,7 @@ const GanttView: React.FC<GanttViewProps> = ({
                   {/* Vertical Grid Lines */}
                   {renderVerticalGridLines()}
                   
-                  {/* Current Date Line with Today Date Box */}
+                  {/* Current Date Line with Today Date Box - FIXED POSITION */}
                   {currentDatePosition.visible && (
                     <>
                       <div 
@@ -461,7 +472,7 @@ const GanttView: React.FC<GanttViewProps> = ({
                       {/* Vertical Grid Lines for Project Header */}
                       {renderVerticalGridLines()}
                       
-                      {/* Current Date Line for Project Header */}
+                      {/* Current Date Line for Project Header - FIXED POSITION */}
                       {currentDatePosition.visible && (
                         <div
                           className="absolute top-0 bottom-0 w-0.5 bg-green-500 z-30"
@@ -515,7 +526,7 @@ const GanttView: React.FC<GanttViewProps> = ({
                             {/* Vertical Grid Lines for Task Row */}
                             {renderVerticalGridLines()}
                             
-                            {/* Current Date Line for Task Row */}
+                            {/* Current Date Line for Task Row - FIXED POSITION */}
                             {currentDatePosition.visible && (
                               <div
                                 className="absolute top-0 bottom-0 w-0.5 bg-green-500 z-30"
