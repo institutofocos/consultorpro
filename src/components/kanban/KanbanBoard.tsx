@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -98,9 +99,9 @@ const KanbanBoard: React.FC = () => {
       endDate: supabaseProject.end_date,
       totalValue: supabaseProject.total_value,
       taxPercent: supabaseProject.tax_percent || 16,
-      // Handle consultant data (arrays from joins)
-      client: supabaseProject.client?.[0],
-      service: supabaseProject.service?.[0],
+      // Handle consultant data (arrays from joins) - map to the Project interface format
+      clients: supabaseProject.client?.[0],
+      services: supabaseProject.service?.[0],
       main_consultant: supabaseProject.main_consultant?.[0] ? {
         id: supabaseProject.main_consultant_id || '',
         name: supabaseProject.main_consultant[0].name,
@@ -111,6 +112,16 @@ const KanbanBoard: React.FC = () => {
         name: supabaseProject.support_consultant[0].name,
         email: ''
       } : undefined,
+      // Map IDs to camelCase
+      clientId: supabaseProject.client_id,
+      serviceId: supabaseProject.service_id,
+      mainConsultantId: supabaseProject.main_consultant_id,
+      supportConsultantId: supabaseProject.support_consultant_id,
+      // Add required fields for Project interface
+      clientName: supabaseProject.client?.[0]?.name,
+      serviceName: supabaseProject.service?.[0]?.name,
+      mainConsultantName: supabaseProject.main_consultant?.[0]?.name,
+      supportConsultantName: supabaseProject.support_consultant?.[0]?.name,
     };
   };
 
@@ -187,11 +198,11 @@ const KanbanBoard: React.FC = () => {
   const filteredProjects = projects.filter(project => {
     const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         project.client?.name.toLowerCase().includes(searchTerm.toLowerCase());
+                         project.clientName?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesConsultant = selectedConsultant === "all" || 
-                             project.main_consultant_id === selectedConsultant ||
-                             project.support_consultant_id === selectedConsultant;
+                             project.mainConsultantId === selectedConsultant ||
+                             project.supportConsultantId === selectedConsultant;
 
     return matchesSearch && matchesConsultant;
   });
@@ -300,6 +311,7 @@ const KanbanBoard: React.FC = () => {
                           >
                             <KanbanCard 
                               project={project}
+                              type="project"
                               onClick={() => {
                                 setSelectedProject(project);
                                 setIsDetailsOpen(true);
@@ -321,10 +333,12 @@ const KanbanBoard: React.FC = () => {
       {/* Modal de Detalhes */}
       <ProjectDetailsModal
         project={selectedProject}
-        isOpen={isDetailsOpen}
-        onClose={() => {
-          setIsDetailsOpen(false);
-          setSelectedProject(null);
+        open={isDetailsOpen}
+        onOpenChange={(open) => {
+          setIsDetailsOpen(open);
+          if (!open) {
+            setSelectedProject(null);
+          }
         }}
       />
     </div>
