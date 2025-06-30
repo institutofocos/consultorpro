@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -322,7 +321,7 @@ const GanttView: React.FC<GanttViewProps> = ({
       lines.push(
         <div
           key={`grid-line-${i}`}
-          className="absolute top-0 bottom-0 w-px bg-gray-200/30 pointer-events-none z-10"
+          className="absolute top-0 bottom-0 w-px bg-gray-200 pointer-events-none z-10"
           style={{ left: `${leftPercent}%` }}
         />
       );
