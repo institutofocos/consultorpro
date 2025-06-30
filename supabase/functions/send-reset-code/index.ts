@@ -108,8 +108,8 @@ serve(async (req) => {
     const code = Math.floor(100000 + Math.random() * 900000).toString()
     console.log('Código gerado:', code)
     
-    // Data de expiração (3 minutos)
-    const expiresAt = new Date(Date.now() + 3 * 60 * 1000).toISOString()
+    // Data de expiração (10 minutos)
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString()
     console.log('Expira em:', expiresAt)
 
     // Salvar código no banco
@@ -136,41 +136,121 @@ serve(async (req) => {
 
     console.log('Código salvo com sucesso!')
 
-    // Simular envio de email (em produção, usar um serviço real como SendGrid, Resend, etc.)
-    console.log(`=== EMAIL DE RECUPERAÇÃO ===`)
-    console.log(`Para: ${email}`)
-    console.log(`Código: ${code}`)
-    console.log(`Expira em: ${expiresAt}`)
-    console.log(`Link para redefinir: ${Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.vercel.app') || 'http://localhost:3000'}/reset-password?email=${encodeURIComponent(email)}`)
-    console.log(`========================`)
-    
-    // TODO: Implementar envio real de email
-    // Exemplo de conteúdo do email:
-    const emailContent = `
-      Olá!
+    // Enviar email real usando Resend
+    try {
+      console.log('Enviando email real...')
       
-      Você solicitou a redefinição da sua senha no ConsultorPRO.
-      
-      Seu código de recuperação é: ${code}
-      
-      Este código expira em 3 minutos.
-      
-      Use este link para redefinir sua senha:
-      ${Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.vercel.app') || 'http://localhost:3000'}/reset-password?email=${encodeURIComponent(email)}
-      
-      Se você não solicitou esta redefinição, ignore este email.
-      
-      Atenciosamente,
-      Equipe ConsultorPRO
-    `
+      const resendApiKey = Deno.env.get('RESEND_API_KEY')
+      if (!resendApiKey) {
+        console.error('RESEND_API_KEY não configurado')
+        throw new Error('Serviço de email não configurado')
+      }
 
-    console.log('Email simulado enviado com sucesso!')
+      const resetLink = `${Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.vercel.app') || 'http://localhost:3000'}/reset-password?email=${encodeURIComponent(email)}`
+      
+      const emailHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Código de Recuperação - ConsultorPRO</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #2563eb;">ConsultorPRO</h1>
+            <h2>Código de Recuperação de Senha</h2>
+            
+            <p>Olá!</p>
+            
+            <p>Você solicitou a redefinição da sua senha no ConsultorPRO.</p>
+            
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="margin-top: 0;">Seu código de recuperação:</h3>
+              <p style="font-size: 24px; font-weight: bold; color: #2563eb; letter-spacing: 2px; text-align: center; margin: 10px 0;">
+                ${code}
+              </p>
+            </div>
+            
+            <p><strong>Este código expira em 10 minutos.</strong></p>
+            
+            <p>Use este link para redefinir sua senha:</p>
+            <p><a href="${resetLink}" style="color: #2563eb;">${resetLink}</a></p>
+            
+            <p>Se você não solicitou esta redefinição, ignore este email.</p>
+            
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+            
+            <p style="color: #6b7280; font-size: 14px;">
+              Atenciosamente,<br>
+              Equipe ConsultorPRO
+            </p>
+          </div>
+        </body>
+        </html>
+      `
+
+      const emailResponse = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'ConsultorPRO <noreply@resend.dev>',
+          to: [email],
+          subject: 'Código de Recuperação de Senha - ConsultorPRO',
+          html: emailHtml
+        })
+      })
+
+      const emailResult = await emailResponse.json()
+      
+      if (!emailResponse.ok) {
+        console.error('Erro ao enviar email via Resend:', emailResult)
+        throw new Error(`Erro do Resend: ${emailResult.message || 'Falha no envio'}`)
+      }
+
+      console.log('Email enviado com sucesso via Resend:', emailResult.id)
+
+    } catch (emailError) {
+      console.error('Erro ao enviar email:', emailError)
+      
+      // Se falhar o envio por email, ainda retornamos sucesso mas notificamos o erro
+      // Em desenvolvimento, ainda mostramos o código
+      if (Deno.env.get('ENVIRONMENT') === 'development') {
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: 'Código gerado (erro no envio de email)',
+            code: code,
+            debug: true,
+            emailError: emailError.message
+          }),
+          { 
+            status: 200, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        )
+      }
+      
+      // Em produção, retornar erro se não conseguir enviar email
+      return new Response(
+        JSON.stringify({ 
+          error: 'Erro ao enviar email. Tente novamente.',
+          details: emailError.message
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Código enviado com sucesso',
-        // Em desenvolvimento, retornar o código para teste
+        message: 'Código de recuperação enviado para seu email!',
+        // Em desenvolvimento, ainda retornar o código para teste
         ...(Deno.env.get('ENVIRONMENT') === 'development' && { code, debug: true })
       }),
       { 
