@@ -146,21 +146,6 @@ const UserManagement = () => {
     return !!(link && (link.consultant_id || link.client_id));
   };
 
-  const getLinkedEntityName = (userId: string) => {
-    const link = getUserLink(userId);
-    if (!link) return '';
-    
-    if (link.consultant_id && link.consultant_name) {
-      return `Consultor: ${link.consultant_name}`;
-    }
-    
-    if (link.client_id && link.client_name) {
-      return `Cliente: ${link.client_name}`;
-    }
-    
-    return '';
-  };
-
   const handleOpenLinkModal = (user: AuthUser) => {
     setSelectedUser(user);
     setLinkModalOpen(true);
@@ -288,7 +273,6 @@ const UserManagement = () => {
                 ) : (
                   filteredUsers.map((user) => {
                     const linked = isUserLinked(user.id);
-                    const linkedEntity = getLinkedEntityName(user.id);
                     
                     return (
                       <TableRow key={user.id}>
@@ -311,35 +295,27 @@ const UserManagement = () => {
                           {user.email_confirmed_at ? formatDate(user.email_confirmed_at) : 'Não confirmado'}
                         </TableCell>
                         <TableCell>
-                          <div className="space-y-1">
-                            <Button
-                              size="sm"
-                              variant={linked ? "default" : "outline"}
-                              onClick={() => handleOpenLinkModal(user)}
-                              className={`flex items-center gap-1 ${
-                                linked 
-                                  ? "bg-green-600 hover:bg-green-700 text-white" 
-                                  : ""
-                              }`}
-                            >
-                              {linked ? (
-                                <>
-                                  <Check className="h-3 w-3" />
-                                  Vinculado
-                                </>
-                              ) : (
-                                <>
-                                  <Link className="h-3 w-3" />
-                                  Vincular
-                                </>
-                              )}
-                            </Button>
-                            {linkedEntity && (
-                              <div className="text-xs text-muted-foreground">
-                                {linkedEntity}
-                              </div>
+                          <Button
+                            size="sm"
+                            variant={linked ? "default" : "outline"}
+                            onClick={() => handleOpenLinkModal(user)}
+                            className={linked 
+                              ? "bg-green-600 hover:bg-green-700 text-white" 
+                              : ""
+                            }
+                          >
+                            {linked ? (
+                              <>
+                                <Check className="h-3 w-3 mr-1" />
+                                Vinculado
+                              </>
+                            ) : (
+                              <>
+                                <Link className="h-3 w-3 mr-1" />
+                                Vincular
+                              </>
                             )}
-                          </div>
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
