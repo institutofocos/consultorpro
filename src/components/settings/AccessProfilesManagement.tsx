@@ -11,25 +11,7 @@ import { Users, Search, RefreshCw, Plus, Edit, Trash2, Shield, ToggleLeft, Toggl
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import AccessProfileModal from './AccessProfileModal';
-
-interface ModulePermission {
-  module_name: string;
-  can_view: boolean;
-  can_edit: boolean;
-  can_delete: boolean;
-  restrict_to_linked?: boolean; // Nova propriedade opcional
-}
-
-interface AccessProfile {
-  id: string;
-  name: string;
-  description: string;
-  is_system_default: boolean;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  permissions: ModulePermission[];
-}
+import { ModulePermission, AccessProfile } from '@/types/auth';
 
 const AccessProfilesManagement = () => {
   const [profiles, setProfiles] = useState<AccessProfile[]>([]);

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -19,25 +18,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Shield, Save, X } from 'lucide-react';
-
-interface AccessProfile {
-  id: string;
-  name: string;
-  description: string;
-  is_system_default: boolean;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  permissions: ModulePermission[];
-}
-
-interface ModulePermission {
-  module_name: string;
-  can_view: boolean;
-  can_edit: boolean;
-  can_delete: boolean;
-  restrict_to_linked: boolean; // Nova propriedade
-}
+import { AccessProfile, ModulePermission } from '@/types/auth';
 
 interface AccessProfileModalProps {
   isOpen: boolean;
@@ -208,8 +189,8 @@ const AccessProfileModal: React.FC<AccessProfileModalProps> = ({
             module_name: perm.module_name as ModuleName,
             can_view: perm.can_view,
             can_edit: perm.can_edit,
-            can_delete: perm.can_delete,
-            restrict_to_linked: perm.restrict_to_linked
+            can_delete: perm.can_delete || false,
+            restrict_to_linked: perm.restrict_to_linked || false
           });
 
         if (permissionError) {
