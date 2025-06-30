@@ -220,6 +220,17 @@ const GanttView: React.FC<GanttViewProps> = ({
     setDraggedTask(null);
   };
 
+  // Handle timeline weeks change
+  const handleTimelineWeeksChange = (value: string) => {
+    if (value === 'thisweek') {
+      // Set to this week starting from Monday
+      setTimelineWeeks(1);
+      setViewStartDate(startOfWeek(new Date()));
+    } else {
+      setTimelineWeeks(parseInt(value));
+    }
+  };
+
   // Filter grouped tasks based on selected consultant
   const filteredGroupedTasks = selectedConsultantId
     ? Object.entries(groupedTasks).reduce((acc, [projectId, projectData]) => {
@@ -263,11 +274,12 @@ const GanttView: React.FC<GanttViewProps> = ({
           </div>
         </div>
 
-        <Select value={timelineWeeks.toString()} onValueChange={(value) => setTimelineWeeks(parseInt(value))}>
+        <Select value={timelineWeeks === 1 ? 'thisweek' : timelineWeeks.toString()} onValueChange={handleTimelineWeeksChange}>
           <SelectTrigger className="w-32">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="thisweek">Esta Semana</SelectItem>
             <SelectItem value="4">4 semanas</SelectItem>
             <SelectItem value="8">8 semanas</SelectItem>
             <SelectItem value="12">12 semanas</SelectItem>
