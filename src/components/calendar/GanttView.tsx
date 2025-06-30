@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -310,16 +309,19 @@ const GanttView: React.FC<GanttViewProps> = ({
                     </div>
                   ))}
                   
-                  {/* Current Date Line with Green Date Box */}
+                  {/* Current Date Line with Green Date Box - POSICIONAMENTO ABSOLUTO MELHORADO */}
                   {currentDatePosition.visible && (
-                    <div className="absolute top-0 bottom-0 z-10" style={{ left: currentDatePosition.left }}>
-                      {/* Green Date Box at the top */}
-                      <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-2 py-1 rounded text-xs font-medium whitespace-nowrap shadow-md">
+                    <div 
+                      className="absolute inset-y-0 z-50 pointer-events-none" 
+                      style={{ left: currentDatePosition.left }}
+                    >
+                      {/* Green Date Box at the top - POSICIONAMENTO FIXO */}
+                      <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-3 py-1 rounded-md text-xs font-bold whitespace-nowrap shadow-lg border border-green-600">
                         Hoje: {format(new Date(), 'dd/MM/yyyy', { locale: ptBR })}
                       </div>
-                      {/* Green Line */}
-                      <div className="w-0.5 h-full bg-green-500">
-                        <div className="absolute -top-1 -left-1 w-2 h-2 bg-green-500 rounded-full"></div>
+                      {/* Green Line - ALTURA TOTAL */}
+                      <div className="w-0.5 h-full bg-green-500 shadow-sm">
+                        <div className="absolute -top-1 -left-1 w-2 h-2 bg-green-500 rounded-full shadow-sm"></div>
                       </div>
                     </div>
                   )}
