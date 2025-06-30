@@ -1622,6 +1622,38 @@ export type Database = {
           },
         ]
       }
+      user_profiles: {
+        Row: {
+          created_at: string
+          id: string
+          profile_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          profile_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          profile_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_profiles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "access_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       webhook_logs: {
         Row: {
           attempt_count: number | null
@@ -1713,6 +1745,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_user_profile: {
+        Args: { p_user_id: string; p_profile_id: string }
+        Returns: undefined
+      }
       calculate_consultant_active_projects: {
         Args: { consultant_id: string }
         Returns: number
@@ -1835,6 +1871,15 @@ export type Database = {
           consultant_name: string
           client_id: string
           client_name: string
+        }[]
+      }
+      get_user_profile: {
+        Args: { p_user_id: string }
+        Returns: {
+          user_id: string
+          profile_id: string
+          profile_name: string
+          profile_description: string
         }[]
       }
       insert_project_history: {

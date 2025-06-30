@@ -8,10 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Users, Search, RefreshCw, Mail, Calendar, UserCheck, Link, Check } from 'lucide-react';
+import { Users, Search, RefreshCw, Mail, Calendar, UserCheck, Link, Check, Shield } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import UserLinkModal from './UserLinkModal';
+import UserProfileModal from './UserProfileModal';
 
 interface AuthUser {
   id: string;
@@ -29,14 +30,23 @@ interface UserLink {
   client_name: string | null;
 }
 
+interface UserProfile {
+  user_id: string;
+  profile_id: string;
+  profile_name: string;
+  profile_description: string;
+}
+
 const UserManagement = () => {
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [userLinks, setUserLinks] = useState<UserLink[]>([]);
+  const [userProfiles, setUserProfiles] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
   const [selectedUser, setSelectedUser] = useState<AuthUser | null>(null);
   const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -66,12 +76,14 @@ const UserManagement = () => {
         setUsers(formattedUsers);
         console.log(`${formattedUsers.length} usuários carregados com sucesso`);
 
-        // Buscar vínculos para todos os usuários
+        // Buscar vínculos e perfis para todos os usuários
         await fetchUserLinks(formattedUsers.map(u => u.id));
+        await fetchUserProfiles(formattedUsers.map(u => u.id));
       } else {
         console.warn('Nenhum usuário encontrado ou dados inválidos');
         setUsers([]);
         setUserLinks([]);
+        setUserProfiles([]);
       }
 
     } catch (error: any) {
@@ -110,6 +122,32 @@ const UserManagement = () => {
     }
   };
 
+  const fetchUserProfiles = async (userIds: string[]) => {
+    try {
+      console.log('Buscando perfis dos usuários...');
+      
+      const profilesPromises = userIds.map(async (userId) => {
+        const { data, error } = await supabase.rpc('get_user_profile', { p_user_id: userId });
+        
+        if (error) {
+          console.error(`Erro ao buscar perfil para usuário ${userId}:`, error);
+          return null;
+        }
+        
+        return data && data.length > 0 ? data[0] : null;
+      });
+
+      const profilesResults = await Promise.all(profilesPromises);
+      const validProfiles = profilesResults.filter(Boolean) as UserProfile[];
+      
+      setUserProfiles(validProfiles);
+      console.log(`${validProfiles.length} perfis encontrados`);
+      
+    } catch (error: any) {
+      console.error('Erro ao buscar perfis:', error);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -141,6 +179,10 @@ const UserManagement = () => {
     return userLinks.find(link => link.user_id === userId);
   };
 
+  const getUserProfile = (userId: string) => {
+    return userProfiles.find(profile => profile.user_id === userId);
+  };
+
   const isUserLinked = (userId: string) => {
     const link = getUserLink(userId);
     return !!(link && (link.consultant_id || link.client_id));
@@ -151,9 +193,21 @@ const UserManagement = () => {
     setLinkModalOpen(true);
   };
 
+  const handleOpenProfileModal = (user: AuthUser) => {
+    setSelectedUser(user);
+    setProfileModalOpen(true);
+  };
+
   const handleCloseLinkModal = () => {
     setSelectedUser(null);
     setLinkModalOpen(false);
+    // Recarregar dados quando fechar o modal
+    fetchUsers();
+  };
+
+  const handleCloseProfileModal = () => {
+    setSelectedUser(null);
+    setProfileModalOpen(false);
     // Recarregar dados quando fechar o modal
     fetchUsers();
   };
@@ -257,6 +311,7 @@ const UserManagement = () => {
                 <TableRow>
                   <TableHead>Email</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Perfil</TableHead>
                   <TableHead>Data de Cadastro</TableHead>
                   <TableHead>Último Login</TableHead>
                   <TableHead>Confirmação de Email</TableHead>
@@ -266,13 +321,14 @@ const UserManagement = () => {
               <TableBody>
                 {filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       {searchTerm ? 'Nenhum usuário encontrado com este email' : 'Nenhum usuário cadastrado'}
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredUsers.map((user) => {
                     const linked = isUserLinked(user.id);
+                    const userProfile = getUserProfile(user.id);
                     
                     return (
                       <TableRow key={user.id}>
@@ -284,6 +340,28 @@ const UserManagement = () => {
                         </TableCell>
                         <TableCell>
                           {getStatusBadge(user)}
+                        </TableCell>
+                        <TableCell>
+                          {userProfile ? (
+                            <Badge 
+                              variant="default" 
+                              className="cursor-pointer hover:bg-opacity-80"
+                              onClick={() => handleOpenProfileModal(user)}
+                            >
+                              <Shield className="h-3 w-3 mr-1" />
+                              {userProfile.profile_name}
+                            </Badge>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenProfileModal(user)}
+                              className="h-6 px-2 text-xs"
+                            >
+                              <Shield className="h-3 w-3 mr-1" />
+                              Atribuir
+                            </Button>
+                          )}
                         </TableCell>
                         <TableCell>
                           {formatDate(user.created_at)}
@@ -334,10 +412,18 @@ const UserManagement = () => {
         </CardContent>
       </Card>
 
-      {selectedUser && (
+      {selectedUser && linkModalOpen && (
         <UserLinkModal
           isOpen={linkModalOpen}
           onClose={handleCloseLinkModal}
+          user={selectedUser}
+        />
+      )}
+
+      {selectedUser && profileModalOpen && (
+        <UserProfileModal
+          isOpen={profileModalOpen}
+          onClose={handleCloseProfileModal}
           user={selectedUser}
         />
       )}
