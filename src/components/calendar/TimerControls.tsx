@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Play, Pause, Square, Clock, History } from 'lucide-react';
+import { Play, Pause, Square, Clock, History, AlertTriangle } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import TimeTrackingHistory from './TimeTrackingHistory';
@@ -30,6 +29,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
   );
   const [showHistory, setShowHistory] = useState(false);
   const [stageName, setStageName] = useState('');
+  const [estimatedHours, setEstimatedHours] = useState<number>(0);
 
   // Buscar dados da etapa e tempo atualizado do banco
   useEffect(() => {
@@ -37,7 +37,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
       try {
         const { data: stageData, error } = await supabase
           .from('project_stages')
-          .select('name, time_spent_minutes, timer_status, timer_started_at')
+          .select('name, time_spent_minutes, timer_status, timer_started_at, hours')
           .eq('id', taskId)
           .single();
 
@@ -49,6 +49,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
         if (stageData) {
           console.log('Dados da etapa atualizados:', stageData);
           setStageName(stageData.name);
+          setEstimatedHours(stageData.hours || 0);
           
           // Atualizar tempo do banco (que já é calculado automaticamente pelo trigger)
           const dbTimeSpent = stageData.time_spent_minutes || 0;
@@ -327,6 +328,12 @@ const TimerControls: React.FC<TimerControlsProps> = ({
     }
   };
 
+  // Calcular se o tempo excedeu o estimado
+  const totalMinutesSpent = Math.floor(displaySeconds / 60);
+  const estimatedMinutes = estimatedHours * 60;
+  const isTimeExceeded = totalMinutesSpent > estimatedMinutes;
+  const timeExceededBy = isTimeExceeded ? totalMinutesSpent - estimatedMinutes : 0;
+
   console.log('🔄 TimerControls render:', {
     taskId,
     timeSpent,
@@ -334,7 +341,11 @@ const TimerControls: React.FC<TimerControlsProps> = ({
     timerStatus,
     timerStartedAt: timerStartedAt?.toLocaleString(),
     currentSessionId,
-    formattedTime: formatTime(displaySeconds)
+    formattedTime: formatTime(displaySeconds),
+    estimatedHours,
+    estimatedMinutes,
+    totalMinutesSpent,
+    isTimeExceeded
   });
 
   return (
@@ -400,20 +411,70 @@ const TimerControls: React.FC<TimerControlsProps> = ({
         </Button>
       </div>
 
-      {/* Campo destacado para tempo total acumulado */}
+      {/* Campo para horas estimadas vs executadas */}
       <div className="bg-white rounded-lg p-4 border-2 border-blue-200 mb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-blue-600" />
-            <span className="font-semibold text-gray-800">Tempo Total Acumulado:</span>
+        <div className="space-y-3">
+          {/* Tempo estimado */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-blue-600" />
+              <span className="font-semibold text-gray-800">Tempo Estimado:</span>
+            </div>
+            <div className="text-right">
+              <div className="text-lg font-mono font-bold text-blue-600">
+                {formatTime(estimatedMinutes * 60)}
+              </div>
+              <div className="text-xs text-gray-500">
+                {estimatedHours} {estimatedHours === 1 ? 'hora' : 'horas'} estimadas
+              </div>
+            </div>
           </div>
-          <div className="text-right">
-            <div className="text-2xl font-mono font-bold text-blue-600">
-              {formatTime(timeSpent * 60)}
+          
+          {/* Line separator */}
+          <div className="border-t border-gray-200"></div>
+          
+          {/* Tempo total acumulado */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-gray-600" />
+              <span className="font-semibold text-gray-800">Tempo Total Acumulado:</span>
+              {isTimeExceeded && (
+                <AlertTriangle className="h-4 w-4 text-red-500" />
+              )}
             </div>
-            <div className="text-xs text-gray-500">
-              {timeSpent} minutos trabalhados
+            <div className="text-right">
+              <div className={`text-2xl font-mono font-bold ${isTimeExceeded ? 'text-red-600' : 'text-green-600'}`}>
+                {formatTime(timeSpent * 60)}
+              </div>
+              <div className={`text-xs ${isTimeExceeded ? 'text-red-500' : 'text-gray-500'}`}>
+                {timeSpent} minutos trabalhados
+                {isTimeExceeded && (
+                  <div className="font-medium">
+                    Excedeu em {Math.floor(timeExceededBy / 60)}h {timeExceededBy % 60}min
+                  </div>
+                )}
+              </div>
             </div>
+          </div>
+          
+          {/* Indicador visual de progresso */}
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className={`h-2 rounded-full transition-all duration-300 ${
+                isTimeExceeded ? 'bg-red-500' : 'bg-green-500'
+              }`}
+              style={{ 
+                width: `${Math.min((totalMinutesSpent / estimatedMinutes) * 100, 100)}%` 
+              }}
+            ></div>
+          </div>
+          
+          {/* Percentual de conclusão */}
+          <div className="text-center">
+            <span className={`text-sm font-medium ${isTimeExceeded ? 'text-red-600' : 'text-gray-600'}`}>
+              {estimatedMinutes > 0 ? Math.round((totalMinutesSpent / estimatedMinutes) * 100) : 0}% do tempo estimado
+              {isTimeExceeded && ' (EXCEDIDO)'}
+            </span>
           </div>
         </div>
       </div>
