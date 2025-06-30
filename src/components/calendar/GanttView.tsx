@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ChevronLeft, ChevronRight, Calendar, User, Clock, AlertTriangle, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, User, Clock, AlertTriangle } from 'lucide-react';
 import { format, addDays, startOfWeek, differenceInDays, parseISO, addWeeks, subWeeks, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatDateBR } from '@/utils/dateUtils';
@@ -46,7 +46,7 @@ const GanttView: React.FC<GanttViewProps> = ({
   overdueProjects = 0, 
   overdueStages = 0 
 }) => {
-  console.log('GanttView component rendered - ADDING OVERDUE COUNTS HEADER');
+  console.log('GanttView component rendered - FIXING TODAY LINE POSITION');
   
   // Set default values to "Esta Semana" (this week)
   const [viewStartDate, setViewStartDate] = useState<Date>(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -354,27 +354,6 @@ const GanttView: React.FC<GanttViewProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Header with Overdue Counts */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Visualização Gantt</h2>
-          <div className="flex items-center gap-6 mt-2">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-orange-500" />
-              <span className="text-sm font-medium">
-                Projetos Atrasados ({overdueProjects})
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-              <span className="text-sm font-medium">
-                Etapas Atrasadas ({overdueStages})
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Navigation Controls - NO TITLE ANYWHERE */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
