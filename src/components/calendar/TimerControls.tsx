@@ -183,28 +183,30 @@ const TimerControls: React.FC<TimerControlsProps> = ({
   };
 
   return (
-    <div className="space-y-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-      <div className="flex items-center justify-between">
-        <h4 className="font-medium text-gray-700 flex items-center gap-2">
-          <Clock className="h-4 w-4" />
+    <div className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-4">
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+          <Clock className="h-5 w-5 text-blue-600" />
           Controle de Tempo
         </h4>
-        <div className="flex items-center gap-2">
-          <span className={`text-sm font-mono ${getStatusColor()}`}>
-            {formatTime(displayTime)}
-          </span>
-          <span className={`text-xs px-2 py-1 rounded ${getStatusColor()} bg-white`}>
-            {getStatusText()}
-          </span>
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <div className={`text-2xl font-mono font-bold ${getStatusColor()}`}>
+              {formatTime(displayTime)}
+            </div>
+            <div className={`text-xs px-2 py-1 rounded-full ${getStatusColor()} bg-white border`}>
+              {getStatusText()}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-3 mb-3">
         {timerStatus === 'stopped' || timerStatus === 'paused' ? (
           <Button
             onClick={startTimer}
-            size="sm"
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+            size="default"
+            className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-medium px-4 py-2"
           >
             <Play className="h-4 w-4" />
             {timerStatus === 'paused' ? 'Retomar' : 'Produzir'}
@@ -212,9 +214,9 @@ const TimerControls: React.FC<TimerControlsProps> = ({
         ) : (
           <Button
             onClick={pauseTimer}
-            size="sm"
+            size="default"
             variant="outline"
-            className="flex items-center gap-2 border-yellow-500 text-yellow-600 hover:bg-yellow-50"
+            className="flex items-center gap-2 border-yellow-500 text-yellow-600 hover:bg-yellow-50 font-medium px-4 py-2"
           >
             <Pause className="h-4 w-4" />
             Pausar
@@ -223,9 +225,9 @@ const TimerControls: React.FC<TimerControlsProps> = ({
         
         <Button
           onClick={stopTimer}
-          size="sm"
+          size="default"
           variant="outline"
-          className="flex items-center gap-2 border-red-500 text-red-600 hover:bg-red-50"
+          className="flex items-center gap-2 border-red-500 text-red-600 hover:bg-red-50 font-medium px-4 py-2"
           disabled={timerStatus === 'stopped'}
         >
           <Square className="h-4 w-4" />
@@ -234,9 +236,9 @@ const TimerControls: React.FC<TimerControlsProps> = ({
       </div>
 
       {timeSpent > 0 && (
-        <div className="text-sm text-gray-600">
-          <span>Tempo total acumulado: </span>
-          <span className="font-mono font-medium">{formatTime(timeSpent)}</span>
+        <div className="text-sm text-gray-600 bg-white rounded p-2 border">
+          <span className="font-medium">Tempo total acumulado: </span>
+          <span className="font-mono font-bold text-blue-600">{formatTime(timeSpent)}</span>
         </div>
       )}
     </div>

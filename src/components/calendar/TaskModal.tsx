@@ -74,7 +74,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, isOpen, onClose }) => {
   };
 
   const handleTimeUpdate = (newTimeSpent: number) => {
-    // This callback can be used to update the parent component if needed
     console.log('Time updated:', newTimeSpent);
   };
 
@@ -100,14 +99,16 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, isOpen, onClose }) => {
               </div>
             </div>
 
-            {/* Timer Controls */}
-            <TimerControls
-              taskId={task.id}
-              initialTimeSpent={task.time_spent_minutes || 0}
-              initialTimerStatus={task.timer_status || 'stopped'}
-              initialTimerStartedAt={task.timer_started_at}
-              onTimeUpdate={handleTimeUpdate}
-            />
+            {/* Timer Controls - Posicionado logo após o cabeçalho */}
+            <div className="border-t border-b py-4">
+              <TimerControls
+                taskId={task.id}
+                initialTimeSpent={task.time_spent_minutes || 0}
+                initialTimerStatus={task.timer_status || 'stopped'}
+                initialTimerStartedAt={task.timer_started_at}
+                onTimeUpdate={handleTimeUpdate}
+              />
+            </div>
 
             {/* Descrição */}
             {task.description && (
