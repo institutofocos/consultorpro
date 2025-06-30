@@ -45,6 +45,7 @@ const GanttView: React.FC<GanttViewProps> = ({
 }) => {
   const [viewStartDate, setViewStartDate] = useState<Date>(() => startOfWeek(new Date()));
   const [timelineWeeks, setTimelineWeeks] = useState(8);
+  const [isThisWeek, setIsThisWeek] = useState(false);
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
   const [resizingTask, setResizingTask] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -62,9 +63,19 @@ const GanttView: React.FC<GanttViewProps> = ({
   // Generate timeline based on view start date and weeks
   const generateTimeline = () => {
     const timeline = [];
-    for (let i = 0; i < timelineWeeks; i++) {
-      timeline.push(addDays(viewStartDate, i * 7));
+    
+    if (isThisWeek) {
+      // For "Esta Semana", show each day of the week
+      for (let i = 0; i < 7; i++) {
+        timeline.push(addDays(viewStartDate, i));
+      }
+    } else {
+      // For other views, show weeks
+      for (let i = 0; i < timelineWeeks; i++) {
+        timeline.push(addDays(viewStartDate, i * 7));
+      }
     }
+    
     return timeline;
   };
 
@@ -101,7 +112,13 @@ const GanttView: React.FC<GanttViewProps> = ({
   const calculateCurrentDatePosition = () => {
     const today = startOfDay(new Date());
     const viewStart = startOfDay(viewStartDate);
-    const totalDays = timelineWeeks * 7;
+    
+    let totalDays;
+    if (isThisWeek) {
+      totalDays = 7; // 7 days for this week view
+    } else {
+      totalDays = timelineWeeks * 7;
+    }
     
     const daysSinceViewStart = differenceInDays(today, viewStart);
     
@@ -161,7 +178,13 @@ const GanttView: React.FC<GanttViewProps> = ({
     const start = startOfDay(parseISO(startDate));
     const end = startOfDay(parseISO(endDate));
     const viewStart = startOfDay(viewStartDate);
-    const totalDays = timelineWeeks * 7;
+    
+    let totalDays;
+    if (isThisWeek) {
+      totalDays = 7; // 7 days for this week view
+    } else {
+      totalDays = timelineWeeks * 7;
+    }
     
     const daysSinceViewStart = differenceInDays(start, viewStart);
     const taskDuration = differenceInDays(end, start) + 1;
@@ -196,12 +219,20 @@ const GanttView: React.FC<GanttViewProps> = ({
 
   // Navigate to previous week
   const navigatePrevious = () => {
-    setViewStartDate(subWeeks(viewStartDate, 2));
+    if (isThisWeek) {
+      setViewStartDate(subWeeks(viewStartDate, 1));
+    } else {
+      setViewStartDate(subWeeks(viewStartDate, 2));
+    }
   };
 
   // Navigate to next week
   const navigateNext = () => {
-    setViewStartDate(addWeeks(viewStartDate, 2));
+    if (isThisWeek) {
+      setViewStartDate(addWeeks(viewStartDate, 1));
+    } else {
+      setViewStartDate(addWeeks(viewStartDate, 2));
+    }
   };
 
   // Navigate to today
@@ -224,10 +255,12 @@ const GanttView: React.FC<GanttViewProps> = ({
     if (value === 'thisweek') {
       // Set to this week starting from Monday
       setTimelineWeeks(1);
+      setIsThisWeek(true);
       // Use startOfWeek with Monday as first day of week
       setViewStartDate(startOfWeek(new Date(), { weekStartsOn: 1 }));
     } else {
       setTimelineWeeks(parseInt(value));
+      setIsThisWeek(false);
     }
   };
 
@@ -269,12 +302,15 @@ const GanttView: React.FC<GanttViewProps> = ({
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
             <span className="text-sm font-medium">
-              {format(viewStartDate, 'dd/MM/yyyy', { locale: ptBR })} - {format(addDays(viewStartDate, timelineWeeks * 7 - 1), 'dd/MM/yyyy', { locale: ptBR })}
+              {isThisWeek 
+                ? `${format(viewStartDate, 'dd/MM/yyyy', { locale: ptBR })} - ${format(addDays(viewStartDate, 6), 'dd/MM/yyyy', { locale: ptBR })}`
+                : `${format(viewStartDate, 'dd/MM/yyyy', { locale: ptBR })} - ${format(addDays(viewStartDate, timelineWeeks * 7 - 1), 'dd/MM/yyyy', { locale: ptBR })}`
+              }
             </span>
           </div>
         </div>
 
-        <Select value={timelineWeeks === 1 ? 'thisweek' : timelineWeeks.toString()} onValueChange={handleTimelineWeeksChange}>
+        <Select value={isThisWeek ? 'thisweek' : timelineWeeks.toString()} onValueChange={handleTimelineWeeksChange}>
           <SelectTrigger className="w-32">
             <SelectValue />
           </SelectTrigger>
@@ -309,12 +345,12 @@ const GanttView: React.FC<GanttViewProps> = ({
                 <div className="w-80 flex-shrink-0 p-4 border-r font-semibold">
                   Projeto / Etapa
                 </div>
-                <div className="flex-1 grid grid-cols-8 min-w-[800px] relative">
-                  {timeline.map((week, index) => (
+                <div className={`flex-1 grid ${isThisWeek ? 'grid-cols-7' : 'grid-cols-8'} min-w-[800px] relative`}>
+                  {timeline.map((date, index) => (
                     <div key={index} className="p-2 text-center text-sm font-medium border-r border-muted relative">
-                      <div>{format(week, 'MMM', { locale: ptBR })}</div>
+                      <div>{isThisWeek ? format(date, 'EEE', { locale: ptBR }) : format(date, 'MMM', { locale: ptBR })}</div>
                       <div className="text-xs text-muted-foreground">
-                        {format(week, 'dd', { locale: ptBR })}
+                        {format(date, 'dd', { locale: ptBR })}
                       </div>
                     </div>
                   ))}
@@ -357,7 +393,7 @@ const GanttView: React.FC<GanttViewProps> = ({
                     </div>
                     <div className="flex-1 min-w-[800px] relative">
                       {/* Project timeline background */}
-                      <div className="h-full grid grid-cols-8">
+                      <div className={`h-full grid ${isThisWeek ? 'grid-cols-7' : 'grid-cols-8'}`}>
                         {timeline.map((_, index) => (
                           <div key={index} className="border-r border-muted/30 h-full"></div>
                         ))}
@@ -408,7 +444,7 @@ const GanttView: React.FC<GanttViewProps> = ({
                           
                           <div className="flex-1 min-w-[800px] relative p-2">
                             {/* Timeline grid background */}
-                            <div className="absolute inset-0 grid grid-cols-8">
+                            <div className={`absolute inset-0 grid ${isThisWeek ? 'grid-cols-7' : 'grid-cols-8'}`}>
                               {timeline.map((_, index) => (
                                 <div key={index} className="border-r border-muted/20"></div>
                               ))}
