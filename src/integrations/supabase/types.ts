@@ -1931,6 +1931,14 @@ export type Database = {
         Args: { profile_name: string }
         Returns: boolean
       }
+      user_has_project_access: {
+        Args: { project_id: string }
+        Returns: boolean
+      }
+      user_is_restricted_to_linked: {
+        Args: { module_name: string }
+        Returns: boolean
+      }
       user_is_super_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean

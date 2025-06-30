@@ -121,12 +121,20 @@ export const useUserPermissions = () => {
   // Verificar se pode acessar um projeto específico
   const hasProjectAccess = (project: any) => {
     if (isSuperAdmin) return true;
-    if (!isRestrictedToLinked('projects')) return hasModulePermission('projects');
     
-    // Se restrito aos vinculados, verificar se tem acesso ao consultor ou cliente do projeto
-    return hasConsultantAccess(project.main_consultant_id) ||
-           hasConsultantAccess(project.support_consultant_id) ||
-           hasClientAccess(project.client_id);
+    // Se não tem permissão básica para ver projetos, retornar false
+    if (!hasModulePermission('projects', 'view')) return false;
+    
+    // Se não está restrito aos vinculados, pode ver todos os projetos
+    if (!isRestrictedToLinked('projects')) return true;
+    
+    // Verificar se tem acesso via consultor ou cliente vinculado
+    const hasConsultorAccess = (project.main_consultant_id && hasConsultantAccess(project.main_consultant_id)) ||
+                              (project.support_consultant_id && hasConsultantAccess(project.support_consultant_id));
+    
+    const hasClienteAccess = project.client_id && hasClientAccess(project.client_id);
+    
+    return hasConsultorAccess || hasClienteAccess;
   };
 
   return {
