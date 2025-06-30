@@ -1,464 +1,332 @@
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Search, Users, Building2, Link, Unlink, Check } from 'lucide-react';
+import { Link, Save, X, Users, Building } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+interface AuthUser {
+  id: string;
+  email: string;
+  created_at: string;
+  last_sign_in_at: string | null;
+  email_confirmed_at: string | null;
+}
 
 interface UserLinkModalProps {
   isOpen: boolean;
   onClose: () => void;
-  user: {
-    id: string;
-    email: string;
-  };
+  user: AuthUser;
 }
 
 interface Consultant {
   id: string;
   name: string;
   email: string;
-  phone?: string;
-  isLinked?: boolean;
 }
 
 interface Client {
   id: string;
   name: string;
   contact_name: string;
-  email?: string;
-  phone?: string;
-  isLinked?: boolean;
 }
 
-interface UserLinks {
-  consultant_id?: string;
-  consultant_name?: string;
-  client_id?: string;
-  client_name?: string;
+interface AccessProfile {
+  id: string;
+  name: string;
+  description: string;
+  is_active: boolean;
 }
 
 const UserLinkModal: React.FC<UserLinkModalProps> = ({ isOpen, onClose, user }) => {
   const [consultants, setConsultants] = useState<Consultant[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
-  const [currentLinks, setCurrentLinks] = useState<UserLinks>({});
-  const [consultantSearch, setConsultantSearch] = useState('');
-  const [clientSearch, setClientSearch] = useState('');
+  const [accessProfiles, setAccessProfiles] = useState<AccessProfile[]>([]);
+  const [selectedConsultant, setSelectedConsultant] = useState<string>('');
+  const [selectedClient, setSelectedClient] = useState<string>('');
+  const [selectedProfile, setSelectedProfile] = useState<string>('');
+  const [linkType, setLinkType] = useState<'consultant' | 'client' | ''>('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [currentLinks, setCurrentLinks] = useState<any>(null);
 
   useEffect(() => {
     if (isOpen) {
       fetchData();
+      fetchCurrentLinks();
     }
   }, [isOpen, user.id]);
 
   const fetchData = async () => {
-    setLoading(true);
     try {
       // Buscar consultores
       const { data: consultantsData, error: consultantsError } = await supabase
         .from('consultants')
-        .select('id, name, email, phone');
+        .select('id, name, email')
+        .order('name');
 
       if (consultantsError) throw consultantsError;
+      setConsultants(consultantsData || []);
 
       // Buscar clientes
       const { data: clientsData, error: clientsError } = await supabase
         .from('clients')
-        .select('id, name, contact_name, email, phone');
+        .select('id, name, contact_name')
+        .order('name');
 
       if (clientsError) throw clientsError;
+      setClients(clientsData || []);
 
-      // Buscar vínculos existentes
-      const { data: linksData, error: linksError } = await supabase
-        .rpc('get_user_links', { p_user_id: user.id });
+      // Buscar perfis de acesso
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('access_profiles')
+        .select('id, name, description, is_active')
+        .eq('is_active', true)
+        .order('name');
 
-      if (linksError) throw linksError;
-
-      // Buscar todos os vínculos para marcar quais já estão em uso
-      const { data: allConsultantLinks, error: allConsultantLinksError } = await supabase
-        .from('user_consultant_links')
-        .select('consultant_id');
-
-      const { data: allClientLinks, error: allClientLinksError } = await supabase
-        .from('user_client_links')
-        .select('client_id');
-
-      if (allConsultantLinksError) throw allConsultantLinksError;
-      if (allClientLinksError) throw allClientLinksError;
-
-      const linkedConsultantIds = new Set(allConsultantLinks?.map(link => link.consultant_id) || []);
-      const linkedClientIds = new Set(allClientLinks?.map(link => link.client_id) || []);
-
-      // Marcar consultores já vinculados
-      const consultantsWithStatus = consultantsData?.map(consultant => ({
-        ...consultant,
-        isLinked: linkedConsultantIds.has(consultant.id)
-      })) || [];
-
-      // Marcar clientes já vinculados
-      const clientsWithStatus = clientsData?.map(client => ({
-        ...client,
-        isLinked: linkedClientIds.has(client.id)
-      })) || [];
-
-      setConsultants(consultantsWithStatus);
-      setClients(clientsWithStatus);
-      
-      // Definir vínculos atuais
-      if (linksData && linksData.length > 0) {
-        const userLinks = linksData[0];
-        setCurrentLinks({
-          consultant_id: userLinks.consultant_id,
-          consultant_name: userLinks.consultant_name,
-          client_id: userLinks.client_id,
-          client_name: userLinks.client_name
-        });
-      } else {
-        setCurrentLinks({});
-      }
+      if (profilesError) throw profilesError;
+      setAccessProfiles(profilesData || []);
 
     } catch (error: any) {
       console.error('Erro ao carregar dados:', error);
-      toast.error('Erro ao carregar dados: ' + error.message);
-    } finally {
-      setLoading(false);
+      setError(error.message);
     }
   };
 
-  const handleLinkConsultant = async (consultantId: string) => {
+  const fetchCurrentLinks = async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_user_links', {
+        p_user_id: user.id
+      });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const userLink = data[0];
+        setCurrentLinks(userLink);
+        
+        if (userLink.consultant_id) {
+          setLinkType('consultant');
+          setSelectedConsultant(userLink.consultant_id);
+        }
+        
+        if (userLink.client_id) {
+          setLinkType('client');
+          setSelectedClient(userLink.client_id);
+        }
+      }
+    } catch (error: any) {
+      console.error('Erro ao buscar vínculos atuais:', error);
+    }
+  };
+
+  const handleSave = async () => {
     try {
       setLoading(true);
+      setError('');
 
-      // Se já há um vínculo, remover primeiro
-      if (currentLinks.consultant_id) {
-        const { error: deleteError } = await supabase
+      if (!linkType) {
+        throw new Error('Selecione o tipo de vínculo');
+      }
+
+      if (!selectedProfile) {
+        throw new Error('Selecione um perfil de acesso');
+      }
+
+      if (linkType === 'consultant' && !selectedConsultant) {
+        throw new Error('Selecione um consultor');
+      }
+
+      if (linkType === 'client' && !selectedClient) {
+        throw new Error('Selecione um cliente');
+      }
+
+      // Remover vínculos existentes
+      await supabase.from('user_consultant_links').delete().eq('user_id', user.id);
+      await supabase.from('user_client_links').delete().eq('user_id', user.id);
+
+      // Criar novo vínculo
+      if (linkType === 'consultant') {
+        const { error } = await supabase
           .from('user_consultant_links')
-          .delete()
-          .eq('user_id', user.id);
+          .insert({
+            user_id: user.id,
+            consultant_id: selectedConsultant,
+            profile_id: selectedProfile
+          });
 
-        if (deleteError) throw deleteError;
-      }
-
-      // Criar novo vínculo
-      const { error } = await supabase
-        .from('user_consultant_links')
-        .insert({
-          user_id: user.id,
-          consultant_id: consultantId
-        });
-
-      if (error) throw error;
-
-      toast.success('Consultor vinculado com sucesso!');
-      fetchData(); // Recarregar dados
-
-    } catch (error: any) {
-      console.error('Erro ao vincular consultor:', error);
-      toast.error('Erro ao vincular consultor: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLinkClient = async (clientId: string) => {
-    try {
-      setLoading(true);
-
-      // Se já há um vínculo, remover primeiro
-      if (currentLinks.client_id) {
-        const { error: deleteError } = await supabase
+        if (error) throw error;
+      } else if (linkType === 'client') {
+        const { error } = await supabase
           .from('user_client_links')
-          .delete()
-          .eq('user_id', user.id);
+          .insert({
+            user_id: user.id,
+            client_id: selectedClient,
+            profile_id: selectedProfile
+          });
 
-        if (deleteError) throw deleteError;
+        if (error) throw error;
       }
 
-      // Criar novo vínculo
-      const { error } = await supabase
-        .from('user_client_links')
-        .insert({
-          user_id: user.id,
-          client_id: clientId
-        });
-
-      if (error) throw error;
-
-      toast.success('Cliente vinculado com sucesso!');
-      fetchData(); // Recarregar dados
+      toast.success('Usuário vinculado com sucesso!');
+      onClose();
 
     } catch (error: any) {
-      console.error('Erro ao vincular cliente:', error);
-      toast.error('Erro ao vincular cliente: ' + error.message);
+      console.error('Erro ao vincular usuário:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUnlinkConsultant = async () => {
+  const handleRemoveLink = async () => {
     try {
       setLoading(true);
+      
+      await supabase.from('user_consultant_links').delete().eq('user_id', user.id);
+      await supabase.from('user_client_links').delete().eq('user_id', user.id);
 
-      const { error } = await supabase
-        .from('user_consultant_links')
-        .delete()
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      toast.success('Consultor desvinculado com sucesso!');
-      fetchData(); // Recarregar dados
-
+      toast.success('Vínculo removido com sucesso!');
+      onClose();
     } catch (error: any) {
-      console.error('Erro ao desvincular consultor:', error);
-      toast.error('Erro ao desvincular consultor: ' + error.message);
+      console.error('Erro ao remover vínculo:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
   };
-
-  const handleUnlinkClient = async () => {
-    try {
-      setLoading(true);
-
-      const { error } = await supabase
-        .from('user_client_links')
-        .delete()
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      toast.success('Cliente desvinculado com sucesso!');
-      fetchData(); // Recarregar dados
-
-    } catch (error: any) {
-      console.error('Erro ao desvincular cliente:', error);
-      toast.error('Erro ao desvincular cliente: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredConsultants = consultants.filter(consultant =>
-    consultant.name.toLowerCase().includes(consultantSearch.toLowerCase()) ||
-    consultant.email.toLowerCase().includes(consultantSearch.toLowerCase())
-  );
-
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
-    client.contact_name.toLowerCase().includes(clientSearch.toLowerCase()) ||
-    (client.email && client.email.toLowerCase().includes(clientSearch.toLowerCase()))
-  );
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Link className="h-5 w-5" />
-            Vincular Usuário: {user.email}
+            Vincular Usuário
           </DialogTitle>
+          <DialogDescription>
+            Vincule o usuário {user.email} a um consultor ou cliente e defina seu perfil de acesso.
+          </DialogDescription>
         </DialogHeader>
 
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
         <div className="space-y-4">
-          {/* Status atual dos vínculos */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Status Atual dos Vínculos</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Consultor:</span>
-                {currentLinks.consultant_name ? (
+          {/* Tipo de vínculo */}
+          <div>
+            <Label>Tipo de Vínculo</Label>
+            <Select value={linkType} onValueChange={(value: 'consultant' | 'client') => setLinkType(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o tipo de vínculo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="consultant">
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary">{currentLinks.consultant_name}</Badge>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleUnlinkConsultant}
-                      disabled={loading}
-                    >
-                      <Unlink className="h-3 w-3" />
-                    </Button>
+                    <Users className="h-4 w-4" />
+                    Consultor
                   </div>
-                ) : (
-                  <Badge variant="outline">Não vinculado</Badge>
-                )}
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Cliente:</span>
-                {currentLinks.client_name ? (
+                </SelectItem>
+                <SelectItem value="client">
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary">{currentLinks.client_name}</Badge>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleUnlinkClient}
-                      disabled={loading}
-                    >
-                      <Unlink className="h-3 w-3" />
-                    </Button>
+                    <Building className="h-4 w-4" />
+                    Cliente
                   </div>
-                ) : (
-                  <Badge variant="outline">Não vinculado</Badge>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Tabs defaultValue="consultants" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="consultants" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Consultores
-              </TabsTrigger>
-              <TabsTrigger value="clients" className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                Clientes
-              </TabsTrigger>
-            </TabsList>
+          {/* Seleção de consultor */}
+          {linkType === 'consultant' && (
+            <div>
+              <Label>Consultor</Label>
+              <Select value={selectedConsultant} onValueChange={setSelectedConsultant}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um consultor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {consultants.map((consultant) => (
+                    <SelectItem key={consultant.id} value={consultant.id}>
+                      {consultant.name} - {consultant.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-            <TabsContent value="consultants" className="space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Buscar consultor por nome ou email..."
-                  value={consultantSearch}
-                  onChange={(e) => setConsultantSearch(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+          {/* Seleção de cliente */}
+          {linkType === 'client' && (
+            <div>
+              <Label>Cliente</Label>
+              <Select value={selectedClient} onValueChange={setSelectedClient}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name} - {client.contact_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {filteredConsultants.map((consultant) => (
-                  <Card key={consultant.id} className="p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{consultant.name}</span>
-                          {consultant.isLinked && consultant.id !== currentLinks.consultant_id && (
-                            <Badge variant="secondary" className="text-xs">Já vinculado</Badge>
-                          )}
-                          {consultant.id === currentLinks.consultant_id && (
-                            <Badge variant="default" className="text-xs">
-                              <Check className="h-3 w-3 mr-1" />
-                              Vinculado a este usuário
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">{consultant.email}</p>
-                        {consultant.phone && (
-                          <p className="text-sm text-muted-foreground">{consultant.phone}</p>
-                        )}
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleLinkConsultant(consultant.id)}
-                        disabled={loading || (consultant.isLinked && consultant.id !== currentLinks.consultant_id)}
-                        variant={consultant.id === currentLinks.consultant_id ? "secondary" : "default"}
-                      >
-                        {consultant.id === currentLinks.consultant_id ? (
-                          <>
-                            <Check className="h-3 w-3 mr-1" />
-                            Vinculado
-                          </>
-                        ) : (
-                          <>
-                            <Link className="h-3 w-3 mr-1" />
-                            Vincular
-                          </>
-                        )}
-                      </Button>
+          {/* Seleção de perfil de acesso */}
+          <div>
+            <Label>Perfil de Acesso</Label>
+            <Select value={selectedProfile} onValueChange={setSelectedProfile}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um perfil de acesso" />
+              </SelectTrigger>
+              <SelectContent>
+                {accessProfiles.map((profile) => (
+                  <SelectItem key={profile.id} value={profile.id}>
+                    <div>
+                      <div className="font-medium">{profile.name}</div>
+                      {profile.description && (
+                        <div className="text-xs text-muted-foreground">{profile.description}</div>
+                      )}
                     </div>
-                  </Card>
+                  </SelectItem>
                 ))}
-                
-                {filteredConsultants.length === 0 && (
-                  <Alert>
-                    <AlertDescription>
-                      Nenhum consultor encontrado com os critérios de busca.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="clients" className="space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Buscar cliente por nome ou email..."
-                  value={clientSearch}
-                  onChange={(e) => setClientSearch(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {filteredClients.map((client) => (
-                  <Card key={client.id} className="p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{client.name}</span>
-                          {client.isLinked && client.id !== currentLinks.client_id && (
-                            <Badge variant="secondary" className="text-xs">Já vinculado</Badge>
-                          )}
-                          {client.id === currentLinks.client_id && (
-                            <Badge variant="default" className="text-xs">
-                              <Check className="h-3 w-3 mr-1" />
-                              Vinculado a este usuário
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">Contato: {client.contact_name}</p>
-                        {client.email && (
-                          <p className="text-sm text-muted-foreground">{client.email}</p>
-                        )}
-                        {client.phone && (
-                          <p className="text-sm text-muted-foreground">{client.phone}</p>
-                        )}
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleLinkClient(client.id)}
-                        disabled={loading || (client.isLinked && client.id !== currentLinks.client_id)}
-                        variant={client.id === currentLinks.client_id ? "secondary" : "default"}
-                      >
-                        {client.id === currentLinks.client_id ? (
-                          <>
-                            <Check className="h-3 w-3 mr-1" />
-                            Vinculado
-                          </>
-                        ) : (
-                          <>
-                            <Link className="h-3 w-3 mr-1" />
-                            Vincular
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </Card>
-                ))}
-                
-                {filteredClients.length === 0 && (
-                  <Alert>
-                    <AlertDescription>
-                      Nenhum cliente encontrado com os critérios de busca.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+
+        <DialogFooter className="flex gap-2">
+          {currentLinks && (
+            <Button variant="destructive" onClick={handleRemoveLink} disabled={loading}>
+              Remover Vínculo
+            </Button>
+          )}
+          <Button variant="outline" onClick={onClose} disabled={loading}>
+            <X className="h-4 w-4 mr-2" />
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} disabled={loading}>
+            <Save className="h-4 w-4 mr-2" />
+            {loading ? 'Salvando...' : 'Salvar'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

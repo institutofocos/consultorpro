@@ -10,6 +10,7 @@ import SystemReset from './SystemReset';
 import TagList from '../tags/TagList';
 import FinancialSettingsTab from './FinancialSettingsTab';
 import UserManagement from './UserManagement';
+import AccessProfilesManagement from './AccessProfilesManagement';
 
 const SettingsPage = () => {
   return (
@@ -20,7 +21,7 @@ const SettingsPage = () => {
       </div>
 
       <Tabs defaultValue="project-rules" className="space-y-4">
-        <TabsList className="grid grid-cols-3 lg:grid-cols-9">
+        <TabsList className="grid grid-cols-3 lg:grid-cols-10">
           <TabsTrigger value="project-rules">Regras</TabsTrigger>
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
@@ -28,6 +29,7 @@ const SettingsPage = () => {
           <TabsTrigger value="tags">Tags</TabsTrigger>
           <TabsTrigger value="financial">Financeiro</TabsTrigger>
           <TabsTrigger value="users">Usuários</TabsTrigger>
+          <TabsTrigger value="access-profiles">Perfis</TabsTrigger>
           <TabsTrigger value="docs">Docs</TabsTrigger>
           <TabsTrigger value="system">Sistema</TabsTrigger>
         </TabsList>
@@ -58,6 +60,10 @@ const SettingsPage = () => {
 
         <TabsContent value="users">
           <UserManagement />
+        </TabsContent>
+
+        <TabsContent value="access-profiles">
+          <AccessProfilesManagement />
         </TabsContent>
 
         <TabsContent value="docs">

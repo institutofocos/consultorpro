@@ -9,6 +9,36 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      access_profiles: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_system_default: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_system_default?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_system_default?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       accounts_payable: {
         Row: {
           amount: number
@@ -709,6 +739,44 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      profile_module_permissions: {
+        Row: {
+          can_delete: boolean
+          can_edit: boolean
+          can_view: boolean
+          created_at: string
+          id: string
+          module_name: Database["public"]["Enums"]["module_type"]
+          profile_id: string
+        }
+        Insert: {
+          can_delete?: boolean
+          can_edit?: boolean
+          can_view?: boolean
+          created_at?: string
+          id?: string
+          module_name: Database["public"]["Enums"]["module_type"]
+          profile_id: string
+        }
+        Update: {
+          can_delete?: boolean
+          can_edit?: boolean
+          can_view?: boolean
+          created_at?: string
+          id?: string
+          module_name?: Database["public"]["Enums"]["module_type"]
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_module_permissions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "access_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -1472,6 +1540,7 @@ export type Database = {
           client_id: string
           created_at: string
           id: string
+          profile_id: string | null
           updated_at: string
           user_id: string
         }
@@ -1479,6 +1548,7 @@ export type Database = {
           client_id: string
           created_at?: string
           id?: string
+          profile_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1486,6 +1556,7 @@ export type Database = {
           client_id?: string
           created_at?: string
           id?: string
+          profile_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1497,6 +1568,13 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "user_client_links_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "access_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_consultant_links: {
@@ -1504,6 +1582,7 @@ export type Database = {
           consultant_id: string
           created_at: string
           id: string
+          profile_id: string | null
           updated_at: string
           user_id: string
         }
@@ -1511,6 +1590,7 @@ export type Database = {
           consultant_id: string
           created_at?: string
           id?: string
+          profile_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1518,6 +1598,7 @@ export type Database = {
           consultant_id?: string
           created_at?: string
           id?: string
+          profile_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1527,6 +1608,13 @@ export type Database = {
             columns: ["consultant_id"]
             isOneToOne: true
             referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_consultant_links_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "access_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1697,6 +1785,19 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_access_profiles: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          name: string
+          description: string
+          is_system_default: boolean
+          is_active: boolean
+          created_at: string
+          updated_at: string
+          permissions: Json
+        }[]
+      }
       get_auth_users: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1764,7 +1865,16 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      module_type:
+        | "dashboard"
+        | "consultants"
+        | "clients"
+        | "projects"
+        | "demands"
+        | "services"
+        | "calendar"
+        | "financial"
+        | "settings"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1879,6 +1989,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      module_type: [
+        "dashboard",
+        "consultants",
+        "clients",
+        "projects",
+        "demands",
+        "services",
+        "calendar",
+        "financial",
+        "settings",
+      ],
+    },
   },
 } as const
