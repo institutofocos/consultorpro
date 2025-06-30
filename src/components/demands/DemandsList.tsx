@@ -23,6 +23,7 @@ import { ptBR } from 'date-fns/locale';
 import SearchableSelect from "@/components/ui/searchable-select";
 import DemandForm from './DemandForm';
 import DemandViewModal from './DemandViewModal';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 interface ConsultantInfo {
   id: string;
@@ -59,6 +60,12 @@ const DemandsList = () => {
   const [serviceFilter, setServiceFilter] = useState<string>("");
   const [startDateFilter, setStartDateFilter] = useState<Date | undefined>(undefined);
   const [endDateFilter, setEndDateFilter] = useState<Date | undefined>(undefined);
+
+  // Adicionar hook de permissões
+  const { userProfile, isLoading: permissionsLoading } = useUserPermissions();
+
+  // Verificar se é consultor
+  const isConsultant = userProfile?.profile_name === 'Consultor';
 
   useEffect(() => {
     const fetchData = async () => {
@@ -536,7 +543,7 @@ const DemandsList = () => {
                         </div>
                       </div>
                       
-                      {/* Right section - Action icons */}
+                      {/* Right section - Action icons with conditional rendering */}
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
@@ -547,15 +554,20 @@ const DemandsList = () => {
                         >
                           <Eye className="h-4 w-4 text-blue-600" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditDemand(demand)}
-                          className="p-2 h-8 w-8 hover:bg-yellow-50"
-                          title="Editar demanda"
-                        >
-                          <Edit className="h-4 w-4 text-yellow-600" />
-                        </Button>
+                        
+                        {/* Ocultar botão de editar para consultores */}
+                        {!isConsultant && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditDemand(demand)}
+                            className="p-2 h-8 w-8 hover:bg-yellow-50"
+                            title="Editar demanda"
+                          >
+                            <Edit className="h-4 w-4 text-yellow-600" />
+                          </Button>
+                        )}
+                        
                         <Button
                           variant="ghost"
                           size="sm"
@@ -565,15 +577,19 @@ const DemandsList = () => {
                         >
                           <UserCheck className="h-4 w-4 text-green-600" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleCancelDemand(demand.id)}
-                          className="p-2 h-8 w-8 hover:bg-red-50"
-                          title="Cancelar demanda"
-                        >
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        </Button>
+                        
+                        {/* Ocultar botão de cancelar para consultores */}
+                        {!isConsultant && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCancelDemand(demand.id)}
+                            className="p-2 h-8 w-8 hover:bg-red-50"
+                            title="Cancelar demanda"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>
