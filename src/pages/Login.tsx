@@ -150,18 +150,30 @@ const Login = () => {
         return;
       }
 
+      // Sucesso - código foi gerado
       setCodeSent(true);
-      toast.success('Código de recuperação enviado para seu email!');
       
-      // Em desenvolvimento, mostrar o código no console e toast
-      if (data.code && data.debug) {
-        console.log('Código de desenvolvimento:', data.code);
-        toast.info(`Código de desenvolvimento: ${data.code}`);
+      if (data.emailSent) {
+        toast.success('Código de recuperação enviado para seu email!');
+      } else if (data.debug) {
+        // Modo desenvolvimento - mostrar código
+        toast.success('Código de recuperação gerado!');
+        if (data.code) {
+          toast.info(`Código de desenvolvimento: ${data.code}`, {
+            duration: 10000, // Mostrar por mais tempo
+          });
+          console.log('Código de desenvolvimento:', data.code);
+        }
+        if (data.warning) {
+          toast.warning(data.warning, { duration: 8000 });
+        }
+      } else {
+        toast.success('Código de recuperação enviado!');
       }
       
     } catch (error: any) {
       console.error('Erro ao enviar código:', error);
-      setError('Erro inesperado. Tente novamente.');
+      setError('Erro de conexão. Verifique sua internet e tente novamente.');
     } finally {
       setIsLoading(false);
     }
@@ -198,7 +210,7 @@ const Login = () => {
 
               {error && (
                 <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription style={{ whiteSpace: 'pre-line' }}>{error}</AlertDescription>
                 </Alert>
               )}
 
@@ -326,10 +338,10 @@ const Login = () => {
                 {codeSent ? (
                   <div className="text-center space-y-4">
                     <div className="text-green-600 font-medium">
-                      Código de recuperação enviado!
+                      Código de recuperação gerado!
                     </div>
                     <p className="text-sm text-gray-600">
-                      Verifique sua caixa de entrada. O código expira em 3 minutos.
+                      O código expira em 10 minutos. Se não recebeu por email, verifique o console para o código de desenvolvimento.
                     </p>
                     <Button 
                       variant="outline" 
