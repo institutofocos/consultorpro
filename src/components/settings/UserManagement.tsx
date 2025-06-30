@@ -33,7 +33,6 @@ const UserManagement = () => {
 
       console.log('Buscando usuários...');
 
-      // Tentar chamar a função RPC com tratamento de erro melhorado
       const { data, error } = await supabase.rpc('get_auth_users');
 
       if (error) {
@@ -43,7 +42,6 @@ const UserManagement = () => {
 
       console.log('Dados retornados:', data);
 
-      // Validar e formatar os dados recebidos
       if (data && Array.isArray(data)) {
         const formattedUsers = data.map((user: any) => ({
           id: user.id || '',

@@ -37,26 +37,6 @@ export async function registerUser(email: string, password: string, userData?: a
   return data;
 }
 
-export async function createUserWithProfile(userData: any) {
-  return registerUser(userData.email, userData.password, {
-    full_name: userData.full_name,
-  });
-}
-
-export async function setupAdminUsers() {
-  // Not needed anymore with the new auth system
-  return true;
-}
-
-export async function updateUserProfile(userId: string, userData: any) {
-  const { data, error } = await supabase.auth.updateUser({
-    data: userData
-  });
-  
-  if (error) throw error;
-  return data;
-}
-
 export async function resetUserPassword(email: string) {
   const redirectUrl = `${window.location.origin}/reset-password`;
   
@@ -65,11 +45,6 @@ export async function resetUserPassword(email: string) {
   });
   
   if (error) throw error;
-}
-
-export async function updateUserPermissions(userId: string, moduleName: string, permissions: any) {
-  // Not implemented in simplified auth system
-  return true;
 }
 
 export function hasPermission(user: any, moduleName: string, actionType: 'view' | 'edit'): boolean {

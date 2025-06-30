@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -55,14 +56,10 @@ const Login = () => {
       if (error) {
         console.error('Erro no login:', error);
         
-        // Melhor tratamento de erros
         if (error.message.includes('Invalid login credentials')) {
           setError('Email ou senha incorretos');
         } else if (error.message.includes('Email not confirmed')) {
           setError('Por favor, confirme seu email antes de fazer login');
-        } else if (error.message.includes('Invalid API key')) {
-          setError('Erro de configuração do sistema. Entre em contato com o suporte.');
-          console.error('Erro de API Key:', error);
         } else {
           setError(`Erro no login: ${error.message}`);
         }
@@ -117,14 +114,8 @@ const Login = () => {
       if (error) {
         console.error('Erro no cadastro:', error);
         
-        // Melhor tratamento de erros para cadastro
         if (error.message.includes('User already registered')) {
           setError('Este email já está cadastrado');
-        } else if (error.message.includes('Invalid API key')) {
-          setError('Erro de configuração do sistema. Entre em contato com o suporte.');
-          console.error('Erro de API Key no cadastro:', error);
-        } else if (error.message.includes('Database error')) {
-          setError('Erro interno do sistema. Tente novamente em alguns minutos.');
         } else {
           setError(`Erro no cadastro: ${error.message}`);
         }
@@ -152,12 +143,7 @@ const Login = () => {
       });
 
       if (error) {
-        if (error.message.includes('Invalid API key')) {
-          setError('Erro de configuração do sistema. Entre em contato com o suporte.');
-          console.error('Erro de API Key no reset:', error);
-        } else {
-          setError(`Erro: ${error.message}`);
-        }
+        setError(`Erro: ${error.message}`);
         return;
       }
 
