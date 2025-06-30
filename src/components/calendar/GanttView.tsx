@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -174,7 +175,7 @@ const GanttView: React.FC<GanttViewProps> = ({
     return statusData.label;
   };
 
-  // Calculate task position - COMPLETELY FIXED VERSION
+  // Calculate task position - FIXED VERSION to ensure bars only render between start and end dates
   const calculateTaskPosition = (startDate: string, endDate: string) => {
     const taskStart = startOfDay(parseISO(startDate));
     const taskEnd = startOfDay(parseISO(endDate));
@@ -182,50 +183,55 @@ const GanttView: React.FC<GanttViewProps> = ({
     
     let totalDays;
     if (isThisWeek) {
-      totalDays = 7; // 7 days for this week view
+      totalDays = 7;
     } else {
       totalDays = timelineWeeks * 7;
     }
     
-    // Calculate position: days from view start to task start
-    const daysSinceViewStart = differenceInDays(taskStart, viewStart);
+    const viewEnd = addDays(viewStart, totalDays - 1);
     
-    // Calculate task duration in days (inclusive of both start and end dates)
-    const taskDurationInDays = differenceInDays(taskEnd, taskStart) + 1;
+    // Calculate the intersection between task period and view period
+    const displayStart = taskStart < viewStart ? viewStart : taskStart;
+    const displayEnd = taskEnd > viewEnd ? viewEnd : taskEnd;
+    
+    // If task is completely outside the view, don't display it
+    if (taskEnd < viewStart || taskStart > viewEnd) {
+      return {
+        left: '0%',
+        width: '0%',
+        visible: false
+      };
+    }
+    
+    // Calculate position: days from view start to display start
+    const daysSinceViewStart = differenceInDays(displayStart, viewStart);
+    
+    // Calculate display duration: from display start to display end (inclusive)
+    const displayDurationInDays = differenceInDays(displayEnd, displayStart) + 1;
     
     // Calculate position and width as percentages
     const leftPercent = (daysSinceViewStart / totalDays) * 100;
+    const widthPercent = (displayDurationInDays / totalDays) * 100;
     
-    // FIXED: Width calculation - each day should be exactly 1/totalDays of the total width
-    const widthPercent = (taskDurationInDays / totalDays) * 100;
-    
-    // Ensure task doesn't start before view or extend beyond view
-    const visibleLeftPercent = Math.max(0, leftPercent);
-    const maxWidthFromPosition = 100 - visibleLeftPercent;
-    const visibleWidthPercent = Math.min(widthPercent, maxWidthFromPosition);
-    
-    // Check if task is visible in current view
-    const taskEndDaysSinceViewStart = daysSinceViewStart + taskDurationInDays - 1;
-    const visible = daysSinceViewStart < totalDays && taskEndDaysSinceViewStart >= 0;
-    
-    // Debug logging for troubleshooting
+    // Debug logging
     console.log(`Task: ${startDate} to ${endDate}`, {
       taskStart: format(taskStart, 'dd/MM/yyyy'),
       taskEnd: format(taskEnd, 'dd/MM/yyyy'),
       viewStart: format(viewStart, 'dd/MM/yyyy'),
+      viewEnd: format(viewEnd, 'dd/MM/yyyy'),
+      displayStart: format(displayStart, 'dd/MM/yyyy'),
+      displayEnd: format(displayEnd, 'dd/MM/yyyy'),
       daysSinceViewStart,
-      taskDurationInDays,
+      displayDurationInDays,
       totalDays,
       leftPercent: `${leftPercent.toFixed(2)}%`,
-      widthPercent: `${widthPercent.toFixed(2)}%`,
-      visibleLeftPercent: `${visibleLeftPercent.toFixed(2)}%`,
-      visibleWidthPercent: `${visibleWidthPercent.toFixed(2)}%`
+      widthPercent: `${widthPercent.toFixed(2)}%`
     });
     
     return {
-      left: `${visibleLeftPercent}%`,
-      width: `${Math.max(0.5, visibleWidthPercent)}%`, // Minimum 0.5% width for visibility
-      visible
+      left: `${Math.max(0, leftPercent)}%`,
+      width: `${Math.max(0.5, widthPercent)}%`, // Minimum 0.5% width for visibility
+      visible: true
     };
   };
 
