@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -38,6 +37,8 @@ interface Consultant {
 }
 
 const ReportsGantt: React.FC = () => {
+  console.log('ReportsGantt component rendered - checking for any "Visualização Gantt" text');
+  
   const [tasks, setTasks] = useState<Task[]>([]);
   const [consultants, setConsultants] = useState<Consultant[]>([]);
   const [selectedConsultantId, setSelectedConsultantId] = useState<string>('all');
@@ -217,12 +218,6 @@ const ReportsGantt: React.FC = () => {
   if (loading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Gráfico de Gantt
-          </CardTitle>
-        </CardHeader>
         <CardContent>
           <div className="text-center py-8">
             <p>Carregando dados...</p>

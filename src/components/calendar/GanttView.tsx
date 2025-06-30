@@ -46,6 +46,8 @@ const GanttView: React.FC<GanttViewProps> = ({
   overdueProjects = 0, 
   overdueStages = 0 
 }) => {
+  console.log('GanttView component rendered - no "Visualização Gantt" title should appear');
+  
   // Set default values to "Esta Semana" (this week)
   const [viewStartDate, setViewStartDate] = useState<Date>(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [timelineWeeks, setTimelineWeeks] = useState(1);
@@ -386,7 +388,7 @@ const GanttView: React.FC<GanttViewProps> = ({
         </Select>
       </div>
 
-      {/* Gantt Chart */}
+      {/* Gantt Chart - NO HEADER WITH TITLE */}
       <Card>
         <CardContent className="p-0">
           {Object.keys(filteredGroupedTasks).length === 0 ? (
