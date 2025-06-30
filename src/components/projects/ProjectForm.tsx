@@ -173,17 +173,12 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single();
-
-      // Só preencher dados do usuário se não for edição de projeto
+      // Since user management was removed, just use the email from auth
+      // and generate a simple name from the email
       if (!project) {
         setFormData(prev => ({
           ...prev,
-          managerName: profile?.full_name || user.email?.split('@')[0] || '',
+          managerName: user.email?.split('@')[0] || '',
           managerEmail: user.email || '',
           managerPhone: user.phone || ''
         }));
