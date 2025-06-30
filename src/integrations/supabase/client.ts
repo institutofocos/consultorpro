@@ -8,16 +8,40 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 // Verificar se as variáveis estão definidas
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  console.error('Supabase configuração:', { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY });
   throw new Error('Supabase URL e/ou Anon Key não estão configurados corretamente');
 }
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
+console.log('Inicializando Supabase com:', {
+  url: SUPABASE_URL,
+  keyLength: SUPABASE_PUBLISHABLE_KEY?.length
+});
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    flowType: 'pkce'
+  },
+  global: {
+    headers: {
+      'apikey': SUPABASE_PUBLISHABLE_KEY,
+      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
+    }
+  },
+  db: {
+    schema: 'public'
   }
+});
+
+// Teste de conectividade
+supabase.auth.getSession().then(({ data, error }) => {
+  if (error) {
+    console.error('Erro na sessão inicial:', error);
+  } else {
+    console.log('Supabase conectado com sucesso');
+  }
+}).catch(err => {
+  console.error('Erro ao conectar com Supabase:', err);
 });

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { supabase } from "@/integrations/supabase/client";
+import { registerUser, loginWithEmail, resetUserPassword } from "@/services/auth";
 import { toast } from "sonner";
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 
@@ -27,12 +27,13 @@ const Login = () => {
     // Verificar se já está logado
     const checkUser = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
+        const { getCurrentUser } = await import("@/services/auth");
+        const user = await getCurrentUser();
+        if (user) {
           navigate('/', { replace: true });
         }
       } catch (error) {
-        console.error('Erro ao verificar sessão:', error);
+        console.log('Usuário não logado, continuando...');
       }
     };
     checkUser();
@@ -44,33 +45,29 @@ const Login = () => {
     setError('');
 
     try {
-      console.log('Tentando fazer login com:', { email });
+      console.log('Iniciando processo de login...');
       
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      console.log('Resposta do login:', { data, error });
-
-      if (error) {
-        console.error('Erro no login:', error);
-        
-        if (error.message.includes('Invalid login credentials')) {
-          setError('Email ou senha incorretos');
-        } else if (error.message.includes('Email not confirmed')) {
-          setError('Por favor, confirme seu email antes de fazer login');
-        } else {
-          setError(`Erro no login: ${error.message}`);
-        }
-        return;
-      }
-
+      await loginWithEmail(email, password);
+      
       toast.success('Login realizado com sucesso!');
       navigate('/', { replace: true });
     } catch (error: any) {
-      console.error('Erro inesperado no login:', error);
-      setError('Erro inesperado. Tente novamente.');
+      console.error('Erro no login:', error);
+      
+      let errorMessage = 'Erro no login. Tente novamente.';
+      
+      if (error.message) {
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Email ou senha incorretos';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Por favor, confirme seu email antes de fazer login';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -81,6 +78,7 @@ const Login = () => {
     setIsLoading(true);
     setError('');
 
+    // Validações locais
     if (password !== confirmPassword) {
       setError('As senhas não coincidem');
       setIsLoading(false);
@@ -93,40 +91,30 @@ const Login = () => {
       return;
     }
 
+    if (!fullName.trim()) {
+      setError('Por favor, informe seu nome completo');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      console.log('Tentando criar conta com:', { email, fullName });
+      console.log('Iniciando processo de cadastro...');
       
-      const redirectUrl = `${window.location.origin}/`;
+      await registerUser(email, password, { full_name: fullName });
       
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            full_name: fullName,
-          }
-        }
-      });
-
-      console.log('Resposta do signup:', { data, error });
-
-      if (error) {
-        console.error('Erro no cadastro:', error);
-        
-        if (error.message.includes('User already registered')) {
-          setError('Este email já está cadastrado');
-        } else {
-          setError(`Erro no cadastro: ${error.message}`);
-        }
-        return;
-      }
-
-      toast.success('Cadastro realizado com sucesso! Verifique seu email.');
-      // Não redirecionar automaticamente, esperar confirmação por email
+      toast.success('Cadastro realizado com sucesso! Verifique seu email para ativar a conta.');
+      setError('');
     } catch (error: any) {
-      console.error('Erro inesperado no cadastro:', error);
-      setError('Erro inesperado. Tente novamente.');
+      console.error('Erro no cadastro:', error);
+      
+      let errorMessage = 'Erro no cadastro. Tente novamente.';
+      
+      if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -138,20 +126,13 @@ const Login = () => {
     setError('');
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-
-      if (error) {
-        setError(`Erro: ${error.message}`);
-        return;
-      }
-
+      await resetUserPassword(resetEmail);
       setResetSent(true);
       toast.success('Link de recuperação enviado para seu email!');
     } catch (error: any) {
-      console.error('Erro inesperado no reset:', error);
-      setError('Erro inesperado. Tente novamente.');
+      console.error('Erro no reset de senha:', error);
+      setError(error.message || 'Erro ao enviar link de recuperação');
+      toast.error(error.message || 'Erro ao enviar link de recuperação');
     } finally {
       setIsLoading(false);
     }
@@ -206,6 +187,7 @@ const Login = () => {
                         onChange={(e) => setEmail(e.target.value)}
                         className="pl-10"
                         required
+                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -221,11 +203,13 @@ const Login = () => {
                         onChange={(e) => setPassword(e.target.value)}
                         className="pl-10 pr-10"
                         required
+                        disabled={isLoading}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                        disabled={isLoading}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
@@ -251,6 +235,7 @@ const Login = () => {
                         onChange={(e) => setFullName(e.target.value)}
                         className="pl-10"
                         required
+                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -266,6 +251,7 @@ const Login = () => {
                         onChange={(e) => setEmail(e.target.value)}
                         className="pl-10"
                         required
+                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -281,11 +267,13 @@ const Login = () => {
                         onChange={(e) => setPassword(e.target.value)}
                         className="pl-10 pr-10"
                         required
+                        disabled={isLoading}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                        disabled={isLoading}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
@@ -303,6 +291,7 @@ const Login = () => {
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         className="pl-10"
                         required
+                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -325,6 +314,7 @@ const Login = () => {
                       variant="ghost" 
                       onClick={() => setResetSent(false)}
                       className="w-full"
+                      disabled={isLoading}
                     >
                       Enviar novo link
                     </Button>
@@ -343,6 +333,7 @@ const Login = () => {
                           onChange={(e) => setResetEmail(e.target.value)}
                           className="pl-10"
                           required
+                          disabled={isLoading}
                         />
                       </div>
                     </div>
