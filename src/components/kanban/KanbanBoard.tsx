@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,16 +12,17 @@ import { useProjectStatuses } from "@/hooks/useProjectStatuses";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import KanbanCard from "./KanbanCard";
 import ProjectDetailsModal from "./ProjectDetailsModal";
+import { Project } from "@/components/projects/types";
 
-// Define the Supabase response type
+// Define the Supabase response type to match actual response structure
 interface SupabaseProject {
   id: string;
   name: string;
   description?: string;
-  client?: { name: string };
-  service?: { name: string };
-  main_consultant?: { name: string };
-  support_consultant?: { name: string };
+  client?: { name: string }[];
+  service?: { name: string }[];
+  main_consultant?: { name: string }[];
+  support_consultant?: { name: string }[];
   status: string;
   start_date: string;
   end_date: string;
@@ -46,29 +46,6 @@ interface SupabaseProject {
   project_id?: string;
   created_at?: string;
   updated_at?: string;
-}
-
-interface Project {
-  id: string;
-  name: string;
-  description?: string;
-  client?: { name: string };
-  service?: { name: string };
-  main_consultant?: { name: string };
-  support_consultant?: { name: string };
-  status: string;
-  start_date: string;
-  end_date: string;
-  total_value: number;
-  main_consultant_id?: string;
-  support_consultant_id?: string;
-  // Required properties for compatibility
-  mainConsultantCommission: number;
-  supportConsultantCommission: number;
-  startDate: string;
-  endDate: string;
-  totalValue: number;
-  taxPercent: number;
 }
 
 interface Consultant {
@@ -121,6 +98,19 @@ const KanbanBoard: React.FC = () => {
       endDate: supabaseProject.end_date,
       totalValue: supabaseProject.total_value,
       taxPercent: supabaseProject.tax_percent || 16,
+      // Handle consultant data (arrays from joins)
+      client: supabaseProject.client?.[0],
+      service: supabaseProject.service?.[0],
+      main_consultant: supabaseProject.main_consultant?.[0] ? {
+        id: supabaseProject.main_consultant_id || '',
+        name: supabaseProject.main_consultant[0].name,
+        email: ''
+      } : undefined,
+      support_consultant: supabaseProject.support_consultant?.[0] ? {
+        id: supabaseProject.support_consultant_id || '',
+        name: supabaseProject.support_consultant[0].name,
+        email: ''
+      } : undefined,
     };
   };
 
