@@ -31,17 +31,40 @@ const UserManagement = () => {
       setLoading(true);
       setError('');
 
+      console.log('Buscando usuários...');
+
+      // Tentar chamar a função RPC com tratamento de erro melhorado
       const { data, error } = await supabase.rpc('get_auth_users');
 
       if (error) {
-        throw error;
+        console.error('Erro RPC get_auth_users:', error);
+        throw new Error(`Erro na função get_auth_users: ${error.message}`);
       }
 
-      setUsers(data || []);
+      console.log('Dados retornados:', data);
+
+      // Validar e formatar os dados recebidos
+      if (data && Array.isArray(data)) {
+        const formattedUsers = data.map((user: any) => ({
+          id: user.id || '',
+          email: user.email || '',
+          created_at: user.created_at || new Date().toISOString(),
+          last_sign_in_at: user.last_sign_in_at || null,
+          email_confirmed_at: user.email_confirmed_at || null,
+        }));
+
+        setUsers(formattedUsers);
+        console.log(`${formattedUsers.length} usuários carregados com sucesso`);
+      } else {
+        console.warn('Nenhum usuário encontrado ou dados inválidos');
+        setUsers([]);
+      }
+
     } catch (error: any) {
-      console.error('Erro ao buscar usuários:', error);
-      setError('Erro ao carregar usuários: ' + error.message);
-      toast.error('Erro ao carregar usuários');
+      console.error('Erro completo ao buscar usuários:', error);
+      const errorMessage = error.message || 'Erro desconhecido ao carregar usuários';
+      setError(errorMessage);
+      toast.error('Erro ao carregar usuários: ' + errorMessage);
     } finally {
       setLoading(false);
     }
@@ -52,7 +75,7 @@ const UserManagement = () => {
   }, []);
 
   const filteredUsers = users.filter(user =>
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const formatDate = (dateString: string | null) => {
@@ -190,7 +213,7 @@ const UserManagement = () => {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Mail className="h-4 w-4 text-gray-400" />
-                        {user.email}
+                        {user.email || 'Email não disponível'}
                       </div>
                     </TableCell>
                     <TableCell>
