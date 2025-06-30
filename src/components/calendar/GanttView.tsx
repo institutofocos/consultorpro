@@ -305,6 +305,26 @@ const GanttView: React.FC<GanttViewProps> = ({
       }, {} as typeof groupedTasks)
     : groupedTasks;
 
+  // Component to render vertical grid lines
+  const renderVerticalGridLines = () => {
+    const lines = [];
+    const totalDays = isThisWeek ? 7 : timelineWeeks * 7;
+    
+    // Add vertical lines for each day boundary
+    for (let i = 1; i <= totalDays; i++) {
+      const leftPercent = (i / totalDays) * 100;
+      lines.push(
+        <div
+          key={`grid-line-${i}`}
+          className="absolute top-0 bottom-0 w-px bg-gray-200/30 pointer-events-none z-10"
+          style={{ left: `${leftPercent}%` }}
+        />
+      );
+    }
+    
+    return lines;
+  };
+
   return (
     <div className="space-y-4">
       {/* Navigation Controls */}
@@ -383,6 +403,9 @@ const GanttView: React.FC<GanttViewProps> = ({
                     </div>
                   ))}
                   
+                  {/* Vertical Grid Lines */}
+                  {renderVerticalGridLines()}
+                  
                   {/* Current Date Line with Today Date Box */}
                   {currentDatePosition.visible && (
                     <>
@@ -425,10 +448,13 @@ const GanttView: React.FC<GanttViewProps> = ({
                         ))}
                       </div>
                       
+                      {/* Vertical Grid Lines for Project Header */}
+                      {renderVerticalGridLines()}
+                      
                       {/* Current Date Line for Project Header */}
                       {currentDatePosition.visible && (
                         <div
-                          className="absolute top-0 bottom-0 w-0.5 bg-green-500 z-10"
+                          className="absolute top-0 bottom-0 w-0.5 bg-green-500 z-30"
                           style={{ left: currentDatePosition.left }}
                         ></div>
                       )}
@@ -476,10 +502,13 @@ const GanttView: React.FC<GanttViewProps> = ({
                               ))}
                             </div>
                             
+                            {/* Vertical Grid Lines for Task Row */}
+                            {renderVerticalGridLines()}
+                            
                             {/* Current Date Line for Task Row */}
                             {currentDatePosition.visible && (
                               <div
-                                className="absolute top-0 bottom-0 w-0.5 bg-green-500 z-20"
+                                className="absolute top-0 bottom-0 w-0.5 bg-green-500 z-30"
                                 style={{ left: currentDatePosition.left }}
                               ></div>
                             )}
