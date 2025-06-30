@@ -51,16 +51,14 @@ const KanbanBoard: React.FC = () => {
         console.log('Projetos encontrados no total:', allProjects.length);
         
         // Log detalhado de cada projeto
-        if (Array.isArray(allProjects)) {
-          allProjects.forEach(project => {
-            console.log(`Projeto: ${project.name} (ID: ${project.id}) - Status: ${project.status}`);
-            if (project.stages && Array.isArray(project.stages) && project.stages.length > 0) {
-              project.stages.forEach(stage => {
-                console.log(`  -> Etapa: ${stage.name} - Status: ${stage.status || 'sem status'}`);
-              });
-            }
-          });
-        }
+        allProjects.forEach(project => {
+          console.log(`Projeto: ${project.name} (ID: ${project.id}) - Status: ${project.status}`);
+          if (project.stages && project.stages.length > 0) {
+            project.stages.forEach(stage => {
+              console.log(`  -> Etapa: ${stage.name} - Status: ${stage.status || 'sem status'}`);
+            });
+          }
+        });
         
         setLastSyncTime(new Date());
         return allProjects;
@@ -105,7 +103,7 @@ const KanbanBoard: React.FC = () => {
       filteredProjects = filteredProjects.filter(project => 
         project.mainConsultantId === selectedConsultant || 
         project.supportConsultantId === selectedConsultant ||
-        (project.stages && Array.isArray(project.stages) && project.stages.some(stage => stage.consultantId === selectedConsultant))
+        (project.stages && project.stages.some(stage => stage.consultantId === selectedConsultant))
       );
     }
 
@@ -141,7 +139,7 @@ const KanbanBoard: React.FC = () => {
         const projectOverdue = isOverdue(project.endDate);
         
         // Verificar se alguma etapa está vencida
-        const hasOverdueStage = project.stages && Array.isArray(project.stages) ? 
+        const hasOverdueStage = project.stages ? 
           project.stages.some(stage => isOverdue(stage.endDate) && !stage.completed) : 
           false;
         
@@ -151,7 +149,7 @@ const KanbanBoard: React.FC = () => {
           console.log(`Projeto ${project.name} incluído:`);
           console.log(`  - Projeto vencido: ${projectOverdue} (data fim: ${project.endDate})`);
           console.log(`  - Tem etapa vencida: ${hasOverdueStage}`);
-          if (project.stages && Array.isArray(project.stages)) {
+          if (project.stages) {
             project.stages.forEach(stage => {
               const stageOverdue = isOverdue(stage.endDate) && !stage.completed;
               if (stageOverdue) {
@@ -350,7 +348,7 @@ const KanbanBoard: React.FC = () => {
     return project.status === 'iniciar_projeto' || 
            project.status === 'planned' || 
            (!project.status) ||
-           (project.stages && Array.isArray(project.stages) && project.stages.length > 0 && 
+           (project.stages && project.stages.length > 0 && 
             project.stages.every(stage => !stage.completed && !stage.startDate));
   };
 
@@ -384,7 +382,7 @@ const KanbanBoard: React.FC = () => {
     const allStages: (Stage & { projectName?: string; clientName?: string; consultantName?: string; serviceName?: string })[] = [];
     
     projects.forEach(project => {
-      if (project.stages && Array.isArray(project.stages)) {
+      if (project.stages) {
         project.stages.forEach(stage => {
           let shouldInclude = false;
           

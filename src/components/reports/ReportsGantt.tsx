@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import GanttView from '../calendar/GanttView';
 import { fetchProjects } from '@/integrations/supabase/projects';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
-import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { isAfter, isBefore } from 'date-fns';
 
 interface Task {
@@ -49,34 +48,6 @@ const ReportsGantt: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   const { statuses } = useProjectStatuses();
-  const { userLinks, isLoading: permissionsLoading, isRestrictedToLinked, isSuperAdmin } = useUserPermissions();
-
-  // CORREÇÃO: Definir isConsultantUser apenas baseado na existência de consultant_id
-  const isConsultantUser = Boolean(userLinks?.consultant_id);
-  
-  // CORREÇÃO: Mostrar filtro apenas para super admins
-  const shouldShowFilter = isSuperAdmin;
-
-  console.log('=== DEBUG PERMISSÕES CORRIGIDAS ===');
-  console.log('isSuperAdmin:', isSuperAdmin);
-  console.log('userLinks?.consultant_id:', userLinks?.consultant_id);
-  console.log('isConsultantUser:', isConsultantUser);
-  console.log('shouldShowFilter:', shouldShowFilter);
-
-  // CORREÇÃO: Definir filtro automaticamente para consultores vinculados
-  useEffect(() => {
-    if (isConsultantUser && userLinks?.consultant_id && !permissionsLoading) {
-      console.log('=== APLICANDO FILTRO AUTOMÁTICO ===');
-      console.log('Definindo selectedConsultantId para:', userLinks.consultant_id);
-      setSelectedConsultantId(userLinks.consultant_id);
-    }
-  }, [isConsultantUser, userLinks?.consultant_id, permissionsLoading]);
-
-  // Log para acompanhar mudanças no filtro
-  useEffect(() => {
-    console.log('=== FILTRO ALTERADO ===');
-    console.log('selectedConsultantId atual:', selectedConsultantId);
-  }, [selectedConsultantId]);
 
   useEffect(() => {
     const fetchGanttData = async () => {
@@ -124,11 +95,23 @@ const ReportsGantt: React.FC = () => {
               const isOverdue = isBefore(projectEndDate, today);
               const isNotCompleted = !finalCompletionStatuses.includes(project.status);
               
+              console.log(`Projeto ${project.name}`);
+              console.log(`  - Status: ${project.status}`);
+              console.log(`  - Data fim: ${project.endDate} (${projectEndDate.toISOString()})`);
+              console.log(`  - É antes de hoje? ${isOverdue}`);
+              console.log(`  - Não está concluído? ${isNotCompleted}`);
+              console.log(`  - É atrasado? ${isOverdue && isNotCompleted}`);
+              
               if (isOverdue && isNotCompleted) {
                 overdueProjectsCount++;
+                console.log(`  *** PROJETO ATRASADO ENCONTRADO! Total atual: ${overdueProjectsCount}`);
               }
+            } else {
+              console.log(`Projeto sem data fim: ${project.name}`);
             }
           });
+          
+          console.log(`TOTAL DE PROJETOS ATRASADOS: ${overdueProjectsCount}`);
           
           projectsData.forEach((project) => {
             if (project.stages && project.stages.length > 0) {
@@ -144,12 +127,23 @@ const ReportsGantt: React.FC = () => {
                                               stageStatus !== 'cancelled';
                   const stageNotCompleted = stage.completed !== undefined ? !stage.completed : true;
                   
+                  console.log(`  Etapa ${stage.name}`);
+                  console.log(`    - Status: ${stage.status || 'iniciar_projeto'}`);
+                  console.log(`    - Data fim: ${stage.endDate}`);
+                  console.log(`    - Completed: ${stage.completed}`);
+                  
+                  console.log(`    - É antes de hoje? ${isStageOverdue}`);
+                  console.log(`    - Status não é conclusão? ${isStageNotCompleted}`);
+                  console.log(`    - Não está marcada como completa? ${stageNotCompleted}`);
+                  console.log(`    - É etapa atrasada? ${isStageOverdue && isStageNotCompleted && stageNotCompleted}`);
+                  
                   if (isStageOverdue && isStageNotCompleted && stageNotCompleted) {
                     overdueStagesCount++;
+                    console.log(`    *** ETAPA ATRASADA ENCONTRADA! Total atual: ${overdueStagesCount}`);
                   }
                 }
                 
-                // Criar task com TODOS os dados de timer
+                // Criar task com TODOS os dados de timer - safely accessing timer properties
                 if (stage.startDate && stage.endDate) {
                   let consultantName = 'Não atribuído';
                   if (stage.consultantId) {
@@ -176,9 +170,17 @@ const ReportsGantt: React.FC = () => {
                     project_name: project.name,
                     service_name: project.serviceName || 'Sem serviço',
                     completed: stage.completed,
+                    // Safely access timer properties with fallback values
                     time_spent_minutes: (stage as any).time_spent_minutes || 0,
                     timer_status: (stage as any).timer_status || 'stopped',
                     timer_started_at: (stage as any).timer_started_at || undefined
+                  });
+                  
+                  console.log('Task criada com timer data:', {
+                    name: stage.name,
+                    time_spent_minutes: (stage as any).time_spent_minutes,
+                    timer_status: (stage as any).timer_status,
+                    timer_started_at: (stage as any).timer_started_at
                   });
                 }
               });
@@ -186,7 +188,7 @@ const ReportsGantt: React.FC = () => {
           });
 
           console.log('=== RESULTADOS FINAIS ===');
-          console.log('Total de tasks:', allTasks.length);
+          console.log('Total de tasks com timer data:', allTasks.length);
           
           setTasks(allTasks);
           setOverdueProjects(overdueProjectsCount);
@@ -201,12 +203,20 @@ const ReportsGantt: React.FC = () => {
       }
     };
 
-    if (statuses.length > 0 && !permissionsLoading) {
+    if (statuses.length > 0) {
       fetchGanttData();
     }
-  }, [statuses, permissionsLoading]);
+  }, [statuses]);
 
-  if (loading || permissionsLoading) {
+  useEffect(() => {
+    console.log('=== MUDANÇA DE ESTADO ===');
+    console.log('Projetos em atraso (state):', overdueProjects);
+    console.log('Etapas em atraso (state):', overdueStages);
+    console.log('Loading:', loading);
+    console.log('Tasks:', tasks.length);
+  }, [overdueProjects, overdueStages, loading, tasks.length]);
+
+  if (loading) {
     return (
       <Card>
         <CardContent>
@@ -220,29 +230,27 @@ const ReportsGantt: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* CORREÇÃO: Mostrar filtro apenas para super admins */}
-      {shouldShowFilter && (
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-4">
-              <label className="text-sm font-medium">Filtrar por consultor:</label>
-              <Select value={selectedConsultantId} onValueChange={setSelectedConsultantId}>
-                <SelectTrigger className="w-64">
-                  <SelectValue placeholder="Selecione um consultor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os consultores</SelectItem>
-                  {consultants.map(consultant => (
-                    <SelectItem key={consultant.id} value={consultant.id}>
-                      {consultant.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Consultant Filter - SEM TÍTULO OU HEADER */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium">Filtrar por consultor:</label>
+            <Select value={selectedConsultantId} onValueChange={setSelectedConsultantId}>
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder="Selecione um consultor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os consultores</SelectItem>
+                {consultants.map(consultant => (
+                  <SelectItem key={consultant.id} value={consultant.id}>
+                    {consultant.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Gantt Chart - SEM TÍTULO EM LUGAR NENHUM */}
       <GanttView 
