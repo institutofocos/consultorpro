@@ -1,544 +1,258 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
+
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { 
-  Search, 
-  UserPlus, 
-  Edit, 
-  Trash,
-  ExternalLink,
-  CheckCircle2
-} from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { toast } from "sonner";
+import { Users, Search, Plus, Edit, Trash2, Mail, Phone, MapPin } from 'lucide-react';
 import ConsultantForm from './ConsultantForm';
-import ConsultantServicesModal from './ConsultantServicesModal';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from "@/components/ui/use-toast";
-import { Tables } from '@/integrations/supabase/types';
+import PermissionGuard from '@/components/auth/PermissionGuard';
+import DataFilter from '@/components/auth/DataFilter';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 
-export type Consultant = {
+interface Consultant {
   id: string;
   name: string;
   email: string;
-  hoursPerMonth: number;
-  availableHours?: number;
-  workedHours?: number;
   phone?: string;
-  commissionPercentage?: number;
-  salary?: number;
-  pixKey?: string;
-  street?: string;
   city?: string;
   state?: string;
-  zipCode?: string;
-  education?: string;
-  url?: string;
-  services: string[];
-  activeProjects?: number;
-  activeStages?: number;
-};
+  commission_percentage?: number;
+  hours_per_month?: number;
+  created_at: string;
+}
 
-// Helper to map database model to frontend model
-const mapConsultantFromDB = (consultant: Tables<"consultants"> & { services?: string[] }): Consultant => {
-  return {
-    id: consultant.id,
-    name: consultant.name,
-    email: consultant.email,
-    hoursPerMonth: consultant.hours_per_month || 160,
-    phone: consultant.phone || '',
-    commissionPercentage: consultant.commission_percentage ? Number(consultant.commission_percentage) : 0,
-    salary: consultant.salary ? Number(consultant.salary) : 0,
-    pixKey: consultant.pix_key || '',
-    street: consultant.street || '',
-    city: consultant.city || '',
-    state: consultant.state || '',
-    zipCode: consultant.zip_code || '',
-    education: consultant.education || '',
-    url: consultant.url || '',
-    services: consultant.services || [],
-    activeProjects: 0,
-    activeStages: 0,
-    availableHours: 0,
-    workedHours: 0,
-  };
-};
-
-// Calculate worked hours from non-completed stages
-const calculateConsultantWorkedHoursFromStages = async (consultantId: string): Promise<number> => {
-  try {
-    console.log(`=== CALCULANDO HORAS TRABALHADAS PARA CONSULTOR: ${consultantId} ===`);
-    
-    const { data: stageHours, error: stageError } = await supabase
-      .from('project_stages')
-      .select('hours, name, completed, status')
-      .eq('consultant_id', consultantId)
-      .eq('completed', false); // Apenas etapas não concluídas
-
-    if (stageError) {
-      console.error('Error fetching stage hours:', stageError);
-      return 0;
-    }
-
-    console.log(`Etapas não concluídas para consultor ${consultantId}:`, stageHours);
-    
-    let totalStageHours = 0;
-    if (stageHours && stageHours.length > 0) {
-      totalStageHours = stageHours.reduce((sum, stage) => {
-        console.log(`  - Etapa "${stage.name}": ${stage.hours || 0}h (concluída: ${stage.completed})`);
-        return sum + (stage.hours || 0);
-      }, 0);
-    }
-
-    console.log(`Total de horas trabalhadas (etapas não concluídas): ${totalStageHours}`);
-    return totalStageHours;
-  } catch (error) {
-    console.error('Error calculating consultant worked hours:', error);
-    return 0;
-  }
-};
-
-// Calculate active projects count (non-completed)
-const calculateConsultantActiveProjectsCount = async (consultantId: string): Promise<number> => {
-  try {
-    console.log(`=== CALCULANDO PROJETOS ATIVOS PARA CONSULTOR: ${consultantId} ===`);
-    
-    // Buscar projetos onde é consultor principal ou de apoio, excluindo concluídos
-    const { data: projects, error } = await supabase
-      .from('projects')
-      .select('id, name, status')
-      .or(`main_consultant_id.eq.${consultantId},support_consultant_id.eq.${consultantId}`)
-      .not('status', 'eq', 'concluido')
-      .not('status', 'eq', 'completed')
-      .not('status', 'eq', 'cancelado');
-
-    if (error) {
-      console.error('Error fetching active projects:', error);
-      return 0;
-    }
-
-    console.log(`Projetos ativos para consultor ${consultantId}:`, projects);
-    
-    const projectCount = projects?.length || 0;
-    console.log(`=== TOTAL DE PROJETOS ATIVOS: ${projectCount} ===`);
-    
-    return projectCount;
-  } catch (error) {
-    console.error('Error calculating consultant active projects:', error);
-    return 0;
-  }
-};
-
-// Calculate active stages count (non-completed)
-const calculateConsultantActiveStagesCount = async (consultantId: string): Promise<number> => {
-  try {
-    console.log(`=== CALCULANDO ETAPAS ATIVAS PARA CONSULTOR: ${consultantId} ===`);
-    
-    // Buscar etapas não concluídas
-    const { data: stages, error } = await supabase
-      .from('project_stages')
-      .select('id, name, completed, status')
-      .eq('consultant_id', consultantId)
-      .eq('completed', false); // Apenas etapas não concluídas
-
-    if (error) {
-      console.error('Error fetching active stages:', error);
-      return 0;
-    }
-
-    console.log(`Etapas ativas para consultor ${consultantId}:`, stages);
-    
-    const stageCount = stages?.length || 0;
-    console.log(`=== TOTAL DE ETAPAS ATIVAS: ${stageCount} ===`);
-    
-    return stageCount;
-  } catch (error) {
-    console.error('Error calculating consultant active stages:', error);
-    return 0;
-  }
-};
-
-export const ConsultantList: React.FC = () => {
-  const [consultants, setConsultants] = useState<Consultant[]>([]);
+const ConsultantList = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [editingConsultant, setEditingConsultant] = useState<Consultant | null>(null);
-  const [availableHours, setAvailableHours] = useState<{[key: string]: number}>({});
-  const [workedHours, setWorkedHours] = useState<{[key: string]: number}>({});
-  const [activeProjects, setActiveProjects] = useState<{[key: string]: number}>({});
-  const [activeStages, setActiveStages] = useState<{[key: string]: number}>({});
-  const [lastCreatedUser, setLastCreatedUser] = useState<{
-    name: string;
-    email: string;
-    password: string;
-  } | null>(null);
-  const [servicesModal, setServicesModal] = useState<{
-    isOpen: boolean;
-    consultantId: string;
-    consultantName: string;
-  }>({
-    isOpen: false,
-    consultantId: '',
-    consultantName: ''
+  const [selectedConsultant, setSelectedConsultant] = useState<Consultant | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const { hasModulePermission, hasConsultantAccess, isRestrictedToLinked } = useUserPermissions();
+
+  const { data: consultants = [], isLoading, refetch } = useQuery({
+    queryKey: ['consultants'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('consultants')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      return data as Consultant[];
+    },
   });
-  const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // Fetch consultants from database
-  useEffect(() => {
-    const fetchConsultantsData = async () => {
-      try {
-        setIsLoading(true);
-        // Fetch consultants
-        const { data: consultantData, error: consultantError } = await supabase
-          .from('consultants')
-          .select('*');
-        
-        if (consultantError) {
-          throw consultantError;
-        }
-        
-        // For each consultant, fetch their services
-        const consultantsWithServices = await Promise.all(
-          (consultantData || []).map(async (consultant) => {
-            const { data: serviceData, error: serviceError } = await supabase
-              .from('consultant_services')
-              .select('service_id')
-              .eq('consultant_id', consultant.id);
-              
-            if (serviceError) {
-              console.error('Error fetching services for consultant:', serviceError);
-              return { ...consultant, services: [] };
-            }
-            
-            return { 
-              ...consultant, 
-              services: (serviceData || []).map(s => s.service_id)
-            };
-          })
-        );
-        
-        // Map consultants
-        const mappedConsultants = consultantsWithServices.map(mapConsultantFromDB);
-        setConsultants(mappedConsultants);
 
-        // Calculate metrics for each consultant
-        const workedHoursMap: {[key: string]: number} = {};
-        const availableHoursMap: {[key: string]: number} = {};
-        const activeProjectsMap: {[key: string]: number} = {};
-        const activeStagesMap: {[key: string]: number} = {};
-        
-        for (const consultant of mappedConsultants) {
-          console.log(`Calculating stats for consultant ${consultant.name} (${consultant.id})`);
-          
-          const workedHoursValue = await calculateConsultantWorkedHoursFromStages(consultant.id);
-          const availableHoursValue = Math.max(0, consultant.hoursPerMonth - workedHoursValue);
-          const activeProjectsValue = await calculateConsultantActiveProjectsCount(consultant.id);
-          const activeStagesValue = await calculateConsultantActiveStagesCount(consultant.id);
-          
-          console.log(`Consultant ${consultant.name}: worked=${workedHoursValue}, available=${availableHoursValue}, projects=${activeProjectsValue}, stages=${activeStagesValue}`);
-          
-          workedHoursMap[consultant.id] = workedHoursValue;
-          availableHoursMap[consultant.id] = availableHoursValue;
-          activeProjectsMap[consultant.id] = activeProjectsValue;
-          activeStagesMap[consultant.id] = activeStagesValue;
-        }
-        
-        setWorkedHours(workedHoursMap);
-        setAvailableHours(availableHoursMap);
-        setActiveProjects(activeProjectsMap);
-        setActiveStages(activeStagesMap);
-        
-      } catch (error) {
-        console.error('Error fetching consultants:', error);
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Não foi possível carregar os consultores."
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchConsultantsData();
-  }, [toast]);
-  
-  const filteredConsultants = consultants.filter(consultant => 
+  const filteredConsultants = consultants.filter(consultant =>
     consultant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     consultant.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  
-  const handleAddConsultant = async (consultant: any) => {
-    try {
-      // Show user creation success if applicable
-      if (consultant.userCreated && consultant.defaultPassword) {
-        setLastCreatedUser({
-          name: consultant.name,
-          email: consultant.email,
-          password: consultant.defaultPassword
-        });
-      }
 
-      // Refresh consultant list after saving
-      const { data: updatedData, error: refreshError } = await supabase
-        .from('consultants')
-        .select('*');
-      
-      if (!refreshError && updatedData) {
-        // Fetch services for each consultant again
-        const consultantsWithServices = await Promise.all(
-          updatedData.map(async (consultant) => {
-            const { data: serviceData } = await supabase
-              .from('consultant_services')
-              .select('service_id')
-              .eq('consultant_id', consultant.id);
-              
-            return { 
-              ...consultant, 
-              services: (serviceData || []).map(s => s.service_id)
-            };
-          })
-        );
-        
-        const mappedConsultants = consultantsWithServices.map(mapConsultantFromDB);
-        setConsultants(mappedConsultants);
+  const handleEdit = (consultant: Consultant) => {
+    setSelectedConsultant(consultant);
+    setIsFormOpen(true);
+  };
 
-        // Recalculate metrics for all consultants
-        const workedHoursMap: {[key: string]: number} = {};
-        const availableHoursMap: {[key: string]: number} = {};
-        const activeProjectsMap: {[key: string]: number} = {};
-        const activeStagesMap: {[key: string]: number} = {};
-        
-        for (const consultant of mappedConsultants) {
-          const workedHoursValue = await calculateConsultantWorkedHoursFromStages(consultant.id);
-          const availableHoursValue = Math.max(0, consultant.hoursPerMonth - workedHoursValue);
-          const activeProjectsValue = await calculateConsultantActiveProjectsCount(consultant.id);
-          const activeStagesValue = await calculateConsultantActiveStagesCount(consultant.id);
-          
-          workedHoursMap[consultant.id] = workedHoursValue;
-          availableHoursMap[consultant.id] = availableHoursValue;
-          activeProjectsMap[consultant.id] = activeProjectsValue;
-          activeStagesMap[consultant.id] = activeStagesValue;
-        }
-        
-        setWorkedHours(workedHoursMap);
-        setAvailableHours(availableHoursMap);
-        setActiveProjects(activeProjectsMap);
-        setActiveStages(activeStagesMap);
-      }
-      
-      // Reset form state
-      setEditingConsultant(null);
-      setShowForm(false);
-      
-    } catch (error: any) {
-      console.error('Error refreshing consultant list:', error);
+  const handleDelete = async (consultant: Consultant) => {
+    if (!hasModulePermission('consultants', 'delete')) {
+      toast.error('Você não tem permissão para excluir consultores');
+      return;
     }
-  };
-  
-  const handleEditConsultant = (consultant: Consultant) => {
-    setEditingConsultant(consultant);
-    setShowForm(true);
-  };
-  
-  const handleDeleteConsultant = async (id: string) => {
+
+    if (!confirm(`Tem certeza que deseja excluir ${consultant.name}?`)) {
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('consultants')
         .delete()
-        .eq('id', id);
-      
+        .eq('id', consultant.id);
+
       if (error) throw error;
-      
-      setConsultants(consultants.filter(c => c.id !== id));
-      
-      toast({
-        title: "Sucesso",
-        description: "Consultor removido com sucesso!"
-      });
+
+      toast.success('Consultor excluído com sucesso!');
+      refetch();
     } catch (error: any) {
-      console.error('Error deleting consultant:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: error.message || "Não foi possível remover o consultor."
-      });
+      toast.error('Erro ao excluir consultor: ' + error.message);
     }
   };
 
-  const handleViewServices = (consultant: Consultant) => {
-    setServicesModal({
-      isOpen: true,
-      consultantId: consultant.id,
-      consultantName: consultant.name
-    });
+  const handleFormClose = () => {
+    setSelectedConsultant(null);
+    setIsFormOpen(false);
+    refetch();
   };
 
-  const closeServicesModal = () => {
-    setServicesModal({
-      isOpen: false,
-      consultantId: '',
-      consultantName: ''
-    });
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
-  
-  return (
-    <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-bold">Consultores</h1>
-        <p className="text-muted-foreground">Gerenciamento de consultores</p>
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Carregando consultores...</p>
+        </div>
       </div>
+    );
+  }
 
-      {lastCreatedUser && (
-        <Alert className="border-green-200 bg-green-50">
-          <CheckCircle2 className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800">
-            <strong>Usuário criado com sucesso!</strong>
-            <div className="mt-2 space-y-1">
-              <div><strong>Nome:</strong> {lastCreatedUser.name}</div>
-              <div><strong>Email:</strong> {lastCreatedUser.email}</div>
-              <div><strong>Senha padrão:</strong> {lastCreatedUser.password}</div>
-            </div>
-            <div className="mt-2 text-sm">
-              Informe ao consultor para fazer login e alterar a senha no primeiro acesso.
-            </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="mt-2"
-              onClick={() => setLastCreatedUser(null)}
-            >
-              Entendi
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-      
-      {showForm ? (
-        <ConsultantForm 
-          consultant={editingConsultant} 
-          onConsultantSaved={handleAddConsultant} 
-          onCancel={() => {
-            setShowForm(false);
-            setEditingConsultant(null);
-          }} 
-        />
-      ) : (
-        <>
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="relative w-full md:w-[300px]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input 
-                placeholder="Buscar consultores..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Button onClick={() => setShowForm(true)} className="w-full md:w-auto">
-              <UserPlus className="mr-2 h-4 w-4" />
-              Adicionar Consultor
-            </Button>
+  return (
+    <PermissionGuard module="consultants" action="view">
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Consultores</h1>
+            <p className="text-muted-foreground">Gerencie os consultores da empresa</p>
           </div>
-          
-          <Card className="shadow-card">
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Horas/Mês</TableHead>
-                    <TableHead>Horas Trabalhadas</TableHead>
-                    <TableHead>Horas Livres</TableHead>
-                    <TableHead>Projetos</TableHead>
-                    <TableHead>Etapas</TableHead>
-                    <TableHead>URL</TableHead>
-                    <TableHead>Serviços Habilitados</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                        Carregando consultores...
-                      </TableCell>
-                    </TableRow>
-                  ) : filteredConsultants.length > 0 ? (
-                    filteredConsultants.map((consultant) => (
-                      <TableRow key={consultant.id}>
-                        <TableCell className="font-medium">{consultant.name}</TableCell>
-                        <TableCell>{consultant.email}</TableCell>
-                        <TableCell>{consultant.hoursPerMonth}h</TableCell>
-                        <TableCell>{workedHours[consultant.id] || 0}h</TableCell>
-                        <TableCell>{availableHours[consultant.id] || consultant.hoursPerMonth}h</TableCell>
-                        <TableCell>{activeProjects[consultant.id] || 0}</TableCell>
-                        <TableCell>{activeStages[consultant.id] || 0}</TableCell>
-                        <TableCell>
-                          {consultant.url ? (
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => window.open(consultant.url, '_blank')}
-                              title="Visitar URL"
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleViewServices(consultant)}
-                            title="Ver serviços habilitados"
-                          >
-                            <Search className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditConsultant(consultant)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteConsultant(consultant.id)}>
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                        Nenhum consultor encontrado
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <PermissionGuard 
+            module="consultants" 
+            action="edit" 
+            showAlert={false}
+            fallback={null}
+          >
+            <Button onClick={() => setIsFormOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Consultor
+            </Button>
+          </PermissionGuard>
+        </div>
 
-          <ConsultantServicesModal
-            isOpen={servicesModal.isOpen}
-            onClose={closeServicesModal}
-            consultantId={servicesModal.consultantId}
-            consultantName={servicesModal.consultantName}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Lista de Consultores
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center space-x-2 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Buscar consultores..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <DataFilter
+              data={filteredConsultants}
+              filterFn={(consultant, permissions) => {
+                if (permissions.isSuperAdmin) return true;
+                if (!permissions.isRestrictedToLinked('consultants')) return true;
+                return permissions.hasConsultantAccess(consultant.id);
+              }}
+            >
+              {(filteredData) => (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredData.length === 0 ? (
+                    <div className="col-span-full text-center py-8">
+                      <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600">
+                        {searchTerm ? 'Nenhum consultor encontrado' : 'Nenhum consultor cadastrado'}
+                      </p>
+                    </div>
+                  ) : (
+                    filteredData.map((consultant) => (
+                      <Card key={consultant.id} className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-6">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center space-x-3">
+                              <Avatar>
+                                <AvatarFallback>{getInitials(consultant.name)}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <h3 className="font-semibold">{consultant.name}</h3>
+                                <Badge variant="secondary" className="text-xs">
+                                  {consultant.commission_percentage}% comissão
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex space-x-1">
+                              <PermissionGuard 
+                                module="consultants" 
+                                action="edit" 
+                                showAlert={false}
+                                fallback={null}
+                              >
+                                {(hasModulePermission('consultants', 'edit') || hasConsultantAccess(consultant.id)) && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleEdit(consultant)}
+                                  >
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </PermissionGuard>
+                              <PermissionGuard 
+                                module="consultants" 
+                                action="delete" 
+                                showAlert={false}
+                                fallback={null}
+                              >
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDelete(consultant)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </PermissionGuard>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2 text-sm text-gray-600">
+                            <div className="flex items-center">
+                              <Mail className="h-4 w-4 mr-2" />
+                              {consultant.email}
+                            </div>
+                            {consultant.phone && (
+                              <div className="flex items-center">
+                                <Phone className="h-4 w-4 mr-2" />
+                                {consultant.phone}
+                              </div>
+                            )}
+                            {(consultant.city || consultant.state) && (
+                              <div className="flex items-center">
+                                <MapPin className="h-4 w-4 mr-2" />
+                                {[consultant.city, consultant.state].filter(Boolean).join(', ')}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="mt-4 pt-4 border-t">
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>{consultant.hours_per_month || 160}h/mês</span>
+                              <span>Cadastrado em {new Date(consultant.created_at).toLocaleDateString('pt-BR')}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              )}
+            </DataFilter>
+          </CardContent>
+        </Card>
+
+        {isFormOpen && (
+          <ConsultantForm
+            consultant={selectedConsultant}
+            onClose={handleFormClose}
           />
-        </>
-      )}
-    </div>
+        )}
+      </div>
+    </PermissionGuard>
   );
 };
 

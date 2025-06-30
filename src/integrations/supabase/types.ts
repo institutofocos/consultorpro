@@ -1915,6 +1915,26 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      user_can_access_module: {
+        Args: { module_name: string; permission_type?: string }
+        Returns: boolean
+      }
+      user_has_client_access: {
+        Args: { target_client_id: string }
+        Returns: boolean
+      }
+      user_has_consultant_access: {
+        Args: { target_consultant_id: string }
+        Returns: boolean
+      }
+      user_has_profile: {
+        Args: { profile_name: string }
+        Returns: boolean
+      }
+      user_is_super_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
     }
     Enums: {
       module_type:

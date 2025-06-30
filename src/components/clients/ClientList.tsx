@@ -1,298 +1,259 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Plus, Edit, Trash, Building, Search } from "lucide-react";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import ClientForm from "./ClientForm";
-import { BasicClient } from '../services/types';
 
-interface ClientWithProjectStats extends BasicClient {
-  projectCount?: number;
-  activeProjectCount?: number;
-  totalSpent?: number;
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { toast } from "sonner";
+import { Building2, Search, Plus, Edit, Trash2, Mail, Phone, MapPin } from 'lucide-react';
+import ClientForm from './ClientForm';
+import PermissionGuard from '@/components/auth/PermissionGuard';
+import DataFilter from '@/components/auth/DataFilter';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
+
+interface Client {
+  id: string;
+  name: string;
+  contact_name: string;
+  email?: string;
+  phone?: string;
+  city?: string;
+  state?: string;
+  created_at: string;
 }
 
 const ClientList = () => {
-  const [clients, setClients] = useState<ClientWithProjectStats[]>([]);
-  const [filteredClients, setFilteredClients] = useState<ClientWithProjectStats[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAddingClient, setIsAddingClient] = useState(false);
-  const [editingClient, setEditingClient] = useState<BasicClient | null>(null);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const { hasModulePermission, hasClientAccess } = useUserPermissions();
 
-  const fetchClientProjectStats = async (clientId: string) => {
-    try {
-      // Get all projects for this client
-      const { data: projects, error } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('client_id', clientId);
-        
-      if (error) throw error;
-      
-      if (!projects || projects.length === 0) {
-        return {
-          projectCount: 0,
-          activeProjectCount: 0,
-          totalSpent: 0
-        };
-      }
-      
-      // Calculate stats
-      const projectCount = projects.length;
-      // Exclude projects with "concluído" status from active count
-      const activeProjectCount = projects.filter(p => 
-        p.status !== 'completed' && 
-        p.status !== 'cancelled' && 
-        p.status !== 'concluido' && 
-        p.status !== 'concluído'
-      ).length;
-      const totalSpent = projects.reduce((sum, project) => sum + (project.total_value || 0), 0);
-      
-      return {
-        projectCount,
-        activeProjectCount,
-        totalSpent
-      };
-    } catch (error) {
-      console.error('Error fetching project stats:', error);
-      return {
-        projectCount: 0,
-        activeProjectCount: 0,
-        totalSpent: 0
-      };
-    }
-  };
-
-  const fetchClients = async () => {
-    setIsLoading(true);
-    try {
+  const { data: clients = [], isLoading, refetch } = useQuery({
+    queryKey: ['clients'],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
         .select('*')
         .order('name');
-        
+      
       if (error) throw error;
-      
-      // Fetch project stats for each client
-      const clientsWithStats = await Promise.all((data || []).map(async (client) => {
-        const stats = await fetchClientProjectStats(client.id);
-        return {
-          ...client,
-          ...stats
-        };
-      }));
-      
-      setClients(clientsWithStats);
-      setFilteredClients(clientsWithStats);
-    } catch (error: any) {
-      toast.error('Erro ao carregar clientes: ' + error.message);
-    } finally {
-      setIsLoading(false);
-    }
+      return data as Client[];
+    },
+  });
+
+  const filteredClients = clients.filter(client =>
+    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.contact_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (client.email && client.email.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const handleEdit = (client: Client) => {
+    setSelectedClient(client);
+    setIsFormOpen(true);
   };
 
-  useEffect(() => {
-    fetchClients();
-  }, []);
-
-  // Filter clients based on search term
-  useEffect(() => {
-    if (!searchTerm) {
-      setFilteredClients(clients);
-    } else {
-      const filtered = clients.filter(client =>
-        client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.contact_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.phone?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredClients(filtered);
-    }
-  }, [searchTerm, clients]);
-
-  const handleSaveClient = () => {
-    setIsAddingClient(false);
-    setEditingClient(null);
-    fetchClients();
-  };
-
-  const handleDeleteClient = async (id: string) => {
-    console.log('Tentando excluir cliente com ID:', id);
-    
-    if (!window.confirm('Tem certeza que deseja excluir este cliente?')) {
-      console.log('Exclusão cancelada pelo usuário');
+  const handleDelete = async (client: Client) => {
+    if (!hasModulePermission('clients', 'delete')) {
+      toast.error('Você não tem permissão para excluir clientes');
       return;
     }
-    
+
+    if (!confirm(`Tem certeza que deseja excluir ${client.name}?`)) {
+      return;
+    }
+
     try {
-      console.log('Iniciando exclusão do cliente...');
-      
-      // First check if client has any projects
-      const { data: projects, error: projectsError } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('client_id', id);
-        
-      if (projectsError) {
-        console.error('Erro ao verificar projetos:', projectsError);
-        throw projectsError;
-      }
-      
-      if (projects && projects.length > 0) {
-        toast.error('Não é possível excluir este cliente pois ele possui projetos associados.');
-        return;
-      }
-      
       const { error } = await supabase
         .from('clients')
         .delete()
-        .eq('id', id);
-        
-      if (error) {
-        console.error('Erro na exclusão:', error);
-        throw error;
-      }
-      
-      console.log('Cliente excluído com sucesso');
+        .eq('id', client.id);
+
+      if (error) throw error;
+
       toast.success('Cliente excluído com sucesso!');
-      fetchClients(); // Refresh the list
+      refetch();
     } catch (error: any) {
-      console.error('Erro completo:', error);
       toast.error('Erro ao excluir cliente: ' + error.message);
     }
   };
 
-  if (isAddingClient || editingClient) {
+  const handleFormClose = () => {
+    setSelectedClient(null);
+    setIsFormOpen(false);
+    refetch();
+  };
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  if (isLoading) {
     return (
-      <ClientForm 
-        client={editingClient}
-        onClientSaved={handleSaveClient}
-        onCancel={() => {
-          setIsAddingClient(false);
-          setEditingClient(null);
-        }}
-      />
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Carregando clientes...</p>
+        </div>
+      </div>
     );
   }
 
-  const formatCurrency = (value?: number) => {
-    return value ? new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value) : 'R$ 0,00';
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Clientes</h1>
-          <p className="text-muted-foreground">Gerencie os clientes da sua empresa</p>
+    <PermissionGuard module="clients" action="view">
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Clientes</h1>
+            <p className="text-muted-foreground">Gerencie os clientes da empresa</p>
+          </div>
+          <PermissionGuard 
+            module="clients" 
+            action="edit" 
+            showAlert={false}
+            fallback={null}
+          >
+            <Button onClick={() => setIsFormOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Cliente
+            </Button>
+          </PermissionGuard>
         </div>
-        <Button onClick={() => setIsAddingClient(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Adicionar Cliente
-        </Button>
-      </div>
 
-      <div className="flex items-center space-x-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Buscar clientes..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-      </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Lista de Clientes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center space-x-2 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Buscar clientes..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Contato</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Telefone</TableHead>
-                <TableHead className="text-center">Projetos</TableHead>
-                <TableHead className="text-center">Projetos Ativos</TableHead>
-                <TableHead className="text-center">Valor Consumido</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10">
-                    Carregando...
-                  </TableCell>
-                </TableRow>
-              ) : filteredClients.length > 0 ? (
-                filteredClients.map((client) => (
-                  <TableRow key={client.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center">
-                        <Building className="h-4 w-4 mr-2 text-blue-500" />
-                        {client.name}
-                      </div>
-                    </TableCell>
-                    <TableCell>{client.contact_name}</TableCell>
-                    <TableCell>{client.email}</TableCell>
-                    <TableCell>{client.phone}</TableCell>
-                    <TableCell className="text-center">
-                      <span className="font-medium">{client.projectCount || 0}</span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className="font-medium">{client.activeProjectCount || 0}</span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className="font-medium">{formatCurrency(client.totalSpent)}</span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setEditingClient(client)}
-                        title="Editar cliente"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteClient(client.id)}
-                        title="Excluir cliente"
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
-                    {searchTerm ? 'Nenhum cliente encontrado para a busca' : 'Nenhum cliente encontrado'}
-                  </TableCell>
-                </TableRow>
+            <DataFilter
+              data={filteredClients}
+              filterFn={(client, permissions) => {
+                if (permissions.isSuperAdmin) return true;
+                if (!permissions.isRestrictedToLinked('clients')) return true;
+                return permissions.hasClientAccess(client.id);
+              }}
+            >
+              {(filteredData) => (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredData.length === 0 ? (
+                    <div className="col-span-full text-center py-8">
+                      <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600">
+                        {searchTerm ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
+                      </p>
+                    </div>
+                  ) : (
+                    filteredData.map((client) => (
+                      <Card key={client.id} className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-6">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center space-x-3">
+                              <Avatar>
+                                <AvatarFallback>{getInitials(client.name)}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <h3 className="font-semibold">{client.name}</h3>
+                                <Badge variant="outline" className="text-xs">
+                                  {client.contact_name}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex space-x-1">
+                              <PermissionGuard 
+                                module="clients" 
+                                action="edit" 
+                                showAlert={false}
+                                fallback={null}
+                              >
+                                {(hasModulePermission('clients', 'edit') || hasClientAccess(client.id)) && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleEdit(client)}
+                                  >
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </PermissionGuard>
+                              <PermissionGuard 
+                                module="clients" 
+                                action="delete" 
+                                showAlert={false}
+                                fallback={null}
+                              >
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDelete(client)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </PermissionGuard>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2 text-sm text-gray-600">
+                            {client.email && (
+                              <div className="flex items-center">
+                                <Mail className="h-4 w-4 mr-2" />
+                                {client.email}
+                              </div>
+                            )}
+                            {client.phone && (
+                              <div className="flex items-center">
+                                <Phone className="h-4 w-4 mr-2" />
+                                {client.phone}
+                              </div>
+                            )}
+                            {(client.city || client.state) && (
+                              <div className="flex items-center">
+                                <MapPin className="h-4 w-4 mr-2" />
+                                {[client.city, client.state].filter(Boolean).join(', ')}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="mt-4 pt-4 border-t">
+                            <div className="flex justify-end text-xs text-gray-500">
+                              <span>Cadastrado em {new Date(client.created_at).toLocaleDateString('pt-BR')}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
               )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
+            </DataFilter>
+          </CardContent>
+        </Card>
+
+        {isFormOpen && (
+          <ClientForm
+            client={selectedClient}
+            onClose={handleFormClose}
+          />
+        )}
+      </div>
+    </PermissionGuard>
   );
 };
 

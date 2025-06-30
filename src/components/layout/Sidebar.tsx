@@ -1,140 +1,178 @@
-
-import React, { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { 
-  Users, Briefcase, BarChart2, 
-  FileText, Settings, ChevronLeft, ChevronRight, Layers,
-  Building, KanbanSquare, DollarSign, Calendar, LogOut
-} from 'lucide-react';
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import React from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from "sonner";
+import { useUserPermissions } from '@/hooks/useUserPermissions';
+import {
+  LayoutDashboard,
+  Users,
+  Building2,
+  FolderOpen,
+  ClipboardList,
+  Wrench,
+  Calendar,
+  DollarSign,
+  Settings,
+  LogOut,
+  Menu,
+  X
+} from 'lucide-react';
 
-interface NavItemProps {
-  to: string;
-  icon: React.ReactNode;
-  label: string;
+interface SidebarProps {
   isOpen: boolean;
+  onToggle: () => void;
 }
 
-const NavItem: React.FC<NavItemProps> = ({ to, icon, label, isOpen }) => {
-  return (
-    <NavLink 
-      to={to} 
-      className={({ isActive }) => cn(
-        "flex items-center gap-3 px-3 py-2 my-1 rounded-xl transition-all",
-        "hover:bg-white/10",
-        isActive ? "bg-white/20 text-white font-medium" : "text-white/80",
-        !isOpen && "justify-center px-3"
-      )}
-      end
-    >
-      {icon}
-      {isOpen && <span className="text-sm">{label}</span>}
-    </NavLink>
-  );
-};
+interface NavItem {
+  path: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  module: string;
+}
 
-export const Sidebar: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(true);
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
+const navItems: NavItem[] = [
+  {
+    path: '/',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    module: 'dashboard'
+  },
+  {
+    path: '/consultants',
+    label: 'Consultores',
+    icon: Users,
+    module: 'consultants'
+  },
+  {
+    path: '/clients',
+    label: 'Clientes',
+    icon: Building2,
+    module: 'clients'
+  },
+  {
+    path: '/projects',
+    label: 'Projetos',
+    icon: FolderOpen,
+    module: 'projects'
+  },
+  {
+    path: '/demands',
+    label: 'Demandas',
+    icon: ClipboardList,
+    module: 'demands'
+  },
+  {
+    path: '/services',
+    label: 'Serviços',
+    icon: Wrench,
+    module: 'services'
+  },
+  {
+    path: '/calendar',
+    label: 'Calendário',
+    icon: Calendar,
+    module: 'calendar'
+  },
+  {
+    path: '/financial',
+    label: 'Financeiro',
+    icon: DollarSign,
+    module: 'financial'
+  },
+  {
+    path: '/settings',
+    label: 'Configurações',
+    icon: Settings,
+    module: 'settings'
+  }
+];
 
-  const handleLogout = async () => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
+  const { signOut } = useAuth();
+  const { hasModulePermission, isLoading } = useUserPermissions();
+  const location = useLocation();
+
+  const handleSignOut = async () => {
     try {
       await signOut();
-      toast.success('Logout realizado com sucesso!');
-      navigate('/login');
     } catch (error) {
-      toast.error('Erro ao fazer logout');
+      console.error('Error signing out:', error);
     }
   };
 
-  const navItems = [
-    { to: '/', icon: <BarChart2 size={20} />, label: 'Dashboard' },
-    { to: '/consultants', icon: <Users size={20} />, label: 'Consultores' },
-    { to: '/clients', icon: <Building size={20} />, label: 'Clientes' },
-    { to: '/projects', icon: <Briefcase size={20} />, label: 'Projetos' },
-    { to: '/services', icon: <Layers size={20} />, label: 'Serviços' },
-    { to: '/demands', icon: <FileText size={20} />, label: 'Demandas' },
-    { to: '/calendar', icon: <Calendar size={20} />, label: 'Calendário' },
-    { to: '/financial', icon: <DollarSign size={20} />, label: 'Financeiro' },
-    { to: '/settings', icon: <Settings size={20} />, label: 'Configurações' }
-  ];
-
   return (
-    <aside 
-      className={cn(
-        "h-screen bg-gradient-to-b from-blue-600 to-purple-700 text-white flex flex-col transition-all duration-300",
-        isOpen ? "w-56" : "w-16"
+    <>
+      {/* Mobile overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" 
+          onClick={onToggle}
+        />
       )}
-    >
-      {/* Logo area */}
+
+      {/* Sidebar */}
       <div className={cn(
-        "flex items-center gap-2 h-16 px-3", 
-        isOpen ? "justify-start" : "justify-center"
+        "fixed left-0 top-0 z-50 h-full w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:z-auto",
+        isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        {isOpen ? (
-          <h2 className="font-display font-bold text-xl">Consultor<span className="text-green-400">PRO</span></h2>
-        ) : (
-          <span className="text-green-400 font-display font-bold text-xl">C</span>
-        )}
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <h1 className="text-xl font-bold text-gray-800">ConsultorPRO</h1>
+          <button
+            onClick={onToggle}
+            className="lg:hidden p-1 rounded-md hover:bg-gray-100"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-6 space-y-2">
+          {isLoading ? (
+            <div className="text-center text-gray-500">Carregando...</div>
+          ) : (
+            navItems
+              .filter(item => hasModulePermission(item.module, 'view'))
+              .map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+
+                return (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={cn(
+                      "flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-blue-100 text-blue-700"
+                        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    )}
+                    onClick={() => {
+                      if (window.innerWidth < 1024) {
+                        onToggle();
+                      }
+                    }}
+                  >
+                    <Icon className="mr-3 h-5 w-5" />
+                    {item.label}
+                  </NavLink>
+                );
+              })
+          )}
+        </nav>
+
+        {/* Footer */}
+        <div className="border-t border-gray-200 p-4">
+          <button
+            onClick={handleSignOut}
+            className="flex items-center w-full px-3 py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-gray-100 hover:text-gray-900 transition-colors"
+          >
+            <LogOut className="mr-3 h-5 w-5" />
+            Sair
+          </button>
+        </div>
       </div>
-      
-      {/* Toggle button */}
-      <Button 
-        variant="ghost" 
-        size="icon"
-        onClick={() => setIsOpen(!isOpen)} 
-        className="ml-auto mr-2 text-white opacity-80 hover:opacity-100 hover:bg-white/10"
-      >
-        {isOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-      </Button>
-      
-      {/* Nav items */}
-      <nav className="flex-1 px-2 py-3">
-        {navItems.map((item, index) => (
-          <NavItem
-            key={index}
-            to={item.to}
-            icon={item.icon}
-            label={item.label}
-            isOpen={isOpen}
-          />
-        ))}
-      </nav>
-      
-      {/* User info and logout */}
-      <div className="p-3 border-t border-white/10">
-        {user && (
-          <>
-            {isOpen && (
-              <div className="text-white/80 text-xs mb-3">
-                <p className="truncate">{user.email}</p>
-              </div>
-            )}
-            <Button
-              variant="ghost"
-              size={isOpen ? "sm" : "icon"}
-              onClick={handleLogout}
-              className={cn(
-                "text-white/80 hover:text-white hover:bg-white/10 transition-colors",
-                isOpen ? "w-full justify-start" : "w-8 h-8"
-              )}
-            >
-              <LogOut size={16} />
-              {isOpen && <span className="ml-2">Sair</span>}
-            </Button>
-          </>
-        )}
-      </div>
-      
-      {/* Version info */}
-      <div className="p-3 text-white/60 text-xs">
-        {isOpen ? 'v1.0.0' : ''}
-      </div>
-    </aside>
+    </>
   );
 };
 
