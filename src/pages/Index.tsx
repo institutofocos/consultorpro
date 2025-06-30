@@ -7,7 +7,7 @@ import ReportsGantt from '@/components/reports/ReportsGantt';
 export default function Index() {
   return (
     <Routes>
-      <Route index element={<Navigate to="/reports/calendar" replace />} />
+      <Route index element={<Navigate to="/reports/gantt" replace />} />
       <Route path="calendar" element={<ReportsCalendar />} />
       <Route path="gantt" element={<ReportsGantt />} />
     </Routes>

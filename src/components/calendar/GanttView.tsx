@@ -310,18 +310,18 @@ const GanttView: React.FC<GanttViewProps> = ({
       }, {} as typeof groupedTasks)
     : groupedTasks;
 
-  // Component to render vertical grid lines
+  // Component to render vertical grid lines - now completely transparent
   const renderVerticalGridLines = () => {
     const lines = [];
     const totalDays = isThisWeek ? 7 : timelineWeeks * 7;
     
-    // Add vertical lines for each day boundary
+    // Add vertical lines for each day boundary - completely transparent
     for (let i = 1; i <= totalDays; i++) {
       const leftPercent = (i / totalDays) * 100;
       lines.push(
         <div
           key={`grid-line-${i}`}
-          className="absolute top-0 bottom-0 w-px bg-gray-200 pointer-events-none z-10"
+          className="absolute top-0 bottom-0 w-px bg-transparent pointer-events-none z-10"
           style={{ left: `${leftPercent}%` }}
         />
       );

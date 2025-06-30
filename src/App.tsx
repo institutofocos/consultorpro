@@ -74,7 +74,9 @@ const App = () => (
                 <Layout><DemandsList /></Layout>
               } />
               
-              <Route path="/calendar" element={
+              {/* Redirect calendar to gantt view by default */}
+              <Route path="/calendar" element={<Navigate to="/calendar/gantt" replace />} />
+              <Route path="/calendar/*" element={
                 <Layout><CalendarPage /></Layout>
               } />
               
