@@ -40,56 +40,42 @@ export async function getCurrentUser() {
 export async function registerUser(email: string, password: string, userData?: any) {
   console.log('Tentativa de registro:', { email, userData });
   
-  try {
-    const redirectUrl = `${window.location.origin}/`;
-    console.log('URL de redirecionamento:', redirectUrl);
-    
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: userData?.fullName || userData?.full_name || '',
-          ...userData
-        }
-      }
-    });
-    
-    if (error) {
-      console.error('Erro detalhado no registro:', error);
-      
-      // Melhorar mensagens de erro baseadas no código de erro do Supabase
-      if (error.message.includes('User already registered')) {
-        throw new Error('Este email já está cadastrado. Tente fazer login.');
-      } else if (error.message.includes('Password should be at least')) {
-        throw new Error('A senha deve ter pelo menos 6 caracteres.');
-      } else if (error.message.includes('Unable to validate email address')) {
-        throw new Error('Email inválido. Verifique o formato do email.');
-      } else if (error.message.includes('signup is disabled')) {
-        throw new Error('Cadastro de novos usuários está temporariamente desabilitado.');
-      } else {
-        throw new Error(`Erro no cadastro: ${error.message}`);
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: userData?.fullName || userData?.full_name || '',
+        ...userData
       }
     }
+  });
+  
+  if (error) {
+    console.error('Erro no registro:', error);
     
-    console.log('Registro bem-sucedido:', data);
-    return data;
-    
-  } catch (error: any) {
-    console.error('Erro inesperado no registro:', error);
-    throw error;
+    // Melhorar mensagens de erro
+    if (error.message.includes('User already registered')) {
+      throw new Error('Este email já está cadastrado. Tente fazer login.');
+    } else if (error.message.includes('Password should be at least')) {
+      throw new Error('A senha deve ter pelo menos 6 caracteres.');
+    } else if (error.message.includes('Unable to validate email address')) {
+      throw new Error('Email inválido. Verifique o formato do email.');
+    } else if (error.message.includes('signup is disabled')) {
+      throw new Error('Cadastro de novos usuários está temporariamente desabilitado.');
+    } else {
+      throw new Error(`Erro no cadastro: ${error.message}`);
+    }
   }
+  
+  console.log('Registro bem-sucedido:', data);
+  return data;
 }
 
 export async function resetUserPassword(email: string) {
   console.log('Solicitando redefinição de senha para:', email);
   
-  const redirectUrl = `${window.location.origin}/reset-password`;
-  
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: redirectUrl,
-  });
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
   
   if (error) {
     console.error('Erro na redefinição de senha:', error);

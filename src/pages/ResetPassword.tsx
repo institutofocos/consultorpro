@@ -19,40 +19,26 @@ const ResetPassword = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [session, setSession] = useState(null);
 
   useEffect(() => {
-    // Verificar se há uma sessão ativa para reset de senha
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      
-      if (!session) {
-        // Se não há sessão, verificar se há tokens na URL
-        const accessToken = searchParams.get('access_token');
-        const refreshToken = searchParams.get('refresh_token');
-        
-        if (accessToken && refreshToken) {
-          // Tentar definir a sessão com os tokens da URL
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-          
-          if (error) {
-            setError('Link de recuperação inválido ou expirado');
-          } else {
-            // Sessão definida com sucesso
-            const { data: { session: newSession } } = await supabase.auth.getSession();
-            setSession(newSession);
-          }
-        } else {
-          setError('Link de recuperação inválido. Solicite um novo link.');
-        }
-      }
-    };
+    // Verificar se há tokens de reset na URL
+    const accessToken = searchParams.get('access_token');
+    const refreshToken = searchParams.get('refresh_token');
     
-    checkSession();
+    if (accessToken && refreshToken) {
+      // Definir sessão com os tokens
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      }).then(({ error }) => {
+        if (error) {
+          console.error('Erro ao definir sessão:', error);
+          setError('Link de recuperação inválido ou expirado');
+        }
+      });
+    } else {
+      setError('Link de recuperação inválido. Solicite um novo link.');
+    }
   }, [searchParams]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -72,12 +58,6 @@ const ResetPassword = () => {
       return;
     }
 
-    if (!session) {
-      setError('Sessão inválida. Solicite um novo link de recuperação.');
-      setIsLoading(false);
-      return;
-    }
-
     try {
       const { error } = await supabase.auth.updateUser({
         password: newPassword
@@ -89,8 +69,6 @@ const ResetPassword = () => {
       }
 
       toast.success('Senha alterada com sucesso!');
-      
-      // Redirecionar para login após sucesso
       navigate('/login');
 
     } catch (error: any) {
@@ -100,20 +78,6 @@ const ResetPassword = () => {
       setIsLoading(false);
     }
   };
-
-  if (!session && !error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p>Verificando link de recuperação...</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -143,7 +107,7 @@ const ResetPassword = () => {
               </Alert>
             )}
 
-            {error === 'Link de recuperação inválido. Solicite um novo link.' ? (
+            {error.includes('Link de recuperação inválido') ? (
               <div className="text-center space-y-4">
                 <p className="text-sm text-gray-600">
                   O link de recuperação é inválido ou expirou.

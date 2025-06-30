@@ -27,29 +27,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('Configurando listener de autenticação...');
+    console.log('Configurando autenticação...');
     
-    // Set up auth state listener FIRST
+    // Verificar sessão atual primeiro
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Erro ao verificar sessão:', error);
+      } else {
+        console.log('Sessão encontrada:', session?.user?.email || 'nenhuma');
+        setSession(session);
+        setUser(session?.user ?? null);
+      }
+      setLoading(false);
+    });
+
+    // Configurar listener para mudanças de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email || 'no user');
+        console.log('Estado de auth mudou:', event, session?.user?.email || 'sem usuário');
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
       }
     );
-
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        console.error('Erro ao verificar sessão inicial:', error);
-      } else {
-        console.log('Sessão inicial:', session?.user?.email || 'no session');
-      }
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
 
     return () => {
       console.log('Limpando subscription de auth');
@@ -58,14 +58,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signOut = async () => {
-    console.log('Fazendo signOut...');
-    await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
+    console.log('Fazendo logout...');
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Erro no logout:', error);
+    }
   };
 
   const checkPermission = (moduleName: string, actionType: 'view' | 'edit'): boolean => {
-    // Since we're using simplified auth, always allow access for authenticated users
     return !!user;
   };
 

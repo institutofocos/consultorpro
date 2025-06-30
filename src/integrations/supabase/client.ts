@@ -6,16 +6,7 @@ import type { Database } from './types';
 const SUPABASE_URL = "https://qffpioepvkfvpuqdbbnh.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmZnBpb2VwdmtmdnB1cWRiYm5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MzQ5NDIsImV4cCI6MjA2MzUxMDk0Mn0.ZD1AuPVDNuqTeYz8Eyt4QZHf_Qt1K-9oZcK3_fxSx-w";
 
-// Verificar se as variáveis estão definidas
-if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  console.error('Supabase configuração:', { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY });
-  throw new Error('Supabase URL e/ou Anon Key não estão configurados corretamente');
-}
-
-console.log('Inicializando Supabase com:', {
-  url: SUPABASE_URL,
-  keyLength: SUPABASE_PUBLISHABLE_KEY?.length
-});
+console.log('Inicializando Supabase client...');
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
@@ -25,13 +16,4 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   }
 });
 
-// Teste de conectividade simplificado
-supabase.auth.getSession().then(({ data, error }) => {
-  if (error) {
-    console.error('Erro na verificação inicial:', error);
-  } else {
-    console.log('Cliente Supabase inicializado com sucesso');
-  }
-}).catch(err => {
-  console.error('Erro ao inicializar Supabase:', err);
-});
+console.log('Supabase client inicializado com sucesso');
