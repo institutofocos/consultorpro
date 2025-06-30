@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Play, Pause, Square, Clock } from 'lucide-react';
@@ -22,7 +23,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
   const [timeSpent, setTimeSpent] = useState(initialTimeSpent || 0);
   const [timerStatus, setTimerStatus] = useState(initialTimerStatus || 'stopped');
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [displayTime, setDisplayTime] = useState(initialTimeSpent || 0);
+  const [displaySeconds, setDisplaySeconds] = useState((initialTimeSpent || 0) * 60);
   const [timerStartedAt, setTimerStartedAt] = useState<Date | null>(
     initialTimerStartedAt ? new Date(initialTimerStartedAt) : null
   );
@@ -39,31 +40,30 @@ const TimerControls: React.FC<TimerControlsProps> = ({
       // Atualizar imediatamente
       const now = new Date();
       const elapsedMs = now.getTime() - timerStartedAt.getTime();
-      const elapsedMinutes = Math.floor(elapsedMs / (1000 * 60));
-      const newDisplayTime = timeSpent + elapsedMinutes;
-      setDisplayTime(newDisplayTime);
+      const elapsedSeconds = Math.floor(elapsedMs / 1000);
+      const newDisplaySeconds = (timeSpent * 60) + elapsedSeconds;
+      setDisplaySeconds(newDisplaySeconds);
       
       // Configurar interval para atualizar a cada segundo
       interval = setInterval(() => {
         const currentTime = new Date();
         const totalElapsedMs = currentTime.getTime() - timerStartedAt.getTime();
-        const totalElapsedMinutes = Math.floor(totalElapsedMs / (1000 * 60));
-        const currentDisplayTime = timeSpent + totalElapsedMinutes;
+        const totalElapsedSeconds = Math.floor(totalElapsedMs / 1000);
+        const currentDisplaySeconds = (timeSpent * 60) + totalElapsedSeconds;
         
         console.log('⏱️  Tick do timer:', {
           horaAtual: currentTime.toLocaleString(),
-          tempoDecorrido: totalElapsedMinutes + ' min',
+          tempoDecorrido: totalElapsedSeconds + ' segundos',
           tempoBase: timeSpent + ' min',
-          tempoDisplay: currentDisplayTime + ' min',
-          formatado: formatTime(currentDisplayTime)
+          tempoDisplay: formatTime(currentDisplaySeconds),
         });
         
-        setDisplayTime(currentDisplayTime);
+        setDisplaySeconds(currentDisplaySeconds);
       }, 1000); // Atualiza a cada 1 segundo
       
     } else {
       console.log('Timer parado/pausado - display fixo em:', timeSpent);
-      setDisplayTime(timeSpent);
+      setDisplaySeconds(timeSpent * 60);
     }
 
     return () => {
@@ -74,10 +74,11 @@ const TimerControls: React.FC<TimerControlsProps> = ({
     };
   }, [timerStatus, timerStartedAt, timeSpent]); // Dependências corretas
 
-  const formatTime = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+  const formatTime = (totalSeconds: number) => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
   const startTimer = async () => {
@@ -188,7 +189,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
 
       // Update local state
       setTimeSpent(newTotalTime);
-      setDisplayTime(newTotalTime);
+      setDisplaySeconds(newTotalTime * 60);
       setTimerStatus('paused');
       setCurrentSessionId(null);
       setTimerStartedAt(null);
@@ -265,11 +266,11 @@ const TimerControls: React.FC<TimerControlsProps> = ({
   console.log('🔄 TimerControls render:', {
     taskId,
     timeSpent,
-    displayTime,
+    displaySeconds,
     timerStatus,
     timerStartedAt: timerStartedAt?.toLocaleString(),
     currentSessionId,
-    formattedTime: formatTime(displayTime)
+    formattedTime: formatTime(displaySeconds)
   });
 
   return (
@@ -282,7 +283,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
         <div className="flex items-center gap-3">
           <div className="text-right">
             <div className={`text-3xl font-mono font-bold ${getStatusColor()}`}>
-              {formatTime(displayTime)}
+              {formatTime(displaySeconds)}
             </div>
             <div className={`text-xs px-2 py-1 rounded-full ${getStatusColor()} bg-white border`}>
               {getStatusText()}
@@ -328,7 +329,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
       {timeSpent > 0 && (
         <div className="text-sm text-gray-600 bg-white rounded p-2 border">
           <span className="font-medium">Tempo total acumulado: </span>
-          <span className="font-mono font-bold text-blue-600">{formatTime(timeSpent)}</span>
+          <span className="font-mono font-bold text-blue-600">{formatTime(timeSpent * 60)}</span>
         </div>
       )}
     </div>
