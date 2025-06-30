@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -26,9 +25,13 @@ const Login = () => {
   useEffect(() => {
     // Verificar se já está logado
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate('/', { replace: true });
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          navigate('/', { replace: true });
+        }
+      } catch (error) {
+        console.error('Erro ao verificar sessão:', error);
       }
     };
     checkUser();
@@ -40,18 +43,28 @@ const Login = () => {
     setError('');
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log('Tentando fazer login com:', { email });
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
+      console.log('Resposta do login:', { data, error });
+
       if (error) {
+        console.error('Erro no login:', error);
+        
+        // Melhor tratamento de erros
         if (error.message.includes('Invalid login credentials')) {
           setError('Email ou senha incorretos');
         } else if (error.message.includes('Email not confirmed')) {
           setError('Por favor, confirme seu email antes de fazer login');
+        } else if (error.message.includes('Invalid API key')) {
+          setError('Erro de configuração do sistema. Entre em contato com o suporte.');
+          console.error('Erro de API Key:', error);
         } else {
-          setError(error.message);
+          setError(`Erro no login: ${error.message}`);
         }
         return;
       }
@@ -59,6 +72,7 @@ const Login = () => {
       toast.success('Login realizado com sucesso!');
       navigate('/', { replace: true });
     } catch (error: any) {
+      console.error('Erro inesperado no login:', error);
       setError('Erro inesperado. Tente novamente.');
     } finally {
       setIsLoading(false);
@@ -83,9 +97,11 @@ const Login = () => {
     }
 
     try {
+      console.log('Tentando criar conta com:', { email, fullName });
+      
       const redirectUrl = `${window.location.origin}/`;
       
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -96,11 +112,21 @@ const Login = () => {
         }
       });
 
+      console.log('Resposta do signup:', { data, error });
+
       if (error) {
+        console.error('Erro no cadastro:', error);
+        
+        // Melhor tratamento de erros para cadastro
         if (error.message.includes('User already registered')) {
           setError('Este email já está cadastrado');
+        } else if (error.message.includes('Invalid API key')) {
+          setError('Erro de configuração do sistema. Entre em contato com o suporte.');
+          console.error('Erro de API Key no cadastro:', error);
+        } else if (error.message.includes('Database error')) {
+          setError('Erro interno do sistema. Tente novamente em alguns minutos.');
         } else {
-          setError(error.message);
+          setError(`Erro no cadastro: ${error.message}`);
         }
         return;
       }
@@ -108,6 +134,7 @@ const Login = () => {
       toast.success('Cadastro realizado com sucesso! Verifique seu email.');
       // Não redirecionar automaticamente, esperar confirmação por email
     } catch (error: any) {
+      console.error('Erro inesperado no cadastro:', error);
       setError('Erro inesperado. Tente novamente.');
     } finally {
       setIsLoading(false);
@@ -125,13 +152,19 @@ const Login = () => {
       });
 
       if (error) {
-        setError(error.message);
+        if (error.message.includes('Invalid API key')) {
+          setError('Erro de configuração do sistema. Entre em contato com o suporte.');
+          console.error('Erro de API Key no reset:', error);
+        } else {
+          setError(`Erro: ${error.message}`);
+        }
         return;
       }
 
       setResetSent(true);
       toast.success('Link de recuperação enviado para seu email!');
     } catch (error: any) {
+      console.error('Erro inesperado no reset:', error);
       setError('Erro inesperado. Tente novamente.');
     } finally {
       setIsLoading(false);
