@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ChevronLeft, ChevronRight, Calendar, User, Clock, AlertTriangle } from 'lucide-react';
-import { format, addDays, startOfWeek, differenceInDays, parseISO, addWeeks, subWeeks, isAfter, isBefore } from 'date-fns';
+import { format, addDays, startOfWeek, differenceInDays, parseISO, addWeeks, subWeeks, isAfter, isBefore, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatDateBR } from '@/utils/dateUtils';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
@@ -64,10 +64,8 @@ const GanttView: React.FC<GanttViewProps> = ({
 
   // Function to check if an item is overdue - for visual styling only
   const isOverdue = (endDate: string, status: string, completed?: boolean) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const itemEndDate = new Date(endDate);
-    itemEndDate.setHours(0, 0, 0, 0);
+    const today = startOfDay(new Date());
+    const itemEndDate = startOfDay(new Date(endDate));
     
     // Determine completion statuses from configured statuses
     const completionStatuses = statuses
@@ -91,19 +89,31 @@ const GanttView: React.FC<GanttViewProps> = ({
     return isBefore(itemEndDate, today) && isNotCompleted && stageNotCompleted;
   };
 
-  // Calculate current date position
+  // Calculate current date position - CORRIGIDO
   const calculateCurrentDatePosition = () => {
-    const today = new Date();
+    const today = startOfDay(new Date());
+    const viewStart = startOfDay(viewStartDate);
     const totalDays = timelineWeeks * 7;
-    const daysSinceViewStart = differenceInDays(today, viewStartDate);
+    
+    // Calcular diferença em dias do início da visualização até hoje
+    const daysSinceViewStart = differenceInDays(today, viewStart);
+    
+    console.log('=== DEBUG LINHA HOJE ===');
+    console.log('Hoje:', today.toISOString());
+    console.log('Início da visualização:', viewStart.toISOString());
+    console.log('Dias desde início:', daysSinceViewStart);
+    console.log('Total de dias visíveis:', totalDays);
     
     // Check if today is within the visible timeline
     const isVisible = daysSinceViewStart >= 0 && daysSinceViewStart < totalDays;
     const leftPercent = (daysSinceViewStart / totalDays) * 100;
     
+    console.log('Visível?', isVisible);
+    console.log('Posição (%):', leftPercent);
+    
     return {
       visible: isVisible,
-      left: `${leftPercent}%`
+      left: `${Math.max(0, leftPercent)}%`
     };
   };
 
@@ -148,22 +158,43 @@ const GanttView: React.FC<GanttViewProps> = ({
     return statusData.label;
   };
 
-  // Calculate task position
+  // Calculate task position - CORRIGIDO
   const calculateTaskPosition = (startDate: string, endDate: string) => {
-    const start = parseISO(startDate);
-    const end = parseISO(endDate);
+    const start = startOfDay(parseISO(startDate));
+    const end = startOfDay(parseISO(endDate));
+    const viewStart = startOfDay(viewStartDate);
     const totalDays = timelineWeeks * 7;
     
-    const daysSinceViewStart = differenceInDays(start, viewStartDate);
+    // Calcular quantos dias desde o início da visualização até o início da tarefa
+    const daysSinceViewStart = differenceInDays(start, viewStart);
+    
+    // Calcular duração da tarefa em dias (incluindo o último dia)
     const taskDuration = differenceInDays(end, start) + 1;
     
+    console.log('=== DEBUG TAREFA ===');
+    console.log('Data início:', start.toISOString());
+    console.log('Data fim:', end.toISOString());
+    console.log('Duração calculada:', taskDuration, 'dias');
+    console.log('Dias desde início da view:', daysSinceViewStart);
+    console.log('Total dias visíveis:', totalDays);
+    
+    // Calcular porcentagens
     const leftPercent = Math.max(0, (daysSinceViewStart / totalDays) * 100);
     const widthPercent = Math.min(100 - leftPercent, (taskDuration / totalDays) * 100);
+    
+    console.log('Posição esquerda (%):', leftPercent);
+    console.log('Largura (%):', widthPercent);
+    
+    // Verificar se a tarefa está visível na timeline
+    const taskEndDaysSinceViewStart = daysSinceViewStart + taskDuration - 1;
+    const visible = daysSinceViewStart < totalDays && taskEndDaysSinceViewStart >= 0;
+    
+    console.log('Visível?', visible);
     
     return {
       left: `${leftPercent}%`,
       width: `${Math.max(1, widthPercent)}%`,
-      visible: daysSinceViewStart < totalDays && daysSinceViewStart + taskDuration > 0
+      visible
     };
   };
 
