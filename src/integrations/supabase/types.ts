@@ -791,7 +791,6 @@ export type Database = {
           hours: number
           id: string
           invoice_issued: boolean | null
-          last_pause_duration: number | null
           manager_approved: boolean | null
           name: string
           payment_received: boolean | null
@@ -800,9 +799,6 @@ export type Database = {
           start_date: string | null
           start_time: string | null
           status: string | null
-          time_spent_minutes: number | null
-          timer_started_at: string | null
-          timer_status: string | null
           updated_at: string | null
           valor_de_repasse: number | null
           value: number
@@ -822,7 +818,6 @@ export type Database = {
           hours?: number
           id?: string
           invoice_issued?: boolean | null
-          last_pause_duration?: number | null
           manager_approved?: boolean | null
           name: string
           payment_received?: boolean | null
@@ -831,9 +826,6 @@ export type Database = {
           start_date?: string | null
           start_time?: string | null
           status?: string | null
-          time_spent_minutes?: number | null
-          timer_started_at?: string | null
-          timer_status?: string | null
           updated_at?: string | null
           valor_de_repasse?: number | null
           value?: number
@@ -853,7 +845,6 @@ export type Database = {
           hours?: number
           id?: string
           invoice_issued?: boolean | null
-          last_pause_duration?: number | null
           manager_approved?: boolean | null
           name?: string
           payment_received?: boolean | null
@@ -862,9 +853,6 @@ export type Database = {
           start_date?: string | null
           start_time?: string | null
           status?: string | null
-          time_spent_minutes?: number | null
-          timer_started_at?: string | null
-          timer_status?: string | null
           updated_at?: string | null
           valor_de_repasse?: number | null
           value?: number
@@ -1272,47 +1260,6 @@ export type Database = {
           tag_id?: string
         }
         Relationships: []
-      }
-      stage_work_sessions: {
-        Row: {
-          created_at: string | null
-          duration_minutes: number | null
-          end_time: string | null
-          id: string
-          stage_id: string
-          start_time: string
-          status: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          duration_minutes?: number | null
-          end_time?: string | null
-          id?: string
-          stage_id: string
-          start_time: string
-          status?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          duration_minutes?: number | null
-          end_time?: string | null
-          id?: string
-          stage_id?: string
-          start_time?: string
-          status?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "stage_work_sessions_stage_id_fkey"
-            columns: ["stage_id"]
-            isOneToOne: false
-            referencedRelation: "project_stages"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       system_logs: {
         Row: {
