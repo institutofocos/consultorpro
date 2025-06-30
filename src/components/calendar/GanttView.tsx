@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,9 @@ const GanttView: React.FC<GanttViewProps> = ({
   overdueStages = 0 
 }) => {
   console.log('GanttView component rendered - TEXTO VISUALIZAÇÃO GANTT REMOVIDO COMPLETAMENTE');
+  console.log('=== GANTT VIEW DEBUG ===');
+  console.log('selectedConsultantId recebido:', selectedConsultantId);
+  console.log('Total de tasks recebidas:', tasks.length);
   
   // Set default values to "Esta Semana" (this week)
   const [viewStartDate, setViewStartDate] = useState<Date>(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -65,6 +69,33 @@ const GanttView: React.FC<GanttViewProps> = ({
   useEffect(() => {
     setLocalTasks(tasks);
   }, [tasks]);
+
+  // Filter tasks based on selected consultant - CORRIGIDO PARA FUNCIONAR CORRETAMENTE
+  const filteredTasks = React.useMemo(() => {
+    console.log('=== FILTERING TASKS ===');
+    console.log('selectedConsultantId:', selectedConsultantId);
+    console.log('Total tasks before filtering:', localTasks.length);
+    
+    if (!selectedConsultantId || selectedConsultantId === 'all') {
+      console.log('Mostrando todas as tasks (sem filtro)');
+      return localTasks;
+    }
+    
+    const filtered = localTasks.filter(task => {
+      const matches = task.consultant_id === selectedConsultantId;
+      if (matches) {
+        console.log(`Task "${task.name}" - Consultor: ${task.consultant_name} (${task.consultant_id}) - INCLUÍDA`);
+      }
+      return matches;
+    });
+    
+    console.log(`Tasks filtradas: ${filtered.length} de ${localTasks.length}`);
+    filtered.forEach(task => {
+      console.log(`- ${task.name} (${task.consultant_name})`);
+    });
+    
+    return filtered;
+  }, [localTasks, selectedConsultantId]);
 
   // Generate timeline based on view start date and weeks
   const generateTimeline = () => {
@@ -151,8 +182,8 @@ const GanttView: React.FC<GanttViewProps> = ({
 
   const currentDatePosition = calculateCurrentDatePosition();
 
-  // Group tasks by project
-  const groupedTasks = localTasks.reduce((acc, task) => {
+  // Group tasks by project - USANDO TASKS FILTRADAS
+  const groupedTasks = filteredTasks.reduce((acc, task) => {
     if (!acc[task.project_id]) {
       acc[task.project_id] = {
         project_name: task.project_name,
@@ -163,6 +194,12 @@ const GanttView: React.FC<GanttViewProps> = ({
     acc[task.project_id].tasks.push(task);
     return acc;
   }, {} as Record<string, { project_name: string; service_name: string; tasks: Task[] }>);
+
+  console.log('=== GROUPED TASKS ===');
+  console.log('Projetos agrupados:', Object.keys(groupedTasks).length);
+  Object.entries(groupedTasks).forEach(([projectId, projectData]) => {
+    console.log(`Projeto: ${projectData.project_name} - ${projectData.tasks.length} tasks`);
+  });
 
   // Get status color from configured statuses or fallback
   const getStatusColor = (status: string) => {
@@ -318,20 +355,6 @@ const GanttView: React.FC<GanttViewProps> = ({
     }
   };
 
-  // Filter grouped tasks based on selected consultant
-  const filteredGroupedTasks = selectedConsultantId
-    ? Object.entries(groupedTasks).reduce((acc, [projectId, projectData]) => {
-        const filteredTasks = projectData.tasks.filter(task => task.consultant_id === selectedConsultantId);
-        if (filteredTasks.length > 0) {
-          acc[projectId] = {
-            ...projectData,
-            tasks: filteredTasks
-          };
-        }
-        return acc;
-      }, {} as typeof groupedTasks)
-    : groupedTasks;
-
   // Component to render vertical grid lines - now completely transparent
   const renderVerticalGridLines = () => {
     const lines = [];
@@ -402,10 +425,13 @@ const GanttView: React.FC<GanttViewProps> = ({
       {/* Gantt Chart - SEM HEADER */}
       <Card>
         <CardContent className="p-0">
-          {Object.keys(filteredGroupedTasks).length === 0 ? (
+          {Object.keys(groupedTasks).length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>Nenhuma tarefa encontrada para o período selecionado</p>
+              {selectedConsultantId && selectedConsultantId !== 'all' && (
+                <p className="text-sm mt-2">Filtro ativo para consultor específico</p>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -453,7 +479,7 @@ const GanttView: React.FC<GanttViewProps> = ({
               </div>
 
               {/* Project Groups */}
-              {Object.entries(filteredGroupedTasks).map(([projectId, projectData]) => (
+              {Object.entries(groupedTasks).map(([projectId, projectData]) => (
                 <div key={projectId} className="border-b">
                   {/* Project Header - SEM HEADER */}
                   <div className="flex bg-muted/10 relative">
