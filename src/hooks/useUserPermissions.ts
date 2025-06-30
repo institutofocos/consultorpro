@@ -79,19 +79,6 @@ export const useUserPermissions = () => {
   // Verificar se é Super Admin
   const isSuperAdmin = userProfile?.profile_name === 'Super Admin';
 
-  // Verificar se é um consultor com acesso restrito
-  const isRestrictedConsultant = () => {
-    if (isSuperAdmin) return false;
-    
-    // Se o usuário tem um consultor vinculado e não é Super Admin, é restrito
-    return !!userLinks?.consultant_id;
-  };
-
-  // Obter o ID do consultor vinculado (para filtros automáticos)
-  const getLinkedConsultantId = () => {
-    return userLinks?.consultant_id || null;
-  };
-
   // Função para verificar permissão de módulo
   const hasModulePermission = (moduleName: string, permissionType: 'view' | 'edit' | 'delete' = 'view') => {
     if (isSuperAdmin) return true;
@@ -156,8 +143,6 @@ export const useUserPermissions = () => {
     modulePermissions,
     isLoading,
     isSuperAdmin,
-    isRestrictedConsultant: isRestrictedConsultant(),
-    getLinkedConsultantId,
     hasModulePermission,
     isRestrictedToLinked,
     hasConsultantAccess,

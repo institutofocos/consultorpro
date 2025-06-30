@@ -1,363 +1,686 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Plus, Filter, Search, Eye, Calendar, User, Clock, Tag, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Project, Stage } from '@/components/projects/types';
+import { toast } from 'sonner';
+import CollapsibleKanbanCard from './CollapsibleKanbanCard';
+import ProjectDetailsModal from './ProjectDetailsModal';
+import { fetchProjects } from '@/integrations/supabase/projects';
+import { useProjectStatuses } from '@/hooks/useProjectStatuses';
+import { format } from 'date-fns';
 
-import React, { useState, useEffect } from "react";
-import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { useProjectStatuses } from "@/hooks/useProjectStatuses";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
-import KanbanCard from "./KanbanCard";
-import ProjectDetailsModal from "./ProjectDetailsModal";
-import { Project } from "@/components/projects/types";
-
-// Define the actual Supabase response type to match what's returned
-interface SupabaseProjectRow {
+interface KanbanColumn {
   id: string;
-  name: string;
-  description?: string;
-  client?: { id: string; name: string }[] | null;
-  service?: { id: string; name: string }[] | null;
-  main_consultant?: { id: string; name: string }[] | null;
-  support_consultant?: { id: string; name: string }[] | null;
+  title: string;
+  color: string;
   status: string;
-  start_date: string;
-  end_date: string;
-  total_value: number;
-  main_consultant_id?: string;
-  support_consultant_id?: string;
-  client_id?: string;
-  service_id?: string;
-  main_consultant_commission?: number;
-  support_consultant_commission?: number;
-  hourly_rate?: number;
-  total_hours?: number;
-  tax_percent?: number;
-  third_party_expenses?: number;
-  main_consultant_value?: number;
-  support_consultant_value?: number;
-  manager_name?: string;
-  manager_email?: string;
-  manager_phone?: string;
-  url?: string;
-  project_id?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-interface Consultant {
-  id: string;
-  name: string;
 }
 
 const KanbanBoard: React.FC = () => {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [consultants, setConsultants] = useState<Consultant[]>([]);
-  const [selectedConsultant, setSelectedConsultant] = useState<string>("all");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedConsultant, setSelectedConsultant] = useState<string>('');
+  const [selectedService, setSelectedService] = useState<string>('');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
+  const [highlightedProjectId, setHighlightedProjectId] = useState<string | null>(null);
+  const [showStages, setShowStages] = useState<boolean>(true);
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [showOverdueOnly, setShowOverdueOnly] = useState<boolean>(false);
+  
+  const queryClient = useQueryClient();
+  const { statuses, getStatusDisplay, isLoading: statusesLoading } = useProjectStatuses();
 
-  const { statuses, getStatusDisplay } = useProjectStatuses();
-  const { 
-    isRestrictedConsultant, 
-    getLinkedConsultantId, 
-    isSuperAdmin,
-    isLoading: permissionsLoading 
-  } = useUserPermissions();
-
-  // Configurar filtro automático baseado no perfil do usuário
-  useEffect(() => {
-    if (!permissionsLoading) {
-      if (isRestrictedConsultant) {
-        const linkedConsultantId = getLinkedConsultantId();
-        if (linkedConsultantId) {
-          setSelectedConsultant(linkedConsultantId);
-        }
+  // Buscar projetos usando a função do sistema de projetos
+  const { data: allProjects = [], isLoading: projectsLoading, refetch: refetchProjects } = useQuery({
+    queryKey: ['kanban-projects'],
+    queryFn: async () => {
+      console.log('=== BUSCANDO PROJETOS PARA KANBAN ===');
+      try {
+        const allProjects = await fetchProjects();
+        console.log('Projetos encontrados no total:', allProjects.length);
+        
+        // Log detalhado de cada projeto
+        allProjects.forEach(project => {
+          console.log(`Projeto: ${project.name} (ID: ${project.id}) - Status: ${project.status}`);
+          if (project.stages && project.stages.length > 0) {
+            project.stages.forEach(stage => {
+              console.log(`  -> Etapa: ${stage.name} - Status: ${stage.status || 'sem status'}`);
+            });
+          }
+        });
+        
+        setLastSyncTime(new Date());
+        return allProjects;
+      } catch (error) {
+        console.error('Erro ao buscar projetos para Kanban:', error);
+        toast.error('Erro ao carregar projetos para o Kanban');
+        return [];
       }
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: 5000, // Refetch a cada 5 segundos para garantir sincronia
+  });
+
+  // Função para verificar se um item está vencido
+  const isOverdue = (endDate: string | null) => {
+    if (!endDate) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const itemEndDate = new Date(endDate);
+    itemEndDate.setHours(0, 0, 0, 0);
+    return itemEndDate < today;
+  };
+
+  // Aplicar todos os filtros aos projetos
+  const projects = useMemo(() => {
+    let filteredProjects = allProjects;
+
+    console.log('=== APLICANDO FILTROS AOS PROJETOS ===');
+    console.log('Filtro Cards Vencidos ativo:', showOverdueOnly);
+
+    // Filtro por termo de busca
+    if (searchTerm) {
+      filteredProjects = filteredProjects.filter(project => 
+        project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
     }
-  }, [isRestrictedConsultant, getLinkedConsultantId, permissionsLoading]);
 
-  useEffect(() => {
-    fetchProjects();
-    fetchConsultants();
-  }, []);
+    // Filtro por consultor
+    if (selectedConsultant) {
+      filteredProjects = filteredProjects.filter(project => 
+        project.mainConsultantId === selectedConsultant || 
+        project.supportConsultantId === selectedConsultant ||
+        (project.stages && project.stages.some(stage => stage.consultantId === selectedConsultant))
+      );
+    }
 
-  // Helper function to get first item from array or null
-  const getFirstFromArray = (arr: any[] | null | undefined): any => {
-    return arr && arr.length > 0 ? arr[0] : undefined;
-  };
+    // Filtro por serviço
+    if (selectedService) {
+      filteredProjects = filteredProjects.filter(project => 
+        project.serviceId === selectedService
+      );
+    }
 
-  // Transform Supabase data to Project format
-  const transformProject = (supabaseProject: SupabaseProjectRow): Project => {
-    const client = getFirstFromArray(supabaseProject.client);
-    const service = getFirstFromArray(supabaseProject.service);
-    const mainConsultant = getFirstFromArray(supabaseProject.main_consultant);
-    const supportConsultant = getFirstFromArray(supabaseProject.support_consultant);
+    // Filtro por data de início
+    if (startDate) {
+      filteredProjects = filteredProjects.filter(project => {
+        if (!project.startDate) return false;
+        return new Date(project.startDate) >= new Date(startDate);
+      });
+    }
 
-    return {
-      ...supabaseProject,
-      // Map required camelCase properties
-      mainConsultantCommission: supabaseProject.main_consultant_commission || 0,
-      supportConsultantCommission: supabaseProject.support_consultant_commission || 0,
-      startDate: supabaseProject.start_date,
-      endDate: supabaseProject.end_date,
-      totalValue: supabaseProject.total_value,
-      taxPercent: supabaseProject.tax_percent || 16,
-      // Handle consultant data (first item from arrays) - map to the Project interface format
-      clients: client ? {
-        id: client.id,
-        name: client.name,
-        contact_name: ''
-      } : undefined,
-      services: service ? {
-        id: service.id,
-        name: service.name
-      } : undefined,
-      main_consultant: mainConsultant ? {
-        id: mainConsultant.id,
-        name: mainConsultant.name,
-        email: ''
-      } : undefined,
-      support_consultant: supportConsultant ? {
-        id: supportConsultant.id,
-        name: supportConsultant.name,
-        email: ''
-      } : undefined,
-      // Map IDs to camelCase
-      clientId: supabaseProject.client_id,
-      serviceId: supabaseProject.service_id,
-      mainConsultantId: supabaseProject.main_consultant_id,
-      supportConsultantId: supabaseProject.support_consultant_id,
-      // Add required fields for Project interface
-      clientName: client?.name,
-      serviceName: service?.name,
-      mainConsultantName: mainConsultant?.name,
-      supportConsultantName: supportConsultant?.name,
-    };
-  };
+    // Filtro por data de fim
+    if (endDate) {
+      filteredProjects = filteredProjects.filter(project => {
+        if (!project.endDate) return false;
+        return new Date(project.endDate) <= new Date(endDate);
+      });
+    }
 
-  const fetchProjects = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('projects')
-        .select(`
-          *,
-          client:clients(id, name),
-          service:services(id, name),
-          main_consultant:consultants!projects_main_consultant_id_fkey(id, name),
-          support_consultant:consultants!projects_support_consultant_id_fkey(id, name)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+    // Filtro para cards vencidos - MODIFICADO PARA SER MAIS PRECISO
+    if (showOverdueOnly) {
+      console.log('Aplicando filtro de cards vencidos...');
       
-      // Transform the data to match our Project interface
-      const transformedProjects = (data || []).map(transformProject);
-      setProjects(transformedProjects);
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-      toast.error('Erro ao carregar projetos');
-    } finally {
-      setLoading(false);
+      filteredProjects = filteredProjects.filter(project => {
+        // Verificar se o projeto está vencido
+        const projectOverdue = isOverdue(project.endDate);
+        
+        // Verificar se alguma etapa está vencida
+        const hasOverdueStage = project.stages ? 
+          project.stages.some(stage => isOverdue(stage.endDate) && !stage.completed) : 
+          false;
+        
+        const shouldInclude = projectOverdue || hasOverdueStage;
+        
+        if (shouldInclude) {
+          console.log(`Projeto ${project.name} incluído:`);
+          console.log(`  - Projeto vencido: ${projectOverdue} (data fim: ${project.endDate})`);
+          console.log(`  - Tem etapa vencida: ${hasOverdueStage}`);
+          if (project.stages) {
+            project.stages.forEach(stage => {
+              const stageOverdue = isOverdue(stage.endDate) && !stage.completed;
+              if (stageOverdue) {
+                console.log(`    - Etapa vencida: ${stage.name} (data fim: ${stage.endDate})`);
+              }
+            });
+          }
+        }
+        
+        return shouldInclude;
+      });
+      
+      console.log(`Projetos após filtro de vencidos: ${filteredProjects.length}`);
     }
-  };
 
-  const fetchConsultants = async () => {
-    try {
+    console.log('Projetos após todos os filtros:', filteredProjects.length);
+    return filteredProjects;
+  }, [allProjects, searchTerm, selectedConsultant, selectedService, startDate, endDate, showOverdueOnly]);
+
+  // Buscar consultores
+  const { data: consultants = [] } = useQuery({
+    queryKey: ['consultants'],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('consultants')
         .select('id, name')
         .order('name');
-
       if (error) throw error;
-      setConsultants(data || []);
-    } catch (error) {
-      console.error('Error fetching consultants:', error);
-    }
-  };
+      return data;
+    },
+  });
 
-  const handleDragEnd = async (result: DropResult) => {
-    if (!result.destination) return;
+  // Buscar serviços
+  const { data: services = [] } = useQuery({
+    queryKey: ['services'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('services')
+        .select('id, name')
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
 
-    const projectId = result.draggableId;
-    const newStatus = result.destination.droppableId;
+  // Determinar colunas baseado APENAS nos status configurados nas regras
+  const activeColumns = useMemo(() => {
+    console.log('=== DETERMINANDO COLUNAS BASEADAS NAS REGRAS DE PROJETOS ===');
+    
+    // Usar APENAS os status configurados nas regras de projetos
+    const columnsFromRules = statuses.map(status => ({
+      id: status.name,
+      title: status.display_name, // Usar o nome de exibição das regras
+      color: 'bg-gray-50',
+      status: status.name,
+      statusColor: status.color // Preservar a cor da regra
+    }));
+    
+    console.log('Colunas baseadas nas regras:', columnsFromRules);
+    return columnsFromRules;
+  }, [statuses]);
 
-    try {
+  // Setup real-time subscriptions para atualização automática
+  useEffect(() => {
+    console.log('Configurando real-time subscriptions para o Kanban...');
+    
+    const projectsChannel = supabase
+      .channel('kanban-projects-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'projects'
+        },
+        (payload) => {
+          console.log('Projeto atualizado via real-time (Kanban):', payload);
+          queryClient.invalidateQueries({ queryKey: ['kanban-projects'] });
+          queryClient.invalidateQueries({ queryKey: ['projects'] });
+        }
+      )
+      .subscribe();
+
+    const stagesChannel = supabase
+      .channel('kanban-stages-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'project_stages'
+        },
+        (payload) => {
+          console.log('Etapa atualizada via real-time (Kanban):', payload);
+          queryClient.invalidateQueries({ queryKey: ['kanban-projects'] });
+          queryClient.invalidateQueries({ queryKey: ['projects'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('Removendo real-time subscriptions do Kanban...');
+      supabase.removeChannel(projectsChannel);
+      supabase.removeChannel(stagesChannel);
+    };
+  }, [queryClient]);
+
+  // Mutation para atualizar status do projeto via drag and drop
+  const updateProjectStatusMutation = useMutation({
+    mutationFn: async ({ projectId, newStatus }: { projectId: string; newStatus: string }) => {
+      console.log('Atualizando status do projeto via Kanban:', projectId, 'para:', newStatus);
       const { error } = await supabase
         .from('projects')
         .update({ status: newStatus })
         .eq('id', projectId);
-
       if (error) throw error;
-
-      setProjects(prev => 
-        prev.map(project => 
-          project.id === projectId 
-            ? { ...project, status: newStatus }
-            : project
-        )
-      );
-
-      toast.success('Status do projeto atualizado com sucesso');
-    } catch (error) {
-      console.error('Error updating project status:', error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kanban-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      toast.success('Status do projeto atualizado com sucesso!');
+    },
+    onError: (error) => {
+      console.error('Erro ao atualizar projeto via Kanban:', error);
       toast.error('Erro ao atualizar status do projeto');
+    },
+  });
+
+  // Mutation para atualizar status da etapa via drag and drop
+  const updateStageStatusMutation = useMutation({
+    mutationFn: async ({ stageId, newStatus }: { stageId: string; newStatus: string }) => {
+      console.log('Atualizando status da etapa via Kanban:', stageId, 'para:', newStatus);
+      const { error } = await supabase
+        .from('project_stages')
+        .update({ status: newStatus })
+        .eq('id', stageId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kanban-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      toast.success('Status da etapa atualizado com sucesso!');
+    },
+    onError: (error) => {
+      console.error('Erro ao atualizar etapa via Kanban:', error);
+      toast.error('Erro ao atualizar status da etapa');
+    },
+  });
+
+  const handleDragEnd = (result: any) => {
+    if (!result.destination) return;
+
+    const { source, destination, draggableId } = result;
+    
+    if (source.droppableId === destination.droppableId) return;
+
+    const newStatus = destination.droppableId;
+    const [type, id] = draggableId.split('-');
+
+    if (type === 'project') {
+      updateProjectStatusMutation.mutate({ projectId: id, newStatus });
+    } else if (type === 'stage') {
+      updateStageStatusMutation.mutate({ stageId: id, newStatus });
     }
   };
 
-  const filteredProjects = projects.filter(project => {
-    const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         project.clientName?.toLowerCase().includes(searchTerm.toLowerCase());
+  // Funções para gerenciar destaque
+  const handleHighlight = (projectId: string) => {
+    setHighlightedProjectId(projectId);
+    toast.success('Projeto destacado com sucesso!');
+  };
 
-    const matchesConsultant = selectedConsultant === "all" || 
-                             project.mainConsultantId === selectedConsultant ||
-                             project.supportConsultantId === selectedConsultant;
+  const handleRemoveHighlight = () => {
+    setHighlightedProjectId(null);
+    toast.success('Destaque removido com sucesso!');
+  };
 
-    return matchesSearch && matchesConsultant;
-  });
+  // Verificar se um item deve ser destacado
+  const isHighlighted = (itemId: string, itemType: 'project' | 'stage') => {
+    if (!highlightedProjectId) return false;
+    
+    if (itemType === 'project') {
+      return itemId === highlightedProjectId;
+    } else {
+      // Para etapas, verificar se pertencem ao projeto destacado
+      const stage = projects
+        .flatMap(p => p.stages || [])
+        .find(s => s.id === itemId);
+      return stage?.projectId === highlightedProjectId;
+    }
+  };
 
-  const projectsByStatus = statuses.reduce((acc, status) => {
-    acc[status.name] = filteredProjects.filter(project => project.status === status.name);
-    return acc;
-  }, {} as Record<string, Project[]>);
+  // Função para verificar se um projeto deve aparecer na coluna "Iniciar Projeto"
+  const shouldShowInIniciarProjeto = (project: Project) => {
+    // Projetos com status 'iniciar_projeto' ou projetos que não foram iniciados
+    return project.status === 'iniciar_projeto' || 
+           project.status === 'planned' || 
+           (!project.status) ||
+           (project.stages && project.stages.length > 0 && 
+            project.stages.every(stage => !stage.completed && !stage.startDate));
+  };
 
-  if (loading || permissionsLoading) {
+  // Função para verificar se uma etapa deve aparecer na coluna "Iniciar Projeto"
+  const shouldShowStageInIniciarProjeto = (stage: Stage) => {
+    // Etapas com status 'iniciar_projeto' ou etapas que não foram iniciadas
+    return stage.status === 'iniciar_projeto' || 
+           (!stage.status) ||
+           (!stage.startDate && !stage.completed);
+  };
+
+  const getProjectsByStatus = (status: string) => {
+    if (status === 'iniciar_projeto') {
+      // Para a coluna "Iniciar Projeto", mostrar projetos que ainda não foram iniciados
+      const projectsToShow = projects.filter(shouldShowInIniciarProjeto);
+      console.log(`Projetos para "Iniciar Projeto":`, projectsToShow.map(p => p.name));
+      return projectsToShow;
+    }
+    
+    const projectsInStatus = projects.filter(project => project.status === status);
+    console.log(`Projetos com status ${status}:`, projectsInStatus.map(p => p.name));
+    return projectsInStatus;
+  };
+
+  const getStagesByStatus = (status: string) => {
+    // Se showStages estiver desativado, não retornar nenhuma etapa
+    if (!showStages) {
+      return [];
+    }
+
+    const allStages: (Stage & { projectName?: string; clientName?: string; consultantName?: string; serviceName?: string })[] = [];
+    
+    projects.forEach(project => {
+      if (project.stages) {
+        project.stages.forEach(stage => {
+          let shouldInclude = false;
+          
+          if (status === 'iniciar_projeto') {
+            // Para a coluna "Iniciar Projeto", mostrar etapas que ainda não foram iniciadas
+            shouldInclude = shouldShowStageInIniciarProjeto(stage);
+          } else {
+            // Para outras colunas, usar o status da etapa
+            const stageStatus = stage.status || 'iniciar_projeto';
+            shouldInclude = stageStatus === status;
+          }
+          
+          if (shouldInclude) {
+            // Buscar o nome do consultor responsável pela etapa
+            let consultantName = '';
+            if (stage.consultantId) {
+              const consultant = consultants.find(c => c.id === stage.consultantId);
+              consultantName = consultant?.name || '';
+            }
+
+            allStages.push({
+              ...stage,
+              projectName: project.name,
+              clientName: project.clientName,
+              consultantName: consultantName,
+              serviceName: project.serviceName
+            });
+          }
+        });
+      }
+    });
+    
+    console.log(`Etapas com status ${status}:`, allStages.map(s => `${s.name} (${s.projectName}) - Consultor: ${s.consultantName} - Serviço: ${s.serviceName}`));
+    return allStages;
+  };
+
+  const handleProjectClick = (project: Project) => {
+    setSelectedProject(project);
+    setShowProjectModal(true);
+  };
+
+  const handleRefresh = () => {
+    console.log('=== FORÇANDO ATUALIZAÇÃO COMPLETA DO KANBAN ===');
+    refetchProjects();
+    queryClient.invalidateQueries({ queryKey: ['projects'] });
+    queryClient.invalidateQueries({ queryKey: ['kanban-projects'] });
+    setLastSyncTime(new Date());
+    toast.success('Kanban sincronizado com sucesso!');
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedConsultant('');
+    setSelectedService('');
+    setStartDate('');
+    setEndDate('');
+    setShowOverdueOnly(false);
+    toast.success('Filtros limpos com sucesso!');
+  };
+
+  const isLoading = projectsLoading || statusesLoading;
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p>Carregando projetos...</p>
+        <div className="text-lg">Carregando dados do Kanban...</div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Filtros */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filtros
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4 items-center">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Buscar projetos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+    <div className="h-screen flex flex-col p-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 flex-shrink-0 mb-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Kanban Board</h1>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Sincronizar
+            </Button>
+            <div className="text-sm text-muted-foreground">
+              {projects.length} projetos · Última sync: {lastSyncTime.toLocaleTimeString('pt-BR')}
             </div>
-            
-            {/* Só mostra o filtro de consultor se não for consultor restrito */}
-            {!isRestrictedConsultant && (
-              <div className="w-64">
-                <Select value={selectedConsultant} onValueChange={setSelectedConsultant}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filtrar por consultor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os consultores</SelectItem>
-                    {consultants.map(consultant => (
-                      <SelectItem key={consultant.id} value={consultant.id}>
-                        {consultant.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Kanban Board */}
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {statuses.map((status) => (
-            <div key={status.name} className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Badge 
-                    style={{ backgroundColor: status.color, color: '#ffffff' }}
-                    className="text-white"
-                  >
-                    {status.display_name}
-                  </Badge>
-                  <span className="text-sm text-gray-500">
-                    ({projectsByStatus[status.name]?.length || 0})
-                  </span>
-                </div>
-              </div>
-              
-              <Droppable droppableId={status.name}>
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={`min-h-[200px] p-2 rounded-lg border-2 border-dashed transition-colors ${
-                      snapshot.isDraggingOver 
-                        ? 'border-blue-400 bg-blue-50' 
-                        : 'border-gray-200'
-                    }`}
-                  >
-                    {projectsByStatus[status.name]?.map((project, index) => (
-                      <Draggable 
-                        key={project.id} 
-                        draggableId={project.id} 
-                        index={index}
-                      >
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            className={`mb-3 ${snapshot.isDragging ? 'opacity-50' : ''}`}
-                          >
-                            <KanbanCard 
-                              project={project}
-                              type="project"
-                              onClick={() => {
-                                setSelectedProject(project);
-                                setIsDetailsOpen(true);
-                              }}
-                            />
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </div>
-          ))}
         </div>
-      </DragDropContext>
 
-      {/* Modal de Detalhes */}
-      <ProjectDetailsModal
-        project={selectedProject}
-        open={isDetailsOpen}
-        onOpenChange={(open) => {
-          setIsDetailsOpen(open);
-          if (!open) {
-            setSelectedProject(null);
-          }
-        }}
-      />
+        {/* Filtros principais */}
+        <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex items-center gap-2">
+            <Search className="h-4 w-4" />
+            <Input
+              placeholder="Buscar projetos..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-64"
+            />
+          </div>
+
+          <Select value={selectedConsultant} onValueChange={setSelectedConsultant}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Todos os consultores" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Todos os consultores</SelectItem>
+              {consultants.map(consultant => (
+                <SelectItem key={consultant.id} value={consultant.id}>
+                  {consultant.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedService} onValueChange={setSelectedService}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Todos os serviços" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Todos os serviços</SelectItem>
+              {services.map(service => (
+                <SelectItem key={service.id} value={service.id}>
+                  {service.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Button variant="outline" size="sm" onClick={clearFilters}>
+            <Filter className="h-4 w-4 mr-2" />
+            Limpar Filtros
+          </Button>
+        </div>
+
+        {/* Filtros avançados */}
+        <div className="flex flex-wrap gap-4 items-center">
+          {/* Filtros de data */}
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            <Label htmlFor="start-date" className="text-sm font-medium">
+              Data Início:
+            </Label>
+            <Input
+              id="start-date"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-40"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            <Label htmlFor="end-date" className="text-sm font-medium">
+              Data Fim:
+            </Label>
+            <Input
+              id="end-date"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-40"
+            />
+          </div>
+
+          {/* Toggle para cards vencidos */}
+          <div className="flex items-center space-x-2 border rounded-lg px-3 py-2 bg-white">
+            <AlertTriangle className="h-4 w-4 text-red-500" />
+            <Label htmlFor="overdue-cards" className="text-sm font-medium">
+              Cards Vencidos
+            </Label>
+            <Switch
+              id="overdue-cards"
+              checked={showOverdueOnly}
+              onCheckedChange={setShowOverdueOnly}
+            />
+          </div>
+
+          {/* Toggle para mostrar/ocultar etapas */}
+          <div className="flex items-center space-x-2 border rounded-lg px-3 py-2 bg-white">
+            <Label htmlFor="show-stages" className="text-sm font-medium">
+              Mostrar etapas
+            </Label>
+            <Switch
+              id="show-stages"
+              checked={showStages}
+              onCheckedChange={setShowStages}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Kanban Board - ocupar todo o espaço restante */}
+      <div className="flex-1 overflow-hidden">
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <div className="h-full overflow-x-auto">
+            <div className="flex gap-6 h-full pb-4" style={{ minWidth: `${activeColumns.length * 400}px` }}>
+              {activeColumns.map(column => {
+                const projectsInColumn = getProjectsByStatus(column.status);
+                const stagesInColumn = getStagesByStatus(column.status);
+                const totalItems = projectsInColumn.length + stagesInColumn.length;
+                
+                return (
+                  <Droppable key={column.id} droppableId={column.status}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`w-96 p-4 rounded-lg flex-shrink-0 ${column.color} ${
+                          snapshot.isDraggingOver ? 'bg-opacity-50' : ''
+                        } flex flex-col`}
+                        style={{
+                          borderTop: `4px solid ${column.statusColor}`,
+                          height: 'calc(100vh - 200px)'
+                        }}
+                      >
+                        <div className="flex justify-between items-center mb-4 flex-shrink-0">
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: column.statusColor }}
+                            />
+                            <h3 className="font-semibold text-sm">{column.title}</h3>
+                          </div>
+                          <Badge variant="secondary" className="text-xs">
+                            {totalItems}
+                          </Badge>
+                        </div>
+
+                        <div className="space-y-3 overflow-y-auto flex-1">
+                          {/* Projetos */}
+                          {projectsInColumn.map((project, index) => (
+                            <Draggable key={`project-${project.id}`} draggableId={`project-${project.id}`} index={index}>
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className={snapshot.isDragging ? 'rotate-2' : ''}
+                                >
+                                  <CollapsibleKanbanCard
+                                    project={project}
+                                    onClick={() => handleProjectClick(project)}
+                                    type="project"
+                                    isHighlighted={isHighlighted(project.id, 'project')}
+                                    onHighlight={handleHighlight}
+                                    onRemoveHighlight={handleRemoveHighlight}
+                                  />
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+
+                          {/* Etapas - só mostrar se showStages estiver ativo */}
+                          {stagesInColumn.map((stage, index) => (
+                            <Draggable 
+                              key={`stage-${stage.id}`} 
+                              draggableId={`stage-${stage.id}`} 
+                              index={index + projectsInColumn.length}
+                            >
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className={snapshot.isDragging ? 'rotate-2' : ''}
+                                >
+                                  <CollapsibleKanbanCard
+                                    stage={stage}
+                                    onClick={() => {/* Modal de detalhes da etapa pode ser implementado */}}
+                                    type="stage"
+                                    isHighlighted={isHighlighted(stage.id, 'stage')}
+                                    onHighlight={handleHighlight}
+                                    onRemoveHighlight={handleRemoveHighlight}
+                                  />
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                        </div>
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                );
+              })}
+            </div>
+          </div>
+        </DragDropContext>
+      </div>
+
+      {/* Modal de Detalhes do Projeto */}
+      {selectedProject && (
+        <ProjectDetailsModal
+          project={selectedProject}
+          open={showProjectModal}
+          onOpenChange={setShowProjectModal}
+        />
+      )}
     </div>
   );
 };
