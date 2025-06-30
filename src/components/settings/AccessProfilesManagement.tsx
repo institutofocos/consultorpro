@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -299,16 +300,7 @@ const AccessProfilesManagement = () => {
                   filteredProfiles.map((profile) => (
                     <TableRow key={profile.id}>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div>
-                            <div className="font-medium">{profile.name}</div>
-                            {profile.is_system_default && (
-                              <Badge variant="secondary" className="text-xs">
-                                Sistema
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
+                        <div className="font-medium">{profile.name}</div>
                       </TableCell>
                       <TableCell className="max-w-xs">
                         <div className="truncate" title={profile.description}>
@@ -332,37 +324,47 @@ const AccessProfilesManagement = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleOpenModal(profile)}
-                          >
-                            <Edit className="h-3 w-3 mr-1" />
-                            Editar
-                          </Button>
-                          
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => toggleProfileStatus(profile.id, profile.is_active)}
-                          >
-                            {profile.is_active ? (
-                              <ToggleLeft className="h-3 w-3 mr-1" />
-                            ) : (
-                              <ToggleRight className="h-3 w-3 mr-1" />
-                            )}
-                            {profile.is_active ? 'Desativar' : 'Ativar'}
-                          </Button>
+                          {profile.name !== 'Super Admin' && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOpenModal(profile)}
+                              >
+                                <Edit className="h-3 w-3 mr-1" />
+                                Editar
+                              </Button>
+                              
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => toggleProfileStatus(profile.id, profile.is_active)}
+                              >
+                                {profile.is_active ? (
+                                  <ToggleLeft className="h-3 w-3 mr-1" />
+                                ) : (
+                                  <ToggleRight className="h-3 w-3 mr-1" />
+                                )}
+                                {profile.is_active ? 'Desativar' : 'Ativar'}
+                              </Button>
 
-                          {!profile.is_system_default && (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => deleteProfile(profile.id)}
-                            >
-                              <Trash2 className="h-3 w-3 mr-1" />
-                              Excluir
-                            </Button>
+                              {!profile.is_system_default && (
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => deleteProfile(profile.id)}
+                                >
+                                  <Trash2 className="h-3 w-3 mr-1" />
+                                  Excluir
+                                </Button>
+                              )}
+                            </>
+                          )}
+                          
+                          {profile.name === 'Super Admin' && (
+                            <span className="text-sm text-muted-foreground">
+                              Perfil protegido
+                            </span>
                           )}
                         </div>
                       </TableCell>
