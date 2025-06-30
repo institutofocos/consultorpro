@@ -23,7 +23,6 @@ const resetOptions: ResetOption[] = [
   { id: 'services', label: 'Serviços', description: 'Remover todos os serviços cadastrados', table: 'services' },
   { id: 'clients', label: 'Clientes', description: 'Remover todos os clientes cadastrados', table: 'clients' },
   { id: 'financial', label: 'Financeiro', description: 'Remover todas as transações financeiras', table: 'financial_transactions' },
-  { id: 'users', label: 'Usuários', description: 'Remover perfis de usuários (exceto admin)', table: 'user_profiles' },
   { id: 'webhooks', label: 'Webhooks', description: 'Remover todos os webhooks configurados', table: 'webhooks' },
   { id: 'tags', label: 'Tags', description: 'Remover todas as tags personalizadas', table: 'tags' }
 ];
@@ -89,10 +88,6 @@ const SystemReset = () => {
             await supabase.from('accounts_receivable').delete().neq('id', '00000000-0000-0000-0000-000000000000');
             await supabase.from('manual_transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
             await supabase.from('financial_transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            break;
-
-          case 'users':
-            await supabase.from('user_profiles').delete().neq('role', 'admin');
             break;
 
           case 'webhooks':

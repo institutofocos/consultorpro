@@ -4,15 +4,11 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   Users, Briefcase, BarChart2, 
   FileText, Settings, ChevronLeft, ChevronRight, Layers,
-  Building, KanbanSquare, DollarSign, Calendar,
-  LogOut
+  Building, KanbanSquare, DollarSign, Calendar
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from '@/contexts/AuthContext';
-import { logoutUser } from '@/services/auth';
-import { useToast } from '@/hooks/use-toast';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface NavItemProps {
   to: string;
@@ -43,21 +39,6 @@ export const Sidebar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(true);
   const { user, checkPermission } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  
-  const handleLogout = async () => {
-    try {
-      await logoutUser();
-      navigate('/auth');
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao sair",
-        description: "Não foi possível fazer logout. Tente novamente."
-      });
-    }
-  };
 
   const navItems = [
     { to: '/', icon: <BarChart2 size={20} />, label: 'Dashboard' },
@@ -112,42 +93,6 @@ export const Sidebar: React.FC = () => {
           />
         ))}
       </nav>
-      
-      {/* User profile - Added at the bottom with spacing */}
-      {user && (
-        <div className="px-2 pb-4 mt-8 border-t border-white/10 pt-4">
-          <div className={cn(
-            "flex items-center gap-3 px-3 py-3 rounded-xl",
-            "text-white/90 bg-white/5",
-            !isOpen && "justify-center"
-          )}>
-            <Avatar className="h-8 w-8 bg-primary/10">
-              <AvatarFallback className="text-sm font-medium text-primary">
-                {user.profile?.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            
-            {isOpen && (
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{user.profile?.full_name}</p>
-                <p className="text-xs text-white/70 capitalize truncate">{user.profile?.role}</p>
-              </div>
-            )}
-            
-            {isOpen && (
-              <Button 
-                variant="ghost" 
-                size="icon"
-                className="h-7 w-7 rounded-full text-white/70 hover:text-white hover:bg-white/10"
-                onClick={handleLogout}
-                title="Sair"
-              >
-                <LogOut size={16} />
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
       
       {/* Version info */}
       <div className="p-3 text-white/60 text-xs">

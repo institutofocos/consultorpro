@@ -1,5 +1,4 @@
 import { supabase } from "./client";
-import { createUserWithProfile } from "@/services/auth";
 
 export const fetchConsultants = async () => {
   try {
@@ -24,7 +23,7 @@ export const fetchConsultants = async () => {
 
 export const createConsultant = async (consultant: any) => {
   try {
-    console.log('=== INICIANDO CRIAÇÃO DE CONSULTOR ===');
+    console.log('=== CRIANDO CONSULTOR ===');
     console.log('Dados do consultor:', consultant);
 
     // Remover campos que não existem na tabela de consultores
@@ -54,60 +53,22 @@ export const createConsultant = async (consultant: any) => {
 
     console.log('Dados limpos do consultor:', consultantData);
 
-    // Primeiro, criar o usuário e perfil usando o serviço de auth
-    const defaultPassword = 'consultor123';
-    console.log('Criando usuário e perfil para o consultor...');
-    
-    const userResult = await createUserWithProfile({
-      email: consultantData.email,
-      password: defaultPassword,
-      full_name: consultantData.name,
-      role: 'consultant',
-      permissions: [
-        { module_name: 'dashboard', can_view: true, can_edit: false },
-        { module_name: 'projects', can_view: true, can_edit: false },
-        { module_name: 'demands', can_view: true, can_edit: false },
-        { module_name: 'calendar', can_view: true, can_edit: false }
-      ]
-    });
-
-    console.log('Usuário e perfil criados:', userResult.user.id);
-
-    // Usar o ID do usuário criado para o consultor
-    const consultantWithUserId = {
-      ...consultantData,
-      id: userResult.user.id
-    };
-
-    console.log('Criando consultor na tabela...');
-
-    // Criar o consultor na tabela usando o ID do usuário
+    // Criar apenas o consultor na tabela (sem criar usuário)
     const { data: consultantResult, error: consultantError } = await supabase
       .from('consultants')
-      .insert(consultantWithUserId)
+      .insert(consultantData)
       .select()
       .single();
     
     if (consultantError) {
-      console.error('Erro ao criar consultor na tabela:', consultantError);
-      // Se falhou, tentar limpar o usuário criado
-      try {
-        await supabase.auth.admin.deleteUser(userResult.user.id);
-      } catch (cleanupError) {
-        console.error('Erro ao limpar usuário:', cleanupError);
-      }
+      console.error('Erro ao criar consultor:', consultantError);
       throw consultantError;
     }
 
-    console.log('Consultor criado na tabela:', consultantResult);
-    console.log('=== CONSULTOR E USUÁRIO CRIADOS COM SUCESSO ===');
+    console.log('Consultor criado:', consultantResult);
+    console.log('=== CONSULTOR CRIADO COM SUCESSO ===');
     
-    return {
-      ...consultantResult,
-      userCreated: true,
-      defaultPassword,
-      userId: userResult.user.id
-    };
+    return consultantResult;
   } catch (error) {
     console.error('=== ERRO NA CRIAÇÃO DO CONSULTOR ===', error);
     throw error;

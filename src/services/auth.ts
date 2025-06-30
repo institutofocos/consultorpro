@@ -6,7 +6,8 @@ export async function loginWithEmail(email: string, password: string) {
 }
 
 export async function logoutUser() {
-  throw new Error('User management system has been removed');
+  // No-op since user management is removed
+  return;
 }
 
 export async function getCurrentUser() {
