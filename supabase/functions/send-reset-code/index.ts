@@ -136,19 +136,18 @@ serve(async (req) => {
 
     console.log('Código salvo com sucesso!')
 
-    // Tentar enviar email usando Resend
+    // Verificar se temos a chave da API do Resend
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
     
     if (!resendApiKey) {
       console.error('RESEND_API_KEY não configurado')
-      // Em desenvolvimento, ainda retornar o código
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: 'Código gerado com sucesso!',
-          code: code, // Mostrar código para desenvolvimento
+          message: 'Código gerado, mas email não configurado!',
+          code: code, // Mostrar código APENAS quando não há configuração de email
           debug: true,
-          warning: 'Email não enviado - configuração pendente'
+          warning: 'Email não enviado - RESEND_API_KEY não configurado'
         }),
         { 
           status: 200, 
@@ -157,13 +156,11 @@ serve(async (req) => {
       )
     }
 
+    // Tentar enviar email usando Resend
     try {
       console.log('Tentando enviar email via Resend...')
       
       const resetLink = `${Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.vercel.app') || 'http://localhost:3000'}/reset-password?email=${encodeURIComponent(email)}`
-      
-      // Verificar se é um email do domínio verificado
-      const isVerifiedDomain = email.includes('focos.online')
       
       const emailHtml = `
         <!DOCTYPE html>
@@ -213,7 +210,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'ConsultorPRO <noreply@focos.online>', // Usar domínio verificado
+          from: 'ConsultorPRO <noreply@focos.online>',
           to: [email],
           subject: 'Código de Recuperação de Senha - ConsultorPRO',
           html: emailHtml
@@ -221,40 +218,20 @@ serve(async (req) => {
       })
 
       const emailResult = await emailResponse.json()
+      console.log('Resposta do Resend:', emailResponse.status, emailResult)
       
       if (!emailResponse.ok) {
         console.error('Erro ao enviar email via Resend:', emailResult)
         
-        // Se for erro de domínio não verificado, dar uma resposta específica
-        if (emailResult.message && emailResult.message.includes('verify a domain')) {
-          console.log('Erro de domínio não verificado - retornando código para desenvolvimento')
-          return new Response(
-            JSON.stringify({ 
-              success: true, 
-              message: 'Código de recuperação gerado!',
-              code: code, // Mostrar código para desenvolvimento
-              debug: true,
-              warning: 'Email não enviado - necessário verificar domínio no Resend'
-            }),
-            { 
-              status: 200, 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-            }
-          )
-        }
-        
-        // Para outros erros, ainda tentar continuar
-        console.error('Erro no envio, mas continuando...', emailResult.message)
+        // Retornar erro específico SEM mostrar o código
         return new Response(
           JSON.stringify({ 
-            success: true, 
-            message: 'Código de recuperação gerado!',
-            code: code, // Mostrar código para desenvolvimento
-            debug: true,
-            emailError: emailResult.message
+            success: false,
+            error: 'Erro ao enviar email: ' + (emailResult.message || 'Erro desconhecido'),
+            details: emailResult
           }),
           { 
-            status: 200, 
+            status: 500, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
         )
@@ -262,12 +239,13 @@ serve(async (req) => {
 
       console.log('Email enviado com sucesso via Resend:', emailResult.id)
 
-      // Sucesso completo
+      // Sucesso completo - NÃO mostrar o código
       return new Response(
         JSON.stringify({ 
           success: true, 
           message: 'Código de recuperação enviado para seu email!',
-          emailSent: true
+          emailSent: true,
+          emailId: emailResult.id
         }),
         { 
           status: 200, 
@@ -278,18 +256,14 @@ serve(async (req) => {
     } catch (emailError) {
       console.error('Erro ao tentar enviar email:', emailError)
       
-      // Em caso de erro no envio, ainda fornecer o código para desenvolvimento
+      // Em caso de erro no envio - NÃO mostrar o código
       return new Response(
         JSON.stringify({ 
-          success: true, 
-          message: 'Código de recuperação gerado!',
-          code: code, // Mostrar código para desenvolvimento
-          debug: true,
-          emailError: emailError.message,
-          warning: 'Email não enviado devido a erro técnico'
+          success: false,
+          error: 'Erro ao enviar email: ' + emailError.message
         }),
         { 
-          status: 200, 
+          status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       )

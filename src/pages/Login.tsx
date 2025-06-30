@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -150,20 +151,20 @@ const Login = () => {
         return;
       }
 
-      // Sucesso - código foi gerado
+      // Sucesso - código foi enviado
       setCodeSent(true);
       
       if (data.emailSent) {
+        // Email foi enviado com sucesso - NÃO mostrar código
         toast.success('Código de recuperação enviado para seu email!');
-      } else if (data.debug) {
-        // Modo desenvolvimento - mostrar código
+      } else if (data.debug && data.code) {
+        // Modo desenvolvimento - mostrar código apenas quando necessário
         toast.success('Código de recuperação gerado!');
-        if (data.code) {
-          toast.info(`Código de desenvolvimento: ${data.code}`, {
-            duration: 10000, // Mostrar por mais tempo
-          });
-          console.log('Código de desenvolvimento:', data.code);
-        }
+        toast.info(`Código de desenvolvimento: ${data.code}`, {
+          duration: 10000, // Mostrar por mais tempo
+        });
+        console.log('Código de desenvolvimento:', data.code);
+        
         if (data.warning) {
           toast.warning(data.warning, { duration: 8000 });
         }
@@ -338,10 +339,10 @@ const Login = () => {
                 {codeSent ? (
                   <div className="text-center space-y-4">
                     <div className="text-green-600 font-medium">
-                      Código de recuperação gerado!
+                      Código de recuperação enviado!
                     </div>
                     <p className="text-sm text-gray-600">
-                      O código expira em 10 minutos. Se não recebeu por email, verifique o console para o código de desenvolvimento.
+                      Verifique seu email para o código de 6 dígitos. O código expira em 10 minutos.
                     </p>
                     <Button 
                       variant="outline" 
