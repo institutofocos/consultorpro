@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ChevronLeft, ChevronRight, Calendar, User, Clock, AlertTriangle } from 'lucide-react';
-import { format, addDays, startOfWeek, differenceInDays, parseISO, addWeeks, subWeeks, isAfter, isBefore, startOfDay } from 'date-fns';
+import { format, addDays, startOfWeek, differenceInDays, parseISO, addWeeks, subWeeks, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatDateBR } from '@/utils/dateUtils';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
@@ -174,31 +175,47 @@ const GanttView: React.FC<GanttViewProps> = ({
     return statusData.label;
   };
 
-  // Calculate task position
+  // Calculate task position - FIXED VERSION
   const calculateTaskPosition = (startDate: string, endDate: string) => {
-    const start = startOfDay(parseISO(startDate));
-    const end = startOfDay(parseISO(endDate));
+    const taskStart = startOfDay(parseISO(startDate));
+    const taskEnd = startOfDay(parseISO(endDate));
     const viewStart = startOfDay(viewStartDate);
     
     let totalDays;
+    let viewEnd;
+    
     if (isThisWeek) {
       totalDays = 7; // 7 days for this week view
+      viewEnd = addDays(viewStart, 6); // Last day of the week
     } else {
       totalDays = timelineWeeks * 7;
+      viewEnd = addDays(viewStart, totalDays - 1);
     }
     
-    const daysSinceViewStart = differenceInDays(start, viewStart);
-    const taskDuration = differenceInDays(end, start) + 1;
+    // Calculate days from view start to task start
+    const daysSinceViewStart = differenceInDays(taskStart, viewStart);
     
+    // Calculate the actual duration of the task in days
+    const taskDurationInDays = differenceInDays(taskEnd, taskStart) + 1; // +1 to include both start and end days
+    
+    // Calculate position as percentage
     const leftPercent = Math.max(0, (daysSinceViewStart / totalDays) * 100);
-    const widthPercent = Math.min(100 - leftPercent, (taskDuration / totalDays) * 100);
     
-    const taskEndDaysSinceViewStart = daysSinceViewStart + taskDuration - 1;
+    // Calculate width as percentage - this is the key fix
+    // The width should be proportional to the actual task duration
+    const widthPercent = (taskDurationInDays / totalDays) * 100;
+    
+    // Ensure the task doesn't extend beyond the view
+    const maxWidthFromPosition = 100 - leftPercent;
+    const finalWidthPercent = Math.min(widthPercent, maxWidthFromPosition);
+    
+    // Check if task is visible in current view
+    const taskEndDaysSinceViewStart = daysSinceViewStart + taskDurationInDays - 1;
     const visible = daysSinceViewStart < totalDays && taskEndDaysSinceViewStart >= 0;
     
     return {
       left: `${leftPercent}%`,
-      width: `${Math.max(1, widthPercent)}%`,
+      width: `${Math.max(1, finalWidthPercent)}%`, // Minimum 1% width for visibility
       visible
     };
   };
