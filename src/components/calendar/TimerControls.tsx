@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Play, Pause, Square, Clock } from 'lucide-react';
@@ -28,39 +27,52 @@ const TimerControls: React.FC<TimerControlsProps> = ({
     initialTimerStartedAt ? new Date(initialTimerStartedAt) : null
   );
 
-  // Simplified timer effect - updates every second when running
+  // Timer effect que atualiza a cada segundo
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     
     if (timerStatus === 'running' && timerStartedAt) {
-      console.log('Timer iniciado - atualizando a cada segundo');
+      console.log('=== TIMER INICIADO - ATUALIZANDO A CADA SEGUNDO ===');
+      console.log('Hora de início:', timerStartedAt.toLocaleString());
+      console.log('Tempo base acumulado:', timeSpent, 'minutos');
       
+      // Atualizar imediatamente
+      const now = new Date();
+      const elapsedMs = now.getTime() - timerStartedAt.getTime();
+      const elapsedMinutes = Math.floor(elapsedMs / (1000 * 60));
+      const newDisplayTime = timeSpent + elapsedMinutes;
+      setDisplayTime(newDisplayTime);
+      
+      // Configurar interval para atualizar a cada segundo
       interval = setInterval(() => {
-        const now = new Date();
-        const elapsedMs = now.getTime() - timerStartedAt.getTime();
-        const elapsedMinutes = Math.floor(elapsedMs / (1000 * 60));
-        const newDisplayTime = timeSpent + elapsedMinutes;
+        const currentTime = new Date();
+        const totalElapsedMs = currentTime.getTime() - timerStartedAt.getTime();
+        const totalElapsedMinutes = Math.floor(totalElapsedMs / (1000 * 60));
+        const currentDisplayTime = timeSpent + totalElapsedMinutes;
         
-        console.log('Atualizando display:', {
-          timeSpent,
-          elapsedMinutes,
-          newDisplayTime,
-          formatted: formatTime(newDisplayTime)
+        console.log('⏱️  Tick do timer:', {
+          horaAtual: currentTime.toLocaleString(),
+          tempoDecorrido: totalElapsedMinutes + ' min',
+          tempoBase: timeSpent + ' min',
+          tempoDisplay: currentDisplayTime + ' min',
+          formatado: formatTime(currentDisplayTime)
         });
         
-        setDisplayTime(newDisplayTime);
-      }, 1000);
+        setDisplayTime(currentDisplayTime);
+      }, 1000); // Atualiza a cada 1 segundo
+      
     } else {
-      // When not running, display time equals stored time
+      console.log('Timer parado/pausado - display fixo em:', timeSpent);
       setDisplayTime(timeSpent);
     }
 
     return () => {
       if (interval) {
+        console.log('🛑 Limpando interval do timer');
         clearInterval(interval);
       }
     };
-  }, [timerStatus, timerStartedAt, timeSpent]);
+  }, [timerStatus, timerStartedAt, timeSpent]); // Dependências corretas
 
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -110,12 +122,12 @@ const TimerControls: React.FC<TimerControlsProps> = ({
 
       console.log('Status da etapa atualizado para running');
 
-      // Update local state
+      // Update local state - ISSO VAI DISPARAR O useEffect
       setCurrentSessionId(sessionData.id);
       setTimerStatus('running');
       setTimerStartedAt(now);
       
-      console.log('Estados locais atualizados - timer deve começar a contar');
+      console.log('✅ Estados locais atualizados - timer deve começar a contar');
       
       toast.success('Timer iniciado!');
     } catch (error) {
@@ -250,7 +262,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
     }
   };
 
-  console.log('TimerControls render:', {
+  console.log('🔄 TimerControls render:', {
     taskId,
     timeSpent,
     displayTime,
