@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import GanttView from '../calendar/GanttView';
 import { fetchProjects } from '@/integrations/supabase/projects';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { isAfter, isBefore } from 'date-fns';
 
 interface Task {
@@ -48,6 +49,24 @@ const ReportsGantt: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   const { statuses } = useProjectStatuses();
+  const { 
+    isRestrictedConsultant, 
+    getLinkedConsultantId, 
+    isSuperAdmin,
+    isLoading: permissionsLoading 
+  } = useUserPermissions();
+
+  // Configurar filtro automático baseado no perfil do usuário
+  useEffect(() => {
+    if (!permissionsLoading) {
+      if (isRestrictedConsultant) {
+        const linkedConsultantId = getLinkedConsultantId();
+        if (linkedConsultantId) {
+          setSelectedConsultantId(linkedConsultantId);
+        }
+      }
+    }
+  }, [isRestrictedConsultant, getLinkedConsultantId, permissionsLoading]);
 
   useEffect(() => {
     const fetchGanttData = async () => {
@@ -216,7 +235,7 @@ const ReportsGantt: React.FC = () => {
     console.log('Tasks:', tasks.length);
   }, [overdueProjects, overdueStages, loading, tasks.length]);
 
-  if (loading) {
+  if (loading || permissionsLoading) {
     return (
       <Card>
         <CardContent>
@@ -230,27 +249,29 @@ const ReportsGantt: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Consultant Filter - SEM TÍTULO OU HEADER */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-4">
-            <label className="text-sm font-medium">Filtrar por consultor:</label>
-            <Select value={selectedConsultantId} onValueChange={setSelectedConsultantId}>
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder="Selecione um consultor" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os consultores</SelectItem>
-                {consultants.map(consultant => (
-                  <SelectItem key={consultant.id} value={consultant.id}>
-                    {consultant.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Consultant Filter - SEM TÍTULO OU HEADER - Só mostra se não for consultor restrito */}
+      {!isRestrictedConsultant && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-4">
+              <label className="text-sm font-medium">Filtrar por consultor:</label>
+              <Select value={selectedConsultantId} onValueChange={setSelectedConsultantId}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Selecione um consultor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os consultores</SelectItem>
+                  {consultants.map(consultant => (
+                    <SelectItem key={consultant.id} value={consultant.id}>
+                      {consultant.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Gantt Chart - SEM TÍTULO EM LUGAR NENHUM */}
       <GanttView 

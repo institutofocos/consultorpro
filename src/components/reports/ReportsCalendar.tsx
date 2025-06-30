@@ -6,6 +6,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { addDays, format, parseISO, isWithinInterval } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import { supabase } from "@/integrations/supabase/client";
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 interface Event {
   title: string;
@@ -20,31 +21,53 @@ export default function ReportsCalendar() {
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const { 
+    isRestrictedConsultant, 
+    getLinkedConsultantId, 
+    isLoading: permissionsLoading 
+  } = useUserPermissions();
+
   useEffect(() => {
-    fetchEvents();
-  }, []);
+    if (!permissionsLoading) {
+      fetchEvents();
+    }
+  }, [permissionsLoading, isRestrictedConsultant, getLinkedConsultantId]);
 
   const fetchEvents = async () => {
     setIsLoading(true);
     try {
-      // Buscar projetos
-      const { data: projects, error: projectsError } = await supabase
+      let projectQuery = supabase
         .from('projects')
         .select(`
           id, name, start_date, end_date,
-          main_consultant:consultants!projects_main_consultant_id_fkey(name)
+          main_consultant:consultants!projects_main_consultant_id_fkey(name),
+          main_consultant_id,
+          support_consultant_id
         `);
 
-      if (projectsError) throw projectsError;
-
-      // Buscar etapas
-      const { data: stages, error: stagesError } = await supabase
+      let stageQuery = supabase
         .from('project_stages')
         .select(`
-          id, name, start_date, end_date, project_id,
-          project:projects!project_stages_project_id_fkey(name)
+          id, name, start_date, end_date, project_id, consultant_id,
+          project:projects!project_stages_project_id_fkey(name, main_consultant_id, support_consultant_id)
         `);
 
+      // Se o usuário é um consultor restrito, filtrar apenas seus dados
+      if (isRestrictedConsultant) {
+        const linkedConsultantId = getLinkedConsultantId();
+        if (linkedConsultantId) {
+          projectQuery = projectQuery.or(`main_consultant_id.eq.${linkedConsultantId},support_consultant_id.eq.${linkedConsultantId}`);
+          stageQuery = stageQuery.or(`consultant_id.eq.${linkedConsultantId},project.main_consultant_id.eq.${linkedConsultantId},project.support_consultant_id.eq.${linkedConsultantId}`);
+        }
+      }
+
+      // Executar queries
+      const [{ data: projects, error: projectsError }, { data: stages, error: stagesError }] = await Promise.all([
+        projectQuery,
+        stageQuery
+      ]);
+
+      if (projectsError) throw projectsError;
       if (stagesError) throw stagesError;
 
       const allEvents: Event[] = [];
@@ -52,6 +75,14 @@ export default function ReportsCalendar() {
       // Processar projetos para extrair datas importantes
       if (projects) {
         projects.forEach(project => {
+          // Verificar se o usuário tem acesso a este projeto
+          if (isRestrictedConsultant) {
+            const linkedConsultantId = getLinkedConsultantId();
+            const hasAccess = project.main_consultant_id === linkedConsultantId || 
+                             project.support_consultant_id === linkedConsultantId;
+            if (!hasAccess) return;
+          }
+
           // Adicionar evento para a data de início do projeto
           if (project.start_date) {
             allEvents.push({
@@ -77,6 +108,15 @@ export default function ReportsCalendar() {
       // Processar etapas
       if (stages) {
         stages.forEach(stage => {
+          // Verificar se o usuário tem acesso a esta etapa
+          if (isRestrictedConsultant) {
+            const linkedConsultantId = getLinkedConsultantId();
+            const hasAccess = stage.consultant_id === linkedConsultantId ||
+                             stage.project?.main_consultant_id === linkedConsultantId ||
+                             stage.project?.support_consultant_id === linkedConsultantId;
+            if (!hasAccess) return;
+          }
+
           if (stage.start_date) {
             allEvents.push({
               title: `Início ${stage.name} - ${stage.project?.name || 'Projeto'}`,
@@ -118,11 +158,24 @@ export default function ReportsCalendar() {
       undefined;
   };
 
+  if (permissionsLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p>Carregando permissões...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-3xl font-bold">Relatórios - Agenda</h1>
-        <p className="text-muted-foreground">Visualize os projetos em formato de agenda</p>
+        <p className="text-muted-foreground">
+          {isRestrictedConsultant 
+            ? 'Visualize seus projetos em formato de agenda' 
+            : 'Visualize os projetos em formato de agenda'
+          }
+        </p>
       </div>
       
       <div className="grid gap-6 md:grid-cols-2">
