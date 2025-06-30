@@ -28,37 +28,35 @@ const TimerControls: React.FC<TimerControlsProps> = ({
     initialTimerStartedAt ? new Date(initialTimerStartedAt) : null
   );
 
-  // Update display time every second when timer is running
+  // Simplified timer effect - updates every second when running
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: NodeJS.Timeout | null = null;
     
     if (timerStatus === 'running' && timerStartedAt) {
-      console.log('Timer is running, updating display time every second');
+      console.log('Timer iniciado - atualizando a cada segundo');
       
       interval = setInterval(() => {
-        const currentTime = new Date();
-        const elapsedMs = currentTime.getTime() - timerStartedAt.getTime();
+        const now = new Date();
+        const elapsedMs = now.getTime() - timerStartedAt.getTime();
         const elapsedMinutes = Math.floor(elapsedMs / (1000 * 60));
         const newDisplayTime = timeSpent + elapsedMinutes;
         
-        console.log('Timer tick:', {
-          startTime: timerStartedAt.toLocaleString(),
-          currentTime: currentTime.toLocaleString(),
+        console.log('Atualizando display:', {
+          timeSpent,
           elapsedMinutes,
-          baseTimeSpent: timeSpent,
-          newDisplayTime
+          newDisplayTime,
+          formatted: formatTime(newDisplayTime)
         });
         
         setDisplayTime(newDisplayTime);
       }, 1000);
     } else {
-      console.log('Timer not running, display time is static:', timeSpent);
+      // When not running, display time equals stored time
       setDisplayTime(timeSpent);
     }
 
     return () => {
       if (interval) {
-        console.log('Clearing timer interval');
         clearInterval(interval);
       }
     };
@@ -112,16 +110,12 @@ const TimerControls: React.FC<TimerControlsProps> = ({
 
       console.log('Status da etapa atualizado para running');
 
-      // Update local state IMMEDIATELY
+      // Update local state
       setCurrentSessionId(sessionData.id);
       setTimerStatus('running');
       setTimerStartedAt(now);
       
-      console.log('Estados locais atualizados:', {
-        sessionId: sessionData.id,
-        status: 'running',
-        startTime: now.toLocaleString()
-      });
+      console.log('Estados locais atualizados - timer deve começar a contar');
       
       toast.success('Timer iniciado!');
     } catch (error) {
@@ -262,7 +256,8 @@ const TimerControls: React.FC<TimerControlsProps> = ({
     displayTime,
     timerStatus,
     timerStartedAt: timerStartedAt?.toLocaleString(),
-    currentSessionId
+    currentSessionId,
+    formattedTime: formatTime(displayTime)
   });
 
   return (
@@ -274,7 +269,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
         </h4>
         <div className="flex items-center gap-3">
           <div className="text-right">
-            <div className={`text-2xl font-mono font-bold ${getStatusColor()}`}>
+            <div className={`text-3xl font-mono font-bold ${getStatusColor()}`}>
               {formatTime(displayTime)}
             </div>
             <div className={`text-xs px-2 py-1 rounded-full ${getStatusColor()} bg-white border`}>
