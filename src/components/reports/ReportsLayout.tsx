@@ -6,7 +6,7 @@ import ReportsCalendar from './ReportsCalendar';
 import ReportsGantt from './ReportsGantt';
 
 const ReportsLayout: React.FC = () => {
-  console.log('ReportsLayout component rendered - tab labels should be "Calendário" and "Gantt" only');
+  console.log('ReportsLayout component rendered - NO "Visualização Gantt" text in tabs');
   
   return (
     <div className="space-y-6">

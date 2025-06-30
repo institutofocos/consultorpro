@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -37,7 +38,7 @@ interface Consultant {
 }
 
 const ReportsGantt: React.FC = () => {
-  console.log('ReportsGantt component rendered - NO "Visualização Gantt" text anywhere');
+  console.log('ReportsGantt component rendered - REMOVED ALL TITLES');
   
   const [tasks, setTasks] = useState<Task[]>([]);
   const [consultants, setConsultants] = useState<Consultant[]>([]);
@@ -229,7 +230,7 @@ const ReportsGantt: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Consultant Filter - NO TITLE */}
+      {/* Consultant Filter - NO TITLE OR HEADER */}
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center gap-4">
@@ -251,7 +252,7 @@ const ReportsGantt: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Gantt Chart */}
+      {/* Gantt Chart - NO TITLE ANYWHERE */}
       <GanttView 
         tasks={tasks} 
         selectedConsultantId={selectedConsultantId}
