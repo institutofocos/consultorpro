@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,6 +32,9 @@ interface Task {
   consultant_name: string;
   project_name: string;
   service_name: string;
+  time_spent_minutes?: number;
+  timer_status?: string;
+  timer_started_at?: string;
 }
 
 interface TaskEvent {
@@ -94,7 +96,10 @@ const CalendarPage: React.FC = () => {
           hours,
           days,
           project_id,
-          consultant_id
+          consultant_id,
+          time_spent_minutes,
+          timer_status,
+          timer_started_at
         `)
         .not('start_date', 'is', null)
         .not('end_date', 'is', null);
@@ -152,7 +157,10 @@ const CalendarPage: React.FC = () => {
           consultant_id: task.consultant_id,
           consultant_name: consultantsMap.get(task.consultant_id) || 'Não atribuído',
           project_name: projectInfo?.name || 'Projeto sem nome',
-          service_name: serviceName
+          service_name: serviceName,
+          time_spent_minutes: task.time_spent_minutes || 0,
+          timer_status: task.timer_status || 'stopped',
+          timer_started_at: task.timer_started_at
         };
       }) || [];
 

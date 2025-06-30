@@ -6,6 +6,7 @@ import { Calendar, Clock, DollarSign, User, FileText, Hash } from 'lucide-react'
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ScrollArea } from "@/components/ui/scroll-area";
+import TimerControls from './TimerControls';
 
 interface Task {
   id: string;
@@ -22,6 +23,10 @@ interface Task {
   consultant_id: string;
   consultant_name: string;
   project_name: string;
+  service_name?: string;
+  time_spent_minutes?: number;
+  timer_status?: string;
+  timer_started_at?: string;
 }
 
 interface TaskModalProps {
@@ -68,9 +73,14 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, isOpen, onClose }) => {
     return format(new Date(dateString), 'dd/MM/yyyy', { locale: ptBR });
   };
 
+  const handleTimeUpdate = (newTimeSpent: number) => {
+    // This callback can be used to update the parent component if needed
+    console.log('Time updated:', newTimeSpent);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
         <DialogHeader className="p-6 pb-0 flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <FileText className="h-5 w-5" />
@@ -89,6 +99,15 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, isOpen, onClose }) => {
                 </Badge>
               </div>
             </div>
+
+            {/* Timer Controls */}
+            <TimerControls
+              taskId={task.id}
+              initialTimeSpent={task.time_spent_minutes || 0}
+              initialTimerStatus={task.timer_status || 'stopped'}
+              initialTimerStartedAt={task.timer_started_at}
+              onTimeUpdate={handleTimeUpdate}
+            />
 
             {/* Descrição */}
             {task.description && (
@@ -118,6 +137,14 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, isOpen, onClose }) => {
                 <p className="text-gray-600">{task.consultant_name}</p>
               </div>
             </div>
+
+            {/* Serviço */}
+            {task.service_name && (
+              <div className="space-y-2">
+                <h4 className="font-medium text-gray-700">Serviço</h4>
+                <p className="text-gray-600">{task.service_name}</p>
+              </div>
+            )}
 
             {/* Datas */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
