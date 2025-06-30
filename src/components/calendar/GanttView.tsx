@@ -46,7 +46,7 @@ const GanttView: React.FC<GanttViewProps> = ({
   overdueProjects = 0, 
   overdueStages = 0 
 }) => {
-  console.log('GanttView component rendered - FIXING TODAY LINE POSITION');
+  console.log('GanttView component rendered - TEXTO VISUALIZAÇÃO GANTT REMOVIDO COMPLETAMENTE');
   
   // Set default values to "Esta Semana" (this week)
   const [viewStartDate, setViewStartDate] = useState<Date>(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -354,7 +354,7 @@ const GanttView: React.FC<GanttViewProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Navigation Controls - NO TITLE ANYWHERE */}
+      {/* Navigation Controls - SEM NENHUM TÍTULO */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="sm" onClick={navigatePrevious}>
@@ -372,7 +372,7 @@ const GanttView: React.FC<GanttViewProps> = ({
         </div>
         
         <div className="flex items-center gap-6">
-          {/* Date Range - NO TITLE */}
+          {/* Date Range - SEM TÍTULO */}
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
             <span className="text-sm font-medium">
@@ -384,7 +384,7 @@ const GanttView: React.FC<GanttViewProps> = ({
           </div>
         </div>
 
-        {/* Timeline selector - NO TITLE */}
+        {/* Timeline selector - SEM TÍTULO */}
         <Select value={isThisWeek ? 'thisweek' : timelineWeeks.toString()} onValueChange={handleTimelineWeeksChange}>
           <SelectTrigger className="w-40">
             <SelectValue />
@@ -399,7 +399,7 @@ const GanttView: React.FC<GanttViewProps> = ({
         </Select>
       </div>
 
-      {/* Gantt Chart - NO HEADER */}
+      {/* Gantt Chart - SEM HEADER */}
       <Card>
         <CardContent className="p-0">
           {Object.keys(filteredGroupedTasks).length === 0 ? (
@@ -409,7 +409,7 @@ const GanttView: React.FC<GanttViewProps> = ({
             </div>
           ) : (
             <div className="overflow-x-auto">
-              {/* Timeline Header - NO HEADER */}
+              {/* Timeline Header - SEM HEADER */}
               <div className="flex border-b bg-muted/30 relative pt-8">
                 <div className="w-80 flex-shrink-0 p-4 border-r font-semibold">
                   Projeto / Etapa
@@ -455,7 +455,7 @@ const GanttView: React.FC<GanttViewProps> = ({
               {/* Project Groups */}
               {Object.entries(filteredGroupedTasks).map(([projectId, projectData]) => (
                 <div key={projectId} className="border-b">
-                  {/* Project Header - NO HEADER */}
+                  {/* Project Header - SEM HEADER */}
                   <div className="flex bg-muted/10 relative">
                     <div className="w-80 flex-shrink-0 p-3 border-r">
                       <div className="font-semibold">{projectData.project_name}</div>
@@ -601,7 +601,7 @@ const GanttView: React.FC<GanttViewProps> = ({
         </CardContent>
       </Card>
 
-      {/* Legend - NO TITLE */}
+      {/* Legend - SEM TÍTULO */}
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-4">

@@ -38,7 +38,7 @@ interface Consultant {
 }
 
 const ReportsGantt: React.FC = () => {
-  console.log('ReportsGantt component rendered - REMOVED ALL TITLES');
+  console.log('ReportsGantt component rendered - TEXTO VISUALIZAÇÃO GANTT REMOVIDO COMPLETAMENTE');
   
   const [tasks, setTasks] = useState<Task[]>([]);
   const [consultants, setConsultants] = useState<Consultant[]>([]);
@@ -230,7 +230,7 @@ const ReportsGantt: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Consultant Filter - NO TITLE OR HEADER */}
+      {/* Consultant Filter - SEM TÍTULO OU HEADER */}
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center gap-4">
@@ -252,7 +252,7 @@ const ReportsGantt: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Gantt Chart - NO TITLE ANYWHERE */}
+      {/* Gantt Chart - SEM TÍTULO EM LUGAR NENHUM */}
       <GanttView 
         tasks={tasks} 
         selectedConsultantId={selectedConsultantId}
