@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -207,7 +206,7 @@ const GanttView: React.FC<GanttViewProps> = ({
 
   // Navigate to today
   const navigateToday = () => {
-    setViewStartDate(startOfWeek(new Date()));
+    setViewStartDate(startOfWeek(new Date(), { weekStartsOn: 1 }));
   };
 
   // Handle drag start
@@ -225,7 +224,8 @@ const GanttView: React.FC<GanttViewProps> = ({
     if (value === 'thisweek') {
       // Set to this week starting from Monday
       setTimelineWeeks(1);
-      setViewStartDate(startOfWeek(new Date()));
+      // Use startOfWeek with Monday as first day of week
+      setViewStartDate(startOfWeek(new Date(), { weekStartsOn: 1 }));
     } else {
       setTimelineWeeks(parseInt(value));
     }
@@ -304,8 +304,8 @@ const GanttView: React.FC<GanttViewProps> = ({
             </div>
           ) : (
             <div className="overflow-x-auto">
-              {/* Timeline Header */}
-              <div className="flex border-b bg-muted/30 relative">
+              {/* Timeline Header - INCREASED PADDING TOP */}
+              <div className="flex border-b bg-muted/30 relative pt-8">
                 <div className="w-80 flex-shrink-0 p-4 border-r font-semibold">
                   Projeto / Etapa
                 </div>
@@ -319,15 +319,16 @@ const GanttView: React.FC<GanttViewProps> = ({
                     </div>
                   ))}
                   
-                  {/* Current Date Line with Today Date Box - POSIÇÃO FIXA NO TOPO */}
+                  {/* Current Date Line with Today Date Box - ADJUSTED POSITIONING */}
                   {currentDatePosition.visible && (
                     <>
-                      {/* Green Date Box - POSIÇÃO ABSOLUTA FIXA NO TOPO DO CABEÇALHO */}
+                      {/* Green Date Box - POSITIONED HIGHER WITH MORE SPACE */}
                       <div 
-                        className="absolute -top-2 bg-green-500 text-white px-3 py-1 rounded-md text-xs font-bold whitespace-nowrap shadow-lg border border-green-600 z-50"
+                        className="absolute bg-green-500 text-white px-3 py-1 rounded-md text-xs font-bold whitespace-nowrap shadow-lg border border-green-600 z-50"
                         style={{ 
                           left: `calc(${currentDatePosition.left} - 50px)`,
-                          transform: 'translateX(-50%)'
+                          transform: 'translateX(-50%)',
+                          top: '-32px' // Moved higher to prevent cutoff
                         }}
                       >
                         Hoje: {format(new Date(), 'dd/MM/yyyy', { locale: ptBR })}
