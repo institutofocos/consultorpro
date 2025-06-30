@@ -388,12 +388,6 @@ const GanttView: React.FC<GanttViewProps> = ({
 
       {/* Gantt Chart */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Visualização Gantt
-          </CardTitle>
-        </CardHeader>
         <CardContent className="p-0">
           {Object.keys(filteredGroupedTasks).length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
