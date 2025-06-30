@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Play, Pause, Square, Clock } from 'lucide-react';
@@ -326,10 +325,29 @@ const TimerControls: React.FC<TimerControlsProps> = ({
         </Button>
       </div>
 
-      {timeSpent > 0 && (
-        <div className="text-sm text-gray-600 bg-white rounded p-2 border">
-          <span className="font-medium">Tempo total acumulado: </span>
-          <span className="font-mono font-bold text-blue-600">{formatTime(timeSpent * 60)}</span>
+      {/* Campo destacado para tempo total acumulado */}
+      <div className="bg-white rounded-lg p-4 border-2 border-blue-200 mb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-blue-600" />
+            <span className="font-semibold text-gray-800">Tempo Total Acumulado:</span>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-mono font-bold text-blue-600">
+              {formatTime(timeSpent * 60)}
+            </div>
+            <div className="text-xs text-gray-500">
+              {timeSpent} minutos trabalhados
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Informação adicional sobre sessão atual */}
+      {timerStatus === 'running' && timerStartedAt && (
+        <div className="text-sm text-gray-600 bg-green-50 rounded p-2 border border-green-200">
+          <span className="font-medium">Sessão atual iniciada às: </span>
+          <span className="font-mono">{timerStartedAt.toLocaleTimeString()}</span>
         </div>
       )}
     </div>
