@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -114,7 +115,9 @@ const AccessProfileModal: React.FC<AccessProfileModalProps> = ({
       ...prev,
       [module]: {
         ...prev[module],
-        [permission]: value
+        [permission]: value,
+        // Se desmarcar can_view, também desmarcar restrict_to_linked
+        ...(permission === 'can_view' && !value ? { restrict_to_linked: false } : {})
       }
     }));
   };

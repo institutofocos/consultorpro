@@ -32,6 +32,7 @@ CREATE TABLE public.profile_module_permissions (
   can_view BOOLEAN NOT NULL DEFAULT false,
   can_edit BOOLEAN NOT NULL DEFAULT false,
   can_delete BOOLEAN NOT NULL DEFAULT false,
+  restrict_to_linked BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   UNIQUE(profile_id, module_name)
 );
@@ -99,13 +100,14 @@ INSERT INTO public.access_profiles (name, description, is_system_default, is_act
 ('Consultor', 'Acesso restrito aos módulos de projetos, demandas e calendário vinculados ao próprio usuário.', true, true);
 
 -- Inserir permissões para Super Admin (acesso total)
-INSERT INTO public.profile_module_permissions (profile_id, module_name, can_view, can_edit, can_delete)
+INSERT INTO public.profile_module_permissions (profile_id, module_name, can_view, can_edit, can_delete, restrict_to_linked)
 SELECT 
   ap.id,
   m.module_name,
   true,
   true,
-  true
+  true,
+  false
 FROM public.access_profiles ap
 CROSS JOIN (
   SELECT unnest(enum_range(NULL::module_type)) as module_name
@@ -113,13 +115,14 @@ CROSS JOIN (
 WHERE ap.name = 'Super Admin';
 
 -- Inserir permissões para Admin (acesso total exceto settings)
-INSERT INTO public.profile_module_permissions (profile_id, module_name, can_view, can_edit, can_delete)
+INSERT INTO public.profile_module_permissions (profile_id, module_name, can_view, can_edit, can_delete, restrict_to_linked)
 SELECT 
   ap.id,
   m.module_name,
   true,
   true,
-  CASE WHEN m.module_name = 'settings' THEN false ELSE true END
+  CASE WHEN m.module_name = 'settings' THEN false ELSE true END,
+  false
 FROM public.access_profiles ap
 CROSS JOIN (
   SELECT unnest(enum_range(NULL::module_type)) as module_name
@@ -127,13 +130,14 @@ CROSS JOIN (
 WHERE ap.name = 'Admin';
 
 -- Inserir permissões para Gestor
-INSERT INTO public.profile_module_permissions (profile_id, module_name, can_view, can_edit, can_delete)
+INSERT INTO public.profile_module_permissions (profile_id, module_name, can_view, can_edit, can_delete, restrict_to_linked)
 SELECT 
   ap.id,
   m.module_name,
   true,
   true,
-  true
+  true,
+  false
 FROM public.access_profiles ap
 CROSS JOIN (VALUES 
   ('dashboard'::module_type),
@@ -148,24 +152,26 @@ CROSS JOIN (VALUES
 WHERE ap.name = 'Gestor';
 
 -- Inserir permissões para Financeiro
-INSERT INTO public.profile_module_permissions (profile_id, module_name, can_view, can_edit, can_delete)
+INSERT INTO public.profile_module_permissions (profile_id, module_name, can_view, can_edit, can_delete, restrict_to_linked)
 SELECT 
   ap.id,
   'financial'::module_type,
   true,
   true,
-  true
+  true,
+  false
 FROM public.access_profiles ap
 WHERE ap.name = 'Financeiro';
 
--- Inserir permissões para Consultor
-INSERT INTO public.profile_module_permissions (profile_id, module_name, can_view, can_edit, can_delete)
+-- Inserir permissões para Consultor (com restrição a dados vinculados)
+INSERT INTO public.profile_module_permissions (profile_id, module_name, can_view, can_edit, can_delete, restrict_to_linked)
 SELECT 
   ap.id,
   m.module_name,
   true,
   true,
-  false
+  false,
+  true
 FROM public.access_profiles ap
 CROSS JOIN (VALUES 
   ('projects'::module_type),
@@ -174,7 +180,7 @@ CROSS JOIN (VALUES
 ) m(module_name)
 WHERE ap.name = 'Consultor';
 
--- Função para buscar perfis de acesso com permissões
+-- Função para buscar perfis de acesso com permissões (atualizada para incluir restrict_to_linked)
 CREATE OR REPLACE FUNCTION public.get_access_profiles()
 RETURNS TABLE (
   id uuid,
@@ -205,7 +211,8 @@ BEGIN
           'module_name', pmp.module_name::text,
           'can_view', pmp.can_view,
           'can_edit', pmp.can_edit,
-          'can_delete', pmp.can_delete
+          'can_delete', pmp.can_delete,
+          'restrict_to_linked', pmp.restrict_to_linked
         )
       ) FILTER (WHERE pmp.id IS NOT NULL),
       '[]'::jsonb

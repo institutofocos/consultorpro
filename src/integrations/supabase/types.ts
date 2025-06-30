@@ -749,6 +749,7 @@ export type Database = {
           id: string
           module_name: Database["public"]["Enums"]["module_type"]
           profile_id: string
+          restrict_to_linked: boolean
         }
         Insert: {
           can_delete?: boolean
@@ -758,6 +759,7 @@ export type Database = {
           id?: string
           module_name: Database["public"]["Enums"]["module_type"]
           profile_id: string
+          restrict_to_linked?: boolean
         }
         Update: {
           can_delete?: boolean
@@ -767,6 +769,7 @@ export type Database = {
           id?: string
           module_name?: Database["public"]["Enums"]["module_type"]
           profile_id?: string
+          restrict_to_linked?: boolean
         }
         Relationships: [
           {
