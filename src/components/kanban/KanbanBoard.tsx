@@ -14,6 +14,40 @@ import { useUserPermissions } from "@/hooks/useUserPermissions";
 import KanbanCard from "./KanbanCard";
 import ProjectDetailsModal from "./ProjectDetailsModal";
 
+// Define the Supabase response type
+interface SupabaseProject {
+  id: string;
+  name: string;
+  description?: string;
+  client?: { name: string };
+  service?: { name: string };
+  main_consultant?: { name: string };
+  support_consultant?: { name: string };
+  status: string;
+  start_date: string;
+  end_date: string;
+  total_value: number;
+  main_consultant_id?: string;
+  support_consultant_id?: string;
+  client_id?: string;
+  service_id?: string;
+  main_consultant_commission?: number;
+  support_consultant_commission?: number;
+  hourly_rate?: number;
+  total_hours?: number;
+  tax_percent?: number;
+  third_party_expenses?: number;
+  main_consultant_value?: number;
+  support_consultant_value?: number;
+  manager_name?: string;
+  manager_email?: string;
+  manager_phone?: string;
+  url?: string;
+  project_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 interface Project {
   id: string;
   name: string;
@@ -28,6 +62,13 @@ interface Project {
   total_value: number;
   main_consultant_id?: string;
   support_consultant_id?: string;
+  // Required properties for compatibility
+  mainConsultantCommission: number;
+  supportConsultantCommission: number;
+  startDate: string;
+  endDate: string;
+  totalValue: number;
+  taxPercent: number;
 }
 
 interface Consultant {
@@ -69,6 +110,20 @@ const KanbanBoard: React.FC = () => {
     fetchConsultants();
   }, []);
 
+  // Transform Supabase data to Project format
+  const transformProject = (supabaseProject: SupabaseProject): Project => {
+    return {
+      ...supabaseProject,
+      // Map required camelCase properties
+      mainConsultantCommission: supabaseProject.main_consultant_commission || 0,
+      supportConsultantCommission: supabaseProject.support_consultant_commission || 0,
+      startDate: supabaseProject.start_date,
+      endDate: supabaseProject.end_date,
+      totalValue: supabaseProject.total_value,
+      taxPercent: supabaseProject.tax_percent || 16,
+    };
+  };
+
   const fetchProjects = async () => {
     try {
       setLoading(true);
@@ -84,7 +139,10 @@ const KanbanBoard: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setProjects(data || []);
+      
+      // Transform the data to match our Project interface
+      const transformedProjects = (data || []).map(transformProject);
+      setProjects(transformedProjects);
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Erro ao carregar projetos');
