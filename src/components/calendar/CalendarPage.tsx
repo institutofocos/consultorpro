@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, BarChart3, Kanban } from 'lucide-react';
@@ -11,6 +11,12 @@ import KanbanView from './KanbanView';
 const CalendarPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // State for GanttView props
+  const [selectedConsultantId, setSelectedConsultantId] = useState<string>('');
+  
+  // Mock tasks data - in a real app, this would come from an API
+  const mockTasks = [];
   
   // Extract the current tab from the URL path
   const currentPath = location.pathname.split('/').pop();
@@ -55,7 +61,12 @@ const CalendarPage: React.FC = () => {
           
           <Route path="gantt" element={
             <TabsContent value="gantt" className="mt-6">
-              <GanttView />
+              <GanttView 
+                tasks={mockTasks}
+                selectedConsultantId={selectedConsultantId}
+                overdueProjects={0}
+                overdueStages={0}
+              />
             </TabsContent>
           } />
           
