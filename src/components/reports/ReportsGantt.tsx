@@ -37,7 +37,7 @@ interface Consultant {
 }
 
 const ReportsGantt: React.FC = () => {
-  console.log('ReportsGantt component rendered - checking for any "Visualização Gantt" text');
+  console.log('ReportsGantt component rendered - NO "Visualização Gantt" text anywhere');
   
   const [tasks, setTasks] = useState<Task[]>([]);
   const [consultants, setConsultants] = useState<Consultant[]>([]);
@@ -229,7 +229,7 @@ const ReportsGantt: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Consultant Filter */}
+      {/* Consultant Filter - NO TITLE */}
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center gap-4">

@@ -46,7 +46,7 @@ const GanttView: React.FC<GanttViewProps> = ({
   overdueProjects = 0, 
   overdueStages = 0 
 }) => {
-  console.log('GanttView component rendered - no "Visualização Gantt" title should appear');
+  console.log('GanttView component rendered - TEXT REMOVED from top right');
   
   // Set default values to "Esta Semana" (this week)
   const [viewStartDate, setViewStartDate] = useState<Date>(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -343,7 +343,7 @@ const GanttView: React.FC<GanttViewProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Navigation Controls */}
+      {/* Navigation Controls - REMOVED THE TITLE */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="sm" onClick={navigatePrevious}>
@@ -373,7 +373,7 @@ const GanttView: React.FC<GanttViewProps> = ({
           </div>
         </div>
 
-        {/* Increased width from w-32 to w-40 to accommodate longer text */}
+        {/* Timeline selector */}
         <Select value={isThisWeek ? 'thisweek' : timelineWeeks.toString()} onValueChange={handleTimelineWeeksChange}>
           <SelectTrigger className="w-40">
             <SelectValue />
@@ -388,7 +388,7 @@ const GanttView: React.FC<GanttViewProps> = ({
         </Select>
       </div>
 
-      {/* Gantt Chart - NO HEADER WITH TITLE */}
+      {/* Gantt Chart */}
       <Card>
         <CardContent className="p-0">
           {Object.keys(filteredGroupedTasks).length === 0 ? (
