@@ -24,26 +24,42 @@ const TimerControls: React.FC<TimerControlsProps> = ({
   const [timerStatus, setTimerStatus] = useState(initialTimerStatus || 'stopped');
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [displayTime, setDisplayTime] = useState(timeSpent);
+  const [timerStartedAt, setTimerStartedAt] = useState<string | null>(initialTimerStartedAt || null);
 
   // Update display time every second when timer is running
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
-    if (timerStatus === 'running' && initialTimerStartedAt) {
+    if (timerStatus === 'running' && timerStartedAt) {
+      console.log('Starting real-time timer update, started at:', timerStartedAt);
+      
       interval = setInterval(() => {
-        const startTime = new Date(initialTimerStartedAt).getTime();
+        const startTime = new Date(timerStartedAt).getTime();
         const currentTime = new Date().getTime();
         const elapsedMinutes = Math.floor((currentTime - startTime) / (1000 * 60));
-        setDisplayTime(timeSpent + elapsedMinutes);
+        const newDisplayTime = timeSpent + elapsedMinutes;
+        
+        console.log('Timer update:', {
+          startTime: new Date(timerStartedAt).toLocaleString(),
+          currentTime: new Date().toLocaleString(),
+          elapsedMinutes,
+          baseTimeSpent: timeSpent,
+          newDisplayTime
+        });
+        
+        setDisplayTime(newDisplayTime);
       }, 1000);
     } else {
       setDisplayTime(timeSpent);
     }
 
     return () => {
-      if (interval) clearInterval(interval);
+      if (interval) {
+        console.log('Clearing timer interval');
+        clearInterval(interval);
+      }
     };
-  }, [timerStatus, initialTimerStartedAt, timeSpent]);
+  }, [timerStatus, timerStartedAt, timeSpent]);
 
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -54,6 +70,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
   const startTimer = async () => {
     try {
       const now = new Date().toISOString();
+      console.log('Starting timer at:', now);
       
       // Create new work session
       const { data: sessionData, error: sessionError } = await supabase
@@ -81,7 +98,9 @@ const TimerControls: React.FC<TimerControlsProps> = ({
 
       setCurrentSessionId(sessionData.id);
       setTimerStatus('running');
+      setTimerStartedAt(now);
       toast.success('Timer iniciado!');
+      console.log('Timer started successfully:', { sessionId: sessionData.id, startTime: now });
     } catch (error) {
       console.error('Error starting timer:', error);
       toast.error('Erro ao iniciar timer');
@@ -90,13 +109,19 @@ const TimerControls: React.FC<TimerControlsProps> = ({
 
   const pauseTimer = async () => {
     try {
-      if (!currentSessionId) return;
+      if (!currentSessionId || !timerStartedAt) return;
 
       const now = new Date().toISOString();
-      const startTime = new Date(initialTimerStartedAt!).getTime();
+      const startTime = new Date(timerStartedAt).getTime();
       const currentTime = new Date().getTime();
       const sessionDuration = Math.floor((currentTime - startTime) / (1000 * 60));
       const newTotalTime = timeSpent + sessionDuration;
+
+      console.log('Pausing timer:', {
+        sessionDuration,
+        previousTimeSpent: timeSpent,
+        newTotalTime
+      });
 
       // Update work session
       const { error: sessionError } = await supabase
@@ -125,6 +150,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
       setTimeSpent(newTotalTime);
       setTimerStatus('paused');
       setCurrentSessionId(null);
+      setTimerStartedAt(null);
       onTimeUpdate?.(newTotalTime);
       toast.success('Timer pausado!');
     } catch (error) {
@@ -153,6 +179,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
 
       setTimerStatus('stopped');
       setCurrentSessionId(null);
+      setTimerStartedAt(null);
       toast.success('Timer parado!');
     } catch (error) {
       console.error('Error stopping timer:', error);
