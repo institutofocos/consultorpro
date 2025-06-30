@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Play, Pause, Square, Clock } from 'lucide-react';
+import { Play, Pause, Square, Clock, History } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import TimeTrackingHistory from './TimeTrackingHistory';
 
 interface TimerControlsProps {
   taskId: string;
@@ -26,6 +28,50 @@ const TimerControls: React.FC<TimerControlsProps> = ({
   const [timerStartedAt, setTimerStartedAt] = useState<Date | null>(
     initialTimerStartedAt ? new Date(initialTimerStartedAt) : null
   );
+  const [showHistory, setShowHistory] = useState(false);
+  const [stageName, setStageName] = useState('');
+
+  // Buscar dados da etapa e tempo atualizado do banco
+  useEffect(() => {
+    const fetchStageData = async () => {
+      try {
+        const { data: stageData, error } = await supabase
+          .from('project_stages')
+          .select('name, time_spent_minutes, timer_status, timer_started_at')
+          .eq('id', taskId)
+          .single();
+
+        if (error) {
+          console.error('Erro ao buscar dados da etapa:', error);
+          return;
+        }
+
+        if (stageData) {
+          console.log('Dados da etapa atualizados:', stageData);
+          setStageName(stageData.name);
+          
+          // Atualizar tempo do banco (que já é calculado automaticamente pelo trigger)
+          const dbTimeSpent = stageData.time_spent_minutes || 0;
+          setTimeSpent(dbTimeSpent);
+          setDisplaySeconds(dbTimeSpent * 60);
+          
+          // Atualizar status do timer
+          setTimerStatus(stageData.timer_status || 'stopped');
+          
+          // Atualizar timer started at
+          if (stageData.timer_started_at) {
+            setTimerStartedAt(new Date(stageData.timer_started_at));
+          } else {
+            setTimerStartedAt(null);
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao buscar dados da etapa:', error);
+      }
+    };
+
+    fetchStageData();
+  }, [taskId]);
 
   // Timer effect que atualiza a cada segundo
   useEffect(() => {
@@ -71,13 +117,38 @@ const TimerControls: React.FC<TimerControlsProps> = ({
         clearInterval(interval);
       }
     };
-  }, [timerStatus, timerStartedAt, timeSpent]); // Dependências corretas
+  }, [timerStatus, timerStartedAt, timeSpent]);
 
   const formatTime = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const refreshTimeFromDatabase = async () => {
+    try {
+      const { data: stageData, error } = await supabase
+        .from('project_stages')
+        .select('time_spent_minutes')
+        .eq('id', taskId)
+        .single();
+
+      if (error) {
+        console.error('Erro ao buscar tempo atualizado:', error);
+        return;
+      }
+
+      if (stageData) {
+        const dbTimeSpent = stageData.time_spent_minutes || 0;
+        console.log('Tempo atualizado do banco:', dbTimeSpent);
+        setTimeSpent(dbTimeSpent);
+        setDisplaySeconds(dbTimeSpent * 60);
+        onTimeUpdate?.(dbTimeSpent);
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar tempo do banco:', error);
+    }
   };
 
   const startTimer = async () => {
@@ -122,7 +193,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
 
       console.log('Status da etapa atualizado para running');
 
-      // Update local state - ISSO VAI DISPARAR O useEffect
+      // Update local state
       setCurrentSessionId(sessionData.id);
       setTimerStatus('running');
       setTimerStartedAt(now);
@@ -147,14 +218,11 @@ const TimerControls: React.FC<TimerControlsProps> = ({
       const nowISO = now.toISOString();
       const elapsedMs = now.getTime() - timerStartedAt.getTime();
       const sessionDuration = Math.floor(elapsedMs / (1000 * 60));
-      const newTotalTime = timeSpent + sessionDuration;
 
       console.log('=== PAUSANDO TIMER ===');
       console.log('Duração da sessão (minutos):', sessionDuration);
-      console.log('Tempo anterior:', timeSpent);
-      console.log('Novo tempo total:', newTotalTime);
 
-      // Update work session
+      // Update work session - O trigger irá atualizar automaticamente o time_spent_minutes
       const { error: sessionError } = await supabase
         .from('stage_work_sessions')
         .update({
@@ -169,35 +237,32 @@ const TimerControls: React.FC<TimerControlsProps> = ({
         throw sessionError;
       }
 
-      // Update stage with accumulated time
+      // Update stage timer status
       const { error: updateError } = await supabase
         .from('project_stages')
         .update({
           timer_status: 'paused',
-          timer_started_at: null,
-          time_spent_minutes: newTotalTime
+          timer_started_at: null
         })
         .eq('id', taskId);
 
       if (updateError) {
-        console.error('Erro ao atualizar tempo da etapa:', updateError);
+        console.error('Erro ao atualizar status da etapa:', updateError);
         throw updateError;
       }
 
-      console.log('Tempo salvo no banco:', newTotalTime);
-
       // Update local state
-      setTimeSpent(newTotalTime);
-      setDisplaySeconds(newTotalTime * 60);
       setTimerStatus('paused');
       setCurrentSessionId(null);
       setTimerStartedAt(null);
       
-      // Notify parent component
-      onTimeUpdate?.(newTotalTime);
+      // Aguardar um momento e buscar o tempo atualizado do banco
+      setTimeout(() => {
+        refreshTimeFromDatabase();
+      }, 500);
       
-      console.log('Timer pausado com sucesso. Novo tempo total:', newTotalTime);
-      toast.success('Timer pausado!');
+      console.log('Timer pausado com sucesso');
+      toast.success('Timer pausado! Tempo salvo automaticamente.');
     } catch (error) {
       console.error('Erro ao pausar timer:', error);
       toast.error('Erro ao pausar timer');
@@ -323,6 +388,16 @@ const TimerControls: React.FC<TimerControlsProps> = ({
           <Square className="h-4 w-4" />
           Parar
         </Button>
+
+        <Button
+          onClick={() => setShowHistory(true)}
+          size="default"
+          variant="outline"
+          className="flex items-center gap-2 border-blue-500 text-blue-600 hover:bg-blue-50 font-medium px-4 py-2"
+        >
+          <History className="h-4 w-4" />
+          Histórico
+        </Button>
       </div>
 
       {/* Campo destacado para tempo total acumulado */}
@@ -350,6 +425,14 @@ const TimerControls: React.FC<TimerControlsProps> = ({
           <span className="font-mono">{timerStartedAt.toLocaleTimeString()}</span>
         </div>
       )}
+
+      {/* Modal de histórico */}
+      <TimeTrackingHistory
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+        stageId={taskId}
+        stageName={stageName}
+      />
     </div>
   );
 };

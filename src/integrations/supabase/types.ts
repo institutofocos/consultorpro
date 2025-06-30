@@ -1619,6 +1619,10 @@ export type Database = {
         Args: { project_start_date: string; stages: Json }
         Returns: Json
       }
+      calculate_stage_total_time: {
+        Args: { p_stage_id: string }
+        Returns: number
+      }
       delete_project_stage: {
         Args: { stage_id: string }
         Returns: boolean
