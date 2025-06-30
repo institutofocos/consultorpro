@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -113,7 +112,8 @@ const GanttView: React.FC<GanttViewProps> = ({
     
     return {
       visible: isVisible,
-      left: `${Math.max(0, leftPercent)}%`
+      left: `${Math.max(0, leftPercent)}%`,
+      today: formatDateBR(today)
     };
   };
 
@@ -264,6 +264,14 @@ const GanttView: React.FC<GanttViewProps> = ({
               {format(viewStartDate, 'dd/MM/yyyy', { locale: ptBR })} - {format(addDays(viewStartDate, timelineWeeks * 7 - 1), 'dd/MM/yyyy', { locale: ptBR })}
             </span>
           </div>
+          
+          {/* Today's Date - Always Visible */}
+          <div className="flex items-center gap-2 px-3 py-1 bg-green-50 border border-green-200 rounded-md">
+            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+            <span className="text-sm font-medium text-green-700">
+              Hoje: {currentDatePosition.today}
+            </span>
+          </div>
         </div>
 
         <Select value={timelineWeeks.toString()} onValueChange={(value) => setTimelineWeeks(parseInt(value))}>
@@ -285,6 +293,16 @@ const GanttView: React.FC<GanttViewProps> = ({
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
             Visualização Gantt
+            {/* Additional Today indicator in header */}
+            <div className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span>Hoje: {currentDatePosition.today}</span>
+              {!currentDatePosition.visible && (
+                <Badge variant="outline" className="text-xs">
+                  Fora da visualização
+                </Badge>
+              )}
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -521,7 +539,7 @@ const GanttView: React.FC<GanttViewProps> = ({
             )}
             <div className="flex items-center gap-2 text-sm">
               <div className="w-1 h-4 bg-green-500"></div>
-              <span>Hoje</span>
+              <span>Hoje ({currentDatePosition.today})</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <div className="w-4 h-4 bg-red-500 rounded border-2 border-red-700"></div>
