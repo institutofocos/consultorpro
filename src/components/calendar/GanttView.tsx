@@ -43,9 +43,10 @@ const GanttView: React.FC<GanttViewProps> = ({
   overdueProjects = 0, 
   overdueStages = 0 
 }) => {
-  const [viewStartDate, setViewStartDate] = useState<Date>(() => startOfWeek(new Date()));
-  const [timelineWeeks, setTimelineWeeks] = useState(8);
-  const [isThisWeek, setIsThisWeek] = useState(false);
+  // Set default values to "Esta Semana" (this week)
+  const [viewStartDate, setViewStartDate] = useState<Date>(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [timelineWeeks, setTimelineWeeks] = useState(1);
+  const [isThisWeek, setIsThisWeek] = useState(true); // Default to true for "Esta Semana"
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
   const [resizingTask, setResizingTask] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -310,8 +311,9 @@ const GanttView: React.FC<GanttViewProps> = ({
           </div>
         </div>
 
+        {/* Increased width from w-32 to w-40 to accommodate longer text */}
         <Select value={isThisWeek ? 'thisweek' : timelineWeeks.toString()} onValueChange={handleTimelineWeeksChange}>
-          <SelectTrigger className="w-32">
+          <SelectTrigger className="w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
