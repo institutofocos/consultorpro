@@ -80,10 +80,15 @@ const ClientList = () => {
     }
   };
 
-  const handleFormClose = () => {
+  const handleClientSaved = (client: Client) => {
     setSelectedClient(null);
     setIsFormOpen(false);
     refetch();
+  };
+
+  const handleCancel = () => {
+    setSelectedClient(null);
+    setIsFormOpen(false);
   };
 
   const getInitials = (name: string) => {
@@ -249,7 +254,8 @@ const ClientList = () => {
         {isFormOpen && (
           <ClientForm
             client={selectedClient}
-            onClose={handleFormClose}
+            onClientSaved={handleClientSaved}
+            onCancel={handleCancel}
           />
         )}
       </div>

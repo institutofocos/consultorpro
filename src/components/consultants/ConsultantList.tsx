@@ -80,10 +80,15 @@ const ConsultantList = () => {
     }
   };
 
-  const handleFormClose = () => {
+  const handleConsultantSaved = (consultant: Consultant) => {
     setSelectedConsultant(null);
     setIsFormOpen(false);
     refetch();
+  };
+
+  const handleCancel = () => {
+    setSelectedConsultant(null);
+    setIsFormOpen(false);
   };
 
   const getInitials = (name: string) => {
@@ -248,7 +253,8 @@ const ConsultantList = () => {
         {isFormOpen && (
           <ConsultantForm
             consultant={selectedConsultant}
-            onClose={handleFormClose}
+            onConsultantSaved={handleConsultantSaved}
+            onCancel={handleCancel}
           />
         )}
       </div>
