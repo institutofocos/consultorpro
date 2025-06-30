@@ -1467,6 +1467,70 @@ export type Database = {
           },
         ]
       }
+      user_client_links: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_client_links_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_consultant_links: {
+        Row: {
+          consultant_id: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          consultant_id: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          consultant_id?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_consultant_links_consultant_id_fkey"
+            columns: ["consultant_id"]
+            isOneToOne: true
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       webhook_logs: {
         Row: {
           attempt_count: number | null
@@ -1658,6 +1722,16 @@ export type Database = {
       get_stage_status_change_data: {
         Args: { p_stage_id: string; p_old_status: string; p_new_status: string }
         Returns: Json
+      }
+      get_user_links: {
+        Args: { p_user_id: string }
+        Returns: {
+          user_id: string
+          consultant_id: string
+          consultant_name: string
+          client_id: string
+          client_name: string
+        }[]
       }
       insert_project_history: {
         Args: {
