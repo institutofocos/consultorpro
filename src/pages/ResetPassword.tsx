@@ -68,26 +68,47 @@ const ResetPassword = () => {
         return;
       }
 
-      // Buscar usuário pelo email
-      const { data: userData } = await supabase.auth.admin.listUsers();
-      const user = userData?.users?.find(u => u.email === email);
+      // Usar o método nativo do Supabase para resetar a senha
+      // Primeiro, fazer login temporário com o código como senha para verificar se o usuário existe
+      const { error: resetError } = await supabase.auth.updateUser({
+        password: newPassword
+      });
 
-      if (!user) {
-        setError('Usuário não encontrado');
-        setIsLoading(false);
-        return;
-      }
+      if (resetError) {
+        // Se falhar, tentar uma abordagem diferente usando signInWithPassword com o código
+        // e depois atualizar a senha
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: code // usar o código como senha temporária
+        });
 
-      // Atualizar a senha usando a API admin do Supabase
-      const { error: updateError } = await supabase.auth.admin.updateUserById(
-        user.id,
-        { password: newPassword }
-      );
+        if (signInError) {
+          // Se ainda não funcionar, usar resetPasswordForEmail
+          const { error: passwordResetError } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}/reset-password?email=${encodeURIComponent(email)}&code=${code}`
+          });
 
-      if (updateError) {
-        setError('Erro ao atualizar senha: ' + updateError.message);
-        setIsLoading(false);
-        return;
+          if (passwordResetError) {
+            setError('Erro ao processar redefinição de senha. Tente novamente.');
+            setIsLoading(false);
+            return;
+          }
+
+          toast.success('Link de redefinição enviado! Verifique seu email.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Se conseguiu fazer login com o código, atualizar a senha
+        const { error: updateError } = await supabase.auth.updateUser({
+          password: newPassword
+        });
+
+        if (updateError) {
+          setError('Erro ao atualizar senha: ' + updateError.message);
+          setIsLoading(false);
+          return;
+        }
       }
 
       // Marcar código como usado
@@ -97,9 +118,14 @@ const ResetPassword = () => {
         .eq('id', resetCodeData.id);
 
       toast.success('Senha alterada com sucesso!');
+      
+      // Fazer logout para forçar novo login com a nova senha
+      await supabase.auth.signOut();
+      
       navigate('/login');
 
     } catch (error: any) {
+      console.error('Erro no reset de senha:', error);
       setError('Erro inesperado. Tente novamente.');
     } finally {
       setIsLoading(false);
