@@ -10,6 +10,7 @@ import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
+import TimerControls from './TimerControls';
 
 interface Task {
   id: string;
@@ -28,6 +29,9 @@ interface Task {
   project_name: string;
   service_name: string;
   completed?: boolean;
+  time_spent_minutes?: number;
+  timer_status?: string;
+  timer_started_at?: string;
 }
 
 interface StageStatusModalProps {
@@ -74,6 +78,10 @@ const StageStatusModal: React.FC<StageStatusModalProps> = ({
     } finally {
       setIsUpdating(false);
     }
+  };
+
+  const handleTimeUpdate = (newTimeSpent: number) => {
+    console.log('Time updated:', newTimeSpent);
   };
 
   if (!task) return null;
@@ -124,6 +132,17 @@ const StageStatusModal: React.FC<StageStatusModalProps> = ({
                 {getStatusDisplay(task.status).label}
               </Badge>
             </div>
+          </div>
+
+          {/* Timer Controls - ANTES DO STATUS */}
+          <div className="border-t border-b py-4">
+            <TimerControls
+              taskId={task.id}
+              initialTimeSpent={task.time_spent_minutes || 0}
+              initialTimerStatus={task.timer_status || 'stopped'}
+              initialTimerStartedAt={task.timer_started_at || undefined}
+              onTimeUpdate={handleTimeUpdate}
+            />
           </div>
 
           {/* Status Selection */}
