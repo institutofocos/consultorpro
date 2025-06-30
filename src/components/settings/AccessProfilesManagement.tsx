@@ -120,9 +120,17 @@ const AccessProfilesManagement = () => {
     fetchProfiles();
   }, []);
 
-  const filteredProfiles = profiles.filter(profile =>
-    profile.name && profile.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProfiles = profiles
+    .filter(profile =>
+      profile.name && profile.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      // Super Admin sempre no topo
+      if (a.name === 'Super Admin') return -1;
+      if (b.name === 'Super Admin') return 1;
+      // Depois ordenar alfabeticamente
+      return a.name.localeCompare(b.name);
+    });
 
   const formatDate = (dateString: string) => {
     try {
@@ -324,7 +332,7 @@ const AccessProfilesManagement = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          {profile.name !== 'Super Admin' && (
+                          {profile.name !== 'Super Admin' ? (
                             <>
                               <Button
                                 size="sm"
@@ -348,20 +356,16 @@ const AccessProfilesManagement = () => {
                                 {profile.is_active ? 'Desativar' : 'Ativar'}
                               </Button>
 
-                              {!profile.is_system_default && (
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => deleteProfile(profile.id)}
-                                >
-                                  <Trash2 className="h-3 w-3 mr-1" />
-                                  Excluir
-                                </Button>
-                              )}
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => deleteProfile(profile.id)}
+                              >
+                                <Trash2 className="h-3 w-3 mr-1" />
+                                Excluir
+                              </Button>
                             </>
-                          )}
-                          
-                          {profile.name === 'Super Admin' && (
+                          ) : (
                             <span className="text-sm text-muted-foreground">
                               Perfil protegido
                             </span>
