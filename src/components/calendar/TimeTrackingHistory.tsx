@@ -61,13 +61,20 @@ const TimeTrackingHistory: React.FC<TimeTrackingHistoryProps> = ({
       console.log('Sessões encontradas:', sessionsData);
       setSessions(sessionsData || []);
 
-      // Calcular tempo total
+      // Calcular tempo total APENAS das sessões concluídas com duração válida
       const total = (sessionsData || [])
-        .filter(session => session.status === 'completed' && session.duration_minutes > 0)
+        .filter(session => 
+          session.status === 'completed' && 
+          session.duration_minutes != null && 
+          session.duration_minutes > 0
+        )
         .reduce((sum, session) => sum + session.duration_minutes, 0);
       
       setTotalTime(total);
       console.log('Tempo total calculado:', total, 'minutos');
+      console.log('Sessões válidas:', (sessionsData || []).filter(s => 
+        s.status === 'completed' && s.duration_minutes != null && s.duration_minutes > 0
+      ));
 
     } catch (error) {
       console.error('Erro ao carregar histórico:', error);
@@ -126,7 +133,7 @@ const TimeTrackingHistory: React.FC<TimeTrackingHistoryProps> = ({
                   {formatTime(totalTime)}
                 </div>
                 <div className="text-sm text-blue-600">
-                  {totalTime} minutos • {sessions.length} sessões
+                  {totalTime} minutos • {sessions.filter(s => s.status === 'completed').length} sessões concluídas
                 </div>
               </div>
             </div>
@@ -166,13 +173,21 @@ const TimeTrackingHistory: React.FC<TimeTrackingHistoryProps> = ({
                         </div>
                       </div>
                       
-                      {session.status === 'completed' && session.duration_minutes > 0 && (
+                      {session.status === 'completed' && session.duration_minutes != null && session.duration_minutes > 0 && (
                         <div className="mt-2 pt-2 border-t border-gray-100">
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium text-gray-700">Duração:</span>
                             <span className="font-mono font-bold text-green-600">
                               {formatTime(session.duration_minutes)}
                             </span>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {session.status === 'completed' && (!session.duration_minutes || session.duration_minutes <= 0) && (
+                        <div className="mt-2 pt-2 border-t border-gray-100">
+                          <div className="text-sm text-yellow-600">
+                            <span className="font-medium">⚠️ Sessão sem duração válida</span>
                           </div>
                         </div>
                       )}

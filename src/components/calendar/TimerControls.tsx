@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Play, Pause, Square, Clock, History, AlertTriangle } from 'lucide-react';
@@ -54,7 +55,6 @@ const TimerControls: React.FC<TimerControlsProps> = ({
           // Atualizar tempo do banco (que já é calculado automaticamente pelo trigger)
           const dbTimeSpent = stageData.time_spent_minutes || 0;
           setTimeSpent(dbTimeSpent);
-          setDisplaySeconds(dbTimeSpent * 60);
           
           // Atualizar status do timer
           setTimerStatus(stageData.timer_status || 'stopped');
@@ -433,7 +433,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
           {/* Line separator */}
           <div className="border-t border-gray-200"></div>
           
-          {/* Tempo total acumulado */}
+          {/* Tempo total acumulado - CORRIGIDO para mostrar o tempo real do banco */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-gray-600" />
@@ -464,7 +464,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
                 isTimeExceeded ? 'bg-red-500' : 'bg-green-500'
               }`}
               style={{ 
-                width: `${Math.min((totalMinutesSpent / estimatedMinutes) * 100, 100)}%` 
+                width: `${Math.min((timeSpent / estimatedMinutes) * 100, 100)}%` 
               }}
             ></div>
           </div>
@@ -472,7 +472,7 @@ const TimerControls: React.FC<TimerControlsProps> = ({
           {/* Percentual de conclusão */}
           <div className="text-center">
             <span className={`text-sm font-medium ${isTimeExceeded ? 'text-red-600' : 'text-gray-600'}`}>
-              {estimatedMinutes > 0 ? Math.round((totalMinutesSpent / estimatedMinutes) * 100) : 0}% do tempo estimado
+              {estimatedMinutes > 0 ? Math.round((timeSpent / estimatedMinutes) * 100) : 0}% do tempo estimado
               {isTimeExceeded && ' (EXCEDIDO)'}
             </span>
           </div>
