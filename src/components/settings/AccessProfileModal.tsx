@@ -55,9 +55,11 @@ const MODULE_LABELS = {
   calendar: 'Calendário',
   financial: 'Financeiro',
   settings: 'Configurações'
-};
+} as const;
 
-const ALL_MODULES = Object.keys(MODULE_LABELS) as Array<keyof typeof MODULE_LABELS>;
+type ModuleName = keyof typeof MODULE_LABELS;
+
+const ALL_MODULES = Object.keys(MODULE_LABELS) as ModuleName[];
 
 const AccessProfileModal: React.FC<AccessProfileModalProps> = ({
   isOpen,
@@ -191,24 +193,23 @@ const AccessProfileModal: React.FC<AccessProfileModalProps> = ({
         }
       }
 
-      // Inserir permissões
+      // Inserir permissões uma por uma para evitar problemas de tipo
       const permissionsToInsert = Object.values(permissions)
-        .filter(perm => perm.can_view || perm.can_edit || perm.can_delete)
-        .map(perm => ({
-          profile_id: profileId,
-          module_name: perm.module_name,
-          can_view: perm.can_view,
-          can_edit: perm.can_edit,
-          can_delete: perm.can_delete
-        }));
+        .filter(perm => perm.can_view || perm.can_edit || perm.can_delete);
 
-      if (permissionsToInsert.length > 0) {
-        const { error: permissionsError } = await supabase
+      for (const perm of permissionsToInsert) {
+        const { error: permissionError } = await supabase
           .from('profile_module_permissions')
-          .insert(permissionsToInsert);
+          .insert({
+            profile_id: profileId,
+            module_name: perm.module_name as ModuleName,
+            can_view: perm.can_view,
+            can_edit: perm.can_edit,
+            can_delete: perm.can_delete
+          });
 
-        if (permissionsError) {
-          throw permissionsError;
+        if (permissionError) {
+          throw permissionError;
         }
       }
 

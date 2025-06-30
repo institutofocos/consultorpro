@@ -13,6 +13,13 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import AccessProfileModal from './AccessProfileModal';
 
+interface ModulePermission {
+  module_name: string;
+  can_view: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+}
+
 interface AccessProfile {
   id: string;
   name: string;
@@ -22,13 +29,6 @@ interface AccessProfile {
   created_at: string;
   updated_at: string;
   permissions: ModulePermission[];
-}
-
-interface ModulePermission {
-  module_name: string;
-  can_view: boolean;
-  can_edit: boolean;
-  can_delete: boolean;
 }
 
 const AccessProfilesManagement = () => {
@@ -57,8 +57,14 @@ const AccessProfilesManagement = () => {
       console.log('Perfis carregados:', data);
 
       if (data && Array.isArray(data)) {
-        setProfiles(data);
-        console.log(`${data.length} perfis carregados com sucesso`);
+        // Transformar os dados para o tipo correto
+        const transformedProfiles: AccessProfile[] = data.map(profile => ({
+          ...profile,
+          permissions: Array.isArray(profile.permissions) ? profile.permissions : []
+        }));
+        
+        setProfiles(transformedProfiles);
+        console.log(`${transformedProfiles.length} perfis carregados com sucesso`);
       } else {
         console.warn('Nenhum perfil encontrado');
         setProfiles([]);
