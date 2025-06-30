@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,6 +26,9 @@ interface Task {
   project_name: string;
   service_name: string;
   completed?: boolean;
+  time_spent_minutes?: number;
+  timer_status?: string;
+  timer_started_at?: string;
 }
 
 interface Consultant {
@@ -48,7 +50,7 @@ const ReportsGantt: React.FC = () => {
     const fetchGanttData = async () => {
       try {
         setLoading(true);
-        console.log('=== INICIANDO BUSCA DE DADOS GANTT (DEBUG DETALHADO) ===');
+        console.log('=== INICIANDO BUSCA DE DADOS GANTT ===');
         
         // Fetch consultants
         const { data: consultantsData } = await supabase
@@ -64,22 +66,9 @@ const ReportsGantt: React.FC = () => {
         // Buscar dados dos projetos
         console.log('Buscando projetos...');
         const projectsData = await fetchProjects();
-        console.log('Projetos retornados pela fetchProjects:', projectsData?.length || 0);
-        
-        if (projectsData) {
-          console.log('Primeiros 3 projetos para debug:', projectsData.slice(0, 3).map(p => ({
-            id: p.id,
-            name: p.name,
-            status: p.status,
-            endDate: p.endDate,
-            stages: p.stages?.length || 0
-          })));
-        }
+        console.log('Projetos retornados:', projectsData?.length || 0);
 
         if (projectsData && statuses.length > 0) {
-          console.log('Status configurados:', statuses.map(s => ({ name: s.name, is_completion: s.is_completion_status })));
-          
-          // Determinar status de conclusão
           const completionStatuses = statuses
             .filter(s => s.is_completion_status)
             .map(s => s.name);
@@ -88,17 +77,14 @@ const ReportsGantt: React.FC = () => {
             ? completionStatuses 
             : ['concluido', 'completed', 'finalizados'];
           
-          console.log('Status de conclusão finais:', finalCompletionStatuses);
-          
           const today = new Date();
           today.setHours(0, 0, 0, 0);
-          console.log('Data de hoje (zerada):', today.toISOString());
           
-          // PROJETOS ATRASADOS - DEBUG DETALHADO
-          console.log('=== CALCULANDO PROJETOS ATRASADOS ===');
           let overdueProjectsCount = 0;
+          let overdueStagesCount = 0;
+          const allTasks: Task[] = [];
           
-          projectsData.forEach((project, index) => {
+          projectsData.forEach((project) => {
             if (project.endDate) {
               const projectEndDate = new Date(project.endDate);
               projectEndDate.setHours(0, 0, 0, 0);
@@ -106,7 +92,7 @@ const ReportsGantt: React.FC = () => {
               const isOverdue = isBefore(projectEndDate, today);
               const isNotCompleted = !finalCompletionStatuses.includes(project.status);
               
-              console.log(`Projeto ${index + 1}: ${project.name}`);
+              console.log(`Projeto ${project.name}`);
               console.log(`  - Status: ${project.status}`);
               console.log(`  - Data fim: ${project.endDate} (${projectEndDate.toISOString()})`);
               console.log(`  - É antes de hoje? ${isOverdue}`);
@@ -124,22 +110,9 @@ const ReportsGantt: React.FC = () => {
           
           console.log(`TOTAL DE PROJETOS ATRASADOS: ${overdueProjectsCount}`);
           
-          // ETAPAS ATRASADAS - DEBUG DETALHADO
-          console.log('=== CALCULANDO ETAPAS ATRASADAS ===');
-          let overdueStagesCount = 0;
-          const allTasks: Task[] = [];
-          
-          projectsData.forEach((project, projectIndex) => {
-            console.log(`Processando etapas do projeto ${projectIndex + 1}: ${project.name}`);
-            console.log(`  - Número de etapas: ${project.stages?.length || 0}`);
-            
+          projectsData.forEach((project) => {
             if (project.stages && project.stages.length > 0) {
-              project.stages.forEach((stage, stageIndex) => {
-                console.log(`  Etapa ${stageIndex + 1}: ${stage.name}`);
-                console.log(`    - Status: ${stage.status || 'iniciar_projeto'}`);
-                console.log(`    - Data fim: ${stage.endDate}`);
-                console.log(`    - Completed: ${stage.completed}`);
-                
+              project.stages.forEach((stage) => {
                 if (stage.endDate) {
                   const stageEndDate = new Date(stage.endDate);
                   stageEndDate.setHours(0, 0, 0, 0);
@@ -150,6 +123,11 @@ const ReportsGantt: React.FC = () => {
                                               stageStatus !== 'cancelado' && 
                                               stageStatus !== 'cancelled';
                   const stageNotCompleted = stage.completed !== undefined ? !stage.completed : true;
+                  
+                  console.log(`  Etapa ${stage.name}`);
+                  console.log(`    - Status: ${stage.status || 'iniciar_projeto'}`);
+                  console.log(`    - Data fim: ${stage.endDate}`);
+                  console.log(`    - Completed: ${stage.completed}`);
                   
                   console.log(`    - É antes de hoje? ${isStageOverdue}`);
                   console.log(`    - Status não é conclusão? ${isStageNotCompleted}`);
@@ -162,7 +140,7 @@ const ReportsGantt: React.FC = () => {
                   }
                 }
                 
-                // Criar task para o Gantt se tem datas
+                // Criar task com TODOS os dados de timer
                 if (stage.startDate && stage.endDate) {
                   let consultantName = 'Não atribuído';
                   if (stage.consultantId) {
@@ -188,7 +166,17 @@ const ReportsGantt: React.FC = () => {
                     consultant_name: consultantName,
                     project_name: project.name,
                     service_name: project.serviceName || 'Sem serviço',
-                    completed: stage.completed
+                    completed: stage.completed,
+                    time_spent_minutes: stage.time_spent_minutes || 0,
+                    timer_status: stage.timer_status || 'stopped',
+                    timer_started_at: stage.timer_started_at || undefined
+                  });
+                  
+                  console.log('Task criada com timer data:', {
+                    name: stage.name,
+                    time_spent_minutes: stage.time_spent_minutes,
+                    timer_status: stage.timer_status,
+                    timer_started_at: stage.timer_started_at
                   });
                 }
               });
@@ -196,18 +184,11 @@ const ReportsGantt: React.FC = () => {
           });
 
           console.log('=== RESULTADOS FINAIS ===');
-          console.log('Projetos em atraso:', overdueProjectsCount);
-          console.log('Etapas em atraso:', overdueStagesCount);
-          console.log('Total de tasks criadas:', allTasks.length);
+          console.log('Total de tasks com timer data:', allTasks.length);
           
-          // Force update states
-          console.log('Atualizando estados...');
           setTasks(allTasks);
           setOverdueProjects(overdueProjectsCount);
           setOverdueStages(overdueStagesCount);
-          console.log('Estados atualizados!');
-        } else {
-          console.log('Dados não disponíveis:', { projectsData: !!projectsData, statusesLength: statuses.length });
         }
 
       } catch (error) {
@@ -218,16 +199,11 @@ const ReportsGantt: React.FC = () => {
       }
     };
 
-    // Only fetch data when statuses are loaded
     if (statuses.length > 0) {
-      console.log('Status carregados, iniciando busca de dados...');
       fetchGanttData();
-    } else {
-      console.log('Aguardando carregamento de status...');
     }
   }, [statuses]);
 
-  // Debug effect to monitor state changes
   useEffect(() => {
     console.log('=== MUDANÇA DE ESTADO ===');
     console.log('Projetos em atraso (state):', overdueProjects);

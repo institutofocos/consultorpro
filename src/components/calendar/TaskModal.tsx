@@ -99,13 +99,13 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, isOpen, onClose }) => {
               </div>
             </div>
 
-            {/* Timer Controls - Posicionado logo após o cabeçalho */}
-            <div className="border-t border-b py-4">
+            {/* Timer Controls - SEMPRE VISÍVEL */}
+            <div className="border-t border-b py-4 bg-blue-50/50 rounded-lg">
               <TimerControls
                 taskId={task.id}
                 initialTimeSpent={task.time_spent_minutes || 0}
                 initialTimerStatus={task.timer_status || 'stopped'}
-                initialTimerStartedAt={task.timer_started_at}
+                initialTimerStartedAt={task.timer_started_at || undefined}
                 onTimeUpdate={handleTimeUpdate}
               />
             </div>

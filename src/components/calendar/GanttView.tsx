@@ -129,7 +129,7 @@ const GanttView: React.FC<GanttViewProps> = ({
     
     return {
       visible: isVisible,
-      left: `${Math.max(0, leftPercent)}%`
+      left: `${Math.max(0, 100)}%`
     };
   };
 
@@ -234,8 +234,14 @@ const GanttView: React.FC<GanttViewProps> = ({
     };
   };
 
-  // Handle task click
+  // Handle task click - Updated to ensure all timer data is passed
   const handleTaskClick = (task: Task) => {
+    console.log('Task clicked:', task);
+    console.log('Timer data:', {
+      time_spent_minutes: task.time_spent_minutes,
+      timer_status: task.timer_status,
+      timer_started_at: task.timer_started_at
+    });
     setSelectedTask(task);
     setIsStatusModalOpen(true);
   };
@@ -642,7 +648,7 @@ const GanttView: React.FC<GanttViewProps> = ({
         </CardContent>
       </Card>
 
-      {/* Status Modal */}
+      {/* Status Modal - Updated with correct props */}
       <StageStatusModal
         task={selectedTask}
         isOpen={isStatusModalOpen}
