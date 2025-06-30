@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Users, Search, RefreshCw, Mail, Calendar, UserCheck, Link } from 'lucide-react';
+import { Users, Search, RefreshCw, Mail, Calendar, UserCheck, Link, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import UserLinkModal from './UserLinkModal';
@@ -21,8 +21,17 @@ interface AuthUser {
   email_confirmed_at: string | null;
 }
 
+interface UserLink {
+  user_id: string;
+  consultant_id: string | null;
+  consultant_name: string | null;
+  client_id: string | null;
+  client_name: string | null;
+}
+
 const UserManagement = () => {
   const [users, setUsers] = useState<AuthUser[]>([]);
+  const [userLinks, setUserLinks] = useState<UserLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
@@ -56,9 +65,13 @@ const UserManagement = () => {
 
         setUsers(formattedUsers);
         console.log(`${formattedUsers.length} usuários carregados com sucesso`);
+
+        // Buscar vínculos para todos os usuários
+        await fetchUserLinks(formattedUsers.map(u => u.id));
       } else {
         console.warn('Nenhum usuário encontrado ou dados inválidos');
         setUsers([]);
+        setUserLinks([]);
       }
 
     } catch (error: any) {
@@ -68,6 +81,32 @@ const UserManagement = () => {
       toast.error('Erro ao carregar usuários: ' + errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUserLinks = async (userIds: string[]) => {
+    try {
+      console.log('Buscando vínculos dos usuários...');
+      
+      const linksPromises = userIds.map(async (userId) => {
+        const { data, error } = await supabase.rpc('get_user_links', { p_user_id: userId });
+        
+        if (error) {
+          console.error(`Erro ao buscar vínculos para usuário ${userId}:`, error);
+          return null;
+        }
+        
+        return data && data.length > 0 ? data[0] : null;
+      });
+
+      const linksResults = await Promise.all(linksPromises);
+      const validLinks = linksResults.filter(Boolean) as UserLink[];
+      
+      setUserLinks(validLinks);
+      console.log(`${validLinks.length} vínculos encontrados`);
+      
+    } catch (error: any) {
+      console.error('Erro ao buscar vínculos:', error);
     }
   };
 
@@ -98,6 +137,30 @@ const UserManagement = () => {
     return <Badge variant="outline">Confirmado</Badge>;
   };
 
+  const getUserLink = (userId: string) => {
+    return userLinks.find(link => link.user_id === userId);
+  };
+
+  const isUserLinked = (userId: string) => {
+    const link = getUserLink(userId);
+    return !!(link && (link.consultant_id || link.client_id));
+  };
+
+  const getLinkedEntityName = (userId: string) => {
+    const link = getUserLink(userId);
+    if (!link) return '';
+    
+    if (link.consultant_id && link.consultant_name) {
+      return `Consultor: ${link.consultant_name}`;
+    }
+    
+    if (link.client_id && link.client_name) {
+      return `Cliente: ${link.client_name}`;
+    }
+    
+    return '';
+  };
+
   const handleOpenLinkModal = (user: AuthUser) => {
     setSelectedUser(user);
     setLinkModalOpen(true);
@@ -106,6 +169,8 @@ const UserManagement = () => {
   const handleCloseLinkModal = () => {
     setSelectedUser(null);
     setLinkModalOpen(false);
+    // Recarregar dados quando fechar o modal
+    fetchUsers();
   };
 
   if (loading) {
@@ -221,39 +286,64 @@ const UserManagement = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-gray-400" />
-                          {user.email || 'Email não disponível'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {getStatusBadge(user)}
-                      </TableCell>
-                      <TableCell>
-                        {formatDate(user.created_at)}
-                      </TableCell>
-                      <TableCell>
-                        {formatDate(user.last_sign_in_at)}
-                      </TableCell>
-                      <TableCell>
-                        {user.email_confirmed_at ? formatDate(user.email_confirmed_at) : 'Não confirmado'}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleOpenLinkModal(user)}
-                          className="flex items-center gap-1"
-                        >
-                          <Link className="h-3 w-3" />
-                          Vincular
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  filteredUsers.map((user) => {
+                    const linked = isUserLinked(user.id);
+                    const linkedEntity = getLinkedEntityName(user.id);
+                    
+                    return (
+                      <TableRow key={user.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-4 w-4 text-gray-400" />
+                            {user.email || 'Email não disponível'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {getStatusBadge(user)}
+                        </TableCell>
+                        <TableCell>
+                          {formatDate(user.created_at)}
+                        </TableCell>
+                        <TableCell>
+                          {formatDate(user.last_sign_in_at)}
+                        </TableCell>
+                        <TableCell>
+                          {user.email_confirmed_at ? formatDate(user.email_confirmed_at) : 'Não confirmado'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <Button
+                              size="sm"
+                              variant={linked ? "default" : "outline"}
+                              onClick={() => handleOpenLinkModal(user)}
+                              className={`flex items-center gap-1 ${
+                                linked 
+                                  ? "bg-green-600 hover:bg-green-700 text-white" 
+                                  : ""
+                              }`}
+                            >
+                              {linked ? (
+                                <>
+                                  <Check className="h-3 w-3" />
+                                  Vinculado
+                                </>
+                              ) : (
+                                <>
+                                  <Link className="h-3 w-3" />
+                                  Vincular
+                                </>
+                              )}
+                            </Button>
+                            {linkedEntity && (
+                              <div className="text-xs text-muted-foreground">
+                                {linkedEntity}
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
