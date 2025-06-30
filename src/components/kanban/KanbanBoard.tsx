@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -87,13 +88,13 @@ const KanbanBoard: React.FC = () => {
     fetchConsultants();
   }, []);
 
+  // Helper function to get first item from array or null
+  const getFirstFromArray = (arr: any[] | null | undefined): any => {
+    return arr && arr.length > 0 ? arr[0] : undefined;
+  };
+
   // Transform Supabase data to Project format
   const transformProject = (supabaseProject: SupabaseProjectRow): Project => {
-    // Helper function to get first item from array or null
-    const getFirstFromArray = <T>(arr: T[] | null | undefined): T | undefined => {
-      return arr && arr.length > 0 ? arr[0] : undefined;
-    };
-
     const client = getFirstFromArray(supabaseProject.client);
     const service = getFirstFromArray(supabaseProject.service);
     const mainConsultant = getFirstFromArray(supabaseProject.main_consultant);
