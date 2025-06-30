@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -140,7 +141,7 @@ const ReportsGantt: React.FC = () => {
                   }
                 }
                 
-                // Criar task com TODOS os dados de timer
+                // Criar task com TODOS os dados de timer - safely accessing timer properties
                 if (stage.startDate && stage.endDate) {
                   let consultantName = 'Não atribuído';
                   if (stage.consultantId) {
@@ -167,16 +168,17 @@ const ReportsGantt: React.FC = () => {
                     project_name: project.name,
                     service_name: project.serviceName || 'Sem serviço',
                     completed: stage.completed,
-                    time_spent_minutes: stage.time_spent_minutes || 0,
-                    timer_status: stage.timer_status || 'stopped',
-                    timer_started_at: stage.timer_started_at || undefined
+                    // Safely access timer properties with fallback values
+                    time_spent_minutes: (stage as any).time_spent_minutes || 0,
+                    timer_status: (stage as any).timer_status || 'stopped',
+                    timer_started_at: (stage as any).timer_started_at || undefined
                   });
                   
                   console.log('Task criada com timer data:', {
                     name: stage.name,
-                    time_spent_minutes: stage.time_spent_minutes,
-                    timer_status: stage.timer_status,
-                    timer_started_at: stage.timer_started_at
+                    time_spent_minutes: (stage as any).time_spent_minutes,
+                    timer_status: (stage as any).timer_status,
+                    timer_started_at: (stage as any).timer_started_at
                   });
                 }
               });
