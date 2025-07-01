@@ -45,10 +45,7 @@ const DemandsList = () => {
   const [selectedDemand, setSelectedDemand] = useState<any>(null);
   const [mainConsultantId, setMainConsultantId] = useState<string>("");
   const [mainConsultantCommission, setMainConsultantCommission] = useState<number>(0);
-  const [supportConsultantId, setSupportConsultantId] = useState<string>("");
-  const [supportConsultantCommission, setSupportConsultantCommission] = useState<number>(0);
   const [mainConsultantInfo, setMainConsultantInfo] = useState<ConsultantInfo | null>(null);
-  const [supportConsultantInfo, setSupportConsultantInfo] = useState<ConsultantInfo | null>(null);
   const [filteredConsultants, setFilteredConsultants] = useState<{id: string, name: string}[]>([]);
   const [isDemandDialogOpen, setIsDemandDialogOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -184,26 +181,12 @@ const DemandsList = () => {
       const info = await loadConsultantInfo(consultantId);
       setMainConsultantInfo(info);
       if (info) {
+        // Automatically set commission from consultant profile (not editable)
         setMainConsultantCommission(info.commissionPercentage);
       }
     } else {
       setMainConsultantInfo(null);
       setMainConsultantCommission(0);
-    }
-  };
-
-  // Handle support consultant selection
-  const handleSupportConsultantChange = async (consultantId: string) => {
-    setSupportConsultantId(consultantId);
-    if (consultantId) {
-      const info = await loadConsultantInfo(consultantId);
-      setSupportConsultantInfo(info);
-      if (info) {
-        setSupportConsultantCommission(info.commissionPercentage);
-      }
-    } else {
-      setSupportConsultantInfo(null);
-      setSupportConsultantCommission(0);
     }
   };
 
@@ -219,11 +202,8 @@ const DemandsList = () => {
   const handleOpenAssignmentDialog = (demand: any) => {
     setSelectedDemand(demand);
     setMainConsultantId("");
-    setSupportConsultantId("");
     setMainConsultantCommission(0);
-    setSupportConsultantCommission(0);
     setMainConsultantInfo(null);
-    setSupportConsultantInfo(null);
     setDialogOpen(true);
   };
   
@@ -232,17 +212,18 @@ const DemandsList = () => {
     if (!selectedDemand) return;
     
     try {
+      // Only pass main consultant data, support consultant is removed
       await assignConsultantsToDemand(
         selectedDemand.id,
         mainConsultantId || null,
         mainConsultantCommission,
-        supportConsultantId || null,
-        supportConsultantCommission
+        null, // No support consultant
+        0 // No support consultant commission
       );
       
       toast({
         title: "Sucesso",
-        description: "Consultores atribuídos com sucesso. A demanda foi movida para Projetos.",
+        description: "Consultor atribuído com sucesso. A demanda foi movida para Projetos.",
       });
       
       // Remove the assigned demand from the list
@@ -253,7 +234,7 @@ const DemandsList = () => {
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Não foi possível atribuir os consultores.",
+        description: "Não foi possível atribuir o consultor.",
       });
     }
   };
@@ -583,7 +564,7 @@ const DemandsList = () => {
                           size="sm"
                           onClick={() => handleOpenAssignmentDialog(demand)}
                           className="p-2 h-8 w-8 hover:bg-green-50"
-                          title="Atribuir consultores"
+                          title="Atribuir consultor"
                         >
                           <UserCheck className="h-4 w-4 text-green-600" />
                         </Button>
@@ -613,11 +594,11 @@ const DemandsList = () => {
         </CardFooter>
       </Card>
       
-      {/* Consultant Assignment Dialog */}
+      {/* Consultant Assignment Dialog - Simplified without support consultant */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent size="lg">
           <DialogHeader>
-            <DialogTitle>Atribuir Consultores ao Projeto</DialogTitle>
+            <DialogTitle>Atribuir Consultor ao Projeto</DialogTitle>
           </DialogHeader>
           
           <div className="grid gap-6 py-4">
@@ -660,45 +641,14 @@ const DemandsList = () => {
                 <Input
                   id="main-commission"
                   type="number"
-                  min="0"
-                  max="100"
                   value={mainConsultantCommission}
-                  onChange={(e) => setMainConsultantCommission(Number(e.target.value))}
+                  disabled
+                  className="bg-gray-100"
+                  title="Comissão definida automaticamente com base no perfil do consultor"
                 />
-              </div>
-            )}
-            
-            <div className="grid gap-2">
-              <label htmlFor="support-consultant" className="text-sm font-medium">
-                Consultor de Apoio
-              </label>
-              <SearchableSelect
-                options={[{ id: '', name: 'Nenhum consultor' }, ...filteredConsultants]}
-                value={supportConsultantId}
-                onValueChange={handleSupportConsultantChange}
-                placeholder="Selecione um consultor (opcional)"
-                searchPlaceholder="Pesquisar consultores..."
-                emptyText="Nenhum consultor autorizado encontrado"
-              />
-              <ConsultantInfoCard 
-                info={supportConsultantInfo} 
-                title="Informações do Consultor de Apoio"
-              />
-            </div>
-            
-            {supportConsultantId && (
-              <div className="grid gap-2">
-                <label htmlFor="support-commission" className="text-sm font-medium">
-                  Comissão do Consultor de Apoio (%)
-                </label>
-                <Input
-                  id="support-commission"
-                  type="number"
-                  min="0" 
-                  max="100"
-                  value={supportConsultantCommission}
-                  onChange={(e) => setSupportConsultantCommission(Number(e.target.value))}
-                />
+                <p className="text-xs text-gray-500">
+                  A comissão é definida automaticamente com base no perfil do consultor e não pode ser editada neste modal.
+                </p>
               </div>
             )}
           </div>
@@ -707,7 +657,7 @@ const DemandsList = () => {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleAssignConsultants}>
+            <Button onClick={handleAssignConsultants} disabled={!mainConsultantId}>
               Atribuir e Mover para Projetos
             </Button>
           </DialogFooter>
