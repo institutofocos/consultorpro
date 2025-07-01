@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Project } from './types';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
 import PermissionGuard from '@/components/auth/PermissionGuard';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 const ProjectList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -38,10 +39,12 @@ const ProjectList: React.FC = () => {
   const [editingProject, setEditingProject] = useState<any>(null);
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState('kanban');
-  const [userProfile, setUserProfile] = useState<any>(null);
 
   // Hook para buscar status dinâmicos
   const { statuses } = useProjectStatuses();
+
+  // Hook para verificar permissões do usuário
+  const { userProfile, isLoading: permissionsLoading } = useUserPermissions();
 
   useEffect(() => {
     const fetchFilterData = async () => {
@@ -289,7 +292,7 @@ const ProjectList: React.FC = () => {
           <p className="text-muted-foreground">Gerencie todos os projetos da consultoria</p>
         </div>
         <div className="flex gap-2">
-          {!isConsultant && (
+          {!isConsultant && !permissionsLoading && (
             <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" variant="outline" className="gap-1">
