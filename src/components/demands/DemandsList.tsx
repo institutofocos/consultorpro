@@ -24,6 +24,7 @@ import SearchableSelect from "@/components/ui/searchable-select";
 import DemandForm from './DemandForm';
 import DemandViewModal from './DemandViewModal';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { useDemandNotifications } from '@/hooks/useDemandNotifications';
 
 interface ConsultantInfo {
   id: string;
@@ -66,6 +67,9 @@ const DemandsList = () => {
 
   // Verificar se é consultor
   const isConsultant = userProfile?.profile_name === 'Consultor';
+
+  // Adicionar hook de notificações
+  const { markDemandAsViewed } = useDemandNotifications();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -343,11 +347,15 @@ const DemandsList = () => {
   const handleViewDemand = (demand: any) => {
     setSelectedDemandForView(demand);
     setViewModalOpen(true);
+    // Marcar demanda como visualizada
+    markDemandAsViewed(demand.id);
   };
 
   const handleEditDemand = (demand: any) => {
     setSelectedDemandForEdit(demand);
     setIsEditDialogOpen(true);
+    // Marcar demanda como visualizada
+    markDemandAsViewed(demand.id);
   };
 
   const handleDemandUpdated = async () => {

@@ -1,8 +1,10 @@
+
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { useDemandNotifications } from '@/hooks/useDemandNotifications';
 import {
   LayoutDashboard,
   Users,
@@ -15,7 +17,8 @@ import {
   Settings,
   LogOut,
   Menu,
-  X
+  X,
+  Bell
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -90,6 +93,7 @@ const navItems: NavItem[] = [
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const { signOut } = useAuth();
   const { hasModulePermission, isLoading } = useUserPermissions();
+  const { hasNewDemands, markAllDemandsAsViewed } = useDemandNotifications();
   const location = useLocation();
 
   const handleSignOut = async () => {
@@ -97,6 +101,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
       await signOut();
     } catch (error) {
       console.error('Error signing out:', error);
+    }
+  };
+
+  const handleDemandsClick = () => {
+    if (hasNewDemands) {
+      markAllDemandsAsViewed();
+    }
+    if (window.innerWidth < 1024) {
+      onToggle();
     }
   };
 
@@ -136,18 +149,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
               .map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path;
+                const isDemands = item.path === '/demands';
 
                 return (
                   <NavLink
                     key={item.path}
                     to={item.path}
                     className={cn(
-                      "flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                      "flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors relative",
                       isActive
                         ? "bg-blue-100 text-blue-700"
                         : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                     )}
-                    onClick={() => {
+                    onClick={isDemands ? handleDemandsClick : () => {
                       if (window.innerWidth < 1024) {
                         onToggle();
                       }
@@ -155,6 +169,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                   >
                     <Icon className="mr-3 h-5 w-5" />
                     {item.label}
+                    
+                    {/* Mostrar sino com alerta para demandas */}
+                    {isDemands && hasNewDemands && (
+                      <div className="ml-auto flex items-center">
+                        <div className="relative">
+                          <Bell className="h-4 w-4 text-orange-500" />
+                          <div className="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full animate-pulse"></div>
+                        </div>
+                      </div>
+                    )}
                   </NavLink>
                 );
               })
