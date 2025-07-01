@@ -60,7 +60,7 @@ const DemandsList = () => {
   const [endDateFilter, setEndDateFilter] = useState<Date | undefined>(undefined);
 
   // Adicionar hook de permissões
-  const { userProfile, isLoading: permissionsLoading } = useUserPermissions();
+  const { userProfile, userLinks, isLoading: permissionsLoading } = useUserPermissions();
 
   // Verificar se é consultor
   const isConsultant = userProfile?.profile_name === 'Consultor';
@@ -217,11 +217,62 @@ const DemandsList = () => {
   };
   
   // Function to handle opening the consultant assignment dialog
-  const handleOpenAssignmentDialog = (demand: any) => {
+  const handleOpenAssignmentDialog = async (demand: any) => {
     setSelectedDemand(demand);
-    setMainConsultantId("");
-    setMainConsultantCommission(0);
-    setMainConsultantInfo(null);
+    
+    // Verificar se o usuário logado é um consultor e se tem acesso ao serviço
+    if (isConsultant && userLinks?.consultant_id) {
+      const linkedConsultantId = userLinks.consultant_id;
+      
+      // Verificar se o serviço da demanda permite este consultor
+      if (demand.services?.id) {
+        try {
+          const { data: consultantService, error } = await supabase
+            .from('consultant_services')
+            .select('id')
+            .eq('consultant_id', linkedConsultantId)
+            .eq('service_id', demand.services.id)
+            .single();
+
+          if (!error && consultantService) {
+            // Consultor autorizado para este serviço - selecionar automaticamente
+            console.log('Selecionando consultor automaticamente:', linkedConsultantId);
+            await handleMainConsultantChange(linkedConsultantId);
+            
+            toast({
+              title: "Consultor selecionado automaticamente",
+              description: "Você foi selecionado automaticamente como consultor principal para este projeto.",
+            });
+          } else {
+            // Consultor não autorizado para este serviço - limpar seleção
+            setMainConsultantId("");
+            setMainConsultantCommission(0);
+            setMainConsultantInfo(null);
+            
+            toast({
+              title: "Serviço não autorizado",
+              description: "Você não está autorizado para este tipo de serviço. Selecione outro consultor.",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error('Erro ao verificar autorização do consultor:', error);
+          // Em caso de erro, limpar seleção
+          setMainConsultantId("");
+          setMainConsultantCommission(0);
+          setMainConsultantInfo(null);
+        }
+      } else {
+        // Se não há serviço específico, selecionar o consultor logado
+        await handleMainConsultantChange(linkedConsultantId);
+      }
+    } else {
+      // Usuário não é consultor ou não tem vínculo - limpar seleção
+      setMainConsultantId("");
+      setMainConsultantCommission(0);
+      setMainConsultantInfo(null);
+    }
+    
     setDialogOpen(true);
   };
   
