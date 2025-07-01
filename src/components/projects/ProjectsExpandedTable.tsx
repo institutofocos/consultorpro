@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { toast } from 'sonner';
 
 interface ProjectsExpandedTableProps {
@@ -40,6 +41,10 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
 
   const { updateProjectStatus, updateStageStatus, completeStage, uncompleteStage, isLoading } = useProjectActions();
   const { statuses, getStatusDisplay, getStatusBadgeStyle } = useProjectStatuses();
+  const { userProfile, isLoading: permissionsLoading } = useUserPermissions();
+
+  // Verificar se é consultor
+  const isConsultant = userProfile?.profile_name === 'Consultor';
 
   const toggleProjectExpansion = (projectId: string) => {
     const newExpanded = new Set(expandedProjects);
@@ -317,43 +322,47 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end space-x-2">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={isLoading}
-                              title="Alterar status do projeto"
-                            >
-                              <Zap className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent className="bg-white border shadow-lg z-50">
-                            {statuses.length === 0 ? (
-                              <DropdownMenuItem disabled className="text-muted-foreground">
-                                Nenhum status disponível
-                              </DropdownMenuItem>
-                            ) : (
-                              statuses.map((status) => (
-                                <DropdownMenuItem
-                                  key={status.id}
-                                  onClick={() => handleProjectStatusChange(project.id, status.name)}
-                                  disabled={status.name === project.status}
-                                  className="cursor-pointer hover:bg-gray-100"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div 
-                                      className="w-3 h-3 rounded-full"
-                                      style={{ backgroundColor: status.color }}
-                                    />
-                                    {status.display_name}
-                                  </div>
+                        {/* Botão de alterar status do projeto - oculto para consultores */}
+                        {!isConsultant && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={isLoading}
+                                title="Alterar status do projeto"
+                              >
+                                <Zap className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="bg-white border shadow-lg z-50">
+                              {statuses.length === 0 ? (
+                                <DropdownMenuItem disabled className="text-muted-foreground">
+                                  Nenhum status disponível
                                 </DropdownMenuItem>
-                              ))
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              ) : (
+                                statuses.map((status) => (
+                                  <DropdownMenuItem
+                                    key={status.id}
+                                    onClick={() => handleProjectStatusChange(project.id, status.name)}
+                                    disabled={status.name === project.status}
+                                    className="cursor-pointer hover:bg-gray-100"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <div 
+                                        className="w-3 h-3 rounded-full"
+                                        style={{ backgroundColor: status.color }}
+                                      />
+                                      {status.display_name}
+                                    </div>
+                                  </DropdownMenuItem>
+                                ))
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                         
+                        {/* Botão de ver detalhes - sempre visível */}
                         <Button
                           variant="outline"
                           size="sm"
@@ -362,22 +371,30 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onEditProject(project)}
-                          title="Editar projeto"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onDeleteProject(project.id)}
-                          title="Excluir projeto"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        
+                        {/* Botão de editar projeto - oculto para consultores */}
+                        {!isConsultant && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onEditProject(project)}
+                            title="Editar projeto"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
+                        
+                        {/* Botão de excluir projeto - oculto para consultores */}
+                        {!isConsultant && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onDeleteProject(project.id)}
+                            title="Excluir projeto"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -435,42 +452,45 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                         <TableCell className="text-muted-foreground text-sm">-</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end space-x-2">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={isLoading}
-                                  title="Alterar status da etapa"
-                                >
-                                  <Zap className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent className="bg-white border shadow-lg z-50">
-                                {statuses.length === 0 ? (
-                                  <DropdownMenuItem disabled className="text-muted-foreground">
-                                    Nenhum status disponível
-                                  </DropdownMenuItem>
-                                ) : (
-                                  statuses.map((status) => (
-                                    <DropdownMenuItem
-                                      key={status.id}
-                                      onClick={() => handleStageStatusChange(stage.id, status.name)}
-                                      disabled={status.name === stage.status}
-                                      className="cursor-pointer hover:bg-gray-100"
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <div 
-                                          className="w-3 h-3 rounded-full"
-                                          style={{ backgroundColor: status.color }}
-                                        />
-                                        {status.display_name}
-                                      </div>
+                            {/* Botão de alterar status da etapa - oculto para consultores */}
+                            {!isConsultant && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={isLoading}
+                                    title="Alterar status da etapa"
+                                  >
+                                    <Zap className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="bg-white border shadow-lg z-50">
+                                  {statuses.length === 0 ? (
+                                    <DropdownMenuItem disabled className="text-muted-foreground">
+                                      Nenhum status disponível
                                     </DropdownMenuItem>
-                                  ))
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                  ) : (
+                                    statuses.map((status) => (
+                                      <DropdownMenuItem
+                                        key={status.id}
+                                        onClick={() => handleStageStatusChange(stage.id, status.name)}
+                                        disabled={status.name === stage.status}
+                                        className="cursor-pointer hover:bg-gray-100"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <div 
+                                            className="w-3 h-3 rounded-full"
+                                            style={{ backgroundColor: status.color }}
+                                          />
+                                          {status.display_name}
+                                        </div>
+                                      </DropdownMenuItem>
+                                    ))
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
