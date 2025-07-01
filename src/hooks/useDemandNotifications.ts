@@ -56,15 +56,20 @@ export const useDemandNotifications = () => {
 
       if (error) throw error;
 
-      // Verificar quais demandas foram visualizadas pelo usuário
+      // Verificar quais demandas foram visualizadas pelo usuário usando SQL direto
       const { data: viewedDemands, error: viewedError } = await supabase
-        .from('demand_views')
-        .select('demand_id')
-        .eq('user_id', user.id);
+        .rpc('get_viewed_demands', { p_user_id: user.id });
 
-      if (viewedError) throw viewedError;
+      if (viewedError) {
+        console.warn('Erro ao buscar demandas visualizadas, considerando todas como não visualizadas:', viewedError);
+        // Se não conseguir buscar as visualizadas, considerar todas como não visualizadas
+        const unread = demands?.map(d => ({ ...d, viewed: false })) || [];
+        setUnreadDemands(unread);
+        setHasNewDemands(unread.length > 0);
+        return;
+      }
 
-      const viewedDemandIds = viewedDemands?.map(v => v.demand_id) || [];
+      const viewedDemandIds = viewedDemands?.map((v: any) => v.demand_id) || [];
       const unread = demands?.filter(d => !viewedDemandIds.includes(d.id)) || [];
 
       setUnreadDemands(unread.map(d => ({ ...d, viewed: false })));
@@ -79,15 +84,17 @@ export const useDemandNotifications = () => {
     if (!user) return;
 
     try {
+      // Usar SQL direto para inserir na tabela demand_views
       const { error } = await supabase
-        .from('demand_views')
-        .upsert({
-          demand_id: demandId,
-          user_id: user.id,
-          viewed_at: new Date().toISOString()
+        .rpc('mark_demand_as_viewed', { 
+          p_demand_id: demandId, 
+          p_user_id: user.id 
         });
 
-      if (error) throw error;
+      if (error) {
+        console.warn('Erro ao marcar demanda como visualizada:', error);
+        return;
+      }
 
       // Atualizar estado local
       setUnreadDemands(prev => prev.filter(d => d.id !== demandId));
@@ -105,17 +112,17 @@ export const useDemandNotifications = () => {
     if (!user || unreadDemands.length === 0) return;
 
     try {
-      const viewRecords = unreadDemands.map(demand => ({
-        demand_id: demand.id,
-        user_id: user.id,
-        viewed_at: new Date().toISOString()
-      }));
-
+      // Usar SQL direto para marcar todas como visualizadas
       const { error } = await supabase
-        .from('demand_views')
-        .upsert(viewRecords);
+        .rpc('mark_all_demands_as_viewed', { 
+          p_user_id: user.id,
+          p_demand_ids: unreadDemands.map(d => d.id)
+        });
 
-      if (error) throw error;
+      if (error) {
+        console.warn('Erro ao marcar todas as demandas como visualizadas:', error);
+        return;
+      }
 
       setUnreadDemands([]);
       setHasNewDemands(false);
