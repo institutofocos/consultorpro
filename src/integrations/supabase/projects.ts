@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -287,7 +286,7 @@ export const assignConsultantsToDemand = async (
   supportConsultantCommission: number
 ) => {
   try {
-    console.log('=== INICIANDO ATRIBUIÇÃO DE CONSULTOR ===');
+    console.log('=== INICIANDO ATRIBUIÇÃO DE CONSULTOR COM ETAPAS ===');
     console.log('Dados recebidos:', {
       projectId,
       mainConsultantId,
@@ -305,7 +304,7 @@ export const assignConsultantsToDemand = async (
 
     if (checkError) {
       console.error('Erro ao verificar projeto:', checkError);
-      throw checkError;
+      throw new Error(`Erro ao verificar projeto: ${checkError.message}`);
     }
 
     if (!existingProject) {
@@ -314,10 +313,11 @@ export const assignConsultantsToDemand = async (
 
     console.log('Projeto encontrado:', existingProject.name);
 
+    // Atualizar o projeto principal
     const updateData: any = {
       main_consultant_id: mainConsultantId,
       main_consultant_commission: mainConsultantCommission,
-      status: mainConsultantId ? 'em_producao' : 'em_planejamento' // Auto-set status based on consultant
+      status: mainConsultantId ? 'em_producao' : 'em_planejamento'
     };
 
     if (supportConsultantId) {
@@ -325,31 +325,62 @@ export const assignConsultantsToDemand = async (
       updateData.support_consultant_commission = supportConsultantCommission;
     }
 
-    console.log('Dados para atualização:', updateData);
+    console.log('Dados para atualização do projeto:', updateData);
 
-    const { data, error } = await supabase
+    const { data: updatedProject, error: updateProjectError } = await supabase
       .from('projects')
       .update(updateData)
       .eq('id', projectId)
       .select()
       .maybeSingle();
     
-    if (error) {
-      console.error('Erro na atualização do projeto:', error);
-      throw error;
+    if (updateProjectError) {
+      console.error('Erro na atualização do projeto:', updateProjectError);
+      throw new Error(`Erro ao atualizar projeto: ${updateProjectError.message}`);
     }
 
-    if (!data) {
+    if (!updatedProject) {
       throw new Error('Nenhum projeto foi atualizado. Verifique se o ID está correto.');
     }
     
-    console.log('Projeto atualizado com sucesso:', data);
+    console.log('Projeto atualizado com sucesso:', updatedProject);
+
+    // Atribuir consultor a TODAS as etapas do projeto
+    if (mainConsultantId) {
+      console.log('Atribuindo consultor a todas as etapas...');
+      
+      const { data: stages, error: stagesError } = await supabase
+        .from('project_stages')
+        .select('id, name')
+        .eq('project_id', projectId);
+
+      if (stagesError) {
+        console.error('Erro ao buscar etapas:', stagesError);
+        // Não falhar aqui, pois o projeto já foi atualizado
+      } else if (stages && stages.length > 0) {
+        console.log(`Encontradas ${stages.length} etapas para atribuir consultor`);
+        
+        const { error: updateStagesError } = await supabase
+          .from('project_stages')
+          .update({ consultant_id: mainConsultantId })
+          .eq('project_id', projectId);
+
+        if (updateStagesError) {
+          console.error('Erro ao atribuir consultor às etapas:', updateStagesError);
+          // Não falhar aqui, pois o projeto principal já foi atualizado
+        } else {
+          console.log('Consultor atribuído com sucesso a todas as etapas');
+        }
+      } else {
+        console.log('Nenhuma etapa encontrada para este projeto');
+      }
+    }
     
     // Update status automatically after consultant assignment
     await updateProjectStatusAutomatically(projectId);
     
-    console.log('=== ATRIBUIÇÃO DE CONSULTOR CONCLUÍDA ===');
-    return data;
+    console.log('=== ATRIBUIÇÃO DE CONSULTOR CONCLUÍDA COM SUCESSO ===');
+    return updatedProject;
   } catch (error) {
     console.error('=== ERRO NA ATRIBUIÇÃO DE CONSULTOR ===');
     console.error('Error assigning consultants:', error);

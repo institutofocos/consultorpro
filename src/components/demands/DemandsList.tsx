@@ -330,7 +330,7 @@ const DemandsList = () => {
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Não foi possível atribuir o consultor. Verifique se o projeto existe e tente novamente.",
+        description: error instanceof Error ? error.message : "Não foi possível atribuir o consultor. Tente novamente.",
       });
     }
   };
@@ -804,7 +804,7 @@ const DemandsList = () => {
               Cancelar
             </Button>
             <Button onClick={handleAssignConsultants} disabled={!mainConsultantId}>
-              Atribuir e Mover para Projetos
+              Aceitar Demanda
             </Button>
           </DialogFooter>
         </DialogContent>
