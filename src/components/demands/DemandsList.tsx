@@ -174,6 +174,24 @@ const DemandsList = () => {
     }
   };
 
+  // Function to calculate project financial values
+  const calculateProjectFinancials = (demand: any, consultantCommission: number) => {
+    const valorBruto = demand.total_value || 0;
+    const taxPercent = demand.tax_percent || 0;
+    const impostos = valorBruto * (taxPercent / 100);
+    const valorLiquido = valorBruto - impostos;
+    const comissaoConsultor = valorLiquido * (consultantCommission / 100);
+    const valorAReceber = valorLiquido - comissaoConsultor;
+
+    return {
+      valorBruto,
+      impostos,
+      valorLiquido,
+      comissaoConsultor,
+      valorAReceber
+    };
+  };
+
   // Handle main consultant selection
   const handleMainConsultantChange = async (consultantId: string) => {
     setMainConsultantId(consultantId);
@@ -350,6 +368,76 @@ const DemandsList = () => {
     });
   };
 
+  // Component to display project financial information
+  const ProjectInfoCard = ({ demand, consultantCommission }: { demand: any, consultantCommission: number }) => {
+    if (!demand) return null;
+
+    const financials = calculateProjectFinancials(demand, consultantCommission);
+    const totalDays = demand.totalDays || 0;
+    const totalHours = demand.totalHours || 0;
+
+    return (
+      <div className="mt-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <h4 className="text-sm font-medium text-blue-900 mb-3">Informações do Projeto</h4>
+        
+        {/* Carga Horária e Datas */}
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="space-y-2">
+            <div>
+              <span className="text-xs text-blue-600 font-medium">Carga Horária:</span>
+              <p className="text-sm text-blue-800">{totalHours}h ({totalDays} dias)</p>
+            </div>
+            <div>
+              <span className="text-xs text-blue-600 font-medium">Data de Início:</span>
+              <p className="text-sm text-blue-800">{format(new Date(demand.start_date), 'dd/MM/yyyy', { locale: ptBR })}</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div>
+              <span className="text-xs text-blue-600 font-medium">Serviço:</span>
+              <p className="text-sm text-blue-800">{demand.serviceName || "Não especificado"}</p>
+            </div>
+            <div>
+              <span className="text-xs text-blue-600 font-medium">Data de Fim:</span>
+              <p className="text-sm text-blue-800">{format(new Date(demand.end_date), 'dd/MM/yyyy', { locale: ptBR })}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Valores Financeiros */}
+        <div className="border-t border-blue-200 pt-3">
+          <h5 className="text-xs font-medium text-blue-900 mb-2">Valores Financeiros</h5>
+          <div className="grid grid-cols-1 gap-2 text-xs">
+            <div className="flex justify-between">
+              <span className="text-blue-600">Valor Bruto:</span>
+              <span className="font-medium text-blue-800">{formatCurrency(financials.valorBruto)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-blue-600">Impostos ({demand.tax_percent || 0}%):</span>
+              <span className="font-medium text-red-600">-{formatCurrency(financials.impostos)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-blue-600">Valor Líquido:</span>
+              <span className="font-medium text-blue-800">{formatCurrency(financials.valorLiquido)}</span>
+            </div>
+            {consultantCommission > 0 && (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-blue-600">Comissão Consultor ({consultantCommission}%):</span>
+                  <span className="font-medium text-orange-600">-{formatCurrency(financials.comissaoConsultor)}</span>
+                </div>
+                <div className="flex justify-between border-t border-blue-200 pt-2 font-semibold">
+                  <span className="text-blue-700">Valor a Receber:</span>
+                  <span className="text-green-700">{formatCurrency(financials.valorAReceber)}</span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+  
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
@@ -594,7 +682,7 @@ const DemandsList = () => {
         </CardFooter>
       </Card>
       
-      {/* Consultant Assignment Dialog - Simplified without support consultant */}
+      {/* Consultant Assignment Dialog - Updated with project information */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent size="lg">
           <DialogHeader>
@@ -632,6 +720,13 @@ const DemandsList = () => {
                 title="Informações do Consultor Principal"
               />
             </div>
+            
+            {selectedDemand && (
+              <ProjectInfoCard 
+                demand={selectedDemand} 
+                consultantCommission={mainConsultantCommission}
+              />
+            )}
             
             {mainConsultantId && (
               <div className="grid gap-2">
