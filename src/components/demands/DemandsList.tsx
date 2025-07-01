@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter, Plus, X, Eye, Edit, Trash2 } from 'lucide-react';
@@ -423,11 +422,11 @@ const DemandsList = () => {
             </div>
             {consultantCommission > 0 && (
               <>
-                <div className="flex justify-between">
-                  <span className="text-blue-600">Valor do Consultor ({consultantCommission}%):</span>
-                  <span className="font-medium text-orange-600">{formatCurrency(financials.comissaoConsultor)}</span>
-                </div>
                 <div className="flex justify-between border-t border-blue-200 pt-2 font-semibold">
+                  <span className="text-blue-700">Valor do Consultor ({consultantCommission}%):</span>
+                  <span className="text-green-700">{formatCurrency(financials.comissaoConsultor)}</span>
+                </div>
+                <div className="flex justify-between font-semibold">
                   <span className="text-blue-700">Valor da Prestadora:</span>
                   <span className="text-green-700">{formatCurrency(financials.valorAReceber)}</span>
                 </div>
@@ -727,25 +726,6 @@ const DemandsList = () => {
                 demand={selectedDemand} 
                 consultantCommission={mainConsultantCommission}
               />
-            )}
-            
-            {mainConsultantId && (
-              <div className="grid gap-2">
-                <label htmlFor="main-commission" className="text-sm font-medium">
-                  Comissão do Consultor Principal (%)
-                </label>
-                <Input
-                  id="main-commission"
-                  type="number"
-                  value={mainConsultantCommission}
-                  disabled
-                  className="bg-gray-100"
-                  title="Comissão definida automaticamente com base no perfil do consultor"
-                />
-                <p className="text-xs text-gray-500">
-                  A comissão é definida automaticamente com base no perfil do consultor e não pode ser editada neste modal.
-                </p>
-              </div>
             )}
           </div>
           
