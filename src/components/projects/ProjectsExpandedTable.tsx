@@ -1,39 +1,22 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { 
-  Eye, 
-  Edit, 
-  Trash2, 
-  Calendar,
-  ExternalLink,
-  ChevronDown,
-  ChevronRight,
-  Settings
-} from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { Edit, Trash2, Eye, Search, ChevronDown, ChevronRight, Zap, ExternalLink } from 'lucide-react';
 import { Project } from './types';
+import ServiceNameCell from './ServiceNameCell';
 import ProjectDetails from './ProjectDetails';
+import ProjectDescriptionModal from './ProjectDescriptionModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import ServiceNameCell from './ServiceNameCell';
+} from "@/components/ui/dropdown-menu";
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
-import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { toast } from 'sonner';
 
 interface ProjectsExpandedTableProps {
   projects: Project[];
@@ -48,16 +31,15 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
   onEditProject,
   onRefresh
 }) => {
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  
-  const { updateProjectStatus } = useProjectActions();
-  const { statuses } = useProjectStatuses();
-  const { userProfile, isLoading: permissionsLoading } = useUserPermissions();
+  const [showProjectDetails, setShowProjectDetails] = useState(false);
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
+  const [selectedProjectForDescription, setSelectedProjectForDescription] = useState<Project | null>(null);
+  const [selectedStageForDescription, setSelectedStageForDescription] = useState<{ name: string; description: string } | null>(null);
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
 
-  // Verificar se é consultor
-  const isConsultant = userProfile?.profile_name === 'Consultor';
+  const { updateProjectStatus, updateStageStatus, completeStage, uncompleteStage, isLoading } = useProjectActions();
+  const { statuses, getStatusDisplay, getStatusBadgeStyle } = useProjectStatuses();
 
   const toggleProjectExpansion = (projectId: string) => {
     const newExpanded = new Set(expandedProjects);
@@ -69,51 +51,144 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
     setExpandedProjects(newExpanded);
   };
 
-  const handleViewDetails = (project: Project) => {
-    setSelectedProject(project);
-    setIsDetailsOpen(true);
+  const handleProjectStatusChange = async (projectId: string, newStatus: string) => {
+    try {
+      await updateProjectStatus(projectId, newStatus);
+      toast.success('Status do projeto atualizado com sucesso!');
+      await onRefresh();
+    } catch (error) {
+      console.error('Erro ao atualizar status do projeto:', error);
+      toast.error('Erro ao atualizar status do projeto');
+    }
   };
 
-  const formatCurrency = (value: number | null | undefined): string => {
-    if (!value) return 'R$ 0,00';
+  const handleStageStatusChange = async (stageId: string, newStatus: string) => {
+    try {
+      // Verificar se o novo status é um status de conclusão
+      const statusSetting = statuses.find(s => s.name === newStatus);
+      
+      if (statusSetting?.is_completion_status) {
+        await completeStage(stageId);
+        toast.success('Etapa concluída com sucesso!');
+      } else {
+        await updateStageStatus(stageId, newStatus);
+        toast.success('Status da etapa atualizado com sucesso!');
+      }
+      await onRefresh();
+    } catch (error) {
+      console.error('Erro ao atualizar status da etapa:', error);
+      toast.error('Erro ao atualizar status da etapa');
+    }
+  };
+
+  // Função para calcular o progresso do projeto baseado em status de conclusão
+  const calculateProjectProgress = (project: Project) => {
+    if (!project.stages || project.stages.length === 0) return { completed: 0, total: 0 };
+    
+    const completedStages = project.stages.filter(stage => {
+      const stageStatus = statuses.find(s => s.name === stage.status);
+      return stageStatus?.is_completion_status || false;
+    }).length;
+    
+    return { completed: completedStages, total: project.stages.length };
+  };
+
+  // Função para verificar se uma etapa está concluída baseada no status
+  const isStageCompleted = (stageStatus: string) => {
+    const statusSetting = statuses.find(s => s.name === stageStatus);
+    return statusSetting?.is_completion_status || false;
+  };
+
+  // Função para manter ordem original das etapas - NUNCA reordenar
+  const getSortedStages = (stages: any[]) => {
+    if (!stages || stages.length === 0) return [];
+    
+    // Retorna sempre a ordem original do array sem qualquer alteração
+    return [...stages];
+  };
+
+  const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
-    }).format(value);
+    }).format(value || 0);
   };
 
-  const formatDate = (dateString: string | null | undefined): string => {
+  const formatDate = (dateString: string) => {
     if (!dateString) return '-';
     try {
-      return format(new Date(dateString), 'dd/MM/yyyy', { locale: ptBR });
-    } catch {
+      return new Date(dateString).toLocaleDateString('pt-BR');
+    } catch (error) {
+      console.error('Error formatting date:', error);
       return '-';
     }
   };
 
-  const getStatusColor = (status: string): string => {
-    const statusConfig = statuses.find(s => s.name === status);
-    return statusConfig?.color || '#3b82f6';
+  const handleViewProject = (project: Project) => {
+    setSelectedProject(project);
+    setShowProjectDetails(true);
   };
 
-  const getStatusDisplayName = (status: string): string => {
-    const statusConfig = statuses.find(s => s.name === status);
-    return statusConfig?.display_name || status;
+  const handleCloseProjectDetails = () => {
+    setShowProjectDetails(false);
+    setSelectedProject(null);
   };
 
-  const handleStatusChange = async (projectId: string, newStatus: string) => {
-    try {
-      await updateProjectStatus(projectId, newStatus);
-      onRefresh();
-    } catch (error) {
-      console.error('Erro ao atualizar status:', error);
+  const handleProjectUpdated = async () => {
+    await onRefresh();
+  };
+
+  const handleViewDescription = (project: Project) => {
+    setSelectedProjectForDescription(project);
+    setShowDescriptionModal(true);
+  };
+
+  const handleViewStageDescription = (stageName: string, stageDescription: string) => {
+    setSelectedStageForDescription({ name: stageName, description: stageDescription });
+    setShowDescriptionModal(true);
+  };
+
+  const handleCloseDescriptionModal = () => {
+    setShowDescriptionModal(false);
+    setSelectedProjectForDescription(null);
+    setSelectedStageForDescription(null);
+  };
+
+  // Helper function to get first name only
+  const getFirstName = (fullName: string | null | undefined): string => {
+    if (!fullName) return '-';
+    return fullName.split(' ')[0];
+  };
+
+  // Helper function to get first and second names
+  const getFirstAndSecondName = (fullName: string | null | undefined): string => {
+    if (!fullName) return '-';
+    const names = fullName.split(' ');
+    if (names.length === 1) return names[0];
+    return `${names[0]} ${names[1] || ''}`.trim();
+  };
+
+  // Function to get consultant name for a stage
+  const getStageConsultantName = (stage: any, project: Project): string => {
+    if (stage.consultantId) {
+      // If stage has a specific consultant, we need to get their name
+      // For now, we'll show the main consultant name if consultantId matches
+      if (stage.consultantId === project.mainConsultantId) {
+        return getFirstAndSecondName(project.mainConsultantName);
+      }
+      if (stage.consultantId === project.supportConsultantId) {
+        return getFirstAndSecondName(project.supportConsultantName);
+      }
+      return 'Consultor Específico';
     }
+    // If no specific consultant, use project's main consultant
+    return getFirstAndSecondName(project.mainConsultantName);
   };
 
-  if (projects.length === 0) {
+  if (!projects || projects.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
-        Nenhum projeto encontrado com os filtros aplicados.
+        <p>Nenhum projeto encontrado.</p>
       </div>
     );
   }
@@ -124,7 +199,6 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-8"></TableHead>
               <TableHead>Projeto</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Cliente</TableHead>
@@ -137,238 +211,311 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
               <TableHead>Descrição</TableHead>
               <TableHead>Progresso</TableHead>
               <TableHead>URL</TableHead>
-              <TableHead>Ações</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {projects.map((project) => (
-              <React.Fragment key={project.id}>
-                <TableRow className="hover:bg-muted/50">
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleProjectExpansion(project.id)}
-                      className="p-1"
-                    >
-                      {expandedProjects.has(project.id) ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {project.name}
-                  </TableCell>
-                  <TableCell>
-                    <Badge 
-                      style={{ 
-                        backgroundColor: getStatusColor(project.status),
-                        color: 'white'
-                      }}
-                    >
-                      {getStatusDisplayName(project.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{project.clientName || '-'}</TableCell>
-                  <TableCell>{project.mainConsultantName || '-'}</TableCell>
-                  <TableCell>
-                    <ServiceNameCell 
-                      serviceName={project.serviceName} 
-                      serviceUrl={project.serviceUrl} 
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {project.tagNames && project.tagNames.length > 0 ? (
-                        project.tagNames.map((tag, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
-                            {tag}
-                          </Badge>
-                        ))
+            {projects.map((project) => {
+              const isExpanded = expandedProjects.has(project.id);
+              const hasStages = project.stages && project.stages.length > 0;
+              const statusDisplay = getStatusDisplay(project.status);
+              const progress = calculateProjectProgress(project);
+              
+              // Obter etapas na ordem original (sem ordenação)
+              const sortedStages = getSortedStages(project.stages || []);
+              
+              return (
+                <React.Fragment key={project.id}>
+                  {/* Linha principal do projeto */}
+                  <TableRow>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {hasStages ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-0 h-6 w-6"
+                            onClick={() => toggleProjectExpansion(project.id)}
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                          </Button>
+                        ) : (
+                          <div className="w-6" />
+                        )}
+                        <div>
+                          <div className="font-semibold">{project.name || 'Sem nome'}</div>
+                          {project.projectId && (
+                            <div className="text-xs text-muted-foreground">
+                              ID: {project.projectId}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge style={getStatusBadgeStyle(project.status)}>
+                        {statusDisplay.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{getFirstName(project.clientName)}</TableCell>
+                    <TableCell>{getFirstAndSecondName(project.mainConsultantName)}</TableCell>
+                    <TableCell>
+                      {project.serviceName ? (
+                        <ServiceNameCell serviceName={project.serviceName} />
                       ) : (
                         '-'
                       )}
-                    </div>
-                  </TableCell>
-                  <TableCell>{formatCurrency(project.totalValue)}</TableCell>
-                  <TableCell>{formatDate(project.startDate)}</TableCell>
-                  <TableCell>{formatDate(project.endDate)}</TableCell>
-                  <TableCell className="max-w-xs">
-                    <div className="truncate" title={project.description || ''}>
-                      {project.description || '-'}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {project.stages && project.stages.length > 0 ? (
-                      `${project.stages.filter(s => s.completed).length}/${project.stages.length}`
-                    ) : (
-                      '0/0'
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {project.url ? (
+                    </TableCell>
+                    <TableCell>
+                      {project.tagNames && project.tagNames.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {project.tagNames.map((tagName, index) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {tagName}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell>{formatCurrency(project.totalValue)}</TableCell>
+                    <TableCell>{formatDate(project.startDate)}</TableCell>
+                    <TableCell>{formatDate(project.endDate)}</TableCell>
+                    <TableCell>
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        onClick={() => window.open(project.url, '_blank')}
-                        className="p-1"
+                        onClick={() => handleViewDescription(project)}
+                        title="Ver descrição completa"
                       >
-                        <ExternalLink className="h-4 w-4" />
+                        <Search className="h-4 w-4" />
                       </Button>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewDetails(project)}
-                        className="p-1"
-                        title="Ver detalhes"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      
-                      {/* Ocultar botões para consultores */}
-                      {!isConsultant && !permissionsLoading && (
-                        <>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="p-1"
-                                title="Alterar status"
-                              >
-                                <Settings className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {statuses.map((status) => (
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        {progress.completed}/{progress.total}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {project.url ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(project.url, '_blank')}
+                          title="Abrir URL do projeto"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end space-x-2">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={isLoading}
+                              title="Alterar status do projeto"
+                            >
+                              <Zap className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="bg-white border shadow-lg z-50">
+                            {statuses.length === 0 ? (
+                              <DropdownMenuItem disabled className="text-muted-foreground">
+                                Nenhum status disponível
+                              </DropdownMenuItem>
+                            ) : (
+                              statuses.map((status) => (
                                 <DropdownMenuItem
-                                  key={status.name}
-                                  onClick={() => handleStatusChange(project.id, status.name)}
-                                  className="cursor-pointer"
+                                  key={status.id}
+                                  onClick={() => handleProjectStatusChange(project.id, status.name)}
+                                  disabled={status.name === project.status}
+                                  className="cursor-pointer hover:bg-gray-100"
                                 >
                                   <div className="flex items-center gap-2">
                                     <div 
-                                      className="w-3 h-3 rounded-full" 
+                                      className="w-3 h-3 rounded-full"
                                       style={{ backgroundColor: status.color }}
                                     />
                                     {status.display_name}
                                   </div>
                                 </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onEditProject(project)}
-                            className="p-1"
-                            title="Editar projeto"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onDeleteProject(project.id)}
-                            className="p-1 text-red-600 hover:text-red-700"
-                            title="Excluir projeto"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-                
-                {/* Linha expandida com as etapas */}
-                {expandedProjects.has(project.id) && project.stages && (
-                  <TableRow>
-                    <TableCell colSpan={14} className="bg-muted/20 p-0">
-                      <div className="p-4">
-                        <h4 className="font-semibold mb-3 flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          Etapas do Projeto
-                        </h4>
-                        <div className="overflow-x-auto">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Etapa</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Valor</TableHead>
-                                <TableHead>Horas</TableHead>
-                                <TableHead>Dias</TableHead>
-                                <TableHead>Data Início</TableHead>
-                                <TableHead>Data Fim</TableHead>
-                                <TableHead>Consultor</TableHead>
-                                <TableHead>Concluída</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {project.stages.map((stage) => (
-                                <TableRow key={stage.id}>
-                                  <TableCell className="font-medium">{stage.name}</TableCell>
-                                  <TableCell>
-                                    <Badge 
-                                      style={{ 
-                                        backgroundColor: getStatusColor(stage.status || 'iniciar_projeto'),
-                                        color: 'white'
-                                      }}
-                                    >
-                                      {getStatusDisplayName(stage.status || 'iniciar_projeto')}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell>{formatCurrency(stage.value)}</TableCell>
-                                  <TableCell>{stage.hours}h</TableCell>
-                                  <TableCell>{stage.days} dias</TableCell>
-                                  <TableCell>{formatDate(stage.startDate)}</TableCell>
-                                  <TableCell>{formatDate(stage.endDate)}</TableCell>
-                                  <TableCell>{stage.consultantName || '-'}</TableCell>
-                                  <TableCell>
-                                    <Badge variant={stage.completed ? "default" : "secondary"}>
-                                      {stage.completed ? 'Sim' : 'Não'}
-                                    </Badge>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
+                              ))
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewProject(project)}
+                          title="Ver detalhes e etapas"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onEditProject(project)}
+                          title="Editar projeto"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onDeleteProject(project.id)}
+                          title="Excluir projeto"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
-                )}
-              </React.Fragment>
-            ))}
+
+                  {/* Linhas das etapas expandidas - usando etapas na ordem original */}
+                  {isExpanded && hasStages && sortedStages.map((stage, index) => {
+                    const stageStatusDisplay = getStatusDisplay(stage.status);
+                    const stageCompleted = isStageCompleted(stage.status);
+                    
+                    return (
+                      <TableRow key={`${project.id}-stage-${stage.id || index}`} className="bg-muted/30">
+                        <TableCell className="pl-12">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+                            <span className="text-sm font-medium">{stage.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge style={getStatusBadgeStyle(stage.status)} variant="outline">
+                            {stageStatusDisplay.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">-</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {getStageConsultantName(stage, project)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">-</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">-</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {stage.value ? formatCurrency(stage.value) : '-'}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {stage.startDate ? formatDate(stage.startDate) : '-'}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {stage.endDate ? formatDate(stage.endDate) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {stage.description ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewStageDescription(stage.name, stage.description || '')}
+                              title="Ver descrição da etapa"
+                            >
+                              <Search className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {stageCompleted ? '100%' : '0%'}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">-</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end space-x-2">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={isLoading}
+                                  title="Alterar status da etapa"
+                                >
+                                  <Zap className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent className="bg-white border shadow-lg z-50">
+                                {statuses.length === 0 ? (
+                                  <DropdownMenuItem disabled className="text-muted-foreground">
+                                    Nenhum status disponível
+                                  </DropdownMenuItem>
+                                ) : (
+                                  statuses.map((status) => (
+                                    <DropdownMenuItem
+                                      key={status.id}
+                                      onClick={() => handleStageStatusChange(stage.id, status.name)}
+                                      disabled={status.name === stage.status}
+                                      className="cursor-pointer hover:bg-gray-100"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <div 
+                                          className="w-3 h-3 rounded-full"
+                                          style={{ backgroundColor: status.color }}
+                                        />
+                                        {status.display_name}
+                                      </div>
+                                    </DropdownMenuItem>
+                                  ))
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
 
       {/* Modal de detalhes do projeto */}
-      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent size="full" className="max-h-[90vh] overflow-y-auto">
+      <Dialog open={showProjectDetails} onOpenChange={setShowProjectDetails}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalhes do Projeto</DialogTitle>
           </DialogHeader>
           {selectedProject && (
-            <ProjectDetails 
-              project={selectedProject} 
-              onRefresh={onRefresh}
+            <ProjectDetails
+              project={selectedProject}
+              onClose={handleCloseProjectDetails}
+              onProjectUpdated={handleProjectUpdated}
             />
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal de descrição do projeto/etapa */}
+      {(selectedProjectForDescription || selectedStageForDescription) && (
+        <ProjectDescriptionModal
+          isOpen={showDescriptionModal}
+          onClose={handleCloseDescriptionModal}
+          projectName={
+            selectedProjectForDescription ? 
+              (selectedProjectForDescription.name || 'Projeto sem nome') : 
+              (selectedStageForDescription?.name || 'Etapa sem nome')
+          }
+          description={
+            selectedProjectForDescription ?
+              (selectedProjectForDescription.description || '') :
+              (selectedStageForDescription?.description || '')
+          }
+        />
+      )}
     </>
   );
 };
