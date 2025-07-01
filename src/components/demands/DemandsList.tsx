@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter, Plus, X, Eye, Edit, Trash2 } from 'lucide-react';
@@ -150,15 +151,27 @@ const DemandsList = () => {
     if (!consultantId) return null;
     
     try {
+      console.log('Carregando informações do consultor:', consultantId);
+      
       const consultantData = consultants.find(c => c.id === consultantId);
-      if (!consultantData) return null;
+      if (!consultantData) {
+        console.error('Consultor não encontrado na lista:', consultantId);
+        return null;
+      }
 
       // Fetch consultant details from the database to get commission
-      const { data: consultantDetails } = await supabase
+      const { data: consultantDetails, error } = await supabase
         .from('consultants')
         .select('commission_percentage, hours_per_month')
         .eq('id', consultantId)
         .single();
+
+      if (error) {
+        console.error('Erro ao buscar detalhes do consultor:', error);
+        return null;
+      }
+
+      console.log('Detalhes do consultor encontrados:', consultantDetails);
 
       const [workedHours, availableHours, activeProjects] = await Promise.all([
         calculateConsultantWorkedHours(consultantId),
@@ -166,7 +179,7 @@ const DemandsList = () => {
         calculateConsultantActiveProjects(consultantId)
       ]);
 
-      return {
+      const consultantInfo = {
         id: consultantId,
         name: consultantData.name,
         hoursPerMonth: consultantDetails?.hours_per_month || 160,
@@ -175,6 +188,9 @@ const DemandsList = () => {
         activeProjects,
         commissionPercentage: consultantDetails?.commission_percentage || 0
       };
+
+      console.log('Informações completas do consultor:', consultantInfo);
+      return consultantInfo;
     } catch (error) {
       console.error('Error loading consultant info:', error);
       return null;
@@ -201,13 +217,27 @@ const DemandsList = () => {
 
   // Handle main consultant selection
   const handleMainConsultantChange = async (consultantId: string) => {
+    console.log('Selecionando consultor:', consultantId);
     setMainConsultantId(consultantId);
+    
     if (consultantId) {
-      const info = await loadConsultantInfo(consultantId);
-      setMainConsultantInfo(info);
-      if (info) {
-        // Automatically set commission from consultant profile (not editable)
-        setMainConsultantCommission(info.commissionPercentage);
+      try {
+        const info = await loadConsultantInfo(consultantId);
+        console.log('Informações do consultor carregadas:', info);
+        
+        setMainConsultantInfo(info);
+        if (info) {
+          // Automatically set commission from consultant profile (not editable)
+          setMainConsultantCommission(info.commissionPercentage);
+          console.log('Comissão definida para:', info.commissionPercentage);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar informações do consultor:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar as informações do consultor.",
+          variant: "destructive",
+        });
       }
     } else {
       setMainConsultantInfo(null);
@@ -225,16 +255,22 @@ const DemandsList = () => {
   
   // Function to handle opening the consultant assignment dialog
   const handleOpenAssignmentDialog = async (demand: any) => {
+    console.log('Abrindo modal de atribuição para demanda:', demand.id);
+    console.log('Usuário é consultor:', isConsultant);
+    console.log('Links do usuário:', userLinks);
+    
     setSelectedDemand(demand);
     
     // NOVA LÓGICA: Diferenciar comportamento baseado no tipo de usuário
     if (isConsultant && userLinks?.consultant_id) {
-      // COMPORTAMENTO PARA CONSULTOR: Auto-seleção se autorizado
+      console.log('COMPORTAMENTO PARA CONSULTOR - Auto-seleção iniciada');
       const linkedConsultantId = userLinks.consultant_id;
       
       // Verificar se o serviço da demanda permite este consultor
       if (demand.services?.id) {
         try {
+          console.log('Verificando autorização do consultor para o serviço:', demand.services.id);
+          
           const { data: consultantService, error } = await supabase
             .from('consultant_services')
             .select('id')
@@ -244,7 +280,7 @@ const DemandsList = () => {
 
           if (!error && consultantService) {
             // Consultor autorizado para este serviço - selecionar automaticamente
-            console.log('Selecionando consultor automaticamente:', linkedConsultantId);
+            console.log('Consultor autorizado - selecionando automaticamente:', linkedConsultantId);
             await handleMainConsultantChange(linkedConsultantId);
             
             toast({
@@ -253,6 +289,7 @@ const DemandsList = () => {
             });
           } else {
             // Consultor não autorizado para este serviço - limpar seleção
+            console.log('Consultor não autorizado para este serviço');
             setMainConsultantId("");
             setMainConsultantCommission(0);
             setMainConsultantInfo(null);
@@ -265,23 +302,22 @@ const DemandsList = () => {
           }
         } catch (error) {
           console.error('Erro ao verificar autorização do consultor:', error);
-          // Em caso de erro, limpar seleção
-          setMainConsultantId("");
-          setMainConsultantCommission(0);
-          setMainConsultantInfo(null);
+          // Em caso de erro, tentar selecionar o consultor mesmo assim
+          console.log('Erro na verificação - tentando selecionar consultor mesmo assim');
+          await handleMainConsultantChange(linkedConsultantId);
         }
       } else {
         // Se não há serviço específico, selecionar o consultor logado
+        console.log('Sem serviço específico - selecionando consultor logado');
         await handleMainConsultantChange(linkedConsultantId);
       }
     } else {
       // COMPORTAMENTO PARA GESTOR/ADMIN: Seleção manual sempre
+      console.log('COMPORTAMENTO PARA GESTOR/ADMIN - Seleção manual');
       // Limpar qualquer seleção prévia para forçar seleção manual
       setMainConsultantId("");
       setMainConsultantCommission(0);
       setMainConsultantInfo(null);
-      
-      console.log('Usuário não é consultor - permitindo seleção manual');
     }
     
     setDialogOpen(true);
@@ -812,7 +848,8 @@ const DemandsList = () => {
               />
             )}
             
-            {selectedDemand && mainConsultantCommission > 0 && (
+            {/* Mostrar informações do projeto sempre que houver um consultor selecionado ou for consultor logado */}
+            {selectedDemand && (isConsultant || mainConsultantCommission > 0) && (
               <ProjectInfoCard 
                 demand={selectedDemand} 
                 consultantCommission={mainConsultantCommission}
