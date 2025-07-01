@@ -19,6 +19,7 @@ import SearchableSelect from '@/components/ui/searchable-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Project } from './types';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
+import { PermissionGuard } from '@/components/ui/permission-guard';
 
 const ProjectList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -35,6 +36,9 @@ const ProjectList: React.FC = () => {
   const [services, setServices] = useState<Array<{id: string, name: string}>>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<any>(null);
+  const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
+  const [viewMode, setViewMode] = useState('kanban');
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   // Hook para buscar status dinâmicos
   const { statuses } = useProjectStatuses();
@@ -274,39 +278,45 @@ const ProjectList: React.FC = () => {
     }
   };
 
+  // Verificar se é consultor
+  const isConsultant = userProfile?.profile_name === 'Consultor';
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Projetos</h1>
-          <p className="text-muted-foreground">Gerenciamento de projetos</p>
+          <h1 className="text-3xl font-bold">Projetos</h1>
+          <p className="text-muted-foreground">Gerencie todos os projetos da consultoria</p>
         </div>
-        <div className="flex items-center">
-          <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
-            <DialogTrigger asChild>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="ml-auto gap-1"
-                onClick={handleNewProject}
-              >
-                <Plus className="h-4 w-4" />
-                <span>Novo Projeto</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent size="full" className="max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingProject ? 'Editar Projeto' : 'Novo Projeto'}
-                </DialogTitle>
-              </DialogHeader>
-              <ProjectForm
-                project={editingProject}
-                onProjectSaved={handleProjectSaved}
-                onCancel={() => setIsDialogOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
+        <div className="flex gap-2">
+          {!isConsultant && (
+            <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline" className="gap-1">
+                  <Plus className="h-4 w-4" />
+                  <span>Novo Projeto</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent size="full" className="max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Novo Projeto</DialogTitle>
+                </DialogHeader>
+                <ProjectForm
+                  onProjectSaved={() => {
+                    setIsProjectDialogOpen(false);
+                    fetchProjects();
+                  }}
+                  onCancel={() => setIsProjectDialogOpen(false)}
+                />
+              </DialogContent>
+            </Dialog>
+          )}
+          
+          <PermissionGuard module="projects" action="view">
+            <Button onClick={toggleView} variant="outline" size="sm">
+              {viewMode === 'kanban' ? 'Ver Lista' : 'Ver Kanban'}
+            </Button>
+          </PermissionGuard>
         </div>
       </div>
 

@@ -376,31 +376,33 @@ const DemandsList = () => {
           <h1 className="text-3xl font-bold">Demandas</h1>
           <p className="text-muted-foreground">Gerencie todas as demandas de clientes</p>
         </div>
-        <Dialog open={isDemandDialogOpen} onOpenChange={setIsDemandDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" variant="outline" className="gap-1">
-              <Plus className="h-4 w-4" />
-              <span>Nova Demanda</span>
-            </Button>
-          </DialogTrigger>
-          <DialogContent size="full" className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Nova Demanda</DialogTitle>
-            </DialogHeader>
-            <DemandForm
-              onDemandSaved={() => {
-                setIsDemandDialogOpen(false);
-                // Refresh the demands list
-                const fetchData = async () => {
-                  const demandsData = await fetchDemandsWithoutConsultants();
-                  setDemands(demandsData);
-                };
-                fetchData();
-              }}
-              onCancel={() => setIsDemandDialogOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
+        {!isConsultant && (
+          <Dialog open={isDemandDialogOpen} onOpenChange={setIsDemandDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline" className="gap-1">
+                <Plus className="h-4 w-4" />
+                <span>Nova Demanda</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent size="full" className="max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Nova Demanda</DialogTitle>
+              </DialogHeader>
+              <DemandForm
+                onDemandSaved={() => {
+                  setIsDemandDialogOpen(false);
+                  // Refresh the demands list
+                  const fetchData = async () => {
+                    const demandsData = await fetchDemandsWithoutConsultants();
+                    setDemands(demandsData);
+                  };
+                  fetchData();
+                }}
+                onCancel={() => setIsDemandDialogOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
       
       {/* Filters */}
