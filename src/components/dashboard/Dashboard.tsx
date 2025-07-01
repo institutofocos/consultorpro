@@ -97,13 +97,13 @@ export const Dashboard: React.FC = () => {
         return [];
       }
 
-      // Mapear os dados para o formato esperado - CORRIGINDO O ACESSO AOS NOMES
+      // Mapear os dados para o formato esperado - CORRIGINDO TODOS OS ACESSOS
       const mappedProjects = allProjectsData?.map(project => ({
         ...project,
-        clientName: project.clients?.name || (Array.isArray(project.clients) ? project.clients[0]?.name : null),
-        serviceName: project.services?.name || (Array.isArray(project.services) ? project.services[0]?.name : null),
-        mainConsultantName: project.main_consultant?.name || (Array.isArray(project.main_consultant) ? project.main_consultant[0]?.name : null),
-        supportConsultantName: project.support_consultant?.name || (Array.isArray(project.support_consultant) ? project.support_consultant[0]?.name : null),
+        clientName: Array.isArray(project.clients) ? project.clients[0]?.name : project.clients?.name,
+        serviceName: Array.isArray(project.services) ? project.services[0]?.name : project.services?.name,
+        mainConsultantName: Array.isArray(project.main_consultant) ? project.main_consultant[0]?.name : project.main_consultant?.name,
+        supportConsultantName: Array.isArray(project.support_consultant) ? project.support_consultant[0]?.name : project.support_consultant?.name,
         mainConsultantId: project.main_consultant_id,
         supportConsultantId: project.support_consultant_id,
         serviceId: project.service_id,
