@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Briefcase, Target, Calendar, DollarSign, Clock, CheckCircle, AlertCircle, AlertTriangle, FileText
@@ -574,6 +575,13 @@ export const Dashboard: React.FC = () => {
         />
       </div>
       
+      {/* Top Consultants and Services - SEMPRE VISÍVEL PARA TODOS OS USUÁRIOS */}
+      <TopPerformers
+        topConsultants={topConsultants}
+        topServices={topServices}
+        formatCurrency={formatCurrency}
+      />
+      
       {/* Priority Tables - Projetos, Etapas a Serem Entregues e Atrasados */}
       <PriorityTables
         projectsToDeliver={projectsToDeliver}
@@ -626,13 +634,6 @@ export const Dashboard: React.FC = () => {
           })}
         </div>
       )}
-      
-      {/* Top Consultants and Services */}
-      <TopPerformers
-        topConsultants={topConsultants}
-        topServices={topServices}
-        formatCurrency={formatCurrency}
-      />
       
       {/* Projects and Stages Delivery */}
       <DeliveryTables
