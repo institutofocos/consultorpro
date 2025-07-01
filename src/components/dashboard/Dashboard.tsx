@@ -97,18 +97,26 @@ export const Dashboard: React.FC = () => {
         return [];
       }
 
-      // Mapear os dados para o formato esperado - CORRIGINDO TODOS OS ACESSOS
-      const mappedProjects = allProjectsData?.map(project => ({
-        ...project,
-        clientName: Array.isArray(project.clients) ? project.clients[0]?.name : project.clients?.name,
-        serviceName: Array.isArray(project.services) ? project.services[0]?.name : project.services?.name,
-        mainConsultantName: Array.isArray(project.main_consultant) ? project.main_consultant[0]?.name : project.main_consultant?.name,
-        supportConsultantName: Array.isArray(project.support_consultant) ? project.support_consultant[0]?.name : project.support_consultant?.name,
-        mainConsultantId: project.main_consultant_id,
-        supportConsultantId: project.support_consultant_id,
-        serviceId: project.service_id,
-        clientId: project.client_id
-      })) || [];
+      // Mapear os dados para o formato esperado - CORRIGINDO OS TIPOS TYPESCRIPT
+      const mappedProjects = allProjectsData?.map(project => {
+        // Safely access nested properties with proper type checking
+        const clientData = project.clients as any;
+        const serviceData = project.services as any;
+        const mainConsultantData = project.main_consultant as any;
+        const supportConsultantData = project.support_consultant as any;
+        
+        return {
+          ...project,
+          clientName: Array.isArray(clientData) ? clientData[0]?.name : clientData?.name,
+          serviceName: Array.isArray(serviceData) ? serviceData[0]?.name : serviceData?.name,
+          mainConsultantName: Array.isArray(mainConsultantData) ? mainConsultantData[0]?.name : mainConsultantData?.name,
+          supportConsultantName: Array.isArray(supportConsultantData) ? supportConsultantData[0]?.name : supportConsultantData?.name,
+          mainConsultantId: project.main_consultant_id,
+          supportConsultantId: project.support_consultant_id,
+          serviceId: project.service_id,
+          clientId: project.client_id
+        };
+      }) || [];
 
       console.log('Total de projetos encontrados para Top Performers:', mappedProjects.length);
       return mappedProjects;
