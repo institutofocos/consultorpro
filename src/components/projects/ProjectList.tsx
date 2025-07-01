@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -37,8 +38,6 @@ const ProjectList: React.FC = () => {
   const [services, setServices] = useState<Array<{id: string, name: string}>>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<any>(null);
-  const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
-  const [viewMode, setViewMode] = useState('kanban');
 
   // Hook para buscar status dinâmicos
   const { statuses } = useProjectStatuses();
@@ -187,15 +186,18 @@ const ProjectList: React.FC = () => {
   };
 
   const handleEditProject = (project: any) => {
-    console.log('Editando projeto:', project);
+    console.log('=== EDITANDO PROJETO ===');
+    console.log('Projeto selecionado para edição:', project);
     setEditingProject(project);
     setIsDialogOpen(true);
+    console.log('Dialog aberto para edição');
   };
 
   const handleNewProject = () => {
-    console.log('Criando novo projeto');
+    console.log('=== CRIANDO NOVO PROJETO ===');
     setEditingProject(null);
     setIsDialogOpen(true);
+    console.log('Dialog aberto para criação');
   };
 
   const clearFilters = () => {
@@ -231,9 +233,11 @@ const ProjectList: React.FC = () => {
   };
 
   const handleDialogOpenChange = (open: boolean) => {
-    console.log('Dialog open change:', open);
+    console.log('=== MUDANÇA NO ESTADO DO DIALOG ===');
+    console.log('Dialog open:', open);
     setIsDialogOpen(open);
     if (!open) {
+      console.log('Dialog fechado, limpando projeto em edição');
       setEditingProject(null);
     }
   };
@@ -293,26 +297,15 @@ const ProjectList: React.FC = () => {
         </div>
         <div className="flex gap-2">
           {!isConsultant && !permissionsLoading && (
-            <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="gap-1">
-                  <Plus className="h-4 w-4" />
-                  <span>Novo Projeto</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent size="full" className="max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Novo Projeto</DialogTitle>
-                </DialogHeader>
-                <ProjectForm
-                  onProjectSaved={() => {
-                    setIsProjectDialogOpen(false);
-                    fetchProjects();
-                  }}
-                  onCancel={() => setIsProjectDialogOpen(false)}
-                />
-              </DialogContent>
-            </Dialog>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="gap-1"
+              onClick={handleNewProject}
+            >
+              <Plus className="h-4 w-4" />
+              <span>Novo Projeto</span>
+            </Button>
           )}
         </div>
       </div>
@@ -443,6 +436,22 @@ const ProjectList: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog unificado para criação e edição de projetos */}
+      <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
+        <DialogContent size="full" className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingProject ? 'Editar Projeto' : 'Novo Projeto'}
+            </DialogTitle>
+          </DialogHeader>
+          <ProjectForm
+            project={editingProject}
+            onProjectSaved={handleProjectSaved}
+            onCancel={() => handleDialogOpenChange(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
