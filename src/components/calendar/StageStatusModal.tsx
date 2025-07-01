@@ -10,6 +10,7 @@ import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import TimerControls from './TimerControls';
 
 interface Task {
@@ -50,6 +51,10 @@ const StageStatusModal: React.FC<StageStatusModalProps> = ({
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [isUpdating, setIsUpdating] = useState(false);
   const { statuses, getStatusDisplay, getStatusBadgeStyle } = useProjectStatuses();
+  const { userLinks } = useUserPermissions();
+
+  // Verificar se o usuário é um consultor
+  const isConsultant = userLinks?.consultant_id !== null;
 
   React.useEffect(() => {
     if (task) {
@@ -92,7 +97,7 @@ const StageStatusModal: React.FC<StageStatusModalProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Alterar Status da Etapa
+            {isConsultant ? 'Controle de Tempo' : 'Alterar Status da Etapa'}
           </DialogTitle>
         </DialogHeader>
 
@@ -134,7 +139,7 @@ const StageStatusModal: React.FC<StageStatusModalProps> = ({
             </div>
           </div>
 
-          {/* Timer Controls - ANTES DO STATUS */}
+          {/* Timer Controls - SEMPRE VISÍVEL */}
           <div className="border-t border-b py-4">
             <TimerControls
               taskId={task.id}
@@ -145,42 +150,46 @@ const StageStatusModal: React.FC<StageStatusModalProps> = ({
             />
           </div>
 
-          {/* Status Selection */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Novo status:</label>
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um status" />
-              </SelectTrigger>
-              <SelectContent>
-                {statuses.map((status) => (
-                  <SelectItem key={status.id} value={status.name}>
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: status.color }}
-                      />
-                      {status.display_name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Status Selection - OCULTO PARA CONSULTORES */}
+          {!isConsultant && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Novo status:</label>
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statuses.map((status) => (
+                    <SelectItem key={status.id} value={status.name}>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: status.color }}
+                        />
+                        {status.display_name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-4">
-            <Button 
-              onClick={handleUpdateStatus}
-              disabled={isUpdating || selectedStatus === task.status}
-              className="flex-1"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {isUpdating ? 'Atualizando...' : 'Atualizar Status'}
-            </Button>
-            <Button variant="outline" onClick={onClose}>
+            {!isConsultant && (
+              <Button 
+                onClick={handleUpdateStatus}
+                disabled={isUpdating || selectedStatus === task.status}
+                className="flex-1"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {isUpdating ? 'Atualizando...' : 'Atualizar Status'}
+              </Button>
+            )}
+            <Button variant="outline" onClick={onClose} className={isConsultant ? "flex-1" : ""}>
               <X className="h-4 w-4 mr-2" />
-              Cancelar
+              {isConsultant ? 'Fechar' : 'Cancelar'}
             </Button>
           </div>
         </div>
