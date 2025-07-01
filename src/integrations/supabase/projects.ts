@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -612,8 +613,11 @@ export const createProject = async (project: any) => {
       }
     }
 
-    // NÃO chamar updateProjectStatusAutomatically aqui porque queremos manter o status inicial
-    console.log('=== PROJETO CRIADO COM SUCESSO COM STATUS "iniciar_projeto" ===');
+    // IMPORTANTE: NÃO chamar updateProjectStatusAutomatically aqui 
+    // porque queremos manter o status inicial "iniciar_projeto"
+    console.log('=== PROJETO CRIADO COM SUCESSO MANTENDO STATUS "iniciar_projeto" ===');
+    console.log('❌ EVITANDO atualização automática de status para manter "iniciar_projeto"');
+    
     return data;
   } catch (error) {
     console.error('=== ERRO NA CRIAÇÃO DO PROJETO ===');
