@@ -19,7 +19,7 @@ import SearchableSelect from '@/components/ui/searchable-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Project } from './types';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
-import { PermissionGuard } from '@/components/ui/permission-guard';
+import PermissionGuard from '@/components/auth/PermissionGuard';
 
 const ProjectList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -311,12 +311,6 @@ const ProjectList: React.FC = () => {
               </DialogContent>
             </Dialog>
           )}
-          
-          <PermissionGuard module="projects" action="view">
-            <Button onClick={toggleView} variant="outline" size="sm">
-              {viewMode === 'kanban' ? 'Ver Lista' : 'Ver Kanban'}
-            </Button>
-          </PermissionGuard>
         </div>
       </div>
 
