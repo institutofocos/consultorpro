@@ -1882,6 +1882,13 @@ export type Database = {
           profile_description: string
         }[]
       }
+      get_viewed_demands: {
+        Args: { p_user_id: string }
+        Returns: {
+          demand_id: string
+          viewed_at: string
+        }[]
+      }
       insert_project_history: {
         Args: {
           p_project_id: string
@@ -1898,6 +1905,14 @@ export type Database = {
       is_project_fully_completed: {
         Args: { p_project_id: string }
         Returns: boolean
+      }
+      mark_all_demands_as_viewed: {
+        Args: { p_user_id: string; p_demand_ids: string[] }
+        Returns: undefined
+      }
+      mark_demand_as_viewed: {
+        Args: { p_demand_id: string; p_user_id: string }
+        Returns: undefined
       }
       populate_gantt_from_project: {
         Args: { p_project_id: string }
