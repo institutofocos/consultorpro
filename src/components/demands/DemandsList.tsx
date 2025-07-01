@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter, Plus, X, Eye, Edit, Trash2 } from 'lucide-react';
@@ -98,7 +99,7 @@ const DemandsList = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Filter consultants based on selected demand's service
+  // Filter consultants based on selected demand's service - CORRIGIDO
   useEffect(() => {
     const filterConsultantsByService = async () => {
       if (!selectedDemand || !selectedDemand.services?.id) {
@@ -121,11 +122,18 @@ const DemandsList = () => {
           return;
         }
 
+        // CORREÇÃO: Verificar se consultants existe e não é null antes de acessar
         const authorized = authorizedConsultants
-          ?.map(item => ({
-            id: item.consultants.id,
-            name: item.consultants.name
-          }))
+          ?.map(item => {
+            // Verificar se item.consultants existe e não é null
+            if (item.consultants && item.consultants.id && item.consultants.name) {
+              return {
+                id: item.consultants.id,
+                name: item.consultants.name
+              };
+            }
+            return null;
+          })
           .filter(Boolean) || [];
 
         setFilteredConsultants(authorized);
@@ -276,15 +284,28 @@ const DemandsList = () => {
     setDialogOpen(true);
   };
   
-  // Function to handle consultant assignment
+  // Function to handle consultant assignment - CORRIGIDO
   const handleAssignConsultants = async () => {
-    if (!selectedDemand) return;
+    if (!selectedDemand || !mainConsultantId) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Nenhum consultor selecionado.",
+      });
+      return;
+    }
     
     try {
+      console.log('Tentando atribuir consultor:', {
+        demandId: selectedDemand.id,
+        consultantId: mainConsultantId,
+        commission: mainConsultantCommission
+      });
+
       // Only pass main consultant data, support consultant is removed
       await assignConsultantsToDemand(
         selectedDemand.id,
-        mainConsultantId || null,
+        mainConsultantId,
         mainConsultantCommission,
         null, // No support consultant
         0 // No support consultant commission
@@ -298,12 +319,18 @@ const DemandsList = () => {
       // Remove the assigned demand from the list
       setDemands(demands.filter(d => d.id !== selectedDemand.id));
       setDialogOpen(false);
+      
+      // Reset dialog state
+      setSelectedDemand(null);
+      setMainConsultantId("");
+      setMainConsultantCommission(0);
+      setMainConsultantInfo(null);
     } catch (error) {
       console.error('Error assigning consultants:', error);
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Não foi possível atribuir o consultor.",
+        description: "Não foi possível atribuir o consultor. Verifique se o projeto existe e tente novamente.",
       });
     }
   };

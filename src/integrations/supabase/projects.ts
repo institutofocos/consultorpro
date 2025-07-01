@@ -287,6 +287,33 @@ export const assignConsultantsToDemand = async (
   supportConsultantCommission: number
 ) => {
   try {
+    console.log('=== INICIANDO ATRIBUIÇÃO DE CONSULTOR ===');
+    console.log('Dados recebidos:', {
+      projectId,
+      mainConsultantId,
+      mainConsultantCommission,
+      supportConsultantId,
+      supportConsultantCommission
+    });
+
+    // Verificar se o projeto existe antes de tentar atualizar
+    const { data: existingProject, error: checkError } = await supabase
+      .from('projects')
+      .select('id, name')
+      .eq('id', projectId)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('Erro ao verificar projeto:', checkError);
+      throw checkError;
+    }
+
+    if (!existingProject) {
+      throw new Error(`Projeto com ID ${projectId} não encontrado`);
+    }
+
+    console.log('Projeto encontrado:', existingProject.name);
+
     const updateData: any = {
       main_consultant_id: mainConsultantId,
       main_consultant_commission: mainConsultantCommission,
@@ -298,20 +325,33 @@ export const assignConsultantsToDemand = async (
       updateData.support_consultant_commission = supportConsultantCommission;
     }
 
+    console.log('Dados para atualização:', updateData);
+
     const { data, error } = await supabase
       .from('projects')
       .update(updateData)
       .eq('id', projectId)
       .select()
-      .single();
+      .maybeSingle();
     
-    if (error) throw error;
+    if (error) {
+      console.error('Erro na atualização do projeto:', error);
+      throw error;
+    }
+
+    if (!data) {
+      throw new Error('Nenhum projeto foi atualizado. Verifique se o ID está correto.');
+    }
+    
+    console.log('Projeto atualizado com sucesso:', data);
     
     // Update status automatically after consultant assignment
     await updateProjectStatusAutomatically(projectId);
     
+    console.log('=== ATRIBUIÇÃO DE CONSULTOR CONCLUÍDA ===');
     return data;
   } catch (error) {
+    console.error('=== ERRO NA ATRIBUIÇÃO DE CONSULTOR ===');
     console.error('Error assigning consultants:', error);
     throw error;
   }
