@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Play, Pause, Square, Clock, History, AlertTriangle } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import TimeTrackingHistory from './TimeTrackingHistory';
+import AutoPauseModal from './AutoPauseModal';
 
 interface TimerControlsProps {
   taskId: string;
@@ -31,6 +31,11 @@ const TimerControls: React.FC<TimerControlsProps> = ({
   const [showHistory, setShowHistory] = useState(false);
   const [stageName, setStageName] = useState('');
   const [estimatedHours, setEstimatedHours] = useState<number>(0);
+  const [showAutoPauseModal, setShowAutoPauseModal] = useState(false);
+  const [autoPauseTimeout, setAutoPauseTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  // Constante para 4 horas em milissegundos
+  const AUTO_PAUSE_DURATION = 4 * 60 * 60 * 1000; // 4 horas
 
   // Buscar dados da etapa e tempo atualizado do banco
   useEffect(() => {
@@ -83,6 +88,18 @@ const TimerControls: React.FC<TimerControlsProps> = ({
       console.log('Hora de início:', timerStartedAt.toLocaleString());
       console.log('Tempo base acumulado:', timeSpent, 'minutos');
       
+      // Configurar auto-pause após 4 horas
+      const timeUntilAutoPause = AUTO_PAUSE_DURATION - (Date.now() - timerStartedAt.getTime());
+      if (timeUntilAutoPause > 0) {
+        const timeout = setTimeout(() => {
+          handleAutoPause();
+        }, timeUntilAutoPause);
+        setAutoPauseTimeout(timeout);
+      } else {
+        // Se já passou de 4 horas, pausar imediatamente
+        handleAutoPause();
+      }
+      
       // Atualizar imediatamente
       const now = new Date();
       const elapsedMs = now.getTime() - timerStartedAt.getTime();
@@ -110,6 +127,12 @@ const TimerControls: React.FC<TimerControlsProps> = ({
     } else {
       console.log('Timer parado/pausado - display fixo em:', timeSpent);
       setDisplaySeconds(timeSpent * 60);
+      
+      // Limpar timeout de auto-pause se existir
+      if (autoPauseTimeout) {
+        clearTimeout(autoPauseTimeout);
+        setAutoPauseTimeout(null);
+      }
     }
 
     return () => {
@@ -117,8 +140,41 @@ const TimerControls: React.FC<TimerControlsProps> = ({
         console.log('🛑 Limpando interval do timer');
         clearInterval(interval);
       }
+      if (autoPauseTimeout) {
+        clearTimeout(autoPauseTimeout);
+        setAutoPauseTimeout(null);
+      }
     };
   }, [timerStatus, timerStartedAt, timeSpent]);
+
+  const handleAutoPause = async () => {
+    console.log('=== AUTO-PAUSE ATIVADO APÓS 4 HORAS ===');
+    
+    try {
+      // Pausar o timer atual
+      await pauseTimer();
+      
+      // Mostrar modal de auto-pause
+      setShowAutoPauseModal(true);
+      
+      toast.warning('Timer pausado automaticamente após 4 horas de atividade contínua.');
+    } catch (error) {
+      console.error('Erro no auto-pause:', error);
+      toast.error('Erro ao pausar timer automaticamente');
+    }
+  };
+
+  const handleAutoPauseResume = async () => {
+    setShowAutoPauseModal(false);
+    await startTimer();
+    toast.success('Timer retomado com sucesso!');
+  };
+
+  const handleAutoPauseStop = async () => {
+    setShowAutoPauseModal(false);
+    await stopTimer();
+    toast.success('Timer finalizado com sucesso!');
+  };
 
   const formatTime = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600);
@@ -345,7 +401,8 @@ const TimerControls: React.FC<TimerControlsProps> = ({
     estimatedHours,
     estimatedMinutes,
     totalMinutesSpent,
-    isTimeExceeded
+    isTimeExceeded,
+    showAutoPauseModal
   });
 
   return (
@@ -493,6 +550,13 @@ const TimerControls: React.FC<TimerControlsProps> = ({
         onClose={() => setShowHistory(false)}
         stageId={taskId}
         stageName={stageName}
+      />
+
+      {/* Modal de auto-pause */}
+      <AutoPauseModal
+        isOpen={showAutoPauseModal}
+        onResume={handleAutoPauseResume}
+        onStop={handleAutoPauseStop}
       />
     </div>
   );
