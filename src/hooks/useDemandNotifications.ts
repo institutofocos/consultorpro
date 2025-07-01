@@ -56,11 +56,9 @@ export const useDemandNotifications = () => {
 
       if (error) throw error;
 
-      // Buscar demandas visualizadas pelo usuário
+      // Buscar demandas visualizadas pelo usuário usando a função SQL
       const { data: viewedDemandsData, error: viewedError } = await supabase
-        .from('demand_views')
-        .select('demand_id')
-        .eq('user_id', user.id);
+        .rpc('get_viewed_demands', { p_user_id: user.id });
 
       if (viewedError) {
         console.warn('Erro ao buscar demandas visualizadas, considerando todas como não visualizadas:', viewedError);
@@ -86,13 +84,12 @@ export const useDemandNotifications = () => {
 
     try {
       const { error } = await supabase
-        .from('demand_views')
-        .insert({
-          demand_id: demandId,
-          user_id: user.id
+        .rpc('mark_demand_as_viewed', { 
+          p_demand_id: demandId, 
+          p_user_id: user.id 
         });
 
-      if (error && error.code !== '23505') { // Ignorar erro de duplicate key
+      if (error) {
         console.warn('Erro ao marcar demanda como visualizada:', error);
         return;
       }
@@ -113,16 +110,13 @@ export const useDemandNotifications = () => {
     if (!user || unreadDemands.length === 0) return;
 
     try {
-      const viewRecords = unreadDemands.map(demand => ({
-        demand_id: demand.id,
-        user_id: user.id
-      }));
-
       const { error } = await supabase
-        .from('demand_views')
-        .insert(viewRecords);
+        .rpc('mark_all_demands_as_viewed', { 
+          p_user_id: user.id,
+          p_demand_ids: unreadDemands.map(d => d.id)
+        });
 
-      if (error && error.code !== '23505') { // Ignorar erro de duplicate key
+      if (error) {
         console.warn('Erro ao marcar todas as demandas como visualizadas:', error);
         return;
       }
