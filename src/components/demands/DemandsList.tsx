@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter, Plus, X, Eye, Edit, Trash2 } from 'lucide-react';
@@ -255,21 +254,28 @@ const DemandsList = () => {
   
   // Function to handle opening the consultant assignment dialog
   const handleOpenAssignmentDialog = async (demand: any) => {
-    console.log('Abrindo modal de atribuição para demanda:', demand.id);
+    console.log('=== ABRINDO MODAL DE ATRIBUIÇÃO ===');
+    console.log('Demanda:', demand.id);
     console.log('Usuário é consultor:', isConsultant);
     console.log('Links do usuário:', userLinks);
     
     setSelectedDemand(demand);
     
-    // NOVA LÓGICA: Diferenciar comportamento baseado no tipo de usuário
+    // Limpar estado inicial
+    setMainConsultantId("");
+    setMainConsultantCommission(0);
+    setMainConsultantInfo(null);
+    
+    // LÓGICA PARA CONSULTOR LOGADO
     if (isConsultant && userLinks?.consultant_id) {
-      console.log('COMPORTAMENTO PARA CONSULTOR - Auto-seleção iniciada');
+      console.log('=== LÓGICA PARA CONSULTOR ===');
       const linkedConsultantId = userLinks.consultant_id;
+      console.log('ID do consultor vinculado:', linkedConsultantId);
       
       // Verificar se o serviço da demanda permite este consultor
       if (demand.services?.id) {
         try {
-          console.log('Verificando autorização do consultor para o serviço:', demand.services.id);
+          console.log('Verificando autorização para serviço:', demand.services.id);
           
           const { data: consultantService, error } = await supabase
             .from('consultant_services')
@@ -279,20 +285,19 @@ const DemandsList = () => {
             .single();
 
           if (!error && consultantService) {
-            // Consultor autorizado para este serviço - selecionar automaticamente
-            console.log('Consultor autorizado - selecionando automaticamente:', linkedConsultantId);
+            console.log('✅ Consultor autorizado - auto-selecionando');
+            
+            // Auto-selecionar o consultor
             await handleMainConsultantChange(linkedConsultantId);
+            
+            console.log('Auto-seleção concluída');
             
             toast({
               title: "Consultor selecionado automaticamente",
               description: "Você foi selecionado automaticamente como consultor principal para este projeto.",
             });
           } else {
-            // Consultor não autorizado para este serviço - limpar seleção
-            console.log('Consultor não autorizado para este serviço');
-            setMainConsultantId("");
-            setMainConsultantCommission(0);
-            setMainConsultantInfo(null);
+            console.log('❌ Consultor não autorizado para este serviço');
             
             toast({
               title: "Serviço não autorizado",
@@ -301,25 +306,34 @@ const DemandsList = () => {
             });
           }
         } catch (error) {
-          console.error('Erro ao verificar autorização do consultor:', error);
-          // Em caso de erro, tentar selecionar o consultor mesmo assim
-          console.log('Erro na verificação - tentando selecionar consultor mesmo assim');
-          await handleMainConsultantChange(linkedConsultantId);
+          console.error('Erro ao verificar autorização:', error);
+          
+          // Em caso de erro na verificação, tentar selecionar mesmo assim
+          console.log('⚠️ Erro na verificação - tentando auto-seleção');
+          try {
+            await handleMainConsultantChange(linkedConsultantId);
+            console.log('Auto-seleção em fallback concluída');
+          } catch (fallbackError) {
+            console.error('Erro no fallback de auto-seleção:', fallbackError);
+          }
         }
       } else {
-        // Se não há serviço específico, selecionar o consultor logado
-        console.log('Sem serviço específico - selecionando consultor logado');
-        await handleMainConsultantChange(linkedConsultantId);
+        console.log('Sem serviço específico - auto-selecionando consultor');
+        try {
+          await handleMainConsultantChange(linkedConsultantId);
+          console.log('Auto-seleção sem verificação de serviço concluída');
+        } catch (error) {
+          console.error('Erro na auto-seleção sem verificação:', error);
+        }
       }
     } else {
-      // COMPORTAMENTO PARA GESTOR/ADMIN: Seleção manual sempre
-      console.log('COMPORTAMENTO PARA GESTOR/ADMIN - Seleção manual');
-      // Limpar qualquer seleção prévia para forçar seleção manual
-      setMainConsultantId("");
-      setMainConsultantCommission(0);
-      setMainConsultantInfo(null);
+      console.log('=== LÓGICA PARA GESTOR/ADMIN ===');
+      // Para gestores/admins: seleção manual
+      console.log('Mantendo seleção manual para não-consultores');
     }
     
+    // Abrir o modal sempre, independente do resultado da auto-seleção
+    console.log('Abrindo modal...');
     setDialogOpen(true);
   };
   
@@ -817,7 +831,7 @@ const DemandsList = () => {
               </div>
             )}
 
-            {/* Campo de seleção de consultor - NOVO: Mostrar apenas para não-consultores */}
+            {/* Campo de seleção de consultor - Mostrar apenas para não-consultores */}
             {!isConsultant && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
@@ -840,7 +854,7 @@ const DemandsList = () => {
               </div>
             )}
 
-            {/* Informações do consultor selecionado */}
+            {/* Informações do consultor selecionado ou logado */}
             {mainConsultantInfo && (
               <ConsultantInfoCard 
                 info={mainConsultantInfo} 
@@ -848,12 +862,54 @@ const DemandsList = () => {
               />
             )}
             
-            {/* Mostrar informações do projeto sempre que houver um consultor selecionado ou for consultor logado */}
-            {selectedDemand && (isConsultant || mainConsultantCommission > 0) && (
+            {/* Informações do projeto - mostrar quando houver consultor selecionado */}
+            {selectedDemand && mainConsultantId && mainConsultantCommission > 0 && (
               <ProjectInfoCard 
                 demand={selectedDemand} 
                 consultantCommission={mainConsultantCommission}
               />
+            )}
+
+            {/* Informações básicas do projeto - quando não há consultor selecionado */}
+            {selectedDemand && (!mainConsultantId || mainConsultantCommission === 0) && (
+              <div className="mt-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 className="text-sm font-medium text-blue-900 mb-3">Informações do Projeto</h4>
+                
+                {/* Informações básicas */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="space-y-2">
+                    <div>
+                      <span className="text-xs text-blue-600 font-medium">Total de Horas:</span>
+                      <p className="text-sm text-blue-800">{selectedDemand.totalHours || 0}h ({selectedDemand.totalDays || 0} dias)</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-blue-600 font-medium">Data de Início:</span>
+                      <p className="text-sm text-blue-800">{format(new Date(selectedDemand.start_date), 'dd/MM/yyyy', { locale: ptBR })}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div>
+                      <span className="text-xs text-blue-600 font-medium">Serviço:</span>
+                      <p className="text-sm text-blue-800">{selectedDemand.serviceName || "Não especificado"}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-blue-600 font-medium">Data de Fim:</span>
+                      <p className="text-sm text-blue-800">{format(new Date(selectedDemand.end_date), 'dd/MM/yyyy', { locale: ptBR })}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Valores básicos */}
+                <div className="border-t border-blue-200 pt-3">
+                  <h5 className="text-xs font-medium text-blue-900 mb-2">Valores</h5>
+                  <div className="grid grid-cols-1 gap-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-blue-600">Valor Bruto:</span>
+                      <span className="font-medium text-blue-800">{formatCurrency(selectedDemand.total_value || 0)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
           
@@ -861,7 +917,10 @@ const DemandsList = () => {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleAssignConsultants} disabled={!mainConsultantId}>
+            <Button 
+              onClick={handleAssignConsultants} 
+              disabled={!mainConsultantId}
+            >
               {isConsultant ? "Manifestar Interesse" : "Atribuir Consultor"}
             </Button>
           </DialogFooter>
