@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter, Plus, X, Eye, Edit, Trash2 } from 'lucide-react';
@@ -384,7 +385,7 @@ const DemandsList = () => {
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="space-y-2">
             <div>
-              <span className="text-xs text-blue-600 font-medium">Carga Horária:</span>
+              <span className="text-xs text-blue-600 font-medium">Total de Horas:</span>
               <p className="text-sm text-blue-800">{totalHours}h ({totalDays} dias)</p>
             </div>
             <div>
@@ -423,11 +424,11 @@ const DemandsList = () => {
             {consultantCommission > 0 && (
               <>
                 <div className="flex justify-between">
-                  <span className="text-blue-600">Comissão Consultor ({consultantCommission}%):</span>
-                  <span className="font-medium text-orange-600">-{formatCurrency(financials.comissaoConsultor)}</span>
+                  <span className="text-blue-600">Valor do Consultor ({consultantCommission}%):</span>
+                  <span className="font-medium text-orange-600">{formatCurrency(financials.comissaoConsultor)}</span>
                 </div>
                 <div className="flex justify-between border-t border-blue-200 pt-2 font-semibold">
-                  <span className="text-blue-700">Valor a Receber:</span>
+                  <span className="text-blue-700">Valor da Prestadora:</span>
                   <span className="text-green-700">{formatCurrency(financials.valorAReceber)}</span>
                 </div>
               </>
