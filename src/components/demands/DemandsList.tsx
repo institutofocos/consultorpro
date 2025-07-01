@@ -263,7 +263,7 @@ const DemandsList = () => {
     }).format(value);
   };
   
-  // Function to handle opening the consultant assignment dialog - FUNÇÃO CORRIGIDA
+  // Function to handle opening the consultant assignment dialog - FUNÇÃO CORRIGIDA PARA CONSULTORES
   const handleOpenAssignmentDialog = async (demand: any) => {
     console.log('=== ABRINDO MODAL DE ATRIBUIÇÃO ===');
     console.log('Demanda:', demand.id);
@@ -316,6 +316,9 @@ const DemandsList = () => {
               description: "Você não está autorizado para este tipo de serviço.",
               variant: "destructive",
             });
+            
+            // IMPORTANTE: Mesmo sem autorização, permitir que o consultor abra o modal
+            // para que possa ver as informações do projeto
           }
         } else {
           console.log('Sem serviço específico - fazendo auto-seleção');
@@ -341,7 +344,7 @@ const DemandsList = () => {
       console.log('=== MODO MANUAL PARA GESTOR/ADMIN ===');
     }
     
-    // Abrir o modal sempre
+    // Abrir o modal sempre - ESTA É A MUDANÇA PRINCIPAL
     console.log('Abrindo modal...');
     setDialogOpen(true);
   };
@@ -787,12 +790,13 @@ const DemandsList = () => {
                           </Button>
                         )}
                         
+                        {/* BOTÃO MANIFESTAR INTERESSE - AGORA SEMPRE HABILITADO */}
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleOpenAssignmentDialog(demand)}
                           className="p-2 h-8 w-8 hover:bg-green-50"
-                          title="Atribuir consultor"
+                          title={isConsultant ? "Manifestar interesse" : "Atribuir consultor"}
                         >
                           <UserCheck className="h-4 w-4 text-green-600" />
                         </Button>
@@ -826,7 +830,7 @@ const DemandsList = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent size="lg">
           <DialogHeader>
-            <DialogTitle>Atribuir Consultor ao Projeto</DialogTitle>
+            <DialogTitle>{isConsultant ? "Manifestar Interesse no Projeto" : "Atribuir Consultor ao Projeto"}</DialogTitle>
           </DialogHeader>
           
           <div className="grid gap-6 py-4">
