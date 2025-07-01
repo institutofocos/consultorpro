@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Calendar, DollarSign, Users, Clock, Clock3, UserCheck, Filter, Plus, X, Eye, Edit, Trash2 } from 'lucide-react';
@@ -228,8 +227,9 @@ const DemandsList = () => {
   const handleOpenAssignmentDialog = async (demand: any) => {
     setSelectedDemand(demand);
     
-    // Verificar se o usuário logado é um consultor e se tem acesso ao serviço
+    // NOVA LÓGICA: Diferenciar comportamento baseado no tipo de usuário
     if (isConsultant && userLinks?.consultant_id) {
+      // COMPORTAMENTO PARA CONSULTOR: Auto-seleção se autorizado
       const linkedConsultantId = userLinks.consultant_id;
       
       // Verificar se o serviço da demanda permite este consultor
@@ -259,7 +259,7 @@ const DemandsList = () => {
             
             toast({
               title: "Serviço não autorizado",
-              description: "Você não está autorizado para este tipo de serviço. Selecione outro consultor.",
+              description: "Você não está autorizado para este tipo de serviço.",
               variant: "destructive",
             });
           }
@@ -275,10 +275,13 @@ const DemandsList = () => {
         await handleMainConsultantChange(linkedConsultantId);
       }
     } else {
-      // Usuário não é consultor ou não tem vínculo - limpar seleção
+      // COMPORTAMENTO PARA GESTOR/ADMIN: Seleção manual sempre
+      // Limpar qualquer seleção prévia para forçar seleção manual
       setMainConsultantId("");
       setMainConsultantCommission(0);
       setMainConsultantInfo(null);
+      
+      console.log('Usuário não é consultor - permitindo seleção manual');
     }
     
     setDialogOpen(true);
@@ -760,7 +763,7 @@ const DemandsList = () => {
         </CardFooter>
       </Card>
       
-      {/* Consultant Assignment Dialog - Updated with project information */}
+      {/* Consultant Assignment Dialog - Updated with consultant selection for non-consultants */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent size="lg">
           <DialogHeader>
@@ -775,23 +778,41 @@ const DemandsList = () => {
                   <span className="font-medium text-blue-900">Serviço:</span>
                   <span className="text-blue-700">{selectedDemand.services.name}</span>
                 </div>
-                {mainConsultantInfo && (
-                  <div className="mt-2">
-                    <span className="text-sm font-medium text-blue-900">Consultor Selecionado:</span>
-                    <span className="ml-2 text-sm text-blue-700">{mainConsultantInfo.name}</span>
-                  </div>
+              </div>
+            )}
+
+            {/* Campo de seleção de consultor - NOVO: Mostrar apenas para não-consultores */}
+            {!isConsultant && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Selecionar Consultor Principal
+                </label>
+                <SearchableSelect
+                  options={filteredConsultants}
+                  value={mainConsultantId}
+                  onValueChange={handleMainConsultantChange}
+                  placeholder="Selecione um consultor..."
+                  searchPlaceholder="Pesquisar consultor..."
+                  emptyText="Nenhum consultor autorizado encontrado para este serviço."
+                />
+                {filteredConsultants.length === 0 && selectedDemand?.services?.id && (
+                  <p className="text-xs text-red-600">
+                    Nenhum consultor está autorizado para o serviço "{selectedDemand.services.name}". 
+                    Configure as autorizações em Configurações → Consultores.
+                  </p>
                 )}
               </div>
             )}
-            
+
+            {/* Informações do consultor selecionado */}
             {mainConsultantInfo && (
               <ConsultantInfoCard 
                 info={mainConsultantInfo} 
-                title="Informações do Consultor Principal"
+                title={isConsultant ? "Suas Informações" : "Informações do Consultor Selecionado"}
               />
             )}
             
-            {selectedDemand && (
+            {selectedDemand && mainConsultantCommission > 0 && (
               <ProjectInfoCard 
                 demand={selectedDemand} 
                 consultantCommission={mainConsultantCommission}
@@ -804,7 +825,7 @@ const DemandsList = () => {
               Cancelar
             </Button>
             <Button onClick={handleAssignConsultants} disabled={!mainConsultantId}>
-              Aceitar Demanda
+              {isConsultant ? "Manifestar Interesse" : "Atribuir Consultor"}
             </Button>
           </DialogFooter>
         </DialogContent>
