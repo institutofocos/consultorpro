@@ -214,34 +214,45 @@ const DemandsList = () => {
     };
   };
 
-  // Handle main consultant selection
+  // Handle main consultant selection - FUNÇÃO CORRIGIDA
   const handleMainConsultantChange = async (consultantId: string) => {
-    console.log('Selecionando consultor:', consultantId);
+    console.log('=== INICIANDO SELEÇÃO DE CONSULTOR ===');
+    console.log('ID do consultor:', consultantId);
+    
     setMainConsultantId(consultantId);
     
     if (consultantId) {
       try {
+        console.log('Carregando informações do consultor...');
         const info = await loadConsultantInfo(consultantId);
-        console.log('Informações do consultor carregadas:', info);
+        console.log('Informações carregadas:', info);
         
-        setMainConsultantInfo(info);
         if (info) {
-          // Automatically set commission from consultant profile (not editable)
+          setMainConsultantInfo(info);
           setMainConsultantCommission(info.commissionPercentage);
-          console.log('Comissão definida para:', info.commissionPercentage);
+          console.log('✅ Comissão definida:', info.commissionPercentage);
+        } else {
+          console.log('❌ Falha ao carregar informações do consultor');
+          setMainConsultantInfo(null);
+          setMainConsultantCommission(0);
         }
       } catch (error) {
-        console.error('Erro ao carregar informações do consultor:', error);
+        console.error('❌ Erro ao carregar informações do consultor:', error);
+        setMainConsultantInfo(null);
+        setMainConsultantCommission(0);
+        
         toast({
-          title: "Erro",
-          description: "Não foi possível carregar as informações do consultor.",
-          variant: "destructive",
+          title: "Aviso",
+          description: "Não foi possível carregar todas as informações do consultor, mas a seleção foi mantida.",
+          variant: "default",
         });
       }
     } else {
       setMainConsultantInfo(null);
       setMainConsultantCommission(0);
     }
+    
+    console.log('=== SELEÇÃO DE CONSULTOR CONCLUÍDA ===');
   };
 
   // Function to format currency values
@@ -252,7 +263,7 @@ const DemandsList = () => {
     }).format(value);
   };
   
-  // Function to handle opening the consultant assignment dialog
+  // Function to handle opening the consultant assignment dialog - FUNÇÃO CORRIGIDA
   const handleOpenAssignmentDialog = async (demand: any) => {
     console.log('=== ABRINDO MODAL DE ATRIBUIÇÃO ===');
     console.log('Demanda:', demand.id);
@@ -261,20 +272,23 @@ const DemandsList = () => {
     
     setSelectedDemand(demand);
     
-    // Limpar estado inicial
+    // Limpar estado inicial ANTES de qualquer operação
     setMainConsultantId("");
     setMainConsultantCommission(0);
     setMainConsultantInfo(null);
     
+    // Aguardar um momento para garantir que o estado foi limpo
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     // LÓGICA PARA CONSULTOR LOGADO
     if (isConsultant && userLinks?.consultant_id) {
-      console.log('=== LÓGICA PARA CONSULTOR ===');
+      console.log('=== AUTO-SELEÇÃO PARA CONSULTOR ===');
       const linkedConsultantId = userLinks.consultant_id;
       console.log('ID do consultor vinculado:', linkedConsultantId);
       
-      // Verificar se o serviço da demanda permite este consultor
-      if (demand.services?.id) {
-        try {
+      try {
+        // Verificar se o serviço da demanda permite este consultor
+        if (demand.services?.id) {
           console.log('Verificando autorização para serviço:', demand.services.id);
           
           const { data: consultantService, error } = await supabase
@@ -282,15 +296,13 @@ const DemandsList = () => {
             .select('id')
             .eq('consultant_id', linkedConsultantId)
             .eq('service_id', demand.services.id)
-            .single();
+            .maybeSingle();
 
           if (!error && consultantService) {
-            console.log('✅ Consultor autorizado - auto-selecionando');
+            console.log('✅ Consultor autorizado - iniciando auto-seleção');
             
-            // Auto-selecionar o consultor
+            // Fazer a auto-seleção de forma segura
             await handleMainConsultantChange(linkedConsultantId);
-            
-            console.log('Auto-seleção concluída');
             
             toast({
               title: "Consultor selecionado automaticamente",
@@ -305,34 +317,31 @@ const DemandsList = () => {
               variant: "destructive",
             });
           }
-        } catch (error) {
-          console.error('Erro ao verificar autorização:', error);
-          
-          // Em caso de erro na verificação, tentar selecionar mesmo assim
-          console.log('⚠️ Erro na verificação - tentando auto-seleção');
-          try {
-            await handleMainConsultantChange(linkedConsultantId);
-            console.log('Auto-seleção em fallback concluída');
-          } catch (fallbackError) {
-            console.error('Erro no fallback de auto-seleção:', fallbackError);
-          }
-        }
-      } else {
-        console.log('Sem serviço específico - auto-selecionando consultor');
-        try {
+        } else {
+          console.log('Sem serviço específico - fazendo auto-seleção');
           await handleMainConsultantChange(linkedConsultantId);
-          console.log('Auto-seleção sem verificação de serviço concluída');
-        } catch (error) {
-          console.error('Erro na auto-seleção sem verificação:', error);
+        }
+      } catch (error) {
+        console.error('Erro na verificação/auto-seleção:', error);
+        
+        // Em caso de erro, tentar selecionar mesmo assim com tratamento de erro
+        try {
+          console.log('⚠️ Tentando auto-seleção em modo de fallback');
+          await handleMainConsultantChange(linkedConsultantId);
+        } catch (fallbackError) {
+          console.error('Erro no fallback de auto-seleção:', fallbackError);
+          toast({
+            title: "Erro",
+            description: "Não foi possível fazer a seleção automática do consultor.",
+            variant: "destructive",
+          });
         }
       }
     } else {
-      console.log('=== LÓGICA PARA GESTOR/ADMIN ===');
-      // Para gestores/admins: seleção manual
-      console.log('Mantendo seleção manual para não-consultores');
+      console.log('=== MODO MANUAL PARA GESTOR/ADMIN ===');
     }
     
-    // Abrir o modal sempre, independente do resultado da auto-seleção
+    // Abrir o modal sempre
     console.log('Abrindo modal...');
     setDialogOpen(true);
   };
