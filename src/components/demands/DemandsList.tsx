@@ -748,29 +748,21 @@ const DemandsList = () => {
                   <span className="font-medium text-blue-900">Serviço:</span>
                   <span className="text-blue-700">{selectedDemand.services.name}</span>
                 </div>
-                <p className="text-xs text-blue-600 mt-1">
-                  Apenas consultores habilitados para este serviço aparecerão nas opções abaixo.
-                </p>
+                {mainConsultantInfo && (
+                  <div className="mt-2">
+                    <span className="text-sm font-medium text-blue-900">Consultor Selecionado:</span>
+                    <span className="ml-2 text-sm text-blue-700">{mainConsultantInfo.name}</span>
+                  </div>
+                )}
               </div>
             )}
             
-            <div className="grid gap-2">
-              <label htmlFor="main-consultant" className="text-sm font-medium">
-                Consultor Principal
-              </label>
-              <SearchableSelect
-                options={filteredConsultants}
-                value={mainConsultantId}
-                onValueChange={handleMainConsultantChange}
-                placeholder="Selecione um consultor"
-                searchPlaceholder="Pesquisar consultores..."
-                emptyText="Nenhum consultor autorizado encontrado"
-              />
+            {mainConsultantInfo && (
               <ConsultantInfoCard 
                 info={mainConsultantInfo} 
                 title="Informações do Consultor Principal"
               />
-            </div>
+            )}
             
             {selectedDemand && (
               <ProjectInfoCard 
