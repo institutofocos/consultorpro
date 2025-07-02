@@ -1,109 +1,131 @@
 
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
-import Layout from "@/components/layout/Layout";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
-import NotFound from "./pages/NotFound";
-import ChatPage from "./components/chat/ChatPage";
+import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+import { useWebhookProcessor } from "@/hooks/useWebhookProcessor";
+import { useEffect } from "react";
+
+// Import components
+import ConsultantList from "./components/consultants/ConsultantList";
+import ProjectList from "./components/projects/ProjectList";
+import ServiceList from "./components/services/ServiceList";
+import Layout from "./components/layout/Layout";
+import SettingsPage from "./components/settings/SettingsPage";
+import ClientList from "./components/clients/ClientList";
+import FinancialPage from "./components/financial/FinancialPage";
+import DemandsList from "./components/demands/DemandsList";
+import Dashboard from "./components/dashboard/Dashboard";
+import CalendarPage from "./components/calendar/CalendarPage";
+import KanbanBoard from "./components/kanban/KanbanBoard";
 
 const queryClient = new QueryClient();
 
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
+// Componente interno para inicializar o processador de webhooks globalmente
+const WebhookProcessorProvider = ({ children }: { children: React.ReactNode }) => {
+  const { config } = useWebhookProcessor();
+
+  useEffect(() => {
+    console.log('Sistema de webhook automático inicializado globalmente:', config);
+  }, [config]);
+
+  return <>{children}</>;
+};
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <WebhookProcessorProvider>
+        <TooltipProvider>
           <Toaster />
+          <Sonner />
           <BrowserRouter>
             <Routes>
+              {/* Public routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              
+              {/* Protected routes with Layout wrapper */}
               <Route path="/" element={
-                <Layout>
-                  <Index />
-                </Layout>
+                <ProtectedRoute>
+                  <Layout><Dashboard /></Layout>
+                </ProtectedRoute>
               } />
-              <Route path="/chat" element={
-                <Layout>
-                  <ChatPage />
-                </Layout>
-              } />
-              <Route path="/calendar" element={
-                <Layout>
-                  <div className="p-6">
-                    <h1 className="text-2xl font-bold mb-6">Calendário</h1>
-                    <p className="text-gray-600">Página do calendário em desenvolvimento...</p>
-                  </div>
-                </Layout>
-              } />
+              
               <Route path="/consultants" element={
-                <Layout>
-                  <div className="p-6">
-                    <h1 className="text-2xl font-bold mb-6">Consultores</h1>
-                    <p className="text-gray-600">Página de consultores em desenvolvimento...</p>
-                  </div>
-                </Layout>
+                <ProtectedRoute>
+                  <Layout><ConsultantList /></Layout>
+                </ProtectedRoute>
               } />
+              
               <Route path="/clients" element={
-                <Layout>
-                  <div className="p-6">
-                    <h1 className="text-2xl font-bold mb-6">Clientes</h1>
-                    <p className="text-gray-600">Página de clientes em desenvolvimento...</p>
-                  </div>
-                </Layout>
+                <ProtectedRoute>
+                  <Layout><ClientList /></Layout>
+                </ProtectedRoute>
               } />
+              
               <Route path="/projects" element={
-                <Layout>
-                  <div className="p-6">
-                    <h1 className="text-2xl font-bold mb-6">Projetos</h1>
-                    <p className="text-gray-600">Página de projetos em desenvolvimento...</p>
-                  </div>
-                </Layout>
+                <ProtectedRoute>
+                  <Layout><ProjectList /></Layout>
+                </ProtectedRoute>
               } />
-              <Route path="/demands" element={
-                <Layout>
-                  <div className="p-6">
-                    <h1 className="text-2xl font-bold mb-6">Demandas</h1>
-                    <p className="text-gray-600">Página de demandas em desenvolvimento...</p>
-                  </div>
-                </Layout>
-              } />
+              
               <Route path="/services" element={
-                <Layout>
-                  <div className="p-6">
-                    <h1 className="text-2xl font-bold mb-6">Serviços</h1>
-                    <p className="text-gray-600">Página de serviços em desenvolvimento...</p>
-                  </div>
-                </Layout>
+                <ProtectedRoute>
+                  <Layout><ServiceList /></Layout>
+                </ProtectedRoute>
               } />
+              
+              <Route path="/demands" element={
+                <ProtectedRoute>
+                  <Layout><DemandsList /></Layout>
+                </ProtectedRoute>
+              } />
+              
+              {/* Redirect calendar to gantt view by default */}
+              <Route path="/calendar" element={<Navigate to="/calendar/gantt" replace />} />
+              <Route path="/calendar/*" element={
+                <ProtectedRoute>
+                  <Layout><CalendarPage /></Layout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/kanban" element={
+                <ProtectedRoute>
+                  <Layout><KanbanBoard /></Layout>
+                </ProtectedRoute>
+              } />
+              
               <Route path="/financial" element={
-                <Layout>
-                  <div className="p-6">
-                    <h1 className="text-2xl font-bold mb-6">Financeiro</h1>
-                    <p className="text-gray-600">Página financeira em desenvolvimento...</p>
-                  </div>
-                </Layout>
+                <ProtectedRoute>
+                  <Layout><FinancialPage /></Layout>
+                </ProtectedRoute>
               } />
+              
               <Route path="/settings" element={
-                <Layout>
-                  <div className="p-6">
-                    <h1 className="text-2xl font-bold mb-6">Configurações</h1>
-                    <p className="text-gray-600">Página de configurações em desenvolvimento...</p>
-                  </div>
-                </Layout>
+                <ProtectedRoute>
+                  <Layout><SettingsPage /></Layout>
+                </ProtectedRoute>
               } />
+              
+              {/* Legacy routes - redirect to login */}
+              <Route path="/auth" element={<Navigate to="/login" replace />} />
+              <Route path="/admin-setup" element={<Navigate to="/login" replace />} />
+              
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
-        </AuthProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
-}
+        </TooltipProvider>
+      </WebhookProcessorProvider>
+    </AuthProvider>
+  </QueryClientProvider>
+);
 
 export default App;
