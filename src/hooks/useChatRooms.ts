@@ -40,12 +40,15 @@ export const useChatRooms = () => {
           is_active,
           created_at,
           projects!inner (
+            id,
             name,
             clients (
+              id,
               name
             )
           ),
           project_stages (
+            id,
             name
           )
         `)
