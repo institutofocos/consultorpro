@@ -15,7 +15,14 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
   selectedRoomId,
   onSelectRoom
 }) => {
-  const { chatRooms, isLoading } = useChatRooms();
+  const { chatRooms, isLoading, error } = useChatRooms();
+
+  console.log('🏠 ChatRoomList render:', { 
+    isLoading, 
+    error, 
+    roomsCount: chatRooms?.length || 0,
+    rooms: chatRooms 
+  });
 
   if (isLoading) {
     return (
@@ -35,6 +42,27 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
     );
   }
 
+  if (error) {
+    console.error('💥 Error in ChatRoomList:', error);
+    return (
+      <Card className="h-full">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageCircle className="h-5 w-5" />
+            Salas de Chat
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-40">
+            <div className="text-red-500">
+              Erro ao carregar salas: {error.message}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (!chatRooms.length) {
     return (
       <Card className="h-full">
@@ -46,7 +74,12 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center h-40">
-            <div className="text-gray-500">Nenhuma sala disponível</div>
+            <div className="text-gray-500">
+              <p>Nenhuma sala disponível</p>
+              <p className="text-sm mt-2">
+                Debug: {chatRooms.length} salas encontradas
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -56,12 +89,18 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
   const projectRooms = chatRooms.filter(room => room.room_type === 'project');
   const stageRooms = chatRooms.filter(room => room.room_type === 'stage');
 
+  console.log('📊 Room distribution:', { 
+    total: chatRooms.length,
+    projects: projectRooms.length, 
+    stages: stageRooms.length 
+  });
+
   return (
     <Card className="h-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MessageCircle className="h-5 w-5" />
-          Salas de Chat
+          Salas de Chat ({chatRooms.length})
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
@@ -72,7 +111,7 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
               <div>
                 <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
                   <FolderOpen className="h-4 w-4" />
-                  Projetos
+                  Projetos ({projectRooms.length})
                 </h3>
                 <div className="space-y-2">
                   {projectRooms.map((room) => (
@@ -111,7 +150,7 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
               <div>
                 <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
                   <Users className="h-4 w-4" />
-                  Etapas
+                  Etapas ({stageRooms.length})
                 </h3>
                 <div className="space-y-2">
                   {stageRooms.map((room) => (

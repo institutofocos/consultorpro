@@ -22,12 +22,39 @@ export const useChatRooms = () => {
   const { data: chatRooms, isLoading, error } = useQuery({
     queryKey: ['chat-rooms', user?.id],
     queryFn: async () => {
-      if (!user?.id) return [];
+      if (!user?.id) {
+        console.log('❌ User not authenticated');
+        return [];
+      }
       
+      console.log('🔍 Fetching chat rooms for user:', user.id);
+      
+      // Primeiro, vamos verificar se existem salas de chat criadas
+      const { data: roomsData, error: roomsError } = await supabase
+        .from('chat_rooms')
+        .select('*')
+        .eq('is_active', true);
+      
+      console.log('📊 Chat rooms in database:', roomsData?.length || 0, roomsData);
+      
+      if (roomsError) {
+        console.error('❌ Error fetching chat rooms:', roomsError);
+      }
+      
+      // Agora vamos tentar a função RPC
       const { data, error } = await supabase.rpc('get_chat_rooms_with_details' as any);
       
-      if (error) throw error;
-      return (data || []) as ChatRoom[];
+      console.log('📞 RPC function result:', { data, error });
+      
+      if (error) {
+        console.error('❌ RPC Error:', error);
+        throw error;
+      }
+      
+      const rooms = (data || []) as ChatRoom[];
+      console.log('✅ Final chat rooms:', rooms.length, rooms);
+      
+      return rooms;
     },
     enabled: !!user?.id,
   });
