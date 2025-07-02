@@ -98,15 +98,52 @@ export const useAvailableUsers = () => {
     queryKey: ['available-chat-users'],
     queryFn: async () => {
       console.log('Carregando usuários disponíveis...');
-      const { data, error } = await supabase.rpc('get_available_chat_users');
       
-      if (error) {
-        console.error('Erro ao carregar usuários:', error);
-        throw error;
+      // Buscar consultores
+      const { data: consultants, error: consultantsError } = await supabase
+        .from('consultants')
+        .select('id, name, email');
+      
+      if (consultantsError) {
+        console.error('Erro ao carregar consultores:', consultantsError);
       }
       
-      console.log('Usuários disponíveis:', data?.length || 0);
-      return data as ChatUser[];
+      // Buscar clientes
+      const { data: clients, error: clientsError } = await supabase
+        .from('clients')
+        .select('id, name, email, contact_name');
+      
+      if (clientsError) {
+        console.error('Erro ao carregar clientes:', clientsError);
+      }
+      
+      // Combinar e formatar os dados
+      const users: ChatUser[] = [];
+      
+      if (consultants) {
+        consultants.forEach(consultant => {
+          users.push({
+            user_id: consultant.id,
+            name: consultant.name,
+            email: consultant.email || '',
+            type: 'consultant'
+          });
+        });
+      }
+      
+      if (clients) {
+        clients.forEach(client => {
+          users.push({
+            user_id: client.id,
+            name: client.contact_name || client.name,
+            email: client.email || '',
+            type: 'client'
+          });
+        });
+      }
+      
+      console.log('Usuários disponíveis:', users.length);
+      return users;
     },
   });
 };
@@ -188,13 +225,18 @@ export const useSendMessage = () => {
       sender_name: string;
     }) => {
       console.log('Enviando mensagem:', params);
+      console.log('Usuário logado:', user?.id);
+      
+      if (!user?.id) {
+        throw new Error('Usuário não autenticado');
+      }
       
       const { data, error } = await supabase
         .from('chat_messages')
         .insert([
           {
             room_id: params.room_id,
-            sender_id: user?.id,
+            sender_id: user.id,
             sender_name: params.sender_name,
             message: params.message,
           },
@@ -203,11 +245,11 @@ export const useSendMessage = () => {
         .single();
 
       if (error) {
-        console.error('Erro ao enviar mensagem:', error);
+        console.error('Erro detalhado ao enviar mensagem:', error);
         throw error;
       }
       
-      console.log('Mensagem enviada:', data);
+      console.log('Mensagem enviada com sucesso:', data);
       return data;
     },
     onSuccess: (_, variables) => {
