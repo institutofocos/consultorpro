@@ -87,9 +87,6 @@ const ChatPage = () => {
             <MessageCircle className="h-8 w-8" />
             Chat
           </h1>
-          <p className="text-muted-foreground">
-            Comunique-se em tempo real com consultores e clientes
-          </p>
         </div>
         <Button 
           onClick={() => setIsCreateModalOpen(true)} 
