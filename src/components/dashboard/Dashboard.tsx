@@ -76,136 +76,153 @@ export const Dashboard: React.FC = () => {
     completedProjects: '0'
   });
 
-  // Função SIMPLIFICADA para buscar dados para Top Performers
-  const fetchTopPerformersData = async () => {
+  // Função específica para buscar TODOS os projetos sem restrições para Top Performers
+  const fetchAllProjectsForTopPerformers = async () => {
     try {
-      console.log('=== BUSCANDO DADOS PARA TOP PERFORMERS ===');
+      console.log('=== BUSCANDO TODOS OS PROJETOS PARA TOP PERFORMERS ===');
       
-      // Buscar todos os projetos diretamente
-      const { data: projectsData, error: projectsError } = await supabase
+      // Buscar TODOS os projetos diretamente do Supabase sem filtros de permissão
+      const { data: allProjectsData, error } = await supabase
         .from('projects')
         .select(`
-          id,
-          name,
-          total_value,
-          main_consultant_id,
-          support_consultant_id,
-          main_consultant_value,
-          support_consultant_value,
-          service_id,
-          consultants!projects_main_consultant_id_fkey(id, name),
-          support_consultant:consultants!projects_support_consultant_id_fkey(id, name),
-          services(id, name)
+          *,
+          clients!inner(id, name),
+          services!inner(id, name),
+          main_consultant:consultants!projects_main_consultant_id_fkey(id, name),
+          support_consultant:consultants!projects_support_consultant_id_fkey(id, name)
         `);
 
-      if (projectsError) {
-        console.error('Erro ao buscar projetos:', projectsError);
-        return { projects: [], consultants: [], services: [] };
+      if (error) {
+        console.error('Erro ao buscar todos os projetos:', error);
+        return [];
       }
 
-      // Buscar todos os consultores
-      const { data: consultantsData, error: consultantsError } = await supabase
-        .from('consultants')
-        .select('id, name');
+      // Mapear os dados para o formato esperado - CORRIGINDO OS TIPOS TYPESCRIPT
+      const mappedProjects = allProjectsData?.map(project => {
+        // Safely access nested properties with proper type checking
+        const clientData = project.clients as any;
+        const serviceData = project.services as any;
+        const mainConsultantData = project.main_consultant as any;
+        const supportConsultantData = project.support_consultant as any;
+        
+        return {
+          ...project,
+          clientName: Array.isArray(clientData) ? clientData[0]?.name : clientData?.name,
+          serviceName: Array.isArray(serviceData) ? serviceData[0]?.name : serviceData?.name,
+          mainConsultantName: Array.isArray(mainConsultantData) ? mainConsultantData[0]?.name : mainConsultantData?.name,
+          supportConsultantName: Array.isArray(supportConsultantData) ? supportConsultantData[0]?.name : supportConsultantData?.name,
+          mainConsultantId: project.main_consultant_id,
+          supportConsultantId: project.support_consultant_id,
+          serviceId: project.service_id,
+          clientId: project.client_id
+        };
+      }) || [];
 
-      if (consultantsError) {
-        console.error('Erro ao buscar consultores:', consultantsError);
-      }
-
-      // Buscar todos os serviços
-      const { data: servicesData, error: servicesError } = await supabase
-        .from('services')
-        .select('id, name');
-
-      if (servicesError) {
-        console.error('Erro ao buscar serviços:', servicesError);
-      }
-
-      console.log('Projetos encontrados:', projectsData?.length || 0);
-      console.log('Consultores encontrados:', consultantsData?.length || 0);
-      console.log('Serviços encontrados:', servicesData?.length || 0);
-
-      return {
-        projects: projectsData || [],
-        consultants: consultantsData || [],
-        services: servicesData || []
-      };
+      console.log('Total de projetos encontrados para Top Performers:', mappedProjects.length);
+      return mappedProjects;
     } catch (error) {
-      console.error('Erro na busca de dados:', error);
-      return { projects: [], consultants: [], services: [] };
+      console.error('Erro na função fetchAllProjectsForTopPerformers:', error);
+      return [];
     }
   };
 
-  // Função para processar Top Consultants
-  const processTopConsultants = (projectsData, consultantsData) => {
-    console.log('=== PROCESSANDO TOP CONSULTANTS ===');
-    const consultantStats: Record<string, ConsultantStats> = {};
-    
-    // Inicializar todos os consultores
-    consultantsData.forEach(consultant => {
-      consultantStats[consultant.id] = {
-        name: consultant.name,
-        projects: 0,
-        totalHours: 0,
-        totalValue: 0
-      };
-    });
-    
-    // Processar projetos
-    projectsData.forEach(project => {
-      // Consultor principal
-      if (project.main_consultant_id && consultantStats[project.main_consultant_id]) {
-        consultantStats[project.main_consultant_id].projects++;
-        consultantStats[project.main_consultant_id].totalValue += Number(project.main_consultant_value || 0);
+  // Função específica para buscar TODOS os serviços sem restrições
+  const fetchAllServicesForTopPerformers = async () => {
+    try {
+      const { data: allServicesData, error } = await supabase
+        .from('services')
+        .select('id, name')
+        .order('name');
+      
+      if (error) {
+        console.error('Erro ao buscar todos os serviços:', error);
+        return [];
       }
       
-      // Consultor de apoio
-      if (project.support_consultant_id && consultantStats[project.support_consultant_id]) {
-        consultantStats[project.support_consultant_id].projects++;
-        consultantStats[project.support_consultant_id].totalValue += Number(project.support_consultant_value || 0);
+      return allServicesData || [];
+    } catch (error) {
+      console.error('Erro na função fetchAllServicesForTopPerformers:', error);
+      return [];
+    }
+  };
+
+  // Função para processar Top Consultants com TODOS os dados
+  const processAllTopConsultants = (allProjectsData) => {
+    console.log('=== PROCESSANDO TOP CONSULTANTS COM TODOS OS DADOS ===');
+    const consultantStats: Record<string, ConsultantStats> = {};
+    
+    allProjectsData.forEach(project => {
+      // Count main consultant projects
+      if (project.main_consultant_id && project.mainConsultantName) {
+        const consultantId = project.main_consultant_id;
+        const consultantName = project.mainConsultantName;
+        
+        if (!consultantStats[consultantId]) {
+          consultantStats[consultantId] = {
+            name: consultantName,
+            projects: 0,
+            totalHours: 0,
+            totalValue: 0
+          };
+        }
+        consultantStats[consultantId].projects++;
+        consultantStats[consultantId].totalValue += Number(project.consultant_value || 0);
+      }
+      
+      // Count support consultant projects
+      if (project.support_consultant_id && project.supportConsultantName) {
+        const consultantId = project.support_consultant_id;
+        const consultantName = project.supportConsultantName;
+        
+        if (!consultantStats[consultantId]) {
+          consultantStats[consultantId] = {
+            name: consultantName,
+            projects: 0,
+            totalHours: 0,
+            totalValue: 0
+          };
+        }
+        consultantStats[consultantId].projects++;
+        consultantStats[consultantId].totalValue += Number(project.support_consultant_value || 0);
       }
     });
     
-    // Retornar top 5 com pelo menos 1 projeto
-    const topList = Object.values(consultantStats)
-      .filter(consultant => consultant.projects > 0)
+    const topConsultantsList = Object.values(consultantStats)
       .sort((a, b) => b.projects - a.projects)
       .slice(0, 5);
     
-    console.log('Top Consultants processados:', topList);
-    return topList;
+    console.log('Top Consultants processados:', topConsultantsList);
+    return topConsultantsList;
   };
   
-  // Função para processar Top Services
-  const processTopServices = (projectsData, servicesData) => {
-    console.log('=== PROCESSANDO TOP SERVICES ===');
+  // Função para processar Top Services com TODOS os dados
+  const processAllTopServices = (allProjectsData, allServicesData) => {
+    console.log('=== PROCESSANDO TOP SERVICES COM TODOS OS DADOS ===');
     const serviceStats: Record<string, ServiceStats> = {};
     
-    // Inicializar todos os serviços
-    servicesData.forEach(service => {
-      serviceStats[service.id] = {
-        name: service.name,
-        projects: 0,
-        totalRevenue: 0
-      };
-    });
-    
-    // Processar projetos
-    projectsData.forEach(project => {
-      if (project.service_id && serviceStats[project.service_id]) {
-        serviceStats[project.service_id].projects++;
-        serviceStats[project.service_id].totalRevenue += Number(project.total_value || 0);
+    allProjectsData.forEach(project => {
+      if (project.service_id && project.serviceName) {
+        const serviceId = project.service_id;
+        const serviceName = project.serviceName;
+        
+        if (!serviceStats[serviceId]) {
+          serviceStats[serviceId] = {
+            name: serviceName,
+            projects: 0,
+            totalRevenue: 0
+          };
+        }
+        serviceStats[serviceId].projects++;
+        serviceStats[serviceId].totalRevenue += Number(project.total_value || 0);
       }
     });
     
-    // Retornar top 5 com pelo menos 1 projeto
-    const topList = Object.values(serviceStats)
-      .filter(service => service.projects > 0)
+    const topServicesList = Object.values(serviceStats)
       .sort((a, b) => b.totalRevenue - a.totalRevenue)
       .slice(0, 5);
     
-    console.log('Top Services processados:', topList);
-    return topList;
+    console.log('Top Services processados:', topServicesList);
+    return topServicesList;
   };
   
   // Load dashboard data
@@ -364,20 +381,19 @@ export const Dashboard: React.FC = () => {
           processStagesData(allStages);
         }
         
-        // *** BUSCAR DADOS COMPLETOS PARA TOP PERFORMERS ***
-        console.log('=== BUSCANDO DADOS PARA TOP PERFORMERS ===');
-        const topPerformersData = await fetchTopPerformersData();
+        // *** BUSCAR TODOS OS DADOS PARA TOP PERFORMERS SEM RESTRIÇÕES ***
+        console.log('=== INICIANDO BUSCA DE DADOS COMPLETOS PARA TOP PERFORMERS ===');
+        const allProjectsForTopPerformers = await fetchAllProjectsForTopPerformers();
+        const allServicesForTopPerformers = await fetchAllServicesForTopPerformers();
         
-        // Process top consultants and services
-        const allTopConsultants = processTopConsultants(topPerformersData.projects, topPerformersData.consultants);
-        const allTopServices = processTopServices(topPerformersData.projects, topPerformersData.services);
+        // Process top consultants and services com TODOS os dados
+        const allTopConsultants = processAllTopConsultants(allProjectsForTopPerformers);
+        const allTopServices = processAllTopServices(allProjectsForTopPerformers, allServicesForTopPerformers);
         
         setTopConsultants(allTopConsultants);
         setTopServices(allTopServices);
         
-        console.log('=== TOP PERFORMERS ATUALIZADOS ===');
-        console.log('Top Consultants:', allTopConsultants.length);
-        console.log('Top Services:', allTopServices.length);
+        console.log('=== TOP PERFORMERS ATUALIZADOS COM DADOS COMPLETOS ===');
         
         // Set filtered data
         setUpcomingProjects(filteredProjectsData);
