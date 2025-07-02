@@ -23,6 +23,7 @@ import { useDeleteChatRoom } from '@/hooks/useChatRooms';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { ChatRoom } from '@/hooks/useChatRooms';
+import EditRoomModal from './EditRoomModal';
 
 interface ChatRoomListProps {
   rooms: ChatRoom[];
@@ -37,6 +38,8 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
 }) => {
   const deleteRoom = useDeleteChatRoom();
   const [expandedRooms, setExpandedRooms] = useState<Set<string>>(new Set());
+  const [editingRoom, setEditingRoom] = useState<ChatRoom | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const handleDeleteRoom = async (roomId: string, roomName: string) => {
     if (!confirm(`Tem certeza que deseja excluir a sala "${roomName}"?\n\nEsta ação não pode ser desfeita.`)) {
@@ -50,6 +53,11 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
       console.error('Erro ao excluir sala:', error);
       toast.error('Erro ao excluir sala. Tente novamente.');
     }
+  };
+
+  const handleEditRoom = (room: ChatRoom) => {
+    setEditingRoom(room);
+    setIsEditModalOpen(true);
   };
 
   const toggleRoomExpansion = (roomId: string) => {
@@ -152,7 +160,12 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEditRoom(room);
+              }}
+            >
               <Edit className="h-4 w-4 mr-2" />
               Editar
             </DropdownMenuItem>
@@ -185,51 +198,59 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
   }
 
   return (
-    <div className="max-h-full overflow-y-auto">
-      <div className="space-y-1">
-        {organizedRooms.map((room) => (
-          <div key={room.id}>
-            {/* Sala principal */}
-            <div className="flex items-center">
-              {room.children && room.children.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 mr-1 hover:bg-gray-200"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleRoomExpansion(room.id);
-                  }}
-                >
-                  {expandedRooms.has(room.id) ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                </Button>
+    <>
+      <div className="max-h-full overflow-y-auto">
+        <div className="space-y-1">
+          {organizedRooms.map((room) => (
+            <div key={room.id}>
+              {/* Sala principal */}
+              <div className="flex items-center">
+                {room.children && room.children.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 mr-1 hover:bg-gray-200"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleRoomExpansion(room.id);
+                    }}
+                  >
+                    {expandedRooms.has(room.id) ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
+                <div className="flex-1">
+                  <RoomItem 
+                    room={room} 
+                    hasChildren={room.children && room.children.length > 0}
+                  />
+                </div>
+              </div>
+              
+              {/* Subsalas (quando expandida) */}
+              {room.children && 
+               room.children.length > 0 && 
+               expandedRooms.has(room.id) && (
+                <div className="ml-4">
+                  {room.children.map((child) => (
+                    <RoomItem key={child.id} room={child} isChild />
+                  ))}
+                </div>
               )}
-              <div className="flex-1">
-                <RoomItem 
-                  room={room} 
-                  hasChildren={room.children && room.children.length > 0}
-                />
-              </div>
             </div>
-            
-            {/* Subsalas (quando expandida) */}
-            {room.children && 
-             room.children.length > 0 && 
-             expandedRooms.has(room.id) && (
-              <div className="ml-4">
-                {room.children.map((child) => (
-                  <RoomItem key={child.id} room={child} isChild />
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
+
+      <EditRoomModal
+        open={isEditModalOpen}
+        onOpenChange={setIsEditModalOpen}
+        room={editingRoom}
+      />
+    </>
   );
 };
 

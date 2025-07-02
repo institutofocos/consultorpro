@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -274,6 +273,42 @@ export const useDeleteChatRoom = () => {
         console.error('Erro ao excluir sala:', error);
         throw error;
       }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });
+    },
+  });
+};
+
+export const useUpdateChatRoom = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: {
+      id: string;
+      name: string;
+      description?: string;
+    }) => {
+      console.log('Atualizando sala de chat:', params);
+      
+      const { data, error } = await supabase
+        .from('chat_rooms')
+        .update({
+          name: params.name,
+          description: params.description,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', params.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Erro ao atualizar sala:', error);
+        throw error;
+      }
+      
+      console.log('Sala atualizada:', data);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });
