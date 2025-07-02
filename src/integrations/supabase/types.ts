@@ -163,6 +163,48 @@ export type Database = {
           },
         ]
       }
+      api_keys: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          key_value: string
+          last_used_at: string | null
+          name: string
+          updated_at: string
+          usage_count: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_value: string
+          last_used_at?: string | null
+          name: string
+          updated_at?: string
+          usage_count?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_value?: string
+          last_used_at?: string | null
+          name?: string
+          updated_at?: string
+          usage_count?: number | null
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           created_at: string
@@ -2036,6 +2078,10 @@ export type Database = {
         Args: { input_time: string }
         Returns: string
       }
+      generate_api_key: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       generate_project_id: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -2131,6 +2177,10 @@ export type Database = {
         Args: { p_project_id: string }
         Returns: boolean
       }
+      log_api_key_usage: {
+        Args: { api_key: string }
+        Returns: undefined
+      }
       mark_all_demands_as_viewed: {
         Args: { p_user_id: string; p_demand_ids: string[] }
         Returns: undefined
@@ -2181,6 +2231,10 @@ export type Database = {
       }
       user_is_super_admin: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      validate_api_key: {
+        Args: { api_key: string }
         Returns: boolean
       }
     }
