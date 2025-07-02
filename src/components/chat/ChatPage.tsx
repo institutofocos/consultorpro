@@ -19,10 +19,16 @@ const ChatPage = () => {
   const { user } = useAuth();
   const { data: rooms, isLoading, error, refetch } = useChatRooms();
 
+  // Log para debug
+  console.log('ChatPage renderizado - searchTerm:', searchTerm);
+  console.log('Total de salas:', rooms?.length || 0);
+
   // Filtrar salas por nome
   const filteredRooms = rooms?.filter(room => 
     room.name.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
+
+  console.log('Salas filtradas:', filteredRooms.length);
 
   // Auto-selecionar primeira sala se disponível
   useEffect(() => {
@@ -103,7 +109,7 @@ const ChatPage = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">
-                    Salas
+                    Salas de Chat
                   </CardTitle>
                   {isLoading && (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
@@ -115,7 +121,10 @@ const ChatPage = () => {
                     type="text"
                     placeholder="Buscar salas..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                      console.log('Termo de busca alterado para:', e.target.value);
+                      setSearchTerm(e.target.value);
+                    }}
                     className="pl-10"
                   />
                 </div>
