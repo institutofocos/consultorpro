@@ -163,6 +163,129 @@ export type Database = {
           },
         ]
       }
+      chat_messages: {
+        Row: {
+          created_at: string
+          edited_at: string | null
+          id: string
+          is_deleted: boolean
+          message: string
+          room_id: string
+          sender_id: string
+          sender_name: string
+        }
+        Insert: {
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          is_deleted?: boolean
+          message: string
+          room_id: string
+          sender_id: string
+          sender_name: string
+        }
+        Update: {
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          is_deleted?: boolean
+          message?: string
+          room_id?: string
+          sender_id?: string
+          sender_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_room_participants: {
+        Row: {
+          added_at: string
+          added_by: string
+          can_read: boolean
+          can_write: boolean
+          id: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          added_by: string
+          can_read?: boolean
+          can_write?: boolean
+          id?: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          added_by?: string
+          can_read?: boolean
+          can_write?: boolean
+          id?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_room_participants_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_rooms: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_active: boolean
+          level: number
+          name: string
+          parent_room_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          level?: number
+          name: string
+          parent_room_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          level?: number
+          name?: string
+          parent_room_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_rooms_parent_room_id_fkey"
+            columns: ["parent_room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
@@ -1938,6 +2061,15 @@ export type Database = {
           created_at: string
           last_sign_in_at: string
           email_confirmed_at: string
+        }[]
+      }
+      get_available_chat_users: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          user_id: string
+          name: string
+          email: string
+          type: string
         }[]
       }
       get_project_consolidated_data: {
