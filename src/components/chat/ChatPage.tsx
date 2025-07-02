@@ -1,9 +1,19 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { MessageCircle } from 'lucide-react';
 import PermissionGuard from '../auth/PermissionGuard';
+import ChatRoomList from './ChatRoomList';
+import ChatWindow from './ChatWindow';
 
 const ChatPage: React.FC = () => {
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [selectedRoomInfo, setSelectedRoomInfo] = useState<any>(null);
+
+  const handleSelectRoom = (roomId: string, roomInfo: any) => {
+    setSelectedRoomId(roomId);
+    setSelectedRoomInfo(roomInfo);
+  };
+
   return (
     <PermissionGuard module="chat" action="view">
       <div className="h-full flex flex-col">
@@ -16,15 +26,21 @@ const ChatPage: React.FC = () => {
         </div>
 
         {/* Chat Content */}
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <MessageCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-700 mb-2">
-              Sistema de Chat
-            </h2>
-            <p className="text-gray-500">
-              Interface de chat será implementada aqui
-            </p>
+        <div className="flex-1 flex gap-6 p-6">
+          {/* Room List - Left Side */}
+          <div className="w-1/3 min-w-[300px]">
+            <ChatRoomList 
+              selectedRoomId={selectedRoomId}
+              onSelectRoom={handleSelectRoom}
+            />
+          </div>
+          
+          {/* Chat Window - Right Side */}
+          <div className="flex-1">
+            <ChatWindow 
+              roomId={selectedRoomId}
+              roomInfo={selectedRoomInfo}
+            />
           </div>
         </div>
       </div>
