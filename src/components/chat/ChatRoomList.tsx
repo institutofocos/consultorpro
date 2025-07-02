@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -76,19 +75,6 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
     }
   };
 
-  const getLevelColor = (level: number) => {
-    switch (level) {
-      case 1:
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 2:
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 3:
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
   // Organizar salas por hierarquia
   const organizeRooms = (rooms: ChatRoom[]) => {
     const rootRooms = rooms.filter(room => !room.parent_room_id);
@@ -141,12 +127,6 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
             <p className="font-medium text-sm truncate text-gray-900">
               {room.name}
             </p>
-            <Badge 
-              variant="secondary" 
-              className={cn('text-xs px-2 py-0.5', getLevelColor(room.level))}
-            >
-              Nível {room.level}
-            </Badge>
           </div>
           {room.description && (
             <p className="text-xs text-muted-foreground truncate">
