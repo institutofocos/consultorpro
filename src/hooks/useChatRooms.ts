@@ -39,6 +39,7 @@ export const useChatRooms = () => {
   return useQuery({
     queryKey: ['chat-rooms'],
     queryFn: async () => {
+      console.log('Carregando salas de chat...');
       const { data, error } = await supabase
         .from('chat_rooms')
         .select('*')
@@ -46,7 +47,12 @@ export const useChatRooms = () => {
         .order('level', { ascending: true })
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao carregar salas:', error);
+        throw error;
+      }
+      
+      console.log('Salas carregadas:', data);
       return data as ChatRoom[];
     },
     enabled: !!user,
@@ -61,18 +67,26 @@ export const useChatMessages = (roomId: string | null) => {
     queryFn: async () => {
       if (!roomId) return [];
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      console.log('Carregando mensagens para sala:', roomId);
+      
+      // Buscar mensagens do último dia para evitar sobrecarga
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
 
       const { data, error } = await supabase
         .from('chat_messages')
         .select('*')
         .eq('room_id', roomId)
         .eq('is_deleted', false)
-        .gte('created_at', today.toISOString())
+        .gte('created_at', yesterday.toISOString())
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao carregar mensagens:', error);
+        throw error;
+      }
+      
+      console.log('Mensagens carregadas:', data?.length || 0);
       return data as ChatMessage[];
     },
     enabled: !!user && !!roomId,
@@ -83,8 +97,15 @@ export const useAvailableUsers = () => {
   return useQuery({
     queryKey: ['available-chat-users'],
     queryFn: async () => {
+      console.log('Carregando usuários disponíveis...');
       const { data, error } = await supabase.rpc('get_available_chat_users');
-      if (error) throw error;
+      
+      if (error) {
+        console.error('Erro ao carregar usuários:', error);
+        throw error;
+      }
+      
+      console.log('Usuários disponíveis:', data?.length || 0);
       return data as ChatUser[];
     },
   });
@@ -102,6 +123,8 @@ export const useCreateChatRoom = () => {
       level: number;
       participants: { user_id: string; can_read: boolean; can_write: boolean }[];
     }) => {
+      console.log('Criando sala de chat:', params);
+      
       // Criar a sala de chat
       const { data: room, error: roomError } = await supabase
         .from('chat_rooms')
@@ -117,9 +140,14 @@ export const useCreateChatRoom = () => {
         .select()
         .single();
 
-      if (roomError) throw roomError;
+      if (roomError) {
+        console.error('Erro ao criar sala:', roomError);
+        throw roomError;
+      }
 
-      // Adicionar participantes
+      console.log('Sala criada:', room);
+
+      // Adicionar participantes se fornecidos
       if (params.participants.length > 0) {
         const participantsData = params.participants.map((p) => ({
           room_id: room.id,
@@ -129,11 +157,16 @@ export const useCreateChatRoom = () => {
           added_by: user?.id,
         }));
 
+        console.log('Adicionando participantes:', participantsData);
+
         const { error: participantsError } = await supabase
           .from('chat_room_participants')
           .insert(participantsData);
 
-        if (participantsError) throw participantsError;
+        if (participantsError) {
+          console.error('Erro ao adicionar participantes:', participantsError);
+          throw participantsError;
+        }
       }
 
       return room;
@@ -154,6 +187,8 @@ export const useSendMessage = () => {
       message: string;
       sender_name: string;
     }) => {
+      console.log('Enviando mensagem:', params);
+      
       const { data, error } = await supabase
         .from('chat_messages')
         .insert([
@@ -167,7 +202,12 @@ export const useSendMessage = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao enviar mensagem:', error);
+        throw error;
+      }
+      
+      console.log('Mensagem enviada:', data);
       return data;
     },
     onSuccess: (_, variables) => {
@@ -181,12 +221,17 @@ export const useDeleteChatRoom = () => {
 
   return useMutation({
     mutationFn: async (roomId: string) => {
+      console.log('Excluindo sala:', roomId);
+      
       const { error } = await supabase
         .from('chat_rooms')
         .update({ is_active: false })
         .eq('id', roomId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao excluir sala:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });

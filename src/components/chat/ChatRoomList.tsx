@@ -8,7 +8,9 @@ import {
   Hash, 
   MessageSquare,
   Trash2,
-  Edit
+  Edit,
+  FolderOpen,
+  Folder
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -35,7 +37,7 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
   const deleteRoom = useDeleteChatRoom();
 
   const handleDeleteRoom = async (roomId: string, roomName: string) => {
-    if (!confirm(`Tem certeza que deseja excluir a sala "${roomName}"?`)) {
+    if (!confirm(`Tem certeza que deseja excluir a sala "${roomName}"?\n\nEsta ação não pode ser desfeita.`)) {
       return;
     }
 
@@ -44,33 +46,33 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
       toast.success('Sala excluída com sucesso!');
     } catch (error) {
       console.error('Erro ao excluir sala:', error);
-      toast.error('Erro ao excluir sala');
+      toast.error('Erro ao excluir sala. Tente novamente.');
     }
   };
 
   const getLevelIcon = (level: number) => {
     switch (level) {
       case 1:
-        return <Hash className="h-4 w-4" />;
+        return <Hash className="h-4 w-4 text-blue-600" />;
       case 2:
-        return <MessageSquare className="h-4 w-4" />;
+        return <MessageSquare className="h-4 w-4 text-green-600" />;
       case 3:
-        return <Users className="h-4 w-4" />;
+        return <Users className="h-4 w-4 text-purple-600" />;
       default:
-        return <Hash className="h-4 w-4" />;
+        return <Hash className="h-4 w-4 text-gray-600" />;
     }
   };
 
   const getLevelColor = (level: number) => {
     switch (level) {
       case 1:
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-100 text-blue-800 border-blue-200';
       case 2:
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-green-800 border-green-200';
       case 3:
-        return 'bg-purple-100 text-purple-800';
+        return 'bg-purple-100 text-purple-800 border-purple-200';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -91,79 +93,117 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
 
   const organizedRooms = organizeRooms(rooms);
 
-  const RoomItem = ({ room, isChild = false }: { room: ChatRoom; isChild?: boolean }) => (
+  const RoomItem = ({ 
+    room, 
+    isChild = false, 
+    hasChildren = false 
+  }: { 
+    room: ChatRoom; 
+    isChild?: boolean;
+    hasChildren?: boolean;
+  }) => (
     <div
       className={cn(
-        'flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer border-l-4 transition-colors',
+        'group flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer border-l-4 transition-all duration-200',
         selectedRoom?.id === room.id 
-          ? 'bg-blue-50 border-l-blue-500' 
-          : 'border-l-transparent',
-        isChild && 'ml-4 border-l-2'
+          ? 'bg-blue-50 border-l-blue-500 shadow-sm' 
+          : 'border-l-transparent hover:border-l-gray-300',
+        isChild && 'ml-6 border-l-2'
       )}
       onClick={() => onRoomSelect(room)}
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
-        {getLevelIcon(room.level)}
+        <div className="flex items-center gap-2">
+          {hasChildren ? (
+            <FolderOpen className="h-4 w-4 text-orange-500" />
+          ) : (
+            getLevelIcon(room.level)
+          )}
+        </div>
+        
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="font-medium text-sm truncate">{room.name}</p>
-            <Badge variant="outline" className={cn('text-xs', getLevelColor(room.level))}>
+          <div className="flex items-center gap-2 mb-1">
+            <p className="font-medium text-sm truncate text-gray-900">
+              {room.name}
+            </p>
+            <Badge 
+              variant="secondary" 
+              className={cn('text-xs px-2 py-0.5', getLevelColor(room.level))}
+            >
               Nível {room.level}
             </Badge>
           </div>
           {room.description && (
-            <p className="text-xs text-muted-foreground truncate mt-1">
+            <p className="text-xs text-muted-foreground truncate">
               {room.description}
             </p>
           )}
+          <p className="text-xs text-gray-400 mt-1">
+            Criada em {new Date(room.created_at).toLocaleDateString('pt-BR')}
+          </p>
         </div>
       </div>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem>
-            <Edit className="h-4 w-4 mr-2" />
-            Editar
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="text-red-600"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDeleteRoom(room.id, room.name);
-            }}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Excluir
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 w-8 p-0 hover:bg-gray-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem>
+              <Edit className="h-4 w-4 mr-2" />
+              Editar
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-red-600 focus:text-red-600"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteRoom(room.id, room.name);
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Excluir
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 
+  if (!rooms || rooms.length === 0) {
+    return (
+      <div className="p-6 text-center">
+        <div className="text-muted-foreground">
+          <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-50" />
+          <h3 className="text-lg font-medium mb-2">Nenhuma sala de chat</h3>
+          <p className="text-sm">Crie sua primeira sala para começar a conversar</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-h-full overflow-y-auto">
-      {organizedRooms.length === 0 ? (
-        <div className="p-4 text-center text-muted-foreground">
-          <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
-          <p>Nenhuma sala de chat disponível</p>
-        </div>
-      ) : (
-        <div className="space-y-1">
-          {organizedRooms.map((room) => (
-            <div key={room.id}>
-              <RoomItem room={room} />
-              {room.children?.map((child) => (
-                <RoomItem key={child.id} room={child} isChild />
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="space-y-1">
+        {organizedRooms.map((room) => (
+          <div key={room.id}>
+            <RoomItem 
+              room={room} 
+              hasChildren={room.children && room.children.length > 0}
+            />
+            {room.children?.map((child) => (
+              <RoomItem key={child.id} room={child} isChild />
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
