@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -18,7 +17,8 @@ import {
   LogOut,
   Menu,
   X,
-  Bell
+  Bell,
+  MessageCircle
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -75,6 +75,12 @@ const navItems: NavItem[] = [
     label: 'Calendário',
     icon: Calendar,
     module: 'calendar'
+  },
+  {
+    path: '/chat',
+    label: 'Chat',
+    icon: MessageCircle,
+    module: 'chat'
   },
   {
     path: '/financial',
