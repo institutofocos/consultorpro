@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -10,7 +10,9 @@ import {
   Trash2,
   Edit,
   FolderOpen,
-  Folder
+  Folder,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -35,6 +37,7 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
   onRoomSelect,
 }) => {
   const deleteRoom = useDeleteChatRoom();
+  const [expandedRooms, setExpandedRooms] = useState<Set<string>>(new Set());
 
   const handleDeleteRoom = async (roomId: string, roomName: string) => {
     if (!confirm(`Tem certeza que deseja excluir a sala "${roomName}"?\n\nEsta ação não pode ser desfeita.`)) {
@@ -48,6 +51,16 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
       console.error('Erro ao excluir sala:', error);
       toast.error('Erro ao excluir sala. Tente novamente.');
     }
+  };
+
+  const toggleRoomExpansion = (roomId: string) => {
+    const newExpanded = new Set(expandedRooms);
+    if (expandedRooms.has(roomId)) {
+      newExpanded.delete(roomId);
+    } else {
+      newExpanded.add(roomId);
+    }
+    setExpandedRooms(newExpanded);
   };
 
   const getLevelIcon = (level: number) => {
@@ -104,15 +117,17 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
   }) => (
     <div
       className={cn(
-        'group flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer border-l-4 transition-all duration-200',
+        'group flex items-center justify-between hover:bg-gray-50 cursor-pointer border-l-4 transition-all duration-200',
         selectedRoom?.id === room.id 
           ? 'bg-blue-50 border-l-blue-500 shadow-sm' 
           : 'border-l-transparent hover:border-l-gray-300',
         isChild && 'ml-6 border-l-2'
       )}
-      onClick={() => onRoomSelect(room)}
     >
-      <div className="flex items-center gap-3 flex-1 min-w-0">
+      <div 
+        className="flex items-center gap-3 flex-1 min-w-0 p-3"
+        onClick={() => onRoomSelect(room)}
+      >
         <div className="flex items-center gap-2">
           {hasChildren ? (
             <FolderOpen className="h-4 w-4 text-orange-500" />
@@ -144,7 +159,7 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
         </div>
       </div>
 
-      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity pr-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button 
@@ -194,13 +209,43 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
       <div className="space-y-1">
         {organizedRooms.map((room) => (
           <div key={room.id}>
-            <RoomItem 
-              room={room} 
-              hasChildren={room.children && room.children.length > 0}
-            />
-            {room.children?.map((child) => (
-              <RoomItem key={child.id} room={child} isChild />
-            ))}
+            {/* Sala principal */}
+            <div className="flex items-center">
+              {room.children && room.children.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 mr-1 hover:bg-gray-200"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleRoomExpansion(room.id);
+                  }}
+                >
+                  {expandedRooms.has(room.id) ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
+              <div className="flex-1">
+                <RoomItem 
+                  room={room} 
+                  hasChildren={room.children && room.children.length > 0}
+                />
+              </div>
+            </div>
+            
+            {/* Subsalas (quando expandida) */}
+            {room.children && 
+             room.children.length > 0 && 
+             expandedRooms.has(room.id) && (
+              <div className="ml-4">
+                {room.children.map((child) => (
+                  <RoomItem key={child.id} room={child} isChild />
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
