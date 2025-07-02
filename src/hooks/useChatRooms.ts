@@ -149,7 +149,7 @@ export const useChatMessages = (roomId: string) => {
         .from('chat_messages')
         .select(`
           *,
-          profiles:user_id (
+          profiles!chat_messages_user_id_fkey (
             id,
             full_name
           )
@@ -189,7 +189,7 @@ export const useChatParticipants = (roomId: string) => {
         .from('chat_room_participants')
         .select(`
           *,
-          profiles:user_id (
+          profiles!chat_room_participants_user_id_fkey (
             id,
             full_name
           )
