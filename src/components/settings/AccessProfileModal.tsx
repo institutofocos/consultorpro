@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -35,7 +36,6 @@ const MODULE_LABELS = {
   demands: 'Demandas',
   services: 'Serviços',
   calendar: 'Calendário',
-  chat: 'Chat',
   financial: 'Financeiro',
   settings: 'Configurações'
 } as const;
@@ -180,7 +180,7 @@ const AccessProfileModal: React.FC<AccessProfileModalProps> = ({
         }
       }
 
-      // Inserir permissões usando type assertion para o module_name
+      // Inserir permissões uma por uma para evitar problemas de tipo
       const permissionsToInsert = Object.values(permissions)
         .filter(perm => perm.can_view || perm.can_edit || perm.can_delete);
 
@@ -189,7 +189,7 @@ const AccessProfileModal: React.FC<AccessProfileModalProps> = ({
           .from('profile_module_permissions')
           .insert({
             profile_id: profileId,
-            module_name: perm.module_name as any, // Type assertion needed until Supabase types are updated
+            module_name: perm.module_name as ModuleName,
             can_view: perm.can_view,
             can_edit: perm.can_edit,
             can_delete: perm.can_delete || false,

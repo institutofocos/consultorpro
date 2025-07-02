@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Briefcase, Target, Calendar, DollarSign, Clock, CheckCircle, AlertCircle, AlertTriangle, FileText
@@ -10,10 +9,11 @@ import { toast } from "sonner";
 import { fetchProjects } from '@/integrations/supabase/projects';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
 
-// Import components (excluding TopPerformers)
+// Import new components
 import { StatCard } from './StatCard';
 import { FilterSection } from './FilterSection';
 import { PriorityTables } from './PriorityTables';
+import { TopPerformers } from './TopPerformers';
 import { StagesTables } from './StagesTables';
 import { DeliveryTables } from './DeliveryTables';
 
@@ -24,6 +24,20 @@ const TIME_FILTERS = {
   THIS_MONTH: 'thisMonth',
   ALL: 'all'
 };
+
+// Type definitions for statistics
+interface ConsultantStats {
+  name: string;
+  projects: number;
+  totalHours: number;
+  totalValue: number;
+}
+
+interface ServiceStats {
+  name: string;
+  projects: number;
+  totalRevenue: number;
+}
 
 export const Dashboard: React.FC = () => {
   // State for filters
@@ -46,6 +60,8 @@ export const Dashboard: React.FC = () => {
   const [completedStages, setCompletedStages] = useState([]);
   const [upcomingProjects, setUpcomingProjects] = useState([]);
   const [upcomingStages, setUpcomingStages] = useState([]);
+  const [topConsultants, setTopConsultants] = useState<ConsultantStats[]>([]);
+  const [topServices, setTopServices] = useState<ServiceStats[]>([]);
   const [deliveredStages, setDeliveredStages] = useState([]);
   
   // Estados para cartões sincronizados com status configurados
@@ -59,7 +75,7 @@ export const Dashboard: React.FC = () => {
     deliveredStages: '0',
     completedProjects: '0'
   });
-
+  
   // Load dashboard data
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -85,7 +101,6 @@ export const Dashboard: React.FC = () => {
           .order('name');
         setServices(serviceData || []);
         
-        // Buscar projetos com restrições normais
         const projectsData = await fetchProjects();
         setProjects(projectsData || []);
         
@@ -216,6 +231,10 @@ export const Dashboard: React.FC = () => {
           processStagesData(allStages);
         }
         
+        // Process top consultants and services
+        processTopConsultants(filteredProjectsData || []);
+        processTopServices(filteredProjectsData || [], serviceData || []);
+        
         // Set filtered data
         setUpcomingProjects(filteredProjectsData);
         
@@ -257,6 +276,73 @@ export const Dashboard: React.FC = () => {
     
     setOpenStages(openStagesList);
     setCompletedStages(completedStagesList);
+  };
+  
+  const processTopConsultants = (projectsData) => {
+    const consultantStats: Record<string, ConsultantStats> = {};
+    
+    projectsData.forEach(project => {
+      // Count main consultant projects
+      if (project.mainConsultantId) {
+        const consultantName = project.mainConsultantName || 'N/A';
+        if (!consultantStats[project.mainConsultantId]) {
+          consultantStats[project.mainConsultantId] = {
+            name: consultantName,
+            projects: 0,
+            totalHours: 0,
+            totalValue: 0
+          };
+        }
+        consultantStats[project.mainConsultantId].projects++;
+        consultantStats[project.mainConsultantId].totalValue += Number(project.consultantValue || 0);
+      }
+      
+      // Count support consultant projects
+      if (project.supportConsultantId) {
+        const consultantName = project.supportConsultantName || 'N/A';
+        if (!consultantStats[project.supportConsultantId]) {
+          consultantStats[project.supportConsultantId] = {
+            name: consultantName,
+            projects: 0,
+            totalHours: 0,
+            totalValue: 0
+          };
+        }
+        consultantStats[project.supportConsultantId].projects++;
+        consultantStats[project.supportConsultantId].totalValue += Number(project.supportConsultantValue || 0);
+      }
+    });
+    
+    const topConsultantsList = Object.values(consultantStats)
+      .sort((a, b) => b.projects - a.projects)
+      .slice(0, 5);
+    
+    setTopConsultants(topConsultantsList);
+  };
+  
+  const processTopServices = (projectsData, serviceData) => {
+    const serviceStats: Record<string, ServiceStats> = {};
+    
+    projectsData.forEach(project => {
+      if (project.serviceId) {
+        const serviceName = project.serviceName || 'N/A';
+        if (!serviceStats[project.serviceId]) {
+          serviceStats[project.serviceId] = {
+            name: serviceName,
+            projects: 0,
+            totalRevenue: 0
+          };
+        }
+        serviceStats[project.serviceId].projects++;
+        serviceStats[project.serviceId].totalRevenue += Number(project.totalValue || 0);
+      }
+    });
+    
+    const topServicesList = Object.values(serviceStats)
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .slice(0, 5);
+    
+    setTopServices(topServicesList);
   };
   
   const applyFilters = (projectsData) => {
@@ -540,6 +626,13 @@ export const Dashboard: React.FC = () => {
           })}
         </div>
       )}
+      
+      {/* Top Consultants and Services */}
+      <TopPerformers
+        topConsultants={topConsultants}
+        topServices={topServices}
+        formatCurrency={formatCurrency}
+      />
       
       {/* Projects and Stages Delivery */}
       <DeliveryTables
