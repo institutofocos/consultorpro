@@ -24,10 +24,10 @@ export const useChatRooms = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       
-      const { data, error } = await supabase.rpc('get_chat_rooms_with_details');
+      const { data, error } = await supabase.rpc('get_chat_rooms_with_details' as any);
       
       if (error) throw error;
-      return data as ChatRoom[];
+      return (data || []) as ChatRoom[];
     },
     enabled: !!user?.id,
   });
