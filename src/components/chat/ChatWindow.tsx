@@ -41,6 +41,34 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room }) => {
     }
   }, [user]);
 
+  // Adicionar CSS global para esconder a barra de rolagem do viewport
+  useEffect(() => {
+    // Adicionar estilos para esconder a barra de rolagem principal
+    const style = document.createElement('style');
+    style.textContent = `
+      html {
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* Internet Explorer 10+ */
+      }
+      html::-webkit-scrollbar {
+        display: none; /* Safari and Chrome */
+      }
+      body {
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* Internet Explorer 10+ */
+      }
+      body::-webkit-scrollbar {
+        display: none; /* Safari and Chrome */
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Cleanup: remover o estilo quando o componente for desmontado
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -126,20 +154,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room }) => {
         </CardHeader>
 
         <CardContent className="flex-1 flex flex-col p-0 min-h-0">
-          {/* Área de mensagens com scroll oculto */}
+          {/* Área de mensagens com scroll */}
           <div 
-            className="flex-1 px-4"
+            className="flex-1 px-4 overflow-y-auto"
             style={{ 
               height: 'calc(100vh - 300px)',
-              maxHeight: 'calc(100vh - 300px)',
-              overflowY: 'scroll',
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
-              WebkitScrollbar: { display: 'none' }
-            } as React.CSSProperties & { 
-              scrollbarWidth?: string;
-              msOverflowStyle?: string;
-              WebkitScrollbar?: { display: string };
+              maxHeight: 'calc(100vh - 300px)'
             }}
           >
             <div className="py-4 space-y-4">
