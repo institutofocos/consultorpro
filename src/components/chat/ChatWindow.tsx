@@ -41,34 +41,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room }) => {
     }
   }, [user]);
 
-  // Adicionar CSS global para esconder a barra de rolagem do viewport
-  useEffect(() => {
-    // Adicionar estilos para esconder a barra de rolagem principal
-    const style = document.createElement('style');
-    style.textContent = `
-      html {
-        scrollbar-width: none; /* Firefox */
-        -ms-overflow-style: none; /* Internet Explorer 10+ */
-      }
-      html::-webkit-scrollbar {
-        display: none; /* Safari and Chrome */
-      }
-      body {
-        scrollbar-width: none; /* Firefox */
-        -ms-overflow-style: none; /* Internet Explorer 10+ */
-      }
-      body::-webkit-scrollbar {
-        display: none; /* Safari and Chrome */
-      }
-    `;
-    document.head.appendChild(style);
-
-    // Cleanup: remover o estilo quando o componente for desmontado
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };

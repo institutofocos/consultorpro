@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +18,17 @@ const ChatPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
   const { data: rooms, isLoading, error, refetch } = useChatRooms();
+
+  // Esconder barra de rolagem externa apenas na página de chat
+  useEffect(() => {
+    // Adicionar classe ao body para esconder scrollbar
+    document.body.style.overflow = 'hidden';
+    
+    // Cleanup: restaurar scrollbar quando sair da página
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, []);
 
   // Log para debug
   console.log('ChatPage renderizado - searchTerm:', searchTerm);
@@ -80,7 +92,7 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="container mx-auto py-6 h-screen">
+    <div className="container mx-auto py-6 h-screen overflow-hidden">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
