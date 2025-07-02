@@ -48,8 +48,8 @@ export const useManualChatRooms = () => {
         throw error;
       }
       
-      // Automatically add the creator as a room manager
-      await supabase.rpc('add_chat_room_member', {
+      // Automatically add the creator as a room manager using direct function call
+      const { error: memberError } = await supabase.rpc('add_chat_room_member' as any, {
         p_room_id: data.id,
         p_participant_type: 'user',
         p_participant_id: user.id,
@@ -57,6 +57,11 @@ export const useManualChatRooms = () => {
         p_can_send_messages: true,
         p_can_manage_room: true
       });
+      
+      if (memberError) {
+        console.error('❌ Error adding creator as member:', memberError);
+        throw memberError;
+      }
       
       console.log('✅ Manual room created successfully:', data);
       return data;
@@ -75,7 +80,7 @@ export const useManualChatRooms = () => {
     mutationFn: async (params: AddRoomMemberParams) => {
       console.log('👥 Adding member to room:', params);
       
-      const { data, error } = await supabase.rpc('add_chat_room_member', {
+      const { data, error } = await supabase.rpc('add_chat_room_member' as any, {
         p_room_id: params.room_id,
         p_participant_type: params.participant_type,
         p_participant_id: params.participant_id,
