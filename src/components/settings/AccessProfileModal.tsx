@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -181,19 +180,16 @@ const AccessProfileModal: React.FC<AccessProfileModalProps> = ({
         }
       }
 
-      // Inserir permissões uma por uma para evitar problemas de tipo
+      // Inserir permissões
       const permissionsToInsert = Object.values(permissions)
         .filter(perm => perm.can_view || perm.can_edit || perm.can_delete);
 
       for (const perm of permissionsToInsert) {
-        // Type assertion to handle the chat module until Supabase types are updated
-        const moduleNameForDb = perm.module_name as any;
-        
         const { error: permissionError } = await supabase
           .from('profile_module_permissions')
           .insert({
             profile_id: profileId,
-            module_name: moduleNameForDb,
+            module_name: perm.module_name,
             can_view: perm.can_view,
             can_edit: perm.can_edit,
             can_delete: perm.can_delete || false,
