@@ -136,11 +136,11 @@ export const ParticipantManagement: React.FC<ParticipantManagementProps> = ({
                 >
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-medium">
-                      {((participant.user as any)?.full_name || 'U')[0].toUpperCase()}
+                      {(participant.profiles?.full_name || 'U')[0].toUpperCase()}
                     </div>
                     <div>
                       <div className="text-sm font-medium">
-                        {(participant.user as any)?.full_name || 'Usuário'}
+                        {participant.profiles?.full_name || 'Usuário'}
                       </div>
                       <div className="text-xs text-gray-500">
                         Adicionado em {new Date(participant.added_at).toLocaleDateString('pt-BR')}

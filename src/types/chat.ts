@@ -11,6 +11,10 @@ export interface ChatRoom {
     id: string;
     name: string;
     client_id: string;
+    clients?: {
+      id: string;
+      name: string;
+    };
   };
   stage?: {
     id: string;
@@ -26,9 +30,9 @@ export interface ChatMessage {
   message_type: 'user' | 'ai' | 'system';
   created_at: string;
   updated_at: string;
-  user?: {
+  profiles?: {
     id: string;
-    email: string;
+    full_name: string;
   };
 }
 
@@ -38,8 +42,8 @@ export interface ChatParticipant {
   user_id: string;
   added_by?: string;
   added_at: string;
-  user?: {
+  profiles?: {
     id: string;
-    email: string;
+    full_name: string;
   };
 }

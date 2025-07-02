@@ -110,13 +110,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ room }) => {
                 <div key={msg.id} className="flex gap-3">
                   <div className="flex-shrink-0">
                     <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                      {((msg.user as any)?.full_name || 'U')[0].toUpperCase()}
+                      {(msg.profiles?.full_name || 'U')[0].toUpperCase()}
                     </div>
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-medium text-sm">
-                        {(msg.user as any)?.full_name || 'Usuário'}
+                        {msg.profiles?.full_name || 'Usuário'}
                       </span>
                       <span className="text-xs text-gray-500">
                         {format(new Date(msg.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
