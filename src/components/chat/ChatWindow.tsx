@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';  
 import { Send, Users, Clock, MoreVertical } from 'lucide-react';
 import { useChatMessages, useSendMessage } from '@/hooks/useChatRooms';
 import { useAuth } from '@/contexts/AuthContext';
@@ -142,63 +141,67 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room }) => {
           </div>
         </CardHeader>
 
-        <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
-          {/* Área de mensagens com barra de rolagem visível */}
-          <div className="flex-1 overflow-hidden">
-            <ScrollArea className="h-full px-4">
-              <div className="py-4 space-y-4 min-h-full">
-                {isLoading ? (
-                  <div className="flex items-center justify-center h-32">
-                    <div className="text-center text-muted-foreground">
-                      <Clock className="h-8 w-8 mx-auto mb-2 opacity-50 animate-spin" />
-                      <p>Carregando mensagens...</p>
-                    </div>
+        <CardContent className="flex-1 flex flex-col p-0 min-h-0">
+          {/* Área de mensagens com scroll nativo */}
+          <div 
+            className="flex-1 overflow-y-auto px-4"
+            style={{ 
+              height: 'calc(100vh - 300px)',
+              maxHeight: 'calc(100vh - 300px)'
+            }}
+          >
+            <div className="py-4 space-y-4">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="text-center text-muted-foreground">
+                    <Clock className="h-8 w-8 mx-auto mb-2 opacity-50 animate-spin" />
+                    <p>Carregando mensagens...</p>
                   </div>
-                ) : !messages || messages.length === 0 ? (
-                  <div className="flex items-center justify-center h-32">
-                    <div className="text-center text-muted-foreground">
-                      <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p className="text-lg font-medium">Nenhuma mensagem ainda</p>
-                      <p className="text-sm">Seja o primeiro a enviar uma mensagem!</p>
-                    </div>
+                </div>
+              ) : !messages || messages.length === 0 ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="text-center text-muted-foreground">
+                    <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-lg font-medium">Nenhuma mensagem ainda</p>
+                    <p className="text-sm">Seja o primeiro a enviar uma mensagem!</p>
                   </div>
-                ) : (
-                  <>
-                    {messages.map((msg, index) => {
-                      const isOwnMessage = msg.sender_id === user?.id;
-                      const showSender = index === 0 || 
-                        messages[index - 1]?.sender_id !== msg.sender_id;
+                </div>
+              ) : (
+                <>
+                  {messages.map((msg, index) => {
+                    const isOwnMessage = msg.sender_id === user?.id;
+                    const showSender = index === 0 || 
+                      messages[index - 1]?.sender_id !== msg.sender_id;
 
-                      return (
-                        <div
-                          key={msg.id}
-                          className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div className={`max-w-[80%] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
-                            {showSender && (
-                              <div className={`text-xs text-muted-foreground mb-1 px-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
-                                <span className="font-medium">{msg.sender_name}</span>
-                                <span className="ml-2">{formatMessageTime(msg.created_at)}</span>
-                              </div>
-                            )}
-                            <div
-                              className={`px-4 py-2 rounded-lg shadow-sm ${
-                                isOwnMessage
-                                  ? 'bg-blue-500 text-white rounded-br-sm'
-                                  : 'bg-gray-100 text-gray-900 rounded-bl-sm border'
-                              }`}
-                            >
-                              <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div className={`max-w-[80%] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
+                          {showSender && (
+                            <div className={`text-xs text-muted-foreground mb-1 px-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
+                              <span className="font-medium">{msg.sender_name}</span>
+                              <span className="ml-2">{formatMessageTime(msg.created_at)}</span>
                             </div>
+                          )}
+                          <div
+                            className={`px-4 py-2 rounded-lg shadow-sm ${
+                              isOwnMessage
+                                ? 'bg-blue-500 text-white rounded-br-sm'
+                                : 'bg-gray-100 text-gray-900 rounded-bl-sm border'
+                            }`}
+                          >
+                            <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
                           </div>
                         </div>
-                      );
-                    })}
-                    <div ref={messagesEndRef} />
-                  </>
-                )}
-              </div>
-            </ScrollArea>
+                      </div>
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
+                </>
+              )}
+            </div>
           </div>
 
           {/* Formulário de envio fixo na parte inferior */}
