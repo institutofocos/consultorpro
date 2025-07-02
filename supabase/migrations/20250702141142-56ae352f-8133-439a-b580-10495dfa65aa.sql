@@ -1,4 +1,138 @@
 
+-- First, let's check if the module_type enum includes 'chat'
+DO $$
+BEGIN
+    -- Try to add 'chat' to the module_type enum if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_enum 
+        WHERE enumlabel = 'chat' 
+        AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'module_type')
+    ) THEN
+        ALTER TYPE module_type ADD VALUE 'chat';
+    END IF;
+END $$;
+
+-- Create the user_can_access_module function if it doesn't exist
+CREATE OR REPLACE FUNCTION public.user_can_access_module(module_name text, action_type text DEFAULT 'view')
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE SECURITY DEFINER
+AS $$
+BEGIN
+  -- Se é Super Admin, tem acesso total
+  IF public.user_is_super_admin() THEN
+    RETURN true;
+  END IF;
+  
+  -- Verificar se o usuário tem permissão específica para este módulo
+  RETURN EXISTS (
+    SELECT 1 
+    FROM public.user_profiles up
+    JOIN public.profile_module_permissions pmp ON up.profile_id = pmp.profile_id
+    WHERE up.user_id = auth.uid()
+    AND pmp.module_name::text = module_name
+    AND (
+      (action_type = 'view' AND pmp.can_view = true) OR
+      (action_type = 'edit' AND pmp.can_edit = true) OR
+      (action_type = 'delete' AND pmp.can_delete = true)
+    )
+  );
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN false;
+END;
+$$;
+
+-- Fix the chat_room_participants RLS policies to avoid infinite recursion
+DROP POLICY IF EXISTS "System can manage chat room participants" ON chat_room_participants;
+DROP POLICY IF EXISTS "Users can view chat room participants" ON chat_room_participants;
+DROP POLICY IF EXISTS "Users can manage chat room participants" ON chat_room_participants;
+
+-- Simple policies for chat_room_participants
+CREATE POLICY "Users can view participants in rooms they have access to"
+ON chat_room_participants FOR SELECT
+USING (
+  user_is_super_admin() OR
+  EXISTS (
+    SELECT 1 FROM chat_rooms cr
+    JOIN projects p ON cr.project_id = p.id
+    WHERE cr.id = room_id
+    AND (
+      user_has_consultant_access(p.main_consultant_id) OR
+      user_has_consultant_access(p.support_consultant_id) OR
+      user_has_client_access(p.client_id)
+    )
+  )
+);
+
+CREATE POLICY "Users can join rooms they have access to"
+ON chat_room_participants FOR INSERT
+WITH CHECK (
+  auth.uid() = user_id AND (
+    user_is_super_admin() OR
+    EXISTS (
+      SELECT 1 FROM chat_rooms cr
+      JOIN projects p ON cr.project_id = p.id
+      WHERE cr.id = room_id
+      AND (
+        user_has_consultant_access(p.main_consultant_id) OR
+        user_has_consultant_access(p.support_consultant_id) OR
+        user_has_client_access(p.client_id)
+      )
+    )
+  )
+);
+
+-- Create the missing get_chat_rooms_with_details function
+CREATE OR REPLACE FUNCTION get_chat_rooms_with_details()
+RETURNS TABLE (
+  room_id uuid,
+  project_id uuid,
+  stage_id uuid,
+  room_type text,
+  is_active boolean,
+  project_name text,
+  stage_name text,
+  client_name text,
+  created_at timestamp with time zone
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    cr.id as room_id,
+    cr.project_id,
+    cr.stage_id,
+    cr.room_type,
+    cr.is_active,
+    p.name as project_name,
+    ps.name as stage_name,
+    c.name as client_name,
+    cr.created_at
+  FROM chat_rooms cr
+  JOIN projects p ON cr.project_id = p.id
+  LEFT JOIN project_stages ps ON cr.stage_id = ps.id
+  LEFT JOIN clients c ON p.client_id = c.id
+  WHERE cr.is_active = true
+  AND (
+    user_is_super_admin() OR
+    user_can_access_module('chat', 'view') OR
+    EXISTS (
+      SELECT 1 FROM projects proj 
+      WHERE proj.id = cr.project_id 
+      AND (
+        user_has_consultant_access(proj.main_consultant_id) OR
+        user_has_consultant_access(proj.support_consultant_id) OR
+        user_has_client_access(proj.client_id)
+      )
+    )
+  )
+  ORDER BY p.name, ps.stage_order;
+END;
+$$;
+
 -- Verificar se as salas de chat existem
 SELECT 
   cr.id,

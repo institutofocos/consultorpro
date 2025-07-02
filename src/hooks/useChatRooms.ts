@@ -29,20 +29,8 @@ export const useChatRooms = () => {
       
       console.log('🔍 Fetching chat rooms for user:', user.id);
       
-      // Primeiro, vamos verificar se existem salas de chat criadas
-      const { data: roomsData, error: roomsError } = await supabase
-        .from('chat_rooms')
-        .select('*')
-        .eq('is_active', true);
-      
-      console.log('📊 Chat rooms in database:', roomsData?.length || 0, roomsData);
-      
-      if (roomsError) {
-        console.error('❌ Error fetching chat rooms:', roomsError);
-      }
-      
-      // Agora vamos tentar a função RPC
-      const { data, error } = await supabase.rpc('get_chat_rooms_with_details' as any);
+      // Use the RPC function to get chat rooms with details
+      const { data, error } = await supabase.rpc('get_chat_rooms_with_details');
       
       console.log('📞 RPC function result:', { data, error });
       
