@@ -17,13 +17,25 @@ interface ChatRoom {
   parent_room_id: string | null;
 }
 
+interface DatabaseChatRoom {
+  id: string;
+  room_type: string;
+  is_active: boolean;
+  is_manual: boolean;
+  room_name: string | null;
+  room_description: string | null;
+  created_by: string | null;
+  parent_room_id: string | null;
+  created_at: string;
+}
+
 export const useChatRooms = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: chatRooms, isLoading, error } = useQuery({
     queryKey: ['chat-rooms', user?.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<ChatRoom[]> => {
       if (!user?.id) {
         console.log('❌ User not authenticated');
         return [];
@@ -57,11 +69,11 @@ export const useChatRooms = () => {
       }
       
       // Transform the data to match our ChatRoom interface
-      const rooms: ChatRoom[] = (data || []).map((room: any) => ({
+      const rooms: ChatRoom[] = (data as DatabaseChatRoom[] || []).map((room) => ({
         room_id: room.id,
         project_id: null,
         stage_id: null,
-        room_type: 'manual',
+        room_type: 'manual' as const,
         is_active: room.is_active,
         is_manual: true,
         room_name: room.room_name,
