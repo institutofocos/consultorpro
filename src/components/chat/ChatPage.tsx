@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -106,28 +105,18 @@ const ChatPage = () => {
         <div className="col-span-4">
           <Card className="h-full">
             <CardHeader>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">
-                    Salas de Chat
-                  </CardTitle>
-                  {isLoading && (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  )}
-                </div>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    type="text"
-                    placeholder="Buscar salas..."
-                    value={searchTerm}
-                    onChange={(e) => {
-                      console.log('Termo de busca alterado para:', e.target.value);
-                      setSearchTerm(e.target.value);
-                    }}
-                    className="pl-10"
-                  />
-                </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  type="text"
+                  placeholder="Buscar salas..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    console.log('Termo de busca alterado para:', e.target.value);
+                    setSearchTerm(e.target.value);
+                  }}
+                  className="pl-10"
+                />
               </div>
             </CardHeader>
             <CardContent className="p-0">
