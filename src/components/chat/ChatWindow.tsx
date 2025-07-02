@@ -109,14 +109,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room }) => {
 
   const handleUpdateParticipants = (participants: ParticipantPermission[]) => {
     setCurrentParticipants(participants);
-    // Aqui você pode adicionar a lógica para salvar os participantes no backend
     console.log('Atualizando participantes:', participants);
   };
 
   return (
     <>
       <Card className="h-full flex flex-col">
-        <CardHeader className="pb-3 border-b">
+        <CardHeader className="pb-3 border-b flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
               <CardTitle className="text-lg flex items-center gap-2 truncate">
@@ -143,11 +142,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room }) => {
           </div>
         </CardHeader>
 
-        <CardContent className="flex-1 flex flex-col p-0 min-h-0">
-          {/* Área de mensagens com ScrollArea e altura fixa */}
-          <div className="flex-1 min-h-0">
-            <ScrollArea className="h-full">
-              <div className="p-4 space-y-4">
+        <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
+          {/* Área de mensagens com barra de rolagem visível */}
+          <div className="flex-1 overflow-hidden">
+            <ScrollArea className="h-full px-4">
+              <div className="py-4 space-y-4 min-h-full">
                 {isLoading ? (
                   <div className="flex items-center justify-center h-32">
                     <div className="text-center text-muted-foreground">
@@ -164,43 +163,45 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room }) => {
                     </div>
                   </div>
                 ) : (
-                  messages.map((msg, index) => {
-                    const isOwnMessage = msg.sender_id === user?.id;
-                    const showSender = index === 0 || 
-                      messages[index - 1]?.sender_id !== msg.sender_id;
+                  <>
+                    {messages.map((msg, index) => {
+                      const isOwnMessage = msg.sender_id === user?.id;
+                      const showSender = index === 0 || 
+                        messages[index - 1]?.sender_id !== msg.sender_id;
 
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div className={`max-w-[80%] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
-                          {showSender && (
-                            <div className={`text-xs text-muted-foreground mb-1 px-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
-                              <span className="font-medium">{msg.sender_name}</span>
-                              <span className="ml-2">{formatMessageTime(msg.created_at)}</span>
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div className={`max-w-[80%] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
+                            {showSender && (
+                              <div className={`text-xs text-muted-foreground mb-1 px-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
+                                <span className="font-medium">{msg.sender_name}</span>
+                                <span className="ml-2">{formatMessageTime(msg.created_at)}</span>
+                              </div>
+                            )}
+                            <div
+                              className={`px-4 py-2 rounded-lg shadow-sm ${
+                                isOwnMessage
+                                  ? 'bg-blue-500 text-white rounded-br-sm'
+                                  : 'bg-gray-100 text-gray-900 rounded-bl-sm border'
+                              }`}
+                            >
+                              <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
                             </div>
-                          )}
-                          <div
-                            className={`px-4 py-2 rounded-lg shadow-sm ${
-                              isOwnMessage
-                                ? 'bg-blue-500 text-white rounded-br-sm'
-                                : 'bg-gray-100 text-gray-900 rounded-bl-sm border'
-                            }`}
-                          >
-                            <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })
+                      );
+                    })}
+                    <div ref={messagesEndRef} />
+                  </>
                 )}
-                <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
           </div>
 
-          {/* Formulário de envio */}
+          {/* Formulário de envio fixo na parte inferior */}
           <div className="border-t bg-gray-50 p-4 flex-shrink-0">
             <form onSubmit={handleSendMessage} className="flex gap-2">
               <Input
