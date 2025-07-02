@@ -89,19 +89,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room }) => {
     }
   };
 
-  const getLevelColor = (level: number) => {
-    switch (level) {
-      case 1:
-        return 'bg-blue-100 text-blue-800';
-      case 2:
-        return 'bg-green-100 text-green-800';
-      case 3:
-        return 'bg-purple-100 text-purple-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const handleOpenParticipantsModal = () => {
     setShowParticipantsModal(true);
   };
@@ -119,9 +106,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room }) => {
             <div className="flex-1 min-w-0">
               <CardTitle className="text-lg flex items-center gap-2 truncate">
                 {room.name}
-                <Badge variant="outline" className={`text-xs ${getLevelColor(room.level)}`}>
-                  Nível {room.level}
-                </Badge>
               </CardTitle>
               {room.description && (
                 <p className="text-sm text-muted-foreground mt-1 truncate">
@@ -149,15 +133,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room }) => {
               height: 'calc(100vh - 300px)',
               maxHeight: 'calc(100vh - 300px)',
               overflowY: 'scroll',
-              scrollbarWidth: 'none', /* Firefox */
-              msOverflowStyle: 'none' /* Internet Explorer 10+ */
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              WebkitScrollbar: { display: 'none' }
+            } as React.CSSProperties & { 
+              scrollbarWidth?: string;
+              msOverflowStyle?: string;
+              WebkitScrollbar?: { display: string };
             }}
           >
-            <style jsx>{`
-              div::-webkit-scrollbar {
-                display: none; /* Safari and Chrome */
-              }
-            `}</style>
             <div className="py-4 space-y-4">
               {isLoading ? (
                 <div className="flex items-center justify-center h-32">
