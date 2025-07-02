@@ -18,7 +18,8 @@ import {
   LogOut,
   Menu,
   X,
-  Bell
+  Bell,
+  MessageCircle
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -81,6 +82,12 @@ const navItems: NavItem[] = [
     label: 'Financeiro',
     icon: DollarSign,
     module: 'financial'
+  },
+  {
+    path: '/chat',
+    label: 'Chat',
+    icon: MessageCircle,
+    module: 'chat'
   },
   {
     path: '/settings',
