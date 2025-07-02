@@ -7,9 +7,8 @@ interface ChatRoom {
   room_id: string;
   project_id: string | null;
   stage_id: string | null;
-  room_type: 'manual';
+  room_type: 'project' | 'stage';
   is_active: boolean;
-  is_manual: boolean;
   room_name: string | null;
   room_description: string | null;
   created_at: string;
@@ -29,27 +28,23 @@ export const useChatRooms = () => {
         return [];
       }
       
-      console.log('🔍 Fetching manual chat rooms for user:', user.id);
+      console.log('🔍 Fetching chat rooms for user:', user.id);
       
-      // Query only manual chat rooms that the user has permission to access
+      // Query basic chat rooms from existing structure
       const { data, error } = await supabase
         .from('chat_rooms')
         .select(`
           id,
+          project_id,
+          stage_id,
           room_type,
           is_active,
-          is_manual,
-          room_name,
-          room_description,
-          created_by,
-          parent_room_id,
           created_at
         `)
         .eq('is_active', true)
-        .eq('is_manual', true)
         .order('created_at', { ascending: false });
       
-      console.log('📞 Manual chat rooms query result:', { data, error });
+      console.log('📞 Chat rooms query result:', { data, error });
       
       if (error) {
         console.error('❌ Query Error:', error);
@@ -59,19 +54,18 @@ export const useChatRooms = () => {
       // Transform the data to match our ChatRoom interface
       const rooms: ChatRoom[] = (data || []).map((room) => ({
         room_id: room.id,
-        project_id: null,
-        stage_id: null,
-        room_type: 'manual' as const,
+        project_id: room.project_id,
+        stage_id: room.stage_id,
+        room_type: room.room_type as 'project' | 'stage',
         is_active: room.is_active,
-        is_manual: true,
-        room_name: room.room_name,
-        room_description: room.room_description,
-        created_by: room.created_by,
-        parent_room_id: room.parent_room_id,
+        room_name: `Room ${room.id.slice(0, 8)}`,
+        room_description: null,
+        created_by: null,
+        parent_room_id: null,
         created_at: room.created_at
       }));
       
-      console.log('✅ Final manual chat rooms:', rooms.length, rooms);
+      console.log('✅ Final chat rooms:', rooms.length, rooms);
       
       return rooms;
     },
