@@ -180,7 +180,7 @@ const AccessProfileModal: React.FC<AccessProfileModalProps> = ({
         }
       }
 
-      // Inserir permissões
+      // Inserir permissões usando type assertion para o module_name
       const permissionsToInsert = Object.values(permissions)
         .filter(perm => perm.can_view || perm.can_edit || perm.can_delete);
 
@@ -189,7 +189,7 @@ const AccessProfileModal: React.FC<AccessProfileModalProps> = ({
           .from('profile_module_permissions')
           .insert({
             profile_id: profileId,
-            module_name: perm.module_name,
+            module_name: perm.module_name as any, // Type assertion needed until Supabase types are updated
             can_view: perm.can_view,
             can_edit: perm.can_edit,
             can_delete: perm.can_delete || false,
