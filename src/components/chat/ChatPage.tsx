@@ -21,12 +21,18 @@ const ChatPage = () => {
 
   // Esconder barra de rolagem externa apenas na página de chat
   useEffect(() => {
-    // Adicionar classe ao body para esconder scrollbar
-    document.body.style.overflow = 'hidden';
+    // Salvar o estado atual
+    const originalOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
     
-    // Cleanup: restaurar scrollbar quando sair da página
+    // Aplicar overflow hidden
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    
+    // Cleanup: restaurar scrollbar quando sair da página  
     return () => {
-      document.body.style.overflow = 'auto';
+      document.body.style.overflow = originalOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
     };
   }, []);
 
@@ -57,7 +63,7 @@ const ChatPage = () => {
 
   if (!user) {
     return (
-      <div className="container mx-auto py-6">
+      <div className="h-screen flex items-center justify-center p-6">
         <Card className="max-w-md mx-auto">
           <CardContent className="p-6 text-center">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-yellow-500" />
@@ -73,7 +79,7 @@ const ChatPage = () => {
 
   if (error) {
     return (
-      <div className="container mx-auto py-6">
+      <div className="h-screen flex items-center justify-center p-6">
         <Card className="max-w-md mx-auto">
           <CardContent className="p-6 text-center">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
@@ -92,28 +98,32 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="container mx-auto py-6 h-screen overflow-hidden">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <MessageCircle className="h-8 w-8" />
-            Chat
-          </h1>
+    <div className="h-screen flex flex-col overflow-hidden">
+      {/* Header fixo */}
+      <div className="flex-shrink-0 p-6 border-b bg-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <MessageCircle className="h-8 w-8" />
+              Chat
+            </h1>
+          </div>
+          <Button 
+            onClick={() => setIsCreateModalOpen(true)} 
+            className="flex items-center gap-2"
+            disabled={isLoading}
+          >
+            <Plus className="h-4 w-4" />
+            Nova Sala
+          </Button>
         </div>
-        <Button 
-          onClick={() => setIsCreateModalOpen(true)} 
-          className="flex items-center gap-2"
-          disabled={isLoading}
-        >
-          <Plus className="h-4 w-4" />
-          Nova Sala
-        </Button>
       </div>
 
-      <div className="grid grid-cols-12 gap-6 h-[calc(100vh-200px)]">
-        <div className="col-span-4">
-          <Card className="h-full">
-            <CardHeader>
+      {/* Conteúdo principal */}
+      <div className="flex-1 flex overflow-hidden">
+        <div className="w-1/3 flex flex-col border-r">
+          <Card className="h-full border-0 rounded-none">
+            <CardHeader className="flex-shrink-0">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
@@ -128,7 +138,7 @@ const ChatPage = () => {
                 />
               </div>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 flex-1 overflow-hidden">
               <ChatRoomList
                 rooms={filteredRooms}
                 selectedRoom={selectedRoom}
@@ -138,11 +148,11 @@ const ChatPage = () => {
           </Card>
         </div>
 
-        <div className="col-span-8">
+        <div className="flex-1 flex flex-col">
           {selectedRoom ? (
             <ChatWindow room={selectedRoom} />
           ) : (
-            <Card className="h-full flex items-center justify-center">
+            <Card className="h-full flex items-center justify-center border-0 rounded-none">
               <div className="text-center text-muted-foreground">
                 <MessageCircle className="h-16 w-16 mx-auto mb-4 opacity-50" />
                 <p className="text-lg mb-2">Selecione uma sala de chat para começar</p>
