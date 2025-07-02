@@ -22,11 +22,11 @@ export const useChatRooms = () => {
   const queryClient = useQueryClient();
 
   const { data: chatRooms, isLoading, error } = useQuery({
-    queryKey: ['chat-rooms', user?.id] as const,
-    queryFn: async () => {
+    queryKey: ['chat-rooms', user?.id],
+    queryFn: async (): Promise<ChatRoom[]> => {
       if (!user?.id) {
         console.log('❌ User not authenticated');
-        return [] as ChatRoom[];
+        return [];
       }
       
       console.log('🔍 Fetching manual chat rooms for user:', user.id);
