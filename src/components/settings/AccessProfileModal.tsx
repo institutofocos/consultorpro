@@ -186,11 +186,14 @@ const AccessProfileModal: React.FC<AccessProfileModalProps> = ({
         .filter(perm => perm.can_view || perm.can_edit || perm.can_delete);
 
       for (const perm of permissionsToInsert) {
+        // Type assertion for chat module to handle TypeScript enum mismatch
+        const moduleNameForDb = perm.module_name as any;
+        
         const { error: permissionError } = await supabase
           .from('profile_module_permissions')
           .insert({
             profile_id: profileId,
-            module_name: perm.module_name as ModuleName,
+            module_name: moduleNameForDb,
             can_view: perm.can_view,
             can_edit: perm.can_edit,
             can_delete: perm.can_delete || false,
