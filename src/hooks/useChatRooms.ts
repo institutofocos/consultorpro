@@ -147,13 +147,7 @@ export const useChatMessages = (roomId: string) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('chat_messages')
-        .select(`
-          *,
-          profiles!chat_messages_user_id_fkey (
-            id,
-            full_name
-          )
-        `)
+        .select('*')
         .eq('room_id', roomId)
         .order('created_at', { ascending: true });
 
@@ -161,6 +155,13 @@ export const useChatMessages = (roomId: string) => {
         console.error('Error fetching chat messages:', error);
         return [];
       }
+
+      // Get user profiles separately
+      const userIds = [...new Set(data?.map(msg => msg.user_id) || [])];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
 
       // Transform the data to match our ChatMessage interface
       return (data || []).map(message => ({
@@ -171,10 +172,7 @@ export const useChatMessages = (roomId: string) => {
         message_type: message.message_type as 'user' | 'ai' | 'system',
         created_at: message.created_at,
         updated_at: message.updated_at,
-        profiles: message.profiles ? {
-          id: message.profiles.id,
-          full_name: message.profiles.full_name
-        } : undefined
+        profiles: profiles?.find(p => p.id === message.user_id) || undefined
       })) as ChatMessage[];
     },
     enabled: !!roomId,
@@ -187,13 +185,7 @@ export const useChatParticipants = (roomId: string) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('chat_room_participants')
-        .select(`
-          *,
-          profiles!chat_room_participants_user_id_fkey (
-            id,
-            full_name
-          )
-        `)
+        .select('*')
         .eq('room_id', roomId)
         .order('added_at', { ascending: true });
 
@@ -202,6 +194,13 @@ export const useChatParticipants = (roomId: string) => {
         return [];
       }
 
+      // Get user profiles separately
+      const userIds = [...new Set(data?.map(p => p.user_id) || [])];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+
       // Transform the data to match our ChatParticipant interface
       return (data || []).map(participant => ({
         id: participant.id,
@@ -209,10 +208,7 @@ export const useChatParticipants = (roomId: string) => {
         user_id: participant.user_id,
         added_by: participant.added_by,
         added_at: participant.added_at,
-        profiles: participant.profiles ? {
-          id: participant.profiles.id,
-          full_name: participant.profiles.full_name
-        } : undefined
+        profiles: profiles?.find(p => p.id === participant.user_id) || undefined
       })) as ChatParticipant[];
     },
     enabled: !!roomId,
