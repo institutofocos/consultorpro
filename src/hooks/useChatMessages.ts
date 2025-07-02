@@ -24,13 +24,20 @@ export const useChatMessages = (roomId: string | null) => {
     queryFn: async () => {
       if (!roomId) return [];
       
+      console.log('🔍 Fetching messages for room:', roomId);
+      
       const { data, error } = await supabase
         .from('chat_messages')
         .select('*')
         .eq('room_id', roomId)
         .order('created_at', { ascending: true });
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error fetching messages:', error);
+        throw error;
+      }
+      
+      console.log('✅ Messages fetched:', data?.length || 0);
       return data as ChatMessage[];
     },
     enabled: !!roomId && !!user?.id,
@@ -39,6 +46,8 @@ export const useChatMessages = (roomId: string | null) => {
   const sendMessageMutation = useMutation({
     mutationFn: async ({ roomId, messageText }: { roomId: string; messageText: string }) => {
       if (!user?.id) throw new Error('User not authenticated');
+      
+      console.log('📤 Sending message to room:', roomId);
       
       const { data, error } = await supabase
         .from('chat_messages')
@@ -51,21 +60,28 @@ export const useChatMessages = (roomId: string | null) => {
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error sending message:', error);
+        throw error;
+      }
+      
+      console.log('✅ Message sent successfully');
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-messages', roomId] });
     },
-    onError: (error) => {
-      console.error('Error sending message:', error);
-      toast.error('Erro ao enviar mensagem');
+    onError: (error: any) => {
+      console.error('💥 Error sending message:', error);
+      toast.error('Erro ao enviar mensagem: ' + (error.message || 'Erro desconhecido'));
     }
   });
 
-  // Set up real-time subscription
+  // Set up real-time subscription for new messages
   useEffect(() => {
     if (!roomId) return;
+
+    console.log('🔄 Setting up real-time subscription for room:', roomId);
 
     const channel = supabase
       .channel(`chat_messages_${roomId}`)
@@ -77,13 +93,15 @@ export const useChatMessages = (roomId: string | null) => {
           table: 'chat_messages',
           filter: `room_id=eq.${roomId}`
         },
-        () => {
+        (payload) => {
+          console.log('📨 New message received:', payload);
           queryClient.invalidateQueries({ queryKey: ['chat-messages', roomId] });
         }
       )
       .subscribe();
 
     return () => {
+      console.log('🔌 Cleaning up real-time subscription');
       supabase.removeChannel(channel);
     };
   }, [roomId, queryClient]);

@@ -29,7 +29,7 @@ export const useChatRooms = () => {
       
       console.log('🔍 Fetching chat rooms for user:', user.id);
       
-      // Use a direct query instead of RPC to avoid TypeScript issues
+      // Query chat rooms with proper joins
       const { data, error } = await supabase
         .from('chat_rooms')
         .select(`
@@ -52,7 +52,7 @@ export const useChatRooms = () => {
         .eq('is_active', true)
         .order('created_at', { ascending: false });
       
-      console.log('📞 Direct query result:', { data, error });
+      console.log('📞 Chat rooms query result:', { data, error });
       
       if (error) {
         console.error('❌ Query Error:', error);

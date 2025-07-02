@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -15,7 +14,7 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
   selectedRoomId,
   onSelectRoom
 }) => {
-  const { chatRooms, isLoading, error } = useChatRooms();
+  const { chatRooms, isLoading, error, refreshRooms } = useChatRooms();
 
   console.log('🏠 ChatRoomList render:', { 
     isLoading, 
@@ -23,6 +22,11 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
     roomsCount: chatRooms?.length || 0,
     rooms: chatRooms 
   });
+
+  // Refresh rooms on mount to ensure we have the latest data
+  useEffect(() => {
+    refreshRooms();
+  }, [refreshRooms]);
 
   if (isLoading) {
     return (
@@ -53,10 +57,16 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-40">
+          <div className="flex flex-col items-center justify-center h-40 space-y-2">
             <div className="text-red-500">
-              Erro ao carregar salas: {error.message}
+              Erro ao carregar salas
             </div>
+            <button 
+              onClick={refreshRooms}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Tentar novamente
+            </button>
           </div>
         </CardContent>
       </Card>
@@ -73,13 +83,16 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-40">
+          <div className="flex flex-col items-center justify-center h-40 space-y-2">
             <div className="text-gray-500">
               <p>Nenhuma sala disponível</p>
-              <p className="text-sm mt-2">
-                Debug: {chatRooms.length} salas encontradas
-              </p>
             </div>
+            <button 
+              onClick={refreshRooms}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Atualizar
+            </button>
           </div>
         </CardContent>
       </Card>
@@ -98,9 +111,17 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <MessageCircle className="h-5 w-5" />
-          Salas de Chat ({chatRooms.length})
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MessageCircle className="h-5 w-5" />
+            Salas de Chat ({chatRooms.length})
+          </div>
+          <button 
+            onClick={refreshRooms}
+            className="text-sm text-gray-500 hover:text-gray-700"
+          >
+            🔄
+          </button>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
