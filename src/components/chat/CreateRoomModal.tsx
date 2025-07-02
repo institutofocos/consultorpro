@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -21,11 +20,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { useCreateChatRoom, useAvailableUsers } from '@/hooks/useChatRooms';
 import { toast } from 'sonner';
-import { Users, Settings, Info, AlertCircle, MessageSquare } from 'lucide-react';
-import type { ChatRoom, ChatUser } from '@/hooks/useChatRooms';
+import { Users, Settings, Info, MessageSquare } from 'lucide-react';
+import ParticipantSelector from './ParticipantSelector';
+import type { ChatRoom } from '@/hooks/useChatRooms';
 
 interface CreateRoomModalProps {
   open: boolean;
@@ -51,28 +51,6 @@ const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
   const createRoom = useCreateChatRoom();
   const { data: availableUsers, isLoading: loadingUsers } = useAvailableUsers();
-
-  const handleParticipantToggle = (user: ChatUser, checked: boolean) => {
-    setParticipants(prev => {
-      if (checked) {
-        return [...prev, {
-          user_id: user.user_id,
-          can_read: true,
-          can_write: true,
-        }];
-      } else {
-        return prev.filter(p => p.user_id !== user.user_id);
-      }
-    });
-  };
-
-  const handlePermissionChange = (userId: string, permission: 'can_read' | 'can_write', value: boolean) => {
-    setParticipants(prev =>
-      prev.map(p =>
-        p.user_id === userId ? { ...p, [permission]: value } : p
-      )
-    );
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,80 +202,12 @@ const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
             </TabsContent>
 
             <TabsContent value="participants" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>Selecionar Participantes</Label>
-                <p className="text-sm text-muted-foreground">
-                  Escolha quem pode participar desta sala e defina suas permissões.
-                </p>
-              </div>
-
-              {loadingUsers ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="text-sm text-muted-foreground mt-2">Carregando usuários...</p>
-                </div>
-              ) : !availableUsers || availableUsers.length === 0 ? (
-                <Card className="bg-yellow-50 border-yellow-200">
-                  <CardContent className="p-4 text-center">
-                    <AlertCircle className="h-12 w-12 mx-auto mb-2 text-yellow-600" />
-                    <p className="text-yellow-800 font-medium">Nenhum usuário disponível</p>
-                    <p className="text-xs text-yellow-600 mt-1">
-                      Certifique-se de que existem consultores ou clientes cadastrados
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {availableUsers.map((user) => {
-                    const isSelected = participants.some(p => p.user_id === user.user_id);
-                    const userPermissions = participants.find(p => p.user_id === user.user_id);
-
-                    return (
-                      <Card key={user.user_id} className="p-3 hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={(checked) => 
-                                handleParticipantToggle(user, checked as boolean)
-                              }
-                            />
-                            <div>
-                              <p className="font-medium text-sm">{user.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {user.email} • {user.type === 'consultant' ? 'Consultor' : 'Cliente'}
-                              </p>
-                            </div>
-                          </div>
-
-                          {isSelected && (
-                            <div className="flex items-center gap-4">
-                              <div className="flex items-center gap-2">
-                                <Checkbox
-                                  checked={userPermissions?.can_read}
-                                  onCheckedChange={(checked) =>
-                                    handlePermissionChange(user.user_id, 'can_read', checked as boolean)
-                                  }
-                                />
-                                <span className="text-xs">Ler</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Checkbox
-                                  checked={userPermissions?.can_write}
-                                  onCheckedChange={(checked) =>
-                                    handlePermissionChange(user.user_id, 'can_write', checked as boolean)
-                                  }
-                                />
-                                <span className="text-xs">Escrever</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
+              <ParticipantSelector
+                availableUsers={availableUsers || []}
+                selectedParticipants={participants}
+                onParticipantsChange={setParticipants}
+                isLoading={loadingUsers}
+              />
             </TabsContent>
           </Tabs>
 
