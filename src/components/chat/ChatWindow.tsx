@@ -143,63 +143,65 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room }) => {
           </div>
         </CardHeader>
 
-        <CardContent className="flex-1 flex flex-col p-0">
-          {/* Área de mensagens com ScrollArea */}
-          <ScrollArea className="flex-1 h-0">
-            <div className="p-4 space-y-4">
-              {isLoading ? (
-                <div className="flex items-center justify-center h-32">
-                  <div className="text-center text-muted-foreground">
-                    <Clock className="h-8 w-8 mx-auto mb-2 opacity-50 animate-spin" />
-                    <p>Carregando mensagens...</p>
+        <CardContent className="flex-1 flex flex-col p-0 min-h-0">
+          {/* Área de mensagens com ScrollArea e altura fixa */}
+          <div className="flex-1 min-h-0">
+            <ScrollArea className="h-full">
+              <div className="p-4 space-y-4">
+                {isLoading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="text-center text-muted-foreground">
+                      <Clock className="h-8 w-8 mx-auto mb-2 opacity-50 animate-spin" />
+                      <p>Carregando mensagens...</p>
+                    </div>
                   </div>
-                </div>
-              ) : !messages || messages.length === 0 ? (
-                <div className="flex items-center justify-center h-32">
-                  <div className="text-center text-muted-foreground">
-                    <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-lg font-medium">Nenhuma mensagem ainda</p>
-                    <p className="text-sm">Seja o primeiro a enviar uma mensagem!</p>
+                ) : !messages || messages.length === 0 ? (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="text-center text-muted-foreground">
+                      <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p className="text-lg font-medium">Nenhuma mensagem ainda</p>
+                      <p className="text-sm">Seja o primeiro a enviar uma mensagem!</p>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                messages.map((msg, index) => {
-                  const isOwnMessage = msg.sender_id === user?.id;
-                  const showSender = index === 0 || 
-                    messages[index - 1]?.sender_id !== msg.sender_id;
+                ) : (
+                  messages.map((msg, index) => {
+                    const isOwnMessage = msg.sender_id === user?.id;
+                    const showSender = index === 0 || 
+                      messages[index - 1]?.sender_id !== msg.sender_id;
 
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div className={`max-w-[80%] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
-                        {showSender && (
-                          <div className={`text-xs text-muted-foreground mb-1 px-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
-                            <span className="font-medium">{msg.sender_name}</span>
-                            <span className="ml-2">{formatMessageTime(msg.created_at)}</span>
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div className={`max-w-[80%] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
+                          {showSender && (
+                            <div className={`text-xs text-muted-foreground mb-1 px-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
+                              <span className="font-medium">{msg.sender_name}</span>
+                              <span className="ml-2">{formatMessageTime(msg.created_at)}</span>
+                            </div>
+                          )}
+                          <div
+                            className={`px-4 py-2 rounded-lg shadow-sm ${
+                              isOwnMessage
+                                ? 'bg-blue-500 text-white rounded-br-sm'
+                                : 'bg-gray-100 text-gray-900 rounded-bl-sm border'
+                            }`}
+                          >
+                            <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
                           </div>
-                        )}
-                        <div
-                          className={`px-4 py-2 rounded-lg shadow-sm ${
-                            isOwnMessage
-                              ? 'bg-blue-500 text-white rounded-br-sm'
-                              : 'bg-gray-100 text-gray-900 rounded-bl-sm border'
-                          }`}
-                        >
-                          <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          </ScrollArea>
+                    );
+                  })
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            </ScrollArea>
+          </div>
 
           {/* Formulário de envio */}
-          <div className="border-t bg-gray-50 p-4">
+          <div className="border-t bg-gray-50 p-4 flex-shrink-0">
             <form onSubmit={handleSendMessage} className="flex gap-2">
               <Input
                 value={message}
