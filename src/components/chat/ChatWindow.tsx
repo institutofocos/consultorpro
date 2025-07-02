@@ -1,9 +1,9 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Users, Clock, MoreVertical } from 'lucide-react';
 import { useChatMessages, useSendMessage } from '@/hooks/useChatRooms';
 import { useAuth } from '@/contexts/AuthContext';
@@ -143,9 +143,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room }) => {
         </CardHeader>
 
         <CardContent className="flex-1 flex flex-col p-0">
-          {/* Área de mensagens com ScrollArea */}
-          <ScrollArea className="flex-1 p-4">
-            <div className="space-y-4 min-h-0">
+          {/* Área de mensagens com scroll personalizado */}
+          <div className="flex-1 overflow-y-auto p-4" style={{ maxHeight: 'calc(100vh - 300px)' }}>
+            <div className="space-y-4">
               {isLoading ? (
                 <div className="flex items-center justify-center h-32">
                   <div className="text-center text-muted-foreground">
@@ -195,7 +195,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room }) => {
               )}
               <div ref={messagesEndRef} />
             </div>
-          </ScrollArea>
+          </div>
 
           {/* Formulário de envio */}
           <div className="border-t bg-gray-50 p-4">
