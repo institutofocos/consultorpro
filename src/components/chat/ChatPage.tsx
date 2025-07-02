@@ -63,7 +63,7 @@ const ChatPage = () => {
 
   if (!user) {
     return (
-      <div className="h-screen flex items-center justify-center p-6">
+      <div className="h-screen flex items-center justify-center">
         <Card className="max-w-md mx-auto">
           <CardContent className="p-6 text-center">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-yellow-500" />
@@ -79,7 +79,7 @@ const ChatPage = () => {
 
   if (error) {
     return (
-      <div className="h-screen flex items-center justify-center p-6">
+      <div className="h-screen flex items-center justify-center">
         <Card className="max-w-md mx-auto">
           <CardContent className="p-6 text-center">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
@@ -98,9 +98,9 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden w-full">
       {/* Header fixo */}
-      <div className="flex-shrink-0 p-6 border-b bg-white">
+      <div className="flex-shrink-0 p-4 border-b bg-white">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
@@ -123,7 +123,7 @@ const ChatPage = () => {
       <div className="flex-1 flex overflow-hidden">
         <div className="w-1/3 flex flex-col border-r">
           <Card className="h-full border-0 rounded-none">
-            <CardHeader className="flex-shrink-0">
+            <CardHeader className="flex-shrink-0 p-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input

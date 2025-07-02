@@ -126,8 +126,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room }) => {
           </div>
         </div>
 
-        {/* Área de mensagens com scroll interno */}
-        <div className="flex-1 overflow-y-auto p-4">
+        {/* Área de mensagens com altura limitada */}
+        <div className="overflow-y-auto p-4 h-[calc(100vh-240px)]">
           <div className="space-y-4">
             {isLoading ? (
               <div className="flex items-center justify-center h-32">
