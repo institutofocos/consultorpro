@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, MessageCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, MessageCircle, AlertCircle, RefreshCw, Search } from 'lucide-react';
 import { useChatRooms } from '@/hooks/useChatRooms';
 import { useAuth } from '@/contexts/AuthContext';
 import ChatRoomList from './ChatRoomList';
@@ -14,15 +15,21 @@ import type { ChatRoom } from '@/hooks/useChatRooms';
 const ChatPage = () => {
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
   const { data: rooms, isLoading, error, refetch } = useChatRooms();
 
+  // Filtrar salas por nome
+  const filteredRooms = rooms?.filter(room => 
+    room.name.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
+
   // Auto-selecionar primeira sala se disponível
   useEffect(() => {
-    if (rooms && rooms.length > 0 && !selectedRoom) {
-      setSelectedRoom(rooms[0]);
+    if (filteredRooms && filteredRooms.length > 0 && !selectedRoom) {
+      setSelectedRoom(filteredRooms[0]);
     }
-  }, [rooms, selectedRoom]);
+  }, [filteredRooms, selectedRoom]);
 
   // Verificar se usuário está autenticado
   useEffect(() => {
@@ -93,16 +100,30 @@ const ChatPage = () => {
         <div className="col-span-4">
           <Card className="h-full">
             <CardHeader>
-              <CardTitle className="text-lg flex items-center justify-between">
-                Salas de Chat
-                {isLoading && (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                )}
-              </CardTitle>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">
+                    Salas
+                  </CardTitle>
+                  {isLoading && (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  )}
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    type="text"
+                    placeholder="Buscar salas..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <ChatRoomList
-                rooms={rooms || []}
+                rooms={filteredRooms}
                 selectedRoom={selectedRoom}
                 onRoomSelect={setSelectedRoom}
               />
