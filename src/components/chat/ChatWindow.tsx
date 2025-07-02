@@ -142,14 +142,22 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ room }) => {
         </CardHeader>
 
         <CardContent className="flex-1 flex flex-col p-0 min-h-0">
-          {/* Área de mensagens com scroll nativo */}
+          {/* Área de mensagens com scroll oculto */}
           <div 
-            className="flex-1 overflow-y-auto px-4"
+            className="flex-1 px-4"
             style={{ 
               height: 'calc(100vh - 300px)',
-              maxHeight: 'calc(100vh - 300px)'
+              maxHeight: 'calc(100vh - 300px)',
+              overflowY: 'scroll',
+              scrollbarWidth: 'none', /* Firefox */
+              msOverflowStyle: 'none' /* Internet Explorer 10+ */
             }}
           >
+            <style jsx>{`
+              div::-webkit-scrollbar {
+                display: none; /* Safari and Chrome */
+              }
+            `}</style>
             <div className="py-4 space-y-4">
               {isLoading ? (
                 <div className="flex items-center justify-center h-32">
