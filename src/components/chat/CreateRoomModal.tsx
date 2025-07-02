@@ -24,7 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCreateChatRoom, useAvailableUsers } from '@/hooks/useChatRooms';
 import { toast } from 'sonner';
-import { Users, Settings, Info, AlertCircle } from 'lucide-react';
+import { Users, Settings, Info, AlertCircle, MessageSquare } from 'lucide-react';
 import type { ChatRoom, ChatUser } from '@/hooks/useChatRooms';
 
 interface CreateRoomModalProps {
