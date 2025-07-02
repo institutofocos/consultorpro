@@ -36,6 +36,7 @@ const MODULE_LABELS = {
   demands: 'Demandas',
   services: 'Serviços',
   calendar: 'Calendário',
+  chat: 'Chat',
   financial: 'Financeiro',
   settings: 'Configurações'
 } as const;
