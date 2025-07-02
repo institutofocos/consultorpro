@@ -50,7 +50,13 @@ const DemandChat: React.FC<DemandChatProps> = ({ demandId }) => {
           filter: `demand_id=eq.${demandId}`
         },
         (payload) => {
-          setMessages(prev => [...prev, payload.new as ChatMessageType]);
+          const newMessage = payload.new as any;
+          // Ensure message_type is properly typed
+          const typedMessage: ChatMessageType = {
+            ...newMessage,
+            message_type: newMessage.message_type as 'user' | 'system'
+          };
+          setMessages(prev => [...prev, typedMessage]);
         }
       )
       .subscribe();
@@ -69,7 +75,14 @@ const DemandChat: React.FC<DemandChatProps> = ({ demandId }) => {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setMessages(data || []);
+      
+      // Type the messages properly
+      const typedMessages: ChatMessageType[] = (data || []).map(msg => ({
+        ...msg,
+        message_type: msg.message_type as 'user' | 'system'
+      }));
+      
+      setMessages(typedMessages);
     } catch (error) {
       console.error('Error loading messages:', error);
       toast({
