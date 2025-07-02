@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,6 +23,17 @@ interface Demand {
   clients?: { name: string };
   consultants?: { name: string };
   projects?: { name: string };
+}
+
+interface DemandInsert {
+  title: string;
+  description?: string;
+  status?: string;
+  priority?: string;
+  client_id?: string;
+  consultant_id?: string;
+  project_id?: string;
+  created_by: string;
 }
 
 const DemandsList = () => {
@@ -53,13 +63,10 @@ const DemandsList = () => {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (demandData: Partial<Demand>) => {
+    mutationFn: async (demandData: DemandInsert) => {
       const { error } = await supabase
         .from('demands')
-        .insert({
-          ...demandData,
-          created_by: user?.id,
-        });
+        .insert(demandData);
 
       if (error) throw error;
     },
@@ -82,12 +89,21 @@ const DemandsList = () => {
   });
 
   const handleCreateDemand = () => {
-    // For now, create a simple demand - you can enhance this later with a proper form
-    const newDemand = {
+    if (!user?.id) {
+      toast({
+        title: "Erro",
+        description: "Usuário não autenticado",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newDemand: DemandInsert = {
       title: "Nova Demanda",
       description: "Descrição da demanda",
       status: "open",
-      priority: "medium"
+      priority: "medium",
+      created_by: user.id
     };
     
     createMutation.mutate(newDemand);
