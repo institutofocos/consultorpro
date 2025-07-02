@@ -7,14 +7,11 @@ interface ChatRoom {
   room_id: string;
   project_id: string | null;
   stage_id: string | null;
-  room_type: 'project' | 'stage' | 'manual';
+  room_type: 'manual';
   is_active: boolean;
   is_manual: boolean;
   room_name: string | null;
   room_description: string | null;
-  project_name: string | null;
-  stage_name: string | null;
-  client_name: string | null;
   created_at: string;
   created_by: string | null;
   parent_room_id: string | null;
@@ -32,15 +29,13 @@ export const useChatRooms = () => {
         return [];
       }
       
-      console.log('🔍 Fetching chat rooms for user:', user.id);
+      console.log('🔍 Fetching manual chat rooms for user:', user.id);
       
-      // Query both automatic and manual chat rooms
+      // Query only manual chat rooms that the user has permission to access
       const { data, error } = await supabase
         .from('chat_rooms')
         .select(`
           id,
-          project_id,
-          stage_id,
           room_type,
           is_active,
           is_manual,
@@ -48,24 +43,13 @@ export const useChatRooms = () => {
           room_description,
           created_by,
           parent_room_id,
-          created_at,
-          projects (
-            id,
-            name,
-            clients (
-              id,
-              name
-            )
-          ),
-          project_stages (
-            id,
-            name
-          )
+          created_at
         `)
         .eq('is_active', true)
+        .eq('is_manual', true)
         .order('created_at', { ascending: false });
       
-      console.log('📞 Chat rooms query result:', { data, error });
+      console.log('📞 Manual chat rooms query result:', { data, error });
       
       if (error) {
         console.error('❌ Query Error:', error);
@@ -75,22 +59,19 @@ export const useChatRooms = () => {
       // Transform the data to match our ChatRoom interface
       const rooms: ChatRoom[] = (data || []).map((room: any) => ({
         room_id: room.id,
-        project_id: room.project_id,
-        stage_id: room.stage_id,
-        room_type: room.is_manual ? 'manual' : room.room_type,
+        project_id: null,
+        stage_id: null,
+        room_type: 'manual',
         is_active: room.is_active,
-        is_manual: room.is_manual,
+        is_manual: true,
         room_name: room.room_name,
         room_description: room.room_description,
         created_by: room.created_by,
         parent_room_id: room.parent_room_id,
-        project_name: room.projects?.name || null,
-        stage_name: room.project_stages?.name || null,
-        client_name: room.projects?.clients?.name || null,
         created_at: room.created_at
       }));
       
-      console.log('✅ Final chat rooms:', rooms.length, rooms);
+      console.log('✅ Final manual chat rooms:', rooms.length, rooms);
       
       return rooms;
     },

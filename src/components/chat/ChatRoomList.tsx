@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Users, FolderOpen, Plus, Settings } from 'lucide-react';
+import { MessageCircle, Plus, Settings } from 'lucide-react';
 import { useChatRooms } from '@/hooks/useChatRooms';
 import CreateManualRoomModal from './CreateManualRoomModal';
 
@@ -77,17 +77,6 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
     );
   }
 
-  const projectRooms = chatRooms.filter(room => room.room_type === 'project');
-  const stageRooms = chatRooms.filter(room => room.room_type === 'stage');
-  const manualRooms = chatRooms.filter(room => room.room_type === 'manual');
-
-  console.log('📊 Room distribution:', { 
-    total: chatRooms.length,
-    projects: projectRooms.length, 
-    stages: stageRooms.length,
-    manual: manualRooms.length
-  });
-
   return (
     <>
       <Card className="h-full">
@@ -119,14 +108,14 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
           <ScrollArea className="h-[calc(100vh-8rem)]">
             <div className="p-4 space-y-4">
               {/* Manual Rooms */}
-              {manualRooms.length > 0 && (
+              {chatRooms.length > 0 && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
                     <Settings className="h-4 w-4" />
-                    Salas Manuais ({manualRooms.length})
+                    Salas Manuais ({chatRooms.length})
                   </h3>
                   <div className="space-y-2">
-                    {manualRooms.map((room) => (
+                    {chatRooms.map((room) => (
                       <div
                         key={room.room_id}
                         className={`p-3 rounded-lg border cursor-pointer transition-colors ${
@@ -154,82 +143,6 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
                           </div>
                           <Badge variant="default" className="text-xs">
                             Manual
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Project Rooms */}
-              {projectRooms.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                    <FolderOpen className="h-4 w-4" />
-                    Projetos ({projectRooms.length})
-                  </h3>
-                  <div className="space-y-2">
-                    {projectRooms.map((room) => (
-                      <div
-                        key={room.room_id}
-                        className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                          selectedRoomId === room.room_id
-                            ? 'bg-blue-50 border-blue-200'
-                            : 'bg-white hover:bg-gray-50 border-gray-200'
-                        }`}
-                        onClick={() => onSelectRoom(room.room_id, room)}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-medium text-sm text-gray-900">
-                              {room.project_name}
-                            </h4>
-                            {room.client_name && (
-                              <p className="text-xs text-gray-500 mt-1">
-                                Cliente: {room.client_name}
-                              </p>
-                            )}
-                          </div>
-                          <Badge variant="secondary" className="text-xs">
-                            Projeto
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Stage Rooms */}
-              {stageRooms.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    Etapas ({stageRooms.length})
-                  </h3>
-                  <div className="space-y-2">
-                    {stageRooms.map((room) => (
-                      <div
-                        key={room.room_id}
-                        className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                          selectedRoomId === room.room_id
-                            ? 'bg-blue-50 border-blue-200'
-                            : 'bg-white hover:bg-gray-50 border-gray-200'
-                        }`}
-                        onClick={() => onSelectRoom(room.room_id, room)}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-medium text-sm text-gray-900">
-                              {room.stage_name}
-                            </h4>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Projeto: {room.project_name}
-                            </p>
-                          </div>
-                          <Badge variant="outline" className="text-xs">
-                            Etapa
                           </Badge>
                         </div>
                       </div>
