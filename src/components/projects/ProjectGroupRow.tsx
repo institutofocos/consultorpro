@@ -29,7 +29,7 @@ const ProjectGroupRow: React.FC<ProjectGroupRowProps> = ({
   onDelete,
 }) => {
   const handleDelete = () => {
-    if (window.confirm(`Tem certeza que deseja excluir o grupo "${group.name}"? Os projetos não serão excluídos.`)) {
+    if (window.confirm(`Tem certeza que deseja desfazer o grupo "${group.name}"? Os projetos não serão excluídos.`)) {
       onDelete();
     }
   };
@@ -95,7 +95,7 @@ const ProjectGroupRow: React.FC<ProjectGroupRowProps> = ({
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleDelete} className="text-red-600">
               <Trash2 className="h-4 w-4 mr-2" />
-              Excluir Grupo
+              Desfazer Grupo
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
