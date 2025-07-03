@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -200,7 +201,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-2">
                     {showOverdueWarning && (
-                      <AlertTriangle className="h-4 w-4 text-red-500" title="Entrega atrasada" />
+                      <AlertTriangle className="h-4 w-4 text-red-500" />
                     )}
                     <span>{project.name}</span>
                   </div>
@@ -340,14 +341,17 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
         </TableBody>
       </Table>
 
-      <ProjectDescriptionModal
-        isOpen={isDescriptionModalOpen}
-        onClose={() => {
-          setIsDescriptionModalOpen(false);
-          setSelectedProject(null);
-        }}
-        project={selectedProject}
-      />
+      {selectedProject && (
+        <ProjectDescriptionModal
+          isOpen={isDescriptionModalOpen}
+          onClose={() => {
+            setIsDescriptionModalOpen(false);
+            setSelectedProject(null);
+          }}
+          projectName={selectedProject.name}
+          description={selectedProject.description || ''}
+        />
+      )}
     </>
   );
 };
