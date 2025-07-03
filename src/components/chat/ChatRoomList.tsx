@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   MoreHorizontal, 
   Users, 
@@ -83,7 +84,6 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
     }
   };
 
-  // Organizar salas por hierarquia
   const organizeRooms = (rooms: ChatRoom[]) => {
     const rootRooms = rooms.filter(room => !room.parent_room_id);
     const childRooms = rooms.filter(room => room.parent_room_id);
@@ -199,8 +199,8 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
 
   return (
     <>
-      <div className="max-h-full overflow-y-auto">
-        <div className="space-y-1">
+      <ScrollArea className="h-full">
+        <div className="space-y-1 p-2">
           {organizedRooms.map((room) => (
             <div key={room.id}>
               {/* Sala principal */}
@@ -243,7 +243,7 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
             </div>
           ))}
         </div>
-      </div>
+      </ScrollArea>
 
       <EditRoomModal
         open={isEditModalOpen}
