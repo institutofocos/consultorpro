@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Eye, Search, ChevronDown, ChevronRight, Zap, ExternalLink } from 'lucide-react';
+import { Edit, Trash2, Eye, Search, ChevronDown, ChevronRight, Zap, ExternalLink, MoreHorizontal } from 'lucide-react';
 import { Project } from './types';
 import ServiceNameCell from './ServiceNameCell';
 import ProjectDetails from './ProjectDetails';
@@ -13,6 +13,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
@@ -313,81 +314,75 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                 )}
               </TableCell>
               <TableCell className="text-right">
-                <div className="flex justify-end space-x-2">
-                  {/* Botão de alterar status do projeto - oculto para consultores */}
-                  {!isConsultant && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={isLoading}
-                          title="Alterar status do projeto"
-                        >
-                          <Zap className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent className="bg-white border shadow-lg z-50">
-                        {statuses.length === 0 ? (
-                          <DropdownMenuItem disabled className="text-muted-foreground">
-                            Nenhum status disponível
-                          </DropdownMenuItem>
-                        ) : (
-                          statuses.map((status) => (
-                            <DropdownMenuItem
-                              key={status.id}
-                              onClick={() => handleProjectStatusChange(project.id, status.name)}
-                              disabled={status.name === project.status}
-                              className="cursor-pointer hover:bg-gray-100"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div 
-                                  className="w-3 h-3 rounded-full"
-                                  style={{ backgroundColor: status.color }}
-                                />
-                                {status.display_name}
-                              </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                      <span className="sr-only">Abrir menu</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem onClick={() => handleViewProject(project)}>
+                      Ver detalhes e etapas
+                    </DropdownMenuItem>
+                    
+                    {!isConsultant && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onEditProject(project)}>
+                          Editar projeto
+                        </DropdownMenuItem>
+                        
+                        <DropdownMenuSeparator />
+                        
+                        {/* Submenu para status do projeto */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                              Alterar status do projeto
+                              <ChevronRight className="ml-auto h-4 w-4" />
                             </DropdownMenuItem>
-                          ))
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                  
-                  {/* Botão de ver detalhes - sempre visível */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleViewProject(project)}
-                    title="Ver detalhes e etapas"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  
-                  {/* Botão de editar projeto - oculto para consultores */}
-                  {!isConsultant && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onEditProject(project)}
-                      title="Editar projeto"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  )}
-                  
-                  {/* Botão de excluir projeto - oculto para consultores */}
-                  {!isConsultant && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onDeleteProject(project.id)}
-                      title="Excluir projeto"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent side="left" className="w-48">
+                            {statuses.length === 0 ? (
+                              <DropdownMenuItem disabled>
+                                Nenhum status disponível
+                              </DropdownMenuItem>
+                            ) : (
+                              statuses.map((status) => (
+                                <DropdownMenuItem
+                                  key={status.id}
+                                  onClick={() => handleProjectStatusChange(project.id, status.name)}
+                                  disabled={status.name === project.status || isLoading}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div 
+                                      className="w-3 h-3 rounded-full"
+                                      style={{ backgroundColor: status.color }}
+                                    />
+                                    {status.display_name}
+                                  </div>
+                                </DropdownMenuItem>
+                              ))
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => onDeleteProject(project.id)}
+                          className="text-red-600"
+                        >
+                          Excluir projeto
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </TableCell>
             </TableRow>
 
@@ -444,47 +439,55 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">-</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end space-x-2">
-                      {/* Botão de alterar status da etapa - oculto para consultores */}
-                      {!isConsultant && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={isLoading}
-                              title="Alterar status da etapa"
-                            >
-                              <Zap className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent className="bg-white border shadow-lg z-50">
-                            {statuses.length === 0 ? (
-                              <DropdownMenuItem disabled className="text-muted-foreground">
-                                Nenhum status disponível
+                    {!isConsultant && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            disabled={isLoading}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Abrir menu da etapa</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          {/* Submenu para status da etapa */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                Alterar status da etapa
+                                <ChevronRight className="ml-auto h-4 w-4" />
                               </DropdownMenuItem>
-                            ) : (
-                              statuses.map((status) => (
-                                <DropdownMenuItem
-                                  key={status.id}
-                                  onClick={() => handleStageStatusChange(stage.id, status.name)}
-                                  disabled={status.name === stage.status}
-                                  className="cursor-pointer hover:bg-gray-100"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div 
-                                      className="w-3 h-3 rounded-full"
-                                      style={{ backgroundColor: status.color }}
-                                    />
-                                    {status.display_name}
-                                  </div>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent side="left" className="w-48">
+                              {statuses.length === 0 ? (
+                                <DropdownMenuItem disabled>
+                                  Nenhum status disponível
                                 </DropdownMenuItem>
-                              ))
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </div>
+                              ) : (
+                                statuses.map((status) => (
+                                  <DropdownMenuItem
+                                    key={status.id}
+                                    onClick={() => handleStageStatusChange(stage.id, status.name)}
+                                    disabled={status.name === stage.status || isLoading}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <div 
+                                        className="w-3 h-3 rounded-full"
+                                        style={{ backgroundColor: status.color }}
+                                      />
+                                      {status.display_name}
+                                    </div>
+                                  </DropdownMenuItem>
+                                ))
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </TableCell>
                 </TableRow>
               );
