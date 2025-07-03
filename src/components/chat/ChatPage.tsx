@@ -84,7 +84,7 @@ const ChatPage = () => {
 
   if (!user) {
     return (
-      <div className="h-screen flex items-center justify-center">
+      <div className="h-screen flex items-center justify-center p-6">
         <Card className="max-w-md mx-auto">
           <CardContent className="p-6 text-center">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-yellow-500" />
@@ -100,7 +100,7 @@ const ChatPage = () => {
 
   if (error) {
     return (
-      <div className="h-screen flex items-center justify-center">
+      <div className="h-screen flex items-center justify-center p-6">
         <Card className="max-w-md mx-auto">
           <CardContent className="p-6 text-center">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
@@ -119,9 +119,9 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col w-full">
+    <div className="h-screen flex flex-col w-full p-4 max-w-7xl mx-auto">
       {/* Fixed header */}
-      <div className="flex-shrink-0 p-4 border-b bg-white">
+      <div className="flex-shrink-0 p-4 border-b bg-white rounded-t-lg">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
@@ -151,8 +151,8 @@ const ChatPage = () => {
         </div>
       </div>
 
-      {/* Main content area with proper height calculation */}
-      <div className="flex-1 flex min-h-0">
+      {/* Main content area with proper height calculation and border */}
+      <div className="flex-1 flex min-h-0 border border-t-0 rounded-b-lg overflow-hidden bg-white">
         {/* Sidebar with chat rooms */}
         <div className="w-1/3 flex flex-col border-r">
           {/* Search bar - fixed */}
