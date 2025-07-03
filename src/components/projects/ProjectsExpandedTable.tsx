@@ -26,7 +26,7 @@ interface ProjectsExpandedTableProps {
   selectedProjects: Set<string>;
   onProjectSelect: (projectId: string, checked: boolean) => void;
   showCheckbox?: boolean;
-  isGroupedProject?: boolean; // Nova prop para indicar se é um projeto de grupo expandido
+  isGroupedProject?: boolean;
 }
 
 const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
@@ -37,9 +37,10 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
   selectedProjects,
   onProjectSelect,
   showCheckbox = false,
-  isGroupedProject = false, // Valor padrão false
+  isGroupedProject = false,
 }) => {
   const [selectedDescription, setSelectedDescription] = React.useState<string | null>(null);
+  const [selectedProjectName, setSelectedProjectName] = React.useState<string | null>(null);
   const [isDescriptionModalOpen, setIsDescriptionModalOpen] = React.useState(false);
 
   // Hook para buscar status dinâmicos
@@ -93,6 +94,22 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
     },
   });
 
+  const { data: services = [] } = useQuery({
+    queryKey: ['services'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('services')
+        .select('id, name');
+      
+      if (error) {
+        console.error('Erro ao buscar serviços:', error);
+        return [];
+      }
+      
+      return data || [];
+    },
+  });
+
   const getClientName = (clientId: string | null) => {
     if (!clientId) return '-';
     const client = clients.find(c => c.id === clientId);
@@ -103,6 +120,12 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
     if (!consultantId) return '-';
     const consultant = consultants.find(c => c.id === consultantId);
     return consultant ? consultant.name : '-';
+  };
+
+  const getServiceName = (serviceId: string | null) => {
+    if (!serviceId) return '-';
+    const service = services.find(s => s.id === serviceId);
+    return service ? service.name : '-';
   };
 
   const getStatusInfo = (status: string) => {
@@ -154,8 +177,9 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
       .filter(Boolean);
   };
 
-  const showDescription = (description: string) => {
+  const showDescription = (description: string, projectName: string) => {
     setSelectedDescription(description);
+    setSelectedProjectName(projectName);
     setIsDescriptionModalOpen(true);
   };
 
@@ -167,7 +191,6 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
         const projectTags = getProjectTags(project);
         const projectOverdue = !isCompletedStatus(project.status) && isOverdue(project.endDate);
         
-        // Definir a classe de background baseada se é um projeto de grupo expandido
         const rowClassName = isGroupedProject 
           ? "bg-blue-25 hover:bg-blue-50 border-l-4 border-l-blue-200" 
           : "hover:bg-muted/50";
@@ -227,7 +250,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
             </TableCell>
             
             <TableCell>
-              <ServiceNameCell serviceId={project.serviceId} />
+              <ServiceNameCell serviceName={getServiceName(project.serviceId)} />
             </TableCell>
             
             <TableCell>
@@ -269,7 +292,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    onClick={() => showDescription(project.description!)}
+                    onClick={() => showDescription(project.description!, project.name)}
                     className="p-1 h-auto text-left justify-start"
                   >
                     <Eye className="h-3 w-3 mr-1" />
@@ -337,6 +360,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
       <ProjectDescriptionModal
         isOpen={isDescriptionModalOpen}
         onClose={() => setIsDescriptionModalOpen(false)}
+        projectName={selectedProjectName || ''}
         description={selectedDescription || ''}
       />
     </>
