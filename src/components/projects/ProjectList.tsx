@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ import {
   fetchConsultants, 
   fetchServices 
 } from '@/integrations/supabase/projects';
+import ProjectsExpandedTable from './ProjectsExpandedTable';
 import ProjectForm from './ProjectForm';
 import SearchableSelect from '@/components/ui/searchable-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -20,7 +22,6 @@ import { Project } from './types';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
 import PermissionGuard from '@/components/auth/PermissionGuard';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
-import ProjectListWithGroups from './ProjectListWithGroups';
 
 const ProjectList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -426,7 +427,7 @@ const ProjectList: React.FC = () => {
               Erro ao carregar projetos. Por favor, tente novamente.
             </div>
           ) : (
-            <ProjectListWithGroups
+            <ProjectsExpandedTable
               projects={filteredProjects}
               onDeleteProject={handleDeleteProject}
               onEditProject={handleEditProject}
