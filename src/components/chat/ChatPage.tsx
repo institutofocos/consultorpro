@@ -119,7 +119,7 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col w-full p-6 max-w-7xl mx-auto">
+    <div className="flex flex-col w-full p-6 max-w-7xl mx-auto" style={{ height: 'calc(100vh - 80px)' }}>
       {/* Fixed header */}
       <div className="flex-shrink-0 p-4 border-b bg-white rounded-t-lg">
         <div className="flex items-center justify-between">
