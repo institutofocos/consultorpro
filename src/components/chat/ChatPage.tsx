@@ -119,7 +119,7 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col w-full p-4 max-w-7xl mx-auto">
+    <div className="h-screen flex flex-col w-full py-2 max-w-7xl mx-auto">
       {/* Fixed header */}
       <div className="flex-shrink-0 p-4 border-b bg-white rounded-t-lg">
         <div className="flex items-center justify-between">
