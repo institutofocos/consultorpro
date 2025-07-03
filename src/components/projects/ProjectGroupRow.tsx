@@ -51,14 +51,16 @@ const ProjectGroupRow: React.FC<ProjectGroupRowProps> = ({
             )}
           </Button>
           <span className="font-bold text-blue-900">📁 {group.name}</span>
-          <Badge variant="secondary" className="ml-2">
-            {group.project_count || 0} projeto(s)
-          </Badge>
         </div>
       </TableCell>
       
+      <TableCell>
+        <Badge variant="secondary">
+          {group.project_count || 0} projeto(s)
+        </Badge>
+      </TableCell>
+      
       {/* Empty cells for other columns to maintain table structure */}
-      <TableCell>-</TableCell>
       <TableCell>-</TableCell>
       <TableCell>-</TableCell>
       <TableCell>-</TableCell>
