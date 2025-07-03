@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,42 +28,41 @@ const ChatPage = () => {
   const { user } = useAuth();
   const { data: rooms, isLoading, error, refetch } = useChatRooms();
 
-  // Esconder barra de rolagem externa apenas na página de chat
+  // Prevent body scroll when on chat page
   useEffect(() => {
-    // Salvar o estado atual
+    // Save current state
     const originalOverflow = document.body.style.overflow;
     const originalHtmlOverflow = document.documentElement.style.overflow;
     
-    // Aplicar overflow hidden
+    // Apply overflow hidden to prevent any scrolling on the page itself
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
     
-    // Cleanup: restaurar scrollbar quando sair da página  
+    // Cleanup: restore scrollbar when leaving the page  
     return () => {
       document.body.style.overflow = originalOverflow;
       document.documentElement.style.overflow = originalHtmlOverflow;
     };
   }, []);
 
-  // Log para debug
   console.log('ChatPage renderizado - searchTerm:', searchTerm);
   console.log('Total de salas:', rooms?.length || 0);
 
-  // Filtrar salas por nome
+  // Filter rooms by name
   const filteredRooms = rooms?.filter(room => 
     room.name.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
   console.log('Salas filtradas:', filteredRooms.length);
 
-  // Auto-selecionar primeira sala se disponível
+  // Auto-select first room if available
   useEffect(() => {
     if (filteredRooms && filteredRooms.length > 0 && !selectedRoom) {
       setSelectedRoom(filteredRooms[0]);
     }
   }, [filteredRooms, selectedRoom]);
 
-  // Verificar se usuário está autenticado
+  // Check if user is authenticated
   useEffect(() => {
     if (!user) {
       toast.error('Você precisa estar logado para acessar o chat');
@@ -119,8 +119,8 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden w-full">
-      {/* Header fixo */}
+    <div className="h-screen flex flex-col w-full">
+      {/* Fixed header */}
       <div className="flex-shrink-0 p-4 border-b bg-white">
         <div className="flex items-center justify-between">
           <div>
@@ -151,10 +151,12 @@ const ChatPage = () => {
         </div>
       </div>
 
-      {/* Conteúdo principal */}
-      <div className="flex-1 flex overflow-hidden min-h-0">
-        <div className="w-1/3 flex flex-col border-r min-h-0">
-          <div className="flex-shrink-0 p-4 border-b">
+      {/* Main content area with proper height calculation */}
+      <div className="flex-1 flex min-h-0">
+        {/* Sidebar with chat rooms */}
+        <div className="w-1/3 flex flex-col border-r">
+          {/* Search bar - fixed */}
+          <div className="flex-shrink-0 p-4 border-b bg-gray-50">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
@@ -169,7 +171,9 @@ const ChatPage = () => {
               />
             </div>
           </div>
-          <div className="flex-1 overflow-hidden min-h-0">
+          
+          {/* Chat rooms list - scrollable area */}
+          <div className="flex-1 min-h-0">
             <ChatRoomList
               rooms={filteredRooms}
               selectedRoom={selectedRoom}
@@ -178,11 +182,12 @@ const ChatPage = () => {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col">
+        {/* Chat area */}
+        <div className="flex-1 flex flex-col min-h-0">
           {selectedRoom ? (
             <ChatWindow room={selectedRoom} />
           ) : (
-            <Card className="h-full flex items-center justify-center border-0 rounded-none">
+            <div className="flex-1 flex items-center justify-center bg-gray-50">
               <div className="text-center text-muted-foreground">
                 <MessageCircle className="h-16 w-16 mx-auto mb-4 opacity-50" />
                 <p className="text-lg mb-2">Selecione uma sala de chat para começar</p>
@@ -193,7 +198,7 @@ const ChatPage = () => {
                   }
                 </p>
               </div>
-            </Card>
+            </div>
           )}
         </div>
       </div>

@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   MoreHorizontal, 
   Users, 
@@ -200,11 +199,12 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
 
   return (
     <>
-      <ScrollArea className="h-full w-full">
-        <div className="space-y-1 p-2 min-h-0">
+      {/* Scrollable area for chat rooms */}
+      <div className="h-full overflow-y-auto">
+        <div className="space-y-1 p-2">
           {organizedRooms.map((room) => (
             <div key={room.id}>
-              {/* Sala principal */}
+              {/* Main room */}
               <div className="flex items-center">
                 {room.children && room.children.length > 0 && (
                   <Button
@@ -231,7 +231,7 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
                 </div>
               </div>
               
-              {/* Subsalas (quando expandida) */}
+              {/* Sub-rooms (when expanded) */}
               {room.children && 
                room.children.length > 0 && 
                expandedRooms.has(room.id) && (
@@ -244,7 +244,7 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
             </div>
           ))}
         </div>
-      </ScrollArea>
+      </div>
 
       <EditRoomModal
         open={isEditModalOpen}
