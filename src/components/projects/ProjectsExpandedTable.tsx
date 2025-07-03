@@ -28,6 +28,7 @@ interface ProjectsExpandedTableProps {
   selectedProjects?: Set<string>;
   onProjectSelect?: (projectId: string, checked: boolean) => void;
   showCheckbox?: boolean;
+  isFromExpandedGroup?: boolean;
 }
 
 const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
@@ -37,7 +38,8 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
   onRefresh,
   selectedProjects = new Set(),
   onProjectSelect,
-  showCheckbox = false
+  showCheckbox = false,
+  isFromExpandedGroup = false
 }) => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showProjectDetails, setShowProjectDetails] = useState(false);
@@ -215,7 +217,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
         return (
           <React.Fragment key={project.id}>
             {/* Linha principal do projeto */}
-            <TableRow>
+            <TableRow className={isFromExpandedGroup ? "bg-green-50 hover:bg-green-100" : ""}>
               {showCheckbox && (
                 <TableCell>
                   <input
@@ -392,7 +394,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
               const stageCompleted = isStageCompleted(stage.status);
               
               return (
-                <TableRow key={`${project.id}-stage-${stage.id || index}`} className="bg-muted/30">
+                <TableRow key={`${project.id}-stage-${stage.id || index}`} className={`bg-muted/30 ${isFromExpandedGroup ? "bg-green-50/50" : ""}`}>
                   {showCheckbox && <TableCell />}
                   <TableCell className="pl-12">
                     <div className="flex items-center gap-2">

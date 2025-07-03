@@ -599,6 +599,7 @@ const ProjectList: React.FC = () => {
                             selectedProjects={selectedProjects}
                             onProjectSelect={handleProjectSelect}
                             showCheckbox={true}
+                            isFromExpandedGroup={true}
                           />
                         ))}
                       </React.Fragment>
@@ -614,6 +615,7 @@ const ProjectList: React.FC = () => {
                     selectedProjects={selectedProjects}
                     onProjectSelect={handleProjectSelect}
                     showCheckbox={true}
+                    isFromExpandedGroup={false}
                   />
                 </TableBody>
               </Table>
