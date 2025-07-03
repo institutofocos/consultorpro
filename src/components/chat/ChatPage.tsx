@@ -28,7 +28,7 @@ const ChatPage = () => {
   const { user } = useAuth();
   const { data: rooms, isLoading, error, refetch } = useChatRooms();
 
-  // Prevent body scroll when on chat page
+  // Prevent body scroll when on chat page and ensure consistent height
   useEffect(() => {
     // Save current state
     const originalOverflow = document.body.style.overflow;
@@ -119,7 +119,14 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="flex flex-col w-full p-6 max-w-7xl mx-auto" style={{ height: 'calc(100vh - 80px)' }}>
+    <div 
+      className="flex flex-col w-full p-6 max-w-7xl mx-auto"
+      style={{ 
+        height: 'calc(100vh - 80px)',
+        minHeight: 'calc(100vh - 80px)',
+        maxHeight: 'calc(100vh - 80px)'
+      }}
+    >
       {/* Fixed header */}
       <div className="flex-shrink-0 p-4 border-b bg-white rounded-t-lg">
         <div className="flex items-center justify-between">
