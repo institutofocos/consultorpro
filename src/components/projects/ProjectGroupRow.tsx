@@ -54,10 +54,12 @@ const ProjectGroupRow: React.FC<ProjectGroupRowProps> = ({
         </div>
       </TableCell>
       
-      <TableCell className="text-center">
-        <Badge variant="secondary">
-          {group.project_count || 0} projeto(s)
-        </Badge>
+      <TableCell className="text-center align-middle">
+        <div className="flex justify-center">
+          <Badge variant="secondary" className="inline-flex items-center justify-center">
+            {group.project_count || 0} projeto(s)
+          </Badge>
+        </div>
       </TableCell>
       
       {/* Empty cells for other columns to maintain table structure */}
