@@ -3,13 +3,14 @@ import React, { useState } from 'react';
 import { TableRow, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, ChevronRight, Edit, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Edit, Trash2, MoreHorizontal } from 'lucide-react';
 import { ProjectGroup } from '@/hooks/useProjectGroups';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
 interface ProjectGroupRowProps {
@@ -70,25 +71,29 @@ const ProjectGroupRow: React.FC<ProjectGroupRowProps> = ({
       <TableCell>-</TableCell>
       
       <TableCell className="text-right">
-        <div className="flex justify-end space-x-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                Ações
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={onEdit}>
-                <Edit className="h-4 w-4 mr-2" />
-                Editar Nome
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDelete} className="text-red-600">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Excluir Grupo
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 w-8 p-0"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+              <span className="sr-only">Abrir menu</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={onEdit}>
+              <Edit className="h-4 w-4 mr-2" />
+              Editar Nome
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleDelete} className="text-red-600">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Excluir Grupo
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </TableCell>
     </TableRow>
   );
