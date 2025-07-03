@@ -2,18 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, MessageCircle, AlertCircle, RefreshCw, Search } from 'lucide-react';
+import { Plus, MessageCircle, AlertCircle, RefreshCw, Search, Users } from 'lucide-react';
 import { useChatRooms } from '@/hooks/useChatRooms';
 import { useAuth } from '@/contexts/AuthContext';
 import ChatRoomList from './ChatRoomList';
 import ChatWindow from './ChatWindow';
 import CreateRoomModal from './CreateRoomModal';
+import ParticipantsModal from './ParticipantsModal';
 import { toast } from 'sonner';
 import type { ChatRoom } from '@/hooks/useChatRooms';
+
+interface ParticipantPermission {
+  user_id: string;
+  can_read: boolean;
+  can_write: boolean;
+}
 
 const ChatPage = () => {
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [showParticipantsModal, setShowParticipantsModal] = useState(false);
+  const [currentParticipants, setCurrentParticipants] = useState<ParticipantPermission[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
   const { data: rooms, isLoading, error, refetch } = useChatRooms();
@@ -59,6 +68,19 @@ const ChatPage = () => {
       toast.error('Você precisa estar logado para acessar o chat');
     }
   }, [user]);
+
+  const handleOpenParticipantsModal = () => {
+    if (!selectedRoom) {
+      toast.error('Selecione uma sala primeiro');
+      return;
+    }
+    setShowParticipantsModal(true);
+  };
+
+  const handleUpdateParticipants = (participants: ParticipantPermission[]) => {
+    setCurrentParticipants(participants);
+    console.log('Atualizando participantes:', participants);
+  };
 
   if (!user) {
     return (
@@ -107,14 +129,25 @@ const ChatPage = () => {
               Chat
             </h1>
           </div>
-          <Button 
-            onClick={() => setIsCreateModalOpen(true)} 
-            className="flex items-center gap-2"
-            disabled={isLoading}
-          >
-            <Plus className="h-4 w-4" />
-            Nova Sala
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              onClick={handleOpenParticipantsModal} 
+              variant="outline"
+              className="flex items-center gap-2"
+              disabled={!selectedRoom}
+            >
+              <Users className="h-4 w-4" />
+              Participantes
+            </Button>
+            <Button 
+              onClick={() => setIsCreateModalOpen(true)} 
+              className="flex items-center gap-2"
+              disabled={isLoading}
+            >
+              <Plus className="h-4 w-4" />
+              Nova Sala
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -170,6 +203,17 @@ const ChatPage = () => {
         onOpenChange={setIsCreateModalOpen}
         parentRooms={rooms || []}
       />
+
+      {selectedRoom && (
+        <ParticipantsModal
+          open={showParticipantsModal}
+          onOpenChange={setShowParticipantsModal}
+          roomId={selectedRoom.id}
+          roomName={selectedRoom.name}
+          currentParticipants={currentParticipants}
+          onUpdateParticipants={handleUpdateParticipants}
+        />
+      )}
     </div>
   );
 };
