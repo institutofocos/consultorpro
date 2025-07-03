@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -199,8 +198,8 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
 
   return (
     <>
-      {/* Scrollable area for chat rooms */}
-      <div className="h-full overflow-y-auto">
+      {/* Scrollable area for chat rooms with reduced height */}
+      <div className="flex-1 overflow-y-auto pb-4" style={{ maxHeight: 'calc(100vh - 280px)' }}>
         <div className="space-y-1 p-2">
           {organizedRooms.map((room) => (
             <div key={room.id}>
