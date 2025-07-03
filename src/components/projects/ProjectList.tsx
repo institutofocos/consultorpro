@@ -599,6 +599,7 @@ const ProjectList: React.FC = () => {
                             selectedProjects={selectedProjects}
                             onProjectSelect={handleProjectSelect}
                             showCheckbox={true}
+                            isGroupedProject={true}
                           />
                         ))}
                       </React.Fragment>
@@ -614,6 +615,7 @@ const ProjectList: React.FC = () => {
                     selectedProjects={selectedProjects}
                     onProjectSelect={handleProjectSelect}
                     showCheckbox={true}
+                    isGroupedProject={false}
                   />
                 </TableBody>
               </Table>
