@@ -70,7 +70,7 @@ const ProjectGroupRow: React.FC<ProjectGroupRowProps> = ({
       <TableCell>-</TableCell>
       <TableCell>-</TableCell>
       
-      <TableCell className="text-right">
+      <TableCell>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
