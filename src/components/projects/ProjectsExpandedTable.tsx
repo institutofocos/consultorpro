@@ -24,13 +24,19 @@ interface ProjectsExpandedTableProps {
   onDeleteProject: (id: string) => void;
   onEditProject: (project: Project) => void;
   onRefresh: () => void;
+  selectedProjects?: Set<string>;
+  onProjectSelect?: (projectId: string, checked: boolean) => void;
+  showCheckbox?: boolean;
 }
 
 const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
   projects,
   onDeleteProject,
   onEditProject,
-  onRefresh
+  onRefresh,
+  selectedProjects = new Set(),
+  onProjectSelect,
+  showCheckbox = false
 }) => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showProjectDetails, setShowProjectDetails] = useState(false);
@@ -191,11 +197,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
   };
 
   if (!projects || projects.length === 0) {
-    return (
-      <div className="text-center py-8 text-muted-foreground">
-        <p>Nenhum projeto encontrado.</p>
-      </div>
-    );
+    return null; // Don't render empty state when used in grouped context
   }
 
   return (
@@ -233,6 +235,16 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                 <React.Fragment key={project.id}>
                   {/* Linha principal do projeto */}
                   <TableRow>
+                    {showCheckbox && (
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          checked={selectedProjects.has(project.id)}
+                          onChange={(e) => onProjectSelect?.(project.id, e.target.checked)}
+                          className="rounded border-gray-300"
+                        />
+                      </TableCell>
+                    )}
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         {hasStages ? (

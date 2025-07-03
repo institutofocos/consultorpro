@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,6 +6,7 @@ import { Plus, Filter, Calendar } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
   fetchProjects, 
   deleteProject, 
@@ -22,6 +22,9 @@ import { Project } from './types';
 import { useProjectStatuses } from '@/hooks/useProjectStatuses';
 import PermissionGuard from '@/components/auth/PermissionGuard';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { useProjectGroups } from '@/hooks/useProjectGroups';
+import GroupModal from './GroupModal';
+import ProjectGroupRow from './ProjectGroupRow';
 
 const ProjectList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -155,6 +158,109 @@ const ProjectList: React.FC = () => {
     return matchesSearch && matchesStatus && matchesClient && matchesService && 
            matchesConsultant && matchesTags && matchesStartDate && matchesEndDate;
   });
+
+  // Add project grouping state and hooks
+  const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<any>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  
+  // Import the project groups hook
+  const { 
+    groups, 
+    createGroup, 
+    updateGroup, 
+    deleteGroup, 
+    isCreating, 
+    isUpdating, 
+    isDeleting 
+  } = useProjectGroups();
+
+  // Create a map of project ID to group for quick lookup
+  const projectGroupMap = useMemo(() => {
+    const map = new Map<string, any>();
+    groups.forEach(group => {
+      group.project_ids?.forEach(projectId => {
+        map.set(projectId, group);
+      });
+    });
+    return map;
+  }, [groups]);
+
+  // Separate grouped and ungrouped projects
+  const { groupedProjects, ungroupedProjects } = useMemo(() => {
+    const grouped: Record<string, typeof filteredProjects> = {};
+    const ungrouped: typeof filteredProjects = [];
+
+    filteredProjects.forEach(project => {
+      const group = projectGroupMap.get(project.id);
+      if (group) {
+        if (!grouped[group.id]) {
+          grouped[group.id] = [];
+        }
+        grouped[group.id].push(project);
+      } else {
+        ungrouped.push(project);
+      }
+    });
+
+    return { groupedProjects: grouped, ungroupedProjects: ungrouped };
+  }, [filteredProjects, projectGroupMap]);
+
+  // Project selection handlers
+  const handleProjectSelect = (projectId: string, checked: boolean) => {
+    const newSelected = new Set(selectedProjects);
+    if (checked) {
+      newSelected.add(projectId);
+    } else {
+      newSelected.delete(projectId);
+    }
+    setSelectedProjects(newSelected);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allProjectIds = new Set(filteredProjects.map(p => p.id));
+      setSelectedProjects(allProjectIds);
+    } else {
+      setSelectedProjects(new Set());
+    }
+  };
+
+  // Group management handlers
+  const handleCreateGroup = () => {
+    setEditingGroup(null);
+    setIsGroupModalOpen(true);
+  };
+
+  const handleEditGroup = (group: any) => {
+    setEditingGroup(group);
+    setIsGroupModalOpen(true);
+  };
+
+  const handleSaveGroup = (name: string) => {
+    if (editingGroup) {
+      updateGroup({ groupId: editingGroup.id, name });
+    } else {
+      createGroup({ name, projectIds: Array.from(selectedProjects) });
+      setSelectedProjects(new Set());
+    }
+    setIsGroupModalOpen(false);
+  };
+
+  const handleDeleteGroup = (groupId: string) => {
+    deleteGroup(groupId);
+  };
+
+  const toggleGroupExpansion = (groupId: string) => {
+    const newExpanded = new Set(expandedGroups);
+    if (newExpanded.has(groupId)) {
+      newExpanded.delete(groupId);
+    } else {
+      newExpanded.add(groupId);
+    }
+    setExpandedGroups(newExpanded);
+  };
 
   const handleDeleteProject = async (id: string) => {
     // Find the project to check its status
@@ -296,6 +402,18 @@ const ProjectList: React.FC = () => {
           <p className="text-muted-foreground">Gerencie todos os projetos da consultoria</p>
         </div>
         <div className="flex gap-2">
+          {selectedProjects.size > 0 && (
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="gap-1"
+              onClick={handleCreateGroup}
+              disabled={isCreating}
+            >
+              <Plus className="h-4 w-4" />
+              <span>Criar Grupo ({selectedProjects.size})</span>
+            </Button>
+          )}
           {!isConsultant && !permissionsLoading && (
             <Button 
               size="sm" 
@@ -427,15 +545,91 @@ const ProjectList: React.FC = () => {
               Erro ao carregar projetos. Por favor, tente novamente.
             </div>
           ) : (
-            <ProjectsExpandedTable
-              projects={filteredProjects}
-              onDeleteProject={handleDeleteProject}
-              onEditProject={handleEditProject}
-              onRefresh={refetch}
-            />
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">
+                      <input
+                        type="checkbox"
+                        checked={selectedProjects.size === filteredProjects.length && filteredProjects.length > 0}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        className="rounded border-gray-300"
+                      />
+                    </TableHead>
+                    <TableHead>Projeto</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Consultor</TableHead>
+                    <TableHead>Serviço</TableHead>
+                    <TableHead>Tags</TableHead>
+                    <TableHead>Valor Total</TableHead>
+                    <TableHead>Data Início</TableHead>
+                    <TableHead>Data Fim</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Progresso</TableHead>
+                    <TableHead>URL</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {/* Render grouped projects */}
+                  {groups.map((group) => {
+                    const groupProjects = groupedProjects[group.id] || [];
+                    if (groupProjects.length === 0) return null;
+                    
+                    const isExpanded = expandedGroups.has(group.id);
+                    
+                    return (
+                      <React.Fragment key={`group-${group.id}`}>
+                        <ProjectGroupRow
+                          group={group}
+                          isExpanded={isExpanded}
+                          onToggleExpand={() => toggleGroupExpansion(group.id)}
+                          onEdit={() => handleEditGroup(group)}
+                          onDelete={() => handleDeleteGroup(group.id)}
+                        />
+                        {isExpanded && groupProjects.map((project) => (
+                          <ProjectsExpandedTable
+                            key={`grouped-${project.id}`}
+                            projects={[project]}
+                            onDeleteProject={handleDeleteProject}
+                            onEditProject={handleEditProject}
+                            onRefresh={refetch}
+                            selectedProjects={selectedProjects}
+                            onProjectSelect={handleProjectSelect}
+                            showCheckbox={true}
+                          />
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
+                  
+                  {/* Render ungrouped projects */}
+                  <ProjectsExpandedTable
+                    projects={ungroupedProjects}
+                    onDeleteProject={handleDeleteProject}
+                    onEditProject={handleEditProject}
+                    onRefresh={refetch}
+                    selectedProjects={selectedProjects}
+                    onProjectSelect={handleProjectSelect}
+                    showCheckbox={true}
+                  />
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Group Modal */}
+      <GroupModal
+        isOpen={isGroupModalOpen}
+        onClose={() => setIsGroupModalOpen(false)}
+        onSave={handleSaveGroup}
+        group={editingGroup}
+        isLoading={isCreating || isUpdating}
+      />
 
       {/* Dialog unificado para criação e edição de projetos */}
       <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>

@@ -1060,6 +1060,66 @@ export type Database = {
         }
         Relationships: []
       }
+      project_group_relations: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_group_relations_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "project_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_group_relations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_groups: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       project_history: {
         Row: {
           action_type: string
