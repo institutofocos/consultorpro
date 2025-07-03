@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -258,8 +259,18 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                   size="sm"
                   onClick={() => onEditProject(project)}
                   className="p-1 h-6 w-6"
+                  title="Editar projeto"
                 >
                   <Edit className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onDeleteProject(project.id)}
+                  className="p-1 h-6 w-6 text-red-500 hover:bg-red-50"
+                  title="Excluir projeto"
+                >
+                  <Trash2 className="h-3 w-3" />
                 </Button>
               </>
             )}
@@ -322,6 +333,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                             size="sm"
                             onClick={() => toggleProjectStages(project.id)}
                             className="p-1 h-6 w-6"
+                            title={isExpanded ? "Recolher etapas" : "Expandir etapas"}
                           >
                             {isExpanded ? (
                               <ChevronDown className="h-3 w-3" />
@@ -344,6 +356,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                           size="sm"
                           onClick={() => toggleProjectStages(project.id)}
                           className="p-1 h-6 w-6"
+                          title={isExpanded ? "Recolher etapas" : "Expandir etapas"}
                         >
                           {isExpanded ? (
                             <ChevronDown className="h-3 w-3" />
@@ -425,6 +438,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                         size="sm"
                         onClick={() => handleViewDescription(project)}
                         className="p-1 h-6 w-6"
+                        title="Ver descrição"
                       >
                         <FileText className="h-3 w-3" />
                       </Button>
@@ -453,6 +467,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                         target="_blank" 
                         rel="noopener noreferrer" 
                         className="text-blue-600 hover:text-blue-800 text-sm"
+                        title="Abrir URL do projeto"
                       >
                         Link
                       </a>
@@ -462,6 +477,15 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewDescription(project)}
+                        className="p-1 h-6 w-6"
+                        title="Visualizar projeto"
+                      >
+                        <Eye className="h-3 w-3" />
+                      </Button>
                       {!isConsultant && (
                         <>
                           <Button
@@ -469,6 +493,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                             size="sm"
                             onClick={() => onEditProject(project)}
                             className="p-1 h-6 w-6"
+                            title="Editar projeto"
                           >
                             <Edit className="h-3 w-3" />
                           </Button>
@@ -477,6 +502,7 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                             size="sm"
                             onClick={() => onDeleteProject(project.id)}
                             className="p-1 h-6 w-6 text-red-500 hover:bg-red-50"
+                            title="Excluir projeto"
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
