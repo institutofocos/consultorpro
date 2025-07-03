@@ -29,12 +29,14 @@ interface ChatRoomListProps {
   rooms: ChatRoom[];
   selectedRoom: ChatRoom | null;
   onRoomSelect: (room: ChatRoom) => void;
+  onOpenParticipantsModal?: (room: ChatRoom) => void;
 }
 
 const ChatRoomList: React.FC<ChatRoomListProps> = ({
   rooms,
   selectedRoom,
   onRoomSelect,
+  onOpenParticipantsModal,
 }) => {
   const deleteRoom = useDeleteChatRoom();
   const [expandedRooms, setExpandedRooms] = useState<Set<string>>(new Set());
@@ -58,6 +60,12 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
   const handleEditRoom = (room: ChatRoom) => {
     setEditingRoom(room);
     setIsEditModalOpen(true);
+  };
+
+  const handleParticipants = (room: ChatRoom) => {
+    if (onOpenParticipantsModal) {
+      onOpenParticipantsModal(room);
+    }
   };
 
   const toggleRoomExpansion = (roomId: string) => {
@@ -159,6 +167,15 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                handleParticipants(room);
+              }}
+            >
+              <Users className="h-4 w-4 mr-2" />
+              Participantes
+            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={(e) => {
                 e.stopPropagation();

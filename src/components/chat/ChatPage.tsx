@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, MessageCircle, AlertCircle, RefreshCw, Search, Users } from 'lucide-react';
+import { Plus, MessageCircle, AlertCircle, RefreshCw, Search } from 'lucide-react';
 import { useChatRooms } from '@/hooks/useChatRooms';
 import { useAuth } from '@/contexts/AuthContext';
 import ChatRoomList from './ChatRoomList';
@@ -23,6 +22,7 @@ const ChatPage = () => {
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
+  const [participantsRoom, setParticipantsRoom] = useState<ChatRoom | null>(null);
   const [currentParticipants, setCurrentParticipants] = useState<ParticipantPermission[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
@@ -69,11 +69,8 @@ const ChatPage = () => {
     }
   }, [user]);
 
-  const handleOpenParticipantsModal = () => {
-    if (!selectedRoom) {
-      toast.error('Selecione uma sala primeiro');
-      return;
-    }
+  const handleOpenParticipantsModal = (room: ChatRoom) => {
+    setParticipantsRoom(room);
     setShowParticipantsModal(true);
   };
 
@@ -138,15 +135,6 @@ const ChatPage = () => {
           </div>
           <div className="flex items-center gap-2">
             <Button 
-              onClick={handleOpenParticipantsModal} 
-              variant="outline"
-              className="flex items-center gap-2"
-              disabled={!selectedRoom}
-            >
-              <Users className="h-4 w-4" />
-              Participantes
-            </Button>
-            <Button 
               onClick={() => setIsCreateModalOpen(true)} 
               className="flex items-center gap-2"
               disabled={isLoading}
@@ -185,6 +173,7 @@ const ChatPage = () => {
               rooms={filteredRooms}
               selectedRoom={selectedRoom}
               onRoomSelect={setSelectedRoom}
+              onOpenParticipantsModal={handleOpenParticipantsModal}
             />
           </div>
         </div>
@@ -216,12 +205,12 @@ const ChatPage = () => {
         parentRooms={rooms || []}
       />
 
-      {selectedRoom && (
+      {participantsRoom && (
         <ParticipantsModal
           open={showParticipantsModal}
           onOpenChange={setShowParticipantsModal}
-          roomId={selectedRoom.id}
-          roomName={selectedRoom.name}
+          roomId={participantsRoom.id}
+          roomName={participantsRoom.name}
           currentParticipants={currentParticipants}
           onUpdateParticipants={handleUpdateParticipants}
         />
