@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -120,32 +119,30 @@ const ChatPage = () => {
       </div>
 
       {/* Conteúdo principal */}
-      <div className="flex-1 flex overflow-hidden">
-        <div className="w-1/3 flex flex-col border-r">
-          <Card className="h-full border-0 rounded-none">
-            <CardHeader className="flex-shrink-0 p-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  type="text"
-                  placeholder="Buscar salas..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    console.log('Termo de busca alterado para:', e.target.value);
-                    setSearchTerm(e.target.value);
-                  }}
-                  className="pl-10"
-                />
-              </div>
-            </CardHeader>
-            <CardContent className="p-0 flex-1 overflow-hidden">
-              <ChatRoomList
-                rooms={filteredRooms}
-                selectedRoom={selectedRoom}
-                onRoomSelect={setSelectedRoom}
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        <div className="w-1/3 flex flex-col border-r min-h-0">
+          <div className="flex-shrink-0 p-4 border-b">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                type="text"
+                placeholder="Buscar salas..."
+                value={searchTerm}
+                onChange={(e) => {
+                  console.log('Termo de busca alterado para:', e.target.value);
+                  setSearchTerm(e.target.value);
+                }}
+                className="pl-10"
               />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+          <div className="flex-1 overflow-hidden min-h-0">
+            <ChatRoomList
+              rooms={filteredRooms}
+              selectedRoom={selectedRoom}
+              onRoomSelect={setSelectedRoom}
+            />
+          </div>
         </div>
 
         <div className="flex-1 flex flex-col">

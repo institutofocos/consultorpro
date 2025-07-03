@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -199,8 +200,8 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
 
   return (
     <>
-      <ScrollArea className="h-full">
-        <div className="space-y-1 p-2">
+      <ScrollArea className="h-full w-full">
+        <div className="space-y-1 p-2 min-h-0">
           {organizedRooms.map((room) => (
             <div key={room.id}>
               {/* Sala principal */}
