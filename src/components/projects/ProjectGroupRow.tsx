@@ -54,15 +54,7 @@ const ProjectGroupRow: React.FC<ProjectGroupRowProps> = ({
         </div>
       </TableCell>
       
-      {/* Empty cells for other columns to maintain table structure */}
-      <TableCell>-</TableCell>
-      <TableCell>-</TableCell>
-      <TableCell>-</TableCell>
-      <TableCell>-</TableCell>
-      <TableCell>-</TableCell>
-      <TableCell>-</TableCell>
-      
-      {/* Project count badge moved to Status column */}
+      {/* Status column - onde agora vai o badge de quantidade de projetos */}
       <TableCell className="text-center align-middle">
         <div className="flex justify-center">
           <Badge variant="secondary" className="inline-flex items-center justify-center">
@@ -71,6 +63,13 @@ const ProjectGroupRow: React.FC<ProjectGroupRowProps> = ({
         </div>
       </TableCell>
       
+      {/* Empty cells for other columns to maintain table structure */}
+      <TableCell>-</TableCell>
+      <TableCell>-</TableCell>
+      <TableCell>-</TableCell>
+      <TableCell>-</TableCell>
+      <TableCell>-</TableCell>
+      <TableCell>-</TableCell>
       <TableCell>-</TableCell>
       <TableCell>-</TableCell>
       <TableCell>-</TableCell>
