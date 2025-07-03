@@ -54,7 +54,7 @@ const ProjectGroupRow: React.FC<ProjectGroupRowProps> = ({
         </div>
       </TableCell>
       
-      <TableCell>
+      <TableCell className="text-center">
         <Badge variant="secondary">
           {group.project_count || 0} projeto(s)
         </Badge>
