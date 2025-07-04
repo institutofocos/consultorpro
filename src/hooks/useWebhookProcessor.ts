@@ -2,7 +2,7 @@
 import { useCallback, useState, useEffect } from 'react';
 import { toast } from 'sonner';
 
-// Hook para processar webhooks
+// Hook para processar webhooks - TOTALMENTE INDEPENDENTE DO SISTEMA DE CHAT
 export const useWebhookProcessor = () => {
   const [config, setConfig] = useState({
     consolidationEnabled: false,
@@ -11,9 +11,10 @@ export const useWebhookProcessor = () => {
 
   const processForProjectCreation = useCallback(() => {
     try {
-      console.log('🔄 Processamento de webhook para criação de projeto');
+      console.log('🔄 Processamento de webhook para criação de projeto (SEM CHAT)');
       
       // Log simples para indicar que o processamento foi iniciado
+      // NENHUMA REFERÊNCIA A CHAT ROOMS
       toast.success('Projeto criado com sucesso!');
       
     } catch (error) {
@@ -24,8 +25,8 @@ export const useWebhookProcessor = () => {
 
   const processForced = useCallback(async () => {
     try {
-      console.log('🚀 Processamento forçado de webhooks');
-      // Simulação de processamento
+      console.log('🚀 Processamento forçado de webhooks (INDEPENDENTE)');
+      // Simulação de processamento - SEM CHAT
       await new Promise(resolve => setTimeout(resolve, 1000));
       toast.success('Fila de webhooks processada');
     } catch (error) {
@@ -36,7 +37,7 @@ export const useWebhookProcessor = () => {
 
   const checkConsolidationStatus = useCallback(async () => {
     try {
-      // Simulação de verificação de status
+      // Simulação de verificação de status - INDEPENDENTE DO CHAT
       const consolidationEnabled = true;
       const statusChangeEnabled = true;
       
@@ -53,7 +54,7 @@ export const useWebhookProcessor = () => {
   }, []);
 
   useEffect(() => {
-    // Inicializar configuração
+    // Inicializar configuração - SEM CHAT
     checkConsolidationStatus();
   }, [checkConsolidationStatus]);
 

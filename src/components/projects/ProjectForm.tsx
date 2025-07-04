@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,7 +69,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
 
   useEffect(() => {
     if (project) {
-      console.log('=== CARREGANDO DADOS DO PROJETO PARA EDIÇÃO ===');
+      console.log('=== CARREGANDO DADOS DO PROJETO PARA EDIÇÃO (SEM CHAT) ===');
       console.log('Projeto completo:', project);
       
       const projectFormData = {
@@ -99,7 +100,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         url: project.url || ''
       };
 
-      console.log('Dados do formulário sendo definidos:', projectFormData);
+      console.log('Dados do formulário sendo definidos (INDEPENDENTE):', projectFormData);
       setFormData(projectFormData);
 
       if (project.serviceId) {
@@ -356,11 +357,11 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         return;
       }
 
-      console.log('=== INICIANDO SUBMISSÃO DO FORMULÁRIO ===');
+      console.log('=== SUBMISSÃO PROJETO INDEPENDENTE (SEM CHAT) ===');
       console.log('Tipo de operação:', project ? 'UPDATE' : 'CREATE');
       console.log('Dados do formulário ANTES da limpeza:', JSON.stringify(formData, null, 2));
 
-      // CRIAR OBJETO TOTALMENTE LIMPO - REMOVENDO QUALQUER CAMPO RELACIONADO A CHAT
+      // CRIAR OBJETO TOTALMENTE LIMPO - SEM QUALQUER REFERÊNCIA A CHAT
       const safeProjectData = {
         // ID apenas se for atualização
         ...(project?.id && { id: project.id }),
@@ -392,25 +393,25 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         url: formData.url || ''
       };
 
-      console.log('=== DADOS COMPLETAMENTE LIMPOS ===');
+      console.log('=== DADOS COMPLETAMENTE LIMPOS (SEM CHAT) ===');
       console.log('Objeto seguro (SEM qualquer campo de chat):', JSON.stringify(safeProjectData, null, 2));
       
       if (!project) {
-        console.log('✅ Novo projeto será criado com status "iniciar_projeto"');
+        console.log('✅ Novo projeto será criado com status "iniciar_projeto" (SEM CHAT)');
       }
 
       let savedProject: any;
       if (project?.id) {
-        console.log('Atualizando projeto existente com ID:', project.id);
+        console.log('Atualizando projeto existente com ID (SEM CHAT):', project.id);
         savedProject = await updateProject(safeProjectData);
         toast.success('Projeto atualizado com sucesso!');
       } else {
-        console.log('Criando novo projeto com status "iniciar_projeto"');
+        console.log('Criando novo projeto com status "iniciar_projeto" (SEM CHAT)');
         savedProject = await createProject(safeProjectData);
         toast.success('Projeto criado com sucesso!');
       }
 
-      console.log('Projeto salvo no banco:', savedProject);
+      console.log('Projeto salvo no banco (SEM CHAT):', savedProject);
 
       const transformedProject: Project = {
         id: savedProject.id,
@@ -441,14 +442,15 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         url: savedProject.url || ''
       };
 
-      console.log('Projeto transformado:', transformedProject);
+      console.log('Projeto transformado (SEM CHAT):', transformedProject);
       console.log('Chamando onProjectSaved...');
       
       onProjectSaved(transformedProject);
       
-      console.log('=== SUBMISSÃO CONCLUÍDA COM SUCESSO ===');
+      console.log('=== SUBMISSÃO CONCLUÍDA COM TOTAL INDEPENDÊNCIA ===');
+      console.log('✅ Nenhuma referência a chat_rooms foi feita');
     } catch (error) {
-      console.error('=== ERRO NA SUBMISSÃO ===');
+      console.error('=== ERRO NA SUBMISSÃO INDEPENDENTE ===');
       console.error('Error saving project:', error);
       toast.error('Erro ao salvar projeto: ' + (error?.message || 'Erro desconhecido'));
     } finally {

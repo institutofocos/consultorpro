@@ -286,7 +286,7 @@ export const assignConsultantsToDemand = async (
   supportConsultantCommission: number
 ) => {
   try {
-    console.log('=== INICIANDO ATRIBUIÇÃO DE CONSULTOR COM ETAPAS ===');
+    console.log('=== INICIANDO ATRIBUIÇÃO DE CONSULTOR ===');
     console.log('Dados recebidos:', {
       projectId,
       mainConsultantId,
@@ -313,7 +313,7 @@ export const assignConsultantsToDemand = async (
 
     console.log('Projeto encontrado:', existingProject.name);
 
-    // Atualizar o projeto principal
+    // Atualizar APENAS o projeto principal - SEM REFERÊNCIA A CHAT
     const updateData: any = {
       main_consultant_id: mainConsultantId,
       main_consultant_commission: mainConsultantCommission,
@@ -325,7 +325,7 @@ export const assignConsultantsToDemand = async (
       updateData.support_consultant_commission = supportConsultantCommission;
     }
 
-    console.log('Dados para atualização do projeto:', updateData);
+    console.log('Dados para atualização do projeto (SEM CHAT):', updateData);
 
     const { data: updatedProject, error: updateProjectError } = await supabase
       .from('projects')
@@ -343,11 +343,11 @@ export const assignConsultantsToDemand = async (
       throw new Error('Nenhum projeto foi atualizado. Verifique se o ID está correto.');
     }
     
-    console.log('Projeto atualizado com sucesso:', updatedProject);
+    console.log('Projeto atualizado com sucesso (SEM CHAT):', updatedProject);
 
-    // Atribuir consultor a TODAS as etapas do projeto
+    // Atribuir consultor às etapas do projeto
     if (mainConsultantId) {
-      console.log('Atribuindo consultor a todas as etapas...');
+      console.log('Atribuindo consultor às etapas...');
       
       const { data: stages, error: stagesError } = await supabase
         .from('project_stages')
@@ -356,7 +356,6 @@ export const assignConsultantsToDemand = async (
 
       if (stagesError) {
         console.error('Erro ao buscar etapas:', stagesError);
-        // Não falhar aqui, pois o projeto já foi atualizado
       } else if (stages && stages.length > 0) {
         console.log(`Encontradas ${stages.length} etapas para atribuir consultor`);
         
@@ -367,7 +366,6 @@ export const assignConsultantsToDemand = async (
 
         if (updateStagesError) {
           console.error('Erro ao atribuir consultor às etapas:', updateStagesError);
-          // Não falhar aqui, pois o projeto principal já foi atualizado
         } else {
           console.log('Consultor atribuído com sucesso a todas as etapas');
         }
@@ -379,10 +377,10 @@ export const assignConsultantsToDemand = async (
     // Update status automatically after consultant assignment
     await updateProjectStatusAutomatically(projectId);
     
-    console.log('=== ATRIBUIÇÃO DE CONSULTOR CONCLUÍDA COM SUCESSO ===');
+    console.log('=== ATRIBUIÇÃO CONCLUÍDA (SEM CHAT) ===');
     return updatedProject;
   } catch (error) {
-    console.error('=== ERRO NA ATRIBUIÇÃO DE CONSULTOR ===');
+    console.error('=== ERRO NA ATRIBUIÇÃO ===');
     console.error('Error assigning consultants:', error);
     throw error;
   }
@@ -488,7 +486,7 @@ export const deleteProject = async (id: string) => {
       // Don't throw error here, continue with deletion
     }
 
-    // Finally delete the project
+    // Finally delete the project - NO CHAT REFERENCES
     const { error } = await supabase
       .from('projects')
       .delete()
@@ -499,7 +497,7 @@ export const deleteProject = async (id: string) => {
       throw error;
     }
 
-    console.log(`Project "${project.name}" deleted successfully`);
+    console.log(`Project "${project.name}" deleted successfully (NO CHAT INVOLVED)`);
     return true;
   } catch (error) {
     console.error('Error deleting project:', error);
@@ -509,10 +507,10 @@ export const deleteProject = async (id: string) => {
 
 export const createProject = async (project: any) => {
   try {
-    console.log('=== INICIANDO CRIAÇÃO DE PROJETO ===');
+    console.log('=== CRIANDO PROJETO INDEPENDENTE (SEM CHAT) ===');
     console.log('Dados originais recebidos:', JSON.stringify(project, null, 2));
     
-    // CRIAR OBJETO COMPLETAMENTE LIMPO - APENAS CAMPOS DA TABELA PROJECTS
+    // CRIAR OBJETO COMPLETAMENTE LIMPO - APENAS CAMPOS DA TABELA PROJECTS - SEM CHAT
     const cleanProjectData = {
       name: String(project.name || ''),
       description: String(project.description || ''),
@@ -538,11 +536,10 @@ export const createProject = async (project: any) => {
       url: project.url || null
     };
 
-    console.log('=== DADOS LIMPOS PARA INSERÇÃO ===');
-    console.log('Objeto final para inserção na tabela PROJECTS:', JSON.stringify(cleanProjectData, null, 2));
-    console.log('✅ Status definido como "iniciar_projeto" para novo projeto');
+    console.log('=== DADOS PARA INSERÇÃO (TOTALMENTE INDEPENDENTE) ===');
+    console.log('Objeto final para inserção na tabela PROJECTS (SEM CHAT):', JSON.stringify(cleanProjectData, null, 2));
     
-    // INSERIR DIRETAMENTE NA TABELA PROJECTS
+    // INSERIR PROJETO - TOTALMENTE INDEPENDENTE DO SISTEMA DE CHAT
     const { data, error } = await supabase
       .from('projects')
       .insert(cleanProjectData)
@@ -550,20 +547,20 @@ export const createProject = async (project: any) => {
       .single();
     
     if (error) {
-      console.error('❌ ERRO ao inserir projeto na tabela PROJECTS:', error);
+      console.error('❌ ERRO ao inserir projeto (INDEPENDENTE):', error);
       console.error('Dados que causaram erro:', JSON.stringify(cleanProjectData, null, 2));
       throw error;
     }
 
-    console.log('✅ Projeto criado com sucesso na tabela PROJECTS:', data);
+    console.log('✅ Projeto criado com sucesso (TOTALMENTE INDEPENDENTE):', data);
 
-    // Vincular tags se existirem
+    // Vincular tags se existirem - SOMENTE PROJETO
     if (project.tagIds && project.tagIds.length > 0) {
       console.log('Vinculando tags ao projeto:', project.tagIds);
       await linkProjectToTags(data.id, project.tagIds);
     }
 
-    // Criar etapas se existirem
+    // Criar etapas se existirem - SOMENTE PROJETO
     if (project.stages && project.stages.length > 0) {
       console.log('Criando etapas do projeto:', project.stages);
       
@@ -601,11 +598,12 @@ export const createProject = async (project: any) => {
       }
     }
 
-    console.log('=== PROJETO CRIADO COM SUCESSO NA TABELA PROJECTS ===');
+    console.log('=== PROJETO CRIADO COM TOTAL INDEPENDÊNCIA ===');
+    console.log('✅ Nenhuma referência a chat_rooms foi feita');
     
     return data;
   } catch (error) {
-    console.error('=== ERRO NA CRIAÇÃO DO PROJETO ===');
+    console.error('=== ERRO NA CRIAÇÃO DO PROJETO INDEPENDENTE ===');
     console.error('Error creating project:', error);
     throw error;
   }
@@ -613,10 +611,10 @@ export const createProject = async (project: any) => {
 
 export const updateProject = async (project: any) => {
   try {
-    console.log('=== INICIANDO ATUALIZAÇÃO DE PROJETO ===');
+    console.log('=== ATUALIZANDO PROJETO INDEPENDENTE (SEM CHAT) ===');
     console.log('Dados originais recebidos:', JSON.stringify(project, null, 2));
     
-    // CRIAR OBJETO COMPLETAMENTE LIMPO - APENAS CAMPOS DA TABELA PROJECTS
+    // CRIAR OBJETO COMPLETAMENTE LIMPO - APENAS CAMPOS DA TABELA PROJECTS - SEM CHAT
     const cleanProjectData = {
       name: String(project.name || ''),
       description: String(project.description || ''),
@@ -641,9 +639,10 @@ export const updateProject = async (project: any) => {
       url: project.url || null
     };
 
-    console.log('=== DADOS LIMPOS PARA ATUALIZAÇÃO ===');
-    console.log('Objeto final para atualização na tabela PROJECTS:', JSON.stringify(cleanProjectData, null, 2));
+    console.log('=== DADOS PARA ATUALIZAÇÃO (TOTALMENTE INDEPENDENTE) ===');
+    console.log('Objeto final para atualização na tabela PROJECTS (SEM CHAT):', JSON.stringify(cleanProjectData, null, 2));
 
+    // ATUALIZAR PROJETO - TOTALMENTE INDEPENDENTE DO SISTEMA DE CHAT
     const { data, error } = await supabase
       .from('projects')
       .update(cleanProjectData)
@@ -652,19 +651,19 @@ export const updateProject = async (project: any) => {
       .single();
     
     if (error) {
-      console.error('❌ ERRO ao atualizar projeto na tabela PROJECTS:', error);
+      console.error('❌ ERRO ao atualizar projeto (INDEPENDENTE):', error);
       console.error('Dados que causaram erro:', JSON.stringify(cleanProjectData, null, 2));
       throw error;
     }
 
-    console.log('✅ Projeto atualizado com sucesso na tabela PROJECTS:', data);
+    console.log('✅ Projeto atualizado com sucesso (TOTALMENTE INDEPENDENTE):', data);
 
-    // Atualizar tags se existirem
+    // Atualizar tags se existirem - SOMENTE PROJETO
     if (project.tagIds) {
       await linkProjectToTags(project.id, project.tagIds);
     }
 
-    // Atualizar etapas se existirem
+    // Atualizar etapas se existirem - SOMENTE PROJETO
     if (project.stages && project.stages.length > 0) {
       console.log('Atualizando etapas do projeto');
       
@@ -709,16 +708,16 @@ export const updateProject = async (project: any) => {
 
     await updateProjectStatusAutomatically(project.id);
 
-    console.log('=== PROJETO ATUALIZADO COM SUCESSO NA TABELA PROJECTS ===');
+    console.log('=== PROJETO ATUALIZADO COM TOTAL INDEPENDÊNCIA ===');
+    console.log('✅ Nenhuma referência a chat_rooms foi feita');
     return data;
   } catch (error) {
-    console.error('=== ERRO NA ATUALIZAÇÃO DO PROJETO ===');
+    console.error('=== ERRO NA ATUALIZAÇÃO DO PROJETO INDEPENDENTE ===');
     console.error('Error updating project:', error);
     throw error;
   }
 };
 
-// New functions for project tags
 export const fetchProjectTags = async () => {
   try {
     const { data, error } = await supabase
