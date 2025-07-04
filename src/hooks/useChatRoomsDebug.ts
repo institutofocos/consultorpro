@@ -49,7 +49,7 @@ export const debugChatRoomVisibility = async (userId: string) => {
     console.log('Salas visíveis via RLS:', visibleRooms);
   }
   
-  // Verificar se o usuário é Super Admin
+  // Verificar se o usuário tem perfil de acesso
   const { data: userProfile, error: profileError } = await supabase
     .from('user_profiles')
     .select(`
@@ -63,9 +63,26 @@ export const debugChatRoomVisibility = async (userId: string) => {
     .single();
   
   if (profileError) {
-    console.error('Erro ao buscar perfil do usuário:', profileError);
+    console.log('Usuário não tem perfil de acesso definido:', profileError.message);
   } else {
     console.log('Perfil do usuário:', userProfile);
+  }
+  
+  // Testar função de visibilidade diretamente para cada sala
+  if (allRooms && allRooms.length > 0) {
+    console.log('=== TESTANDO VISIBILIDADE POR SALA ===');
+    for (const room of allRooms) {
+      const { data: canView, error: canViewError } = await supabase.rpc('user_can_view_chat_room', {
+        room_id: room.id,
+        user_id: userId
+      });
+      
+      if (canViewError) {
+        console.error(`Erro ao testar visibilidade da sala ${room.name}:`, canViewError);
+      } else {
+        console.log(`Sala "${room.name}": ${canView ? 'VISÍVEL' : 'NÃO VISÍVEL'}`);
+      }
+    }
   }
   
   console.log('=== FIM DEBUG ===');
