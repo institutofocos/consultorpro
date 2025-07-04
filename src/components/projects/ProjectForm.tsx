@@ -362,12 +362,13 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
 
       console.log('=== INICIANDO SUBMISSÃO DO FORMULÁRIO ===');
       console.log('Tipo de operação:', project ? 'UPDATE' : 'CREATE');
+      console.log('Dados do formulário ANTES da limpeza:', JSON.stringify(formData, null, 2));
 
-      // CRIAR OBJETO COMPLETAMENTE LIMPO - SEM QUALQUER REFERÊNCIA A project_id ou campos problemáticos
+      // CRIAR OBJETO TOTALMENTE LIMPO - REMOVENDO QUALQUER CAMPO RELACIONADO A USER E PROJECT_ID
       const safeProjectData = {
         // ID apenas se for atualização
         ...(project?.id && { id: project.id }),
-        // Campos básicos - APENAS OS QUE EXISTEM NA TABELA PROJECTS
+        // Campos básicos - APENAS OS QUE EXISTEM NA TABELA PROJECTS (SEM project_id)
         name: formData.name,
         description: formData.description || '',
         serviceId: formData.serviceId || null,
@@ -395,8 +396,26 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         url: formData.url || ''
       };
 
-      console.log('✅ Dados limpos e seguros preparados para submissão');
+      console.log('=== DADOS COMPLETAMENTE LIMPOS ===');
+      console.log('Objeto seguro (SEM qualquer campo de usuário ou project_id):', JSON.stringify(safeProjectData, null, 2));
       
+      if (!project) {
+        console.log('✅ Novo projeto será criado com status "iniciar_projeto"');
+      }
+
+      // VERIFICAÇÃO FINAL DE SEGURANÇA - GARANTIR QUE NÃO HÁ CAMPOS PROIBIDOS
+      const prohibitedFields = ['user_id', 'userId', 'user', 'user_type', 'userType', 'project_id', 'projectId'];
+      const hasProhibitedField = Object.keys(safeProjectData).some(key => 
+        prohibitedFields.some(prohibited => key.toLowerCase().includes(prohibited.toLowerCase()))
+      );
+      
+      if (hasProhibitedField) {
+        console.error('⚠️ ERRO CRÍTICO: Campo relacionado a usuário ou project_id detectado!');
+        throw new Error('Dados de usuário ou project_id detectados - operação cancelada por segurança');
+      }
+
+      console.log('✅ Verificação de segurança aprovada - nenhum campo proibido');
+
       let savedProject: any;
       if (project?.id) {
         console.log('Atualizando projeto existente com ID:', project.id);
@@ -407,14 +426,9 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         savedProject = await createProject(safeProjectData);
         toast.success('Projeto criado com sucesso!');
         
-        // *** WEBHOOK: Disparar processamento para criação ***
-        console.log('🔄 Iniciando processamento de webhook para criação de projeto');
-        try {
-          await processForProjectCreation();
-        } catch (webhookError) {
-          console.warn('Aviso: Erro no processamento de webhook (não crítico):', webhookError);
-          // Não impedir o fluxo principal mesmo se o webhook falhar
-        }
+        // *** NOVO: Disparar processamento consolidado de webhook para criação ***
+        console.log('🔄 Iniciando processamento consolidado de webhook para criação de projeto');
+        processForProjectCreation();
       }
 
       console.log('Projeto salvo no banco:', savedProject);

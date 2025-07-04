@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,8 +12,6 @@ export interface ChatRoom {
   created_at: string;
   updated_at: string;
   is_active: boolean;
-  is_pinned?: boolean;
-  meeting_link?: string;
 }
 
 export interface ChatMessage {
@@ -41,14 +38,7 @@ export const useChatRooms = () => {
   return useQuery({
     queryKey: ['chat-rooms'],
     queryFn: async () => {
-      if (!user?.id) {
-        console.log('Usuário não está logado, não carregando salas');
-        return [];
-      }
-      
-      console.log('Carregando salas de chat para usuário:', user.id);
-      
-      // Fazer a consulta que será filtrada pela política RLS
+      console.log('Carregando salas de chat...');
       const { data, error } = await supabase
         .from('chat_rooms')
         .select('*')
@@ -61,19 +51,8 @@ export const useChatRooms = () => {
         throw error;
       }
       
-      // Buscar salas fixadas do localStorage para o usuário atual
-      const pinnedRooms = JSON.parse(localStorage.getItem(`pinned_rooms_${user?.id}`) || '[]');
-      
-      // Adicionar a propriedade is_pinned baseada no localStorage
-      const roomsWithPinned = data?.map(room => ({
-        ...room,
-        is_pinned: pinnedRooms.includes(room.id)
-      })) || [];
-      
-      console.log('Salas carregadas com sucesso:', roomsWithPinned.length, 'salas');
-      console.log('Detalhes das salas:', roomsWithPinned);
-      
-      return roomsWithPinned as ChatRoom[];
+      console.log('Salas carregadas:', data);
+      return data as ChatRoom[];
     },
     enabled: !!user,
   });
@@ -309,7 +288,6 @@ export const useUpdateChatRoom = () => {
       id: string;
       name: string;
       description?: string;
-      meeting_link?: string | null;
     }) => {
       console.log('Atualizando sala de chat:', params);
       
@@ -318,7 +296,6 @@ export const useUpdateChatRoom = () => {
         .update({
           name: params.name,
           description: params.description,
-          meeting_link: params.meeting_link,
           updated_at: new Date().toISOString(),
         })
         .eq('id', params.id)
@@ -335,96 +312,6 @@ export const useUpdateChatRoom = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });
-    },
-  });
-};
-
-export const usePinChatRoom = () => {
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
-
-  return useMutation({
-    mutationFn: async (params: { roomId: string; isPinned: boolean }) => {
-      if (!user?.id) {
-        throw new Error('Usuário não autenticado');
-      }
-
-      console.log('Alterando status de fixação da sala:', params);
-      
-      // Buscar salas fixadas atuais do localStorage
-      const pinnedRooms = JSON.parse(localStorage.getItem(`pinned_rooms_${user.id}`) || '[]');
-      
-      let updatedPinnedRooms;
-      if (params.isPinned) {
-        // Adicionar à lista de fixadas se não estiver
-        if (!pinnedRooms.includes(params.roomId)) {
-          updatedPinnedRooms = [...pinnedRooms, params.roomId];
-        } else {
-          updatedPinnedRooms = pinnedRooms;
-        }
-      } else {
-        // Remover da lista de fixadas
-        updatedPinnedRooms = pinnedRooms.filter((id: string) => id !== params.roomId);
-      }
-      
-      // Salvar no localStorage
-      localStorage.setItem(`pinned_rooms_${user.id}`, JSON.stringify(updatedPinnedRooms));
-      
-      return { roomId: params.roomId, isPinned: params.isPinned };
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });
-    },
-  });
-};
-
-export const useRoomParticipants = (roomId: string | null) => {
-  return useQuery({
-    queryKey: ['room-participants', roomId],
-    queryFn: async () => {
-      if (!roomId) return [];
-
-      console.log('Carregando participantes da sala:', roomId);
-      
-      const { data, error } = await supabase.rpc('get_room_participants', {
-        p_room_id: roomId
-      });
-
-      if (error) {
-        console.error('Erro ao carregar participantes:', error);
-        throw error;
-      }
-      
-      console.log('Participantes carregados:', data?.length || 0);
-      return data || [];
-    },
-    enabled: !!roomId,
-  });
-};
-
-export const useUpdateRoomParticipants = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (params: {
-      roomId: string;
-      participants: { user_id: string; can_read: boolean; can_write: boolean }[];
-    }) => {
-      console.log('Atualizando participantes da sala:', params);
-      
-      const { error } = await supabase.rpc('update_room_participants', {
-        p_room_id: params.roomId,
-        p_participants: params.participants
-      });
-
-      if (error) {
-        console.error('Erro ao atualizar participantes:', error);
-        throw error;
-      }
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });
-      queryClient.invalidateQueries({ queryKey: ['room-participants', variables.roomId] });
     },
   });
 };

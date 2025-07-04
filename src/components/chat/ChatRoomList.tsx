@@ -11,11 +11,7 @@ import {
   FolderOpen,
   Folder,
   ChevronDown,
-  ChevronRight,
-  Pin,
-  PinOff,
-  Video,
-  ExternalLink
+  ChevronRight
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -23,33 +19,27 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useDeleteChatRoom, usePinChatRoom } from '@/hooks/useChatRooms';
+import { useDeleteChatRoom } from '@/hooks/useChatRooms';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { ChatRoom } from '@/hooks/useChatRooms';
 import EditRoomModal from './EditRoomModal';
-import MeetingLinkModal from './MeetingLinkModal';
 
 interface ChatRoomListProps {
   rooms: ChatRoom[];
   selectedRoom: ChatRoom | null;
   onRoomSelect: (room: ChatRoom) => void;
-  onOpenParticipantsModal?: (room: ChatRoom) => void;
 }
 
 const ChatRoomList: React.FC<ChatRoomListProps> = ({
   rooms,
   selectedRoom,
   onRoomSelect,
-  onOpenParticipantsModal,
 }) => {
   const deleteRoom = useDeleteChatRoom();
-  const pinRoom = usePinChatRoom();
   const [expandedRooms, setExpandedRooms] = useState<Set<string>>(new Set());
   const [editingRoom, setEditingRoom] = useState<ChatRoom | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [meetingRoom, setMeetingRoom] = useState<ChatRoom | null>(null);
-  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
 
   const handleDeleteRoom = async (roomId: string, roomName: string) => {
     if (!confirm(`Tem certeza que deseja excluir a sala "${roomName}"?\n\nEsta ação não pode ser desfeita.`)) {
@@ -68,36 +58,6 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
   const handleEditRoom = (room: ChatRoom) => {
     setEditingRoom(room);
     setIsEditModalOpen(true);
-  };
-
-  const handleParticipants = (room: ChatRoom) => {
-    if (onOpenParticipantsModal) {
-      onOpenParticipantsModal(room);
-    }
-  };
-
-  const handlePinRoom = async (room: ChatRoom) => {
-    try {
-      await pinRoom.mutateAsync({
-        roomId: room.id,
-        isPinned: !room.is_pinned
-      });
-      toast.success(room.is_pinned ? 'Sala desfixada!' : 'Sala fixada no topo!');
-    } catch (error) {
-      console.error('Erro ao fixar/desfixar sala:', error);
-      toast.error('Erro ao alterar fixação da sala. Tente novamente.');
-    }
-  };
-
-  const handleMeeting = (room: ChatRoom) => {
-    setMeetingRoom(room);
-    setIsMeetingModalOpen(true);
-  };
-
-  const handleOpenMeeting = (room: ChatRoom) => {
-    if (room.meeting_link) {
-      window.open(room.meeting_link, '_blank');
-    }
   };
 
   const toggleRoomExpansion = (roomId: string) => {
@@ -123,35 +83,16 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
     }
   };
 
+  // Organizar salas por hierarquia
   const organizeRooms = (rooms: ChatRoom[]) => {
-    // Separar salas por nível
     const rootRooms = rooms.filter(room => !room.parent_room_id);
-    const level2Rooms = rooms.filter(room => room.parent_room_id && room.level === 2);
-    const level3Rooms = rooms.filter(room => room.parent_room_id && room.level === 3);
+    const childRooms = rooms.filter(room => room.parent_room_id);
     
-    // Organizar salas principais: fixadas primeiro, depois por data
-    const pinnedRooms = rootRooms.filter(room => room.is_pinned);
-    const unpinnedRooms = rootRooms.filter(room => !room.is_pinned);
+    const organized: (ChatRoom & { children?: ChatRoom[] })[] = [];
     
-    // Ordenar cada grupo
-    pinnedRooms.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    unpinnedRooms.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    
-    // Combinar: fixadas primeiro, depois não fixadas
-    const orderedRootRooms = [...pinnedRooms, ...unpinnedRooms];
-    
-    const organized: (ChatRoom & { children?: (ChatRoom & { children?: ChatRoom[] })[] })[] = [];
-    
-    orderedRootRooms.forEach(root => {
-      const level2Children = level2Rooms.filter(child => child.parent_room_id === root.id);
-      
-      // Para cada sala de nível 2, buscar suas filhas de nível 3
-      const level2WithChildren = level2Children.map(level2Room => {
-        const level3Children = level3Rooms.filter(level3 => level3.parent_room_id === level2Room.id);
-        return { ...level2Room, children: level3Children };
-      });
-      
-      organized.push({ ...root, children: level2WithChildren });
+    rootRooms.forEach(root => {
+      const children = childRooms.filter(child => child.parent_room_id === root.id);
+      organized.push({ ...root, children });
     });
     
     return organized;
@@ -161,13 +102,11 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
 
   const RoomItem = ({ 
     room, 
-    isChild = false,
-    isGrandChild = false,
+    isChild = false, 
     hasChildren = false 
   }: { 
     room: ChatRoom; 
     isChild?: boolean;
-    isGrandChild?: boolean;
     hasChildren?: boolean;
   }) => (
     <div
@@ -176,8 +115,7 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
         selectedRoom?.id === room.id 
           ? 'bg-blue-50 border-l-blue-500 shadow-sm' 
           : 'border-l-transparent hover:border-l-gray-300',
-        isChild && 'ml-6 border-l-2',
-        isGrandChild && 'ml-12 border-l-2'
+        isChild && 'ml-6 border-l-2'
       )}
     >
       <div 
@@ -189,23 +127,6 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
             <FolderOpen className="h-4 w-4 text-orange-500" />
           ) : (
             getLevelIcon(room.level)
-          )}
-          {room.is_pinned && !isChild && !isGrandChild && (
-            <Pin className="h-3 w-3 text-orange-500" />
-          )}
-          {room.meeting_link && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0 hover:bg-blue-100"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenMeeting(room);
-              }}
-              title="Abrir reunião"
-            >
-              <Video className="h-3 w-3 text-blue-600" />
-            </Button>
           )}
         </div>
         
@@ -239,55 +160,6 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                handleParticipants(room);
-              }}
-            >
-              <Users className="h-4 w-4 mr-2" />
-              Participantes
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                handleMeeting(room);
-              }}
-            >
-              <Video className="h-4 w-4 mr-2" />
-              {room.meeting_link ? 'Editar Reunião' : 'Adicionar Reunião'}
-            </DropdownMenuItem>
-            {room.meeting_link && (
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleOpenMeeting(room);
-                }}
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Abrir Reunião
-              </DropdownMenuItem>
-            )}
-            {!isChild && !isGrandChild && (
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handlePinRoom(room);
-                }}
-              >
-                {room.is_pinned ? (
-                  <>
-                    <PinOff className="h-4 w-4 mr-2" />
-                    Desfixar
-                  </>
-                ) : (
-                  <>
-                    <Pin className="h-4 w-4 mr-2" />
-                    Fixar
-                  </>
-                )}
-              </DropdownMenuItem>
-            )}
             <DropdownMenuItem
               onClick={(e) => {
                 e.stopPropagation();
@@ -327,12 +199,11 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
 
   return (
     <>
-      {/* Scrollable area for chat rooms with reduced height */}
-      <div className="flex-1 overflow-y-auto pb-4" style={{ maxHeight: 'calc(100vh - 280px)' }}>
-        <div className="space-y-1 p-2">
+      <div className="max-h-full overflow-y-auto">
+        <div className="space-y-1">
           {organizedRooms.map((room) => (
             <div key={room.id}>
-              {/* Main room */}
+              {/* Sala principal */}
               <div className="flex items-center">
                 {room.children && room.children.length > 0 && (
                   <Button
@@ -359,58 +230,13 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
                 </div>
               </div>
               
-              {/* Sub-rooms (level 2) when expanded */}
+              {/* Subsalas (quando expandida) */}
               {room.children && 
                room.children.length > 0 && 
                expandedRooms.has(room.id) && (
                 <div className="ml-4">
                   {room.children.map((child) => (
-                    <div key={child.id}>
-                      {/* Level 2 room */}
-                      <div className="flex items-center">
-                        {child.children && child.children.length > 0 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 mr-1 hover:bg-gray-200"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleRoomExpansion(child.id);
-                            }}
-                          >
-                            {expandedRooms.has(child.id) ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                          </Button>
-                        )}
-                        <div className="flex-1">
-                          <RoomItem 
-                            key={child.id} 
-                            room={child} 
-                            isChild 
-                            hasChildren={child.children && child.children.length > 0}
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* Sub-sub-rooms (level 3) when expanded */}
-                      {child.children && 
-                       child.children.length > 0 && 
-                       expandedRooms.has(child.id) && (
-                        <div className="ml-4">
-                          {child.children.map((grandChild) => (
-                            <RoomItem 
-                              key={grandChild.id} 
-                              room={grandChild} 
-                              isChild 
-                              isGrandChild
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <RoomItem key={child.id} room={child} isChild />
                   ))}
                 </div>
               )}
@@ -423,12 +249,6 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
         open={isEditModalOpen}
         onOpenChange={setIsEditModalOpen}
         room={editingRoom}
-      />
-
-      <MeetingLinkModal
-        open={isMeetingModalOpen}
-        onOpenChange={setIsMeetingModalOpen}
-        room={meetingRoom}
       />
     </>
   );

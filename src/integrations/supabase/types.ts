@@ -236,7 +236,15 @@ export type Database = {
           sender_id?: string
           sender_name?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chat_room_participants: {
         Row: {
@@ -266,7 +274,15 @@ export type Database = {
           room_id?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chat_room_participants_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chat_rooms: {
         Row: {
@@ -276,7 +292,6 @@ export type Database = {
           id: string
           is_active: boolean
           level: number
-          meeting_link: string | null
           name: string
           parent_room_id: string | null
           updated_at: string
@@ -288,7 +303,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           level?: number
-          meeting_link?: string | null
           name: string
           parent_room_id?: string | null
           updated_at?: string
@@ -300,12 +314,19 @@ export type Database = {
           id?: string
           is_active?: boolean
           level?: number
-          meeting_link?: string | null
           name?: string
           parent_room_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chat_rooms_parent_room_id_fkey"
+            columns: ["parent_room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       clients: {
         Row: {
@@ -2042,16 +2063,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      add_user_to_room_and_subrooms: {
-        Args: {
-          p_room_id: string
-          p_user_id: string
-          p_added_by: string
-          p_can_read?: boolean
-          p_can_write?: boolean
-        }
-        Returns: undefined
-      }
       assign_user_profile: {
         Args: { p_user_id: string; p_profile_id: string }
         Returns: undefined
@@ -2179,18 +2190,6 @@ export type Database = {
         }
         Returns: Json
       }
-      get_room_participants: {
-        Args: { p_room_id: string }
-        Returns: {
-          user_id: string
-          name: string
-          email: string
-          type: string
-          can_read: boolean
-          can_write: boolean
-          added_at: string
-        }[]
-      }
       get_stage_status_change_data: {
         Args: { p_stage_id: string; p_old_status: string; p_new_status: string }
         Returns: Json
@@ -2262,24 +2261,12 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
-      remove_user_from_specific_room: {
-        Args: { p_room_id: string; p_user_id: string }
-        Returns: undefined
-      }
       sync_super_admin_permissions: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
-      update_room_participants: {
-        Args: { p_room_id: string; p_participants: Json }
-        Returns: undefined
-      }
       user_can_access_module: {
         Args: { module_name: string; permission_type?: string }
-        Returns: boolean
-      }
-      user_can_view_chat_room: {
-        Args: { room_id: string; user_id: string }
         Returns: boolean
       }
       user_has_client_access: {

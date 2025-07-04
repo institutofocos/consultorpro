@@ -9,79 +9,61 @@ import { useAuth } from '@/contexts/AuthContext';
 import ChatRoomList from './ChatRoomList';
 import ChatWindow from './ChatWindow';
 import CreateRoomModal from './CreateRoomModal';
-import ParticipantsModal from './ParticipantsModal';
 import { toast } from 'sonner';
 import type { ChatRoom } from '@/hooks/useChatRooms';
-import { debugChatRoomVisibility } from '@/hooks/useChatRoomsDebug';
 
 const ChatPage = () => {
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [showParticipantsModal, setShowParticipantsModal] = useState(false);
-  const [participantsRoom, setParticipantsRoom] = useState<ChatRoom | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
   const { data: rooms, isLoading, error, refetch } = useChatRooms();
 
-  // Debug quando o usuário carrega a página
+  // Esconder barra de rolagem externa apenas na página de chat
   useEffect(() => {
-    if (user?.id) {
-      // Executar debug em desenvolvimento
-      if (process.env.NODE_ENV === 'development') {
-        debugChatRoomVisibility(user.id);
-      }
-    }
-  }, [user?.id]);
-
-  // Prevent body scroll when on chat page and ensure consistent height
-  useEffect(() => {
-    // Save current state
+    // Salvar o estado atual
     const originalOverflow = document.body.style.overflow;
     const originalHtmlOverflow = document.documentElement.style.overflow;
     
-    // Apply overflow hidden to prevent any scrolling on the page itself
+    // Aplicar overflow hidden
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
     
-    // Cleanup: restore scrollbar when leaving the page  
+    // Cleanup: restaurar scrollbar quando sair da página  
     return () => {
       document.body.style.overflow = originalOverflow;
       document.documentElement.style.overflow = originalHtmlOverflow;
     };
   }, []);
 
+  // Log para debug
   console.log('ChatPage renderizado - searchTerm:', searchTerm);
   console.log('Total de salas:', rooms?.length || 0);
 
-  // Filter rooms by name
+  // Filtrar salas por nome
   const filteredRooms = rooms?.filter(room => 
     room.name.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
   console.log('Salas filtradas:', filteredRooms.length);
 
-  // Auto-select first room if available
+  // Auto-selecionar primeira sala se disponível
   useEffect(() => {
     if (filteredRooms && filteredRooms.length > 0 && !selectedRoom) {
       setSelectedRoom(filteredRooms[0]);
     }
   }, [filteredRooms, selectedRoom]);
 
-  // Check if user is authenticated
+  // Verificar se usuário está autenticado
   useEffect(() => {
     if (!user) {
       toast.error('Você precisa estar logado para acessar o chat');
     }
   }, [user]);
 
-  const handleOpenParticipantsModal = (room: ChatRoom) => {
-    setParticipantsRoom(room);
-    setShowParticipantsModal(true);
-  };
-
   if (!user) {
     return (
-      <div className="h-screen flex items-center justify-center p-6">
+      <div className="h-screen flex items-center justify-center">
         <Card className="max-w-md mx-auto">
           <CardContent className="p-6 text-center">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-yellow-500" />
@@ -97,7 +79,7 @@ const ChatPage = () => {
 
   if (error) {
     return (
-      <div className="h-screen flex items-center justify-center p-6">
+      <div className="h-screen flex items-center justify-center">
         <Card className="max-w-md mx-auto">
           <CardContent className="p-6 text-center">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
@@ -116,16 +98,9 @@ const ChatPage = () => {
   }
 
   return (
-    <div 
-      className="flex flex-col w-full p-6 max-w-7xl mx-auto"
-      style={{ 
-        height: 'calc(100vh - 80px)',
-        minHeight: 'calc(100vh - 80px)',
-        maxHeight: 'calc(100vh - 80px)'
-      }}
-    >
-      {/* Fixed header */}
-      <div className="flex-shrink-0 p-4 border-b bg-white rounded-t-lg">
+    <div className="h-screen flex flex-col overflow-hidden w-full">
+      {/* Header fixo */}
+      <div className="flex-shrink-0 p-4 border-b bg-white">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
@@ -133,57 +108,51 @@ const ChatPage = () => {
               Chat
             </h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              onClick={() => setIsCreateModalOpen(true)} 
-              className="flex items-center gap-2"
-              disabled={isLoading}
-            >
-              <Plus className="h-4 w-4" />
-              Nova Sala
-            </Button>
-          </div>
+          <Button 
+            onClick={() => setIsCreateModalOpen(true)} 
+            className="flex items-center gap-2"
+            disabled={isLoading}
+          >
+            <Plus className="h-4 w-4" />
+            Nova Sala
+          </Button>
         </div>
       </div>
 
-      {/* Main content area with proper height calculation and border */}
-      <div className="flex-1 flex min-h-0 border border-t-0 rounded-b-lg overflow-hidden bg-white">
-        {/* Sidebar with chat rooms */}
+      {/* Conteúdo principal */}
+      <div className="flex-1 flex overflow-hidden">
         <div className="w-1/3 flex flex-col border-r">
-          {/* Search bar - fixed */}
-          <div className="flex-shrink-0 p-4 border-b bg-gray-50">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                type="text"
-                placeholder="Buscar salas..."
-                value={searchTerm}
-                onChange={(e) => {
-                  console.log('Termo de busca alterado para:', e.target.value);
-                  setSearchTerm(e.target.value);
-                }}
-                className="pl-10"
+          <Card className="h-full border-0 rounded-none">
+            <CardHeader className="flex-shrink-0 p-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  type="text"
+                  placeholder="Buscar salas..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    console.log('Termo de busca alterado para:', e.target.value);
+                    setSearchTerm(e.target.value);
+                  }}
+                  className="pl-10"
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="p-0 flex-1 overflow-hidden">
+              <ChatRoomList
+                rooms={filteredRooms}
+                selectedRoom={selectedRoom}
+                onRoomSelect={setSelectedRoom}
               />
-            </div>
-          </div>
-          
-          {/* Chat rooms list - scrollable area */}
-          <div className="flex-1 min-h-0">
-            <ChatRoomList
-              rooms={filteredRooms}
-              selectedRoom={selectedRoom}
-              onRoomSelect={setSelectedRoom}
-              onOpenParticipantsModal={handleOpenParticipantsModal}
-            />
-          </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Chat area */}
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col">
           {selectedRoom ? (
             <ChatWindow room={selectedRoom} />
           ) : (
-            <div className="flex-1 flex items-center justify-center bg-gray-50">
+            <Card className="h-full flex items-center justify-center border-0 rounded-none">
               <div className="text-center text-muted-foreground">
                 <MessageCircle className="h-16 w-16 mx-auto mb-4 opacity-50" />
                 <p className="text-lg mb-2">Selecione uma sala de chat para começar</p>
@@ -194,7 +163,7 @@ const ChatPage = () => {
                   }
                 </p>
               </div>
-            </div>
+            </Card>
           )}
         </div>
       </div>
@@ -204,15 +173,6 @@ const ChatPage = () => {
         onOpenChange={setIsCreateModalOpen}
         parentRooms={rooms || []}
       />
-
-      {participantsRoom && (
-        <ParticipantsModal
-          open={showParticipantsModal}
-          onOpenChange={setShowParticipantsModal}
-          roomId={participantsRoom.id}
-          roomName={participantsRoom.name}
-        />
-      )}
     </div>
   );
 };
