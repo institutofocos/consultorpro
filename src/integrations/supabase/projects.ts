@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -513,7 +512,7 @@ export const createProject = async (project: any) => {
     console.log('=== INICIANDO CRIAÇÃO DE PROJETO ===');
     console.log('Dados originais recebidos:', JSON.stringify(project, null, 2));
     
-    // CRIAR OBJETO COMPLETAMENTE LIMPO - APENAS CAMPOS DA TABELA PROJECTS (SEM project_id)
+    // CRIAR OBJETO COMPLETAMENTE LIMPO - APENAS CAMPOS DA TABELA PROJECTS
     const cleanProjectData = {
       name: String(project.name || ''),
       description: String(project.description || ''),
@@ -540,21 +539,10 @@ export const createProject = async (project: any) => {
     };
 
     console.log('=== DADOS LIMPOS PARA INSERÇÃO ===');
-    console.log('Objeto final (SEM project_id e outros campos proibidos):', JSON.stringify(cleanProjectData, null, 2));
+    console.log('Objeto final para inserção na tabela PROJECTS:', JSON.stringify(cleanProjectData, null, 2));
     console.log('✅ Status definido como "iniciar_projeto" para novo projeto');
     
-    // VERIFICAÇÃO DE SEGURANÇA - garantir que não há campos proibidos
-    const forbiddenFields = ['user_id', 'userId', 'user', 'tags', 'tagIds', 'stages', 'project_id', 'projectId'];
-    const dataKeys = Object.keys(cleanProjectData);
-    const hasForbiddenField = dataKeys.some(key => forbiddenFields.includes(key));
-    
-    if (hasForbiddenField) {
-      console.error('⚠️ ERRO: Campo proibido detectado!', dataKeys);
-      throw new Error('Campo não permitido detectado nos dados de criação');
-    }
-    
-    console.log('✅ Verificação aprovada - dados limpos');
-    
+    // INSERIR DIRETAMENTE NA TABELA PROJECTS
     const { data, error } = await supabase
       .from('projects')
       .insert(cleanProjectData)
@@ -562,12 +550,12 @@ export const createProject = async (project: any) => {
       .single();
     
     if (error) {
-      console.error('❌ ERRO ao inserir projeto:', error);
+      console.error('❌ ERRO ao inserir projeto na tabela PROJECTS:', error);
       console.error('Dados que causaram erro:', JSON.stringify(cleanProjectData, null, 2));
       throw error;
     }
 
-    console.log('✅ Projeto criado com sucesso com status "iniciar_projeto":', data);
+    console.log('✅ Projeto criado com sucesso na tabela PROJECTS:', data);
 
     // Vincular tags se existirem
     if (project.tagIds && project.tagIds.length > 0) {
@@ -613,10 +601,7 @@ export const createProject = async (project: any) => {
       }
     }
 
-    // IMPORTANTE: NÃO chamar updateProjectStatusAutomatically aqui 
-    // porque queremos manter o status inicial "iniciar_projeto"
-    console.log('=== PROJETO CRIADO COM SUCESSO MANTENDO STATUS "iniciar_projeto" ===');
-    console.log('❌ EVITANDO atualização automática de status para manter "iniciar_projeto"');
+    console.log('=== PROJETO CRIADO COM SUCESSO NA TABELA PROJECTS ===');
     
     return data;
   } catch (error) {
@@ -631,7 +616,7 @@ export const updateProject = async (project: any) => {
     console.log('=== INICIANDO ATUALIZAÇÃO DE PROJETO ===');
     console.log('Dados originais recebidos:', JSON.stringify(project, null, 2));
     
-    // CRIAR OBJETO COMPLETAMENTE LIMPO - APENAS CAMPOS DA TABELA PROJECTS (SEM project_id)
+    // CRIAR OBJETO COMPLETAMENTE LIMPO - APENAS CAMPOS DA TABELA PROJECTS
     const cleanProjectData = {
       name: String(project.name || ''),
       description: String(project.description || ''),
@@ -657,17 +642,7 @@ export const updateProject = async (project: any) => {
     };
 
     console.log('=== DADOS LIMPOS PARA ATUALIZAÇÃO ===');
-    console.log('Objeto final (SEM project_id e outros campos proibidos):', JSON.stringify(cleanProjectData, null, 2));
-    
-    // VERIFICAÇÃO DE SEGURANÇA
-    const forbiddenFields = ['user_id', 'userId', 'user', 'tags', 'tagIds', 'stages', 'project_id', 'projectId'];
-    const dataKeys = Object.keys(cleanProjectData);
-    const hasForbiddenField = dataKeys.some(key => forbiddenFields.includes(key));
-    
-    if (hasForbiddenField) {
-      console.error('⚠️ ERRO: Campo proibido detectado na atualização!', dataKeys);
-      throw new Error('Campo não permitido detectado nos dados de atualização');
-    }
+    console.log('Objeto final para atualização na tabela PROJECTS:', JSON.stringify(cleanProjectData, null, 2));
 
     const { data, error } = await supabase
       .from('projects')
@@ -677,12 +652,12 @@ export const updateProject = async (project: any) => {
       .single();
     
     if (error) {
-      console.error('❌ ERRO ao atualizar projeto:', error);
+      console.error('❌ ERRO ao atualizar projeto na tabela PROJECTS:', error);
       console.error('Dados que causaram erro:', JSON.stringify(cleanProjectData, null, 2));
       throw error;
     }
 
-    console.log('✅ Projeto atualizado com sucesso:', data);
+    console.log('✅ Projeto atualizado com sucesso na tabela PROJECTS:', data);
 
     // Atualizar tags se existirem
     if (project.tagIds) {
@@ -734,7 +709,7 @@ export const updateProject = async (project: any) => {
 
     await updateProjectStatusAutomatically(project.id);
 
-    console.log('=== PROJETO ATUALIZADO COM SUCESSO ===');
+    console.log('=== PROJETO ATUALIZADO COM SUCESSO NA TABELA PROJECTS ===');
     return data;
   } catch (error) {
     console.error('=== ERRO NA ATUALIZAÇÃO DO PROJETO ===');

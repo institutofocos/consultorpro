@@ -236,15 +236,7 @@ export type Database = {
           sender_id?: string
           sender_name?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "chat_messages_room_id_fkey"
-            columns: ["room_id"]
-            isOneToOne: false
-            referencedRelation: "chat_rooms"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       chat_room_participants: {
         Row: {
@@ -274,15 +266,7 @@ export type Database = {
           room_id?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "chat_room_participants_room_id_fkey"
-            columns: ["room_id"]
-            isOneToOne: false
-            referencedRelation: "chat_rooms"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       chat_rooms: {
         Row: {
@@ -321,15 +305,7 @@ export type Database = {
           parent_room_id?: string | null
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "chat_rooms_parent_room_id_fkey"
-            columns: ["parent_room_id"]
-            isOneToOne: false
-            referencedRelation: "chat_rooms"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       clients: {
         Row: {
