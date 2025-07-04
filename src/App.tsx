@@ -31,11 +31,12 @@ const queryClient = new QueryClient();
 
 // Componente interno para inicializar o processador de webhooks globalmente
 const WebhookProcessorProvider = ({ children }: { children: React.ReactNode }) => {
-  const { config } = useWebhookProcessor();
+  const { config, checkConsolidationStatus } = useWebhookProcessor();
 
   useEffect(() => {
     console.log('Sistema de webhook automático inicializado globalmente:', config);
-  }, [config]);
+    checkConsolidationStatus();
+  }, [config, checkConsolidationStatus]);
 
   return <>{children}</>;
 };
