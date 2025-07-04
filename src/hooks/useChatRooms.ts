@@ -12,6 +12,7 @@ export interface ChatRoom {
   created_at: string;
   updated_at: string;
   is_active: boolean;
+  is_pinned?: boolean;
 }
 
 export interface ChatMessage {
@@ -51,8 +52,17 @@ export const useChatRooms = () => {
         throw error;
       }
       
-      console.log('Salas carregadas:', data);
-      return data as ChatRoom[];
+      // Buscar salas fixadas do localStorage para o usuário atual
+      const pinnedRooms = JSON.parse(localStorage.getItem(`pinned_rooms_${user?.id}`) || '[]');
+      
+      // Adicionar a propriedade is_pinned baseada no localStorage
+      const roomsWithPinned = data?.map(room => ({
+        ...room,
+        is_pinned: pinnedRooms.includes(room.id)
+      })) || [];
+      
+      console.log('Salas carregadas:', roomsWithPinned);
+      return roomsWithPinned as ChatRoom[];
     },
     enabled: !!user,
   });
@@ -309,6 +319,45 @@ export const useUpdateChatRoom = () => {
       
       console.log('Sala atualizada:', data);
       return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });
+    },
+  });
+};
+
+export const usePinChatRoom = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (params: { roomId: string; isPinned: boolean }) => {
+      if (!user?.id) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      console.log('Alterando status de fixação da sala:', params);
+      
+      // Buscar salas fixadas atuais do localStorage
+      const pinnedRooms = JSON.parse(localStorage.getItem(`pinned_rooms_${user.id}`) || '[]');
+      
+      let updatedPinnedRooms;
+      if (params.isPinned) {
+        // Adicionar à lista de fixadas se não estiver
+        if (!pinnedRooms.includes(params.roomId)) {
+          updatedPinnedRooms = [...pinnedRooms, params.roomId];
+        } else {
+          updatedPinnedRooms = pinnedRooms;
+        }
+      } else {
+        // Remover da lista de fixadas
+        updatedPinnedRooms = pinnedRooms.filter((id: string) => id !== params.roomId);
+      }
+      
+      // Salvar no localStorage
+      localStorage.setItem(`pinned_rooms_${user.id}`, JSON.stringify(updatedPinnedRooms));
+      
+      return { roomId: params.roomId, isPinned: params.isPinned };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });

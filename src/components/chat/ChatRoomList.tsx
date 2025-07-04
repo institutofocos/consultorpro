@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +12,9 @@ import {
   FolderOpen,
   Folder,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Pin,
+  PinOff
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -19,7 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useDeleteChatRoom } from '@/hooks/useChatRooms';
+import { useDeleteChatRoom, usePinChatRoom } from '@/hooks/useChatRooms';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { ChatRoom } from '@/hooks/useChatRooms';
@@ -39,6 +42,7 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
   onOpenParticipantsModal,
 }) => {
   const deleteRoom = useDeleteChatRoom();
+  const pinRoom = usePinChatRoom();
   const [expandedRooms, setExpandedRooms] = useState<Set<string>>(new Set());
   const [editingRoom, setEditingRoom] = useState<ChatRoom | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -68,6 +72,19 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
     }
   };
 
+  const handlePinRoom = async (room: ChatRoom) => {
+    try {
+      await pinRoom.mutateAsync({
+        roomId: room.id,
+        isPinned: !room.is_pinned
+      });
+      toast.success(room.is_pinned ? 'Sala desfixada!' : 'Sala fixada no topo!');
+    } catch (error) {
+      console.error('Erro ao fixar/desfixar sala:', error);
+      toast.error('Erro ao alterar fixação da sala. Tente novamente.');
+    }
+  };
+
   const toggleRoomExpansion = (roomId: string) => {
     const newExpanded = new Set(expandedRooms);
     if (expandedRooms.has(roomId)) {
@@ -92,12 +109,24 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
   };
 
   const organizeRooms = (rooms: ChatRoom[]) => {
+    // Separar salas principais das sub-salas
     const rootRooms = rooms.filter(room => !room.parent_room_id);
     const childRooms = rooms.filter(room => room.parent_room_id);
     
+    // Organizar salas principais: fixadas primeiro, depois por data
+    const pinnedRooms = rootRooms.filter(room => room.is_pinned);
+    const unpinnedRooms = rootRooms.filter(room => !room.is_pinned);
+    
+    // Ordenar cada grupo
+    pinnedRooms.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    unpinnedRooms.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    
+    // Combinar: fixadas primeiro, depois não fixadas
+    const orderedRootRooms = [...pinnedRooms, ...unpinnedRooms];
+    
     const organized: (ChatRoom & { children?: ChatRoom[] })[] = [];
     
-    rootRooms.forEach(root => {
+    orderedRootRooms.forEach(root => {
       const children = childRooms.filter(child => child.parent_room_id === root.id);
       organized.push({ ...root, children });
     });
@@ -134,6 +163,9 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
             <FolderOpen className="h-4 w-4 text-orange-500" />
           ) : (
             getLevelIcon(room.level)
+          )}
+          {room.is_pinned && !isChild && (
+            <Pin className="h-3 w-3 text-orange-500" />
           )}
         </div>
         
@@ -176,6 +208,26 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
               <Users className="h-4 w-4 mr-2" />
               Participantes
             </DropdownMenuItem>
+            {!isChild && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePinRoom(room);
+                }}
+              >
+                {room.is_pinned ? (
+                  <>
+                    <PinOff className="h-4 w-4 mr-2" />
+                    Desfixar
+                  </>
+                ) : (
+                  <>
+                    <Pin className="h-4 w-4 mr-2" />
+                    Fixar
+                  </>
+                )}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               onClick={(e) => {
                 e.stopPropagation();
