@@ -56,6 +56,26 @@ const MeetingLinkModal: React.FC<MeetingLinkModalProps> = ({
     }
   };
 
+  const handleRemoveMeeting = async () => {
+    if (!room) return;
+
+    try {
+      await updateRoom.mutateAsync({
+        id: room.id,
+        name: room.name,
+        description: room.description,
+        meeting_link: null,
+      });
+
+      toast.success('Link da reunião removido!');
+      setMeetingLink('');
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Erro ao remover link da reunião:', error);
+      toast.error('Erro ao remover link da reunião. Tente novamente.');
+    }
+  };
+
   const handleOpenMeeting = () => {
     if (meetingLink) {
       window.open(meetingLink, '_blank');
@@ -140,10 +160,7 @@ const MeetingLinkModal: React.FC<MeetingLinkModalProps> = ({
               <Button
                 type="button"
                 variant="destructive"
-                onClick={() => {
-                  setMeetingLink('');
-                  handleSubmit(e as any);
-                }}
+                onClick={handleRemoveMeeting}
                 disabled={updateRoom.isPending}
               >
                 Remover
