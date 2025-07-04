@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -47,6 +48,7 @@ export const useChatRooms = () => {
       
       console.log('Carregando salas de chat para usuário:', user.id);
       
+      // Fazer a consulta que será filtrada pela política RLS
       const { data, error } = await supabase
         .from('chat_rooms')
         .select('*')

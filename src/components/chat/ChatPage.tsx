@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +11,7 @@ import CreateRoomModal from './CreateRoomModal';
 import ParticipantsModal from './ParticipantsModal';
 import { toast } from 'sonner';
 import type { ChatRoom } from '@/hooks/useChatRooms';
+import { debugChatRoomVisibility } from '@/hooks/useChatRoomsDebug';
 
 const ChatPage = () => {
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
@@ -21,6 +21,16 @@ const ChatPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
   const { data: rooms, isLoading, error, refetch } = useChatRooms();
+
+  // Debug quando o usuário carrega a página
+  useEffect(() => {
+    if (user?.id) {
+      // Executar debug em desenvolvimento
+      if (process.env.NODE_ENV === 'development') {
+        debugChatRoomVisibility(user.id);
+      }
+    }
+  }, [user?.id]);
 
   // Prevent body scroll when on chat page and ensure consistent height
   useEffect(() => {
