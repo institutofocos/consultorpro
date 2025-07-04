@@ -5,14 +5,24 @@ export const debugChatRoomVisibility = async (userId: string) => {
   console.log('=== DEBUG CHAT ROOM VISIBILITY ===');
   console.log('User ID:', userId);
   
-  // Verificar todas as salas (bypass RLS para debug)
+  // Verificar todas as salas (usando query direta em vez de RPC)
   const { data: allRooms, error: allRoomsError } = await supabase
-    .rpc('get_all_chat_rooms_debug');
+    .from('chat_rooms')
+    .select(`
+      id,
+      name,
+      is_active,
+      created_by,
+      level,
+      parent_room_id
+    `)
+    .eq('is_active', true);
   
   if (allRoomsError) {
     console.error('Erro ao buscar todas as salas:', allRoomsError);
   } else {
     console.log('Total de salas no sistema:', allRooms?.length || 0);
+    console.log('Detalhes das salas:', allRooms);
   }
   
   // Verificar participações do usuário
@@ -37,6 +47,25 @@ export const debugChatRoomVisibility = async (userId: string) => {
     console.error('Erro ao buscar salas visíveis:', visibleRoomsError);
   } else {
     console.log('Salas visíveis via RLS:', visibleRooms);
+  }
+  
+  // Verificar se o usuário é Super Admin
+  const { data: userProfile, error: profileError } = await supabase
+    .from('user_profiles')
+    .select(`
+      profile_id,
+      access_profiles!inner(
+        name,
+        is_active
+      )
+    `)
+    .eq('user_id', userId)
+    .single();
+  
+  if (profileError) {
+    console.error('Erro ao buscar perfil do usuário:', profileError);
+  } else {
+    console.log('Perfil do usuário:', userProfile);
   }
   
   console.log('=== FIM DEBUG ===');
