@@ -13,6 +13,7 @@ export interface ChatRoom {
   updated_at: string;
   is_active: boolean;
   is_pinned?: boolean;
+  meeting_link?: string;
 }
 
 export interface ChatMessage {
@@ -298,6 +299,7 @@ export const useUpdateChatRoom = () => {
       id: string;
       name: string;
       description?: string;
+      meeting_link?: string | null;
     }) => {
       console.log('Atualizando sala de chat:', params);
       
@@ -306,6 +308,7 @@ export const useUpdateChatRoom = () => {
         .update({
           name: params.name,
           description: params.description,
+          meeting_link: params.meeting_link,
           updated_at: new Date().toISOString(),
         })
         .eq('id', params.id)

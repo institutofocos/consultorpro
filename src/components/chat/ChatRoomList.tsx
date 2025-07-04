@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +13,9 @@ import {
   ChevronDown,
   ChevronRight,
   Pin,
-  PinOff
+  PinOff,
+  Video,
+  ExternalLink
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -27,6 +28,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { ChatRoom } from '@/hooks/useChatRooms';
 import EditRoomModal from './EditRoomModal';
+import MeetingLinkModal from './MeetingLinkModal';
 
 interface ChatRoomListProps {
   rooms: ChatRoom[];
@@ -46,6 +48,8 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
   const [expandedRooms, setExpandedRooms] = useState<Set<string>>(new Set());
   const [editingRoom, setEditingRoom] = useState<ChatRoom | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [meetingRoom, setMeetingRoom] = useState<ChatRoom | null>(null);
+  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
 
   const handleDeleteRoom = async (roomId: string, roomName: string) => {
     if (!confirm(`Tem certeza que deseja excluir a sala "${roomName}"?\n\nEsta ação não pode ser desfeita.`)) {
@@ -82,6 +86,17 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
     } catch (error) {
       console.error('Erro ao fixar/desfixar sala:', error);
       toast.error('Erro ao alterar fixação da sala. Tente novamente.');
+    }
+  };
+
+  const handleMeeting = (room: ChatRoom) => {
+    setMeetingRoom(room);
+    setIsMeetingModalOpen(true);
+  };
+
+  const handleOpenMeeting = (room: ChatRoom) => {
+    if (room.meeting_link) {
+      window.open(room.meeting_link, '_blank');
     }
   };
 
@@ -178,6 +193,20 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
           {room.is_pinned && !isChild && !isGrandChild && (
             <Pin className="h-3 w-3 text-orange-500" />
           )}
+          {room.meeting_link && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 hover:bg-blue-100"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenMeeting(room);
+              }}
+              title="Abrir reunião"
+            >
+              <Video className="h-3 w-3 text-blue-600" />
+            </Button>
+          )}
         </div>
         
         <div className="flex-1 min-w-0">
@@ -219,6 +248,26 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
               <Users className="h-4 w-4 mr-2" />
               Participantes
             </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                handleMeeting(room);
+              }}
+            >
+              <Video className="h-4 w-4 mr-2" />
+              {room.meeting_link ? 'Editar Reunião' : 'Adicionar Reunião'}
+            </DropdownMenuItem>
+            {room.meeting_link && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenMeeting(room);
+                }}
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Abrir Reunião
+              </DropdownMenuItem>
+            )}
             {!isChild && !isGrandChild && (
               <DropdownMenuItem
                 onClick={(e) => {
@@ -374,6 +423,12 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
         open={isEditModalOpen}
         onOpenChange={setIsEditModalOpen}
         room={editingRoom}
+      />
+
+      <MeetingLinkModal
+        open={isMeetingModalOpen}
+        onOpenChange={setIsMeetingModalOpen}
+        room={meetingRoom}
       />
     </>
   );

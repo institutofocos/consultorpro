@@ -292,6 +292,7 @@ export type Database = {
           id: string
           is_active: boolean
           level: number
+          meeting_link: string | null
           name: string
           parent_room_id: string | null
           updated_at: string
@@ -303,6 +304,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           level?: number
+          meeting_link?: string | null
           name: string
           parent_room_id?: string | null
           updated_at?: string
@@ -314,6 +316,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           level?: number
+          meeting_link?: string | null
           name?: string
           parent_room_id?: string | null
           updated_at?: string
