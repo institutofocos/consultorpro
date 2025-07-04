@@ -22,15 +22,18 @@ const ProjectTestComponent = () => {
       return;
     }
 
+    // Create proper project data with all required fields
     const testProjectData = {
       name: testName,
       description: testDescription || 'Projeto de teste criado para validar funcionalidade',
       status: 'ativo',
-      // Usando IDs fixos para teste - você pode ajustar conforme necessário
+      start_date: new Date().toISOString().split('T')[0], // Today's date
+      end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
+      total_value: 1000,
+      total_hours: 40,
+      // Using fixed IDs for test - these should exist in your database
       client_id: '00000000-0000-0000-0000-000000000001',
       service_id: '00000000-0000-0000-0000-000000000001',
-      total_value: 1000,
-      total_hours: 40
     };
 
     console.log('🧪 Criando projeto de teste:', testProjectData);

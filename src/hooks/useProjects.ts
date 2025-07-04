@@ -12,9 +12,9 @@ export interface Project {
   service_id: string;
   main_consultant_id?: string;
   support_consultant_id?: string;
-  start_date?: string;
-  end_date?: string;
-  total_value?: number;
+  start_date: string;
+  end_date: string;
+  total_value: number;
   total_hours?: number;
   status: string;
   created_at: string;
@@ -47,13 +47,28 @@ export const useCreateProject = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (projectData: Partial<Project>) => {
+    mutationFn: async (projectData: Omit<Project, 'id' | 'created_at' | 'updated_at' | 'project_id'>) => {
       console.log('🔄 Criando novo projeto:', projectData);
       
       try {
+        // Ensure required fields are present
+        const dataToInsert = {
+          name: projectData.name,
+          start_date: projectData.start_date,
+          end_date: projectData.end_date,
+          total_value: projectData.total_value || 0,
+          status: projectData.status || 'ativo',
+          client_id: projectData.client_id,
+          service_id: projectData.service_id,
+          description: projectData.description,
+          main_consultant_id: projectData.main_consultant_id,
+          support_consultant_id: projectData.support_consultant_id,
+          total_hours: projectData.total_hours,
+        };
+
         const { data, error } = await supabase
           .from('projects')
-          .insert([projectData])
+          .insert(dataToInsert)
           .select()
           .single();
 
