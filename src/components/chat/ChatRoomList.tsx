@@ -109,9 +109,10 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
   };
 
   const organizeRooms = (rooms: ChatRoom[]) => {
-    // Separar salas principais das sub-salas
+    // Separar salas por nível
     const rootRooms = rooms.filter(room => !room.parent_room_id);
-    const childRooms = rooms.filter(room => room.parent_room_id);
+    const level2Rooms = rooms.filter(room => room.parent_room_id && room.level === 2);
+    const level3Rooms = rooms.filter(room => room.parent_room_id && room.level === 3);
     
     // Organizar salas principais: fixadas primeiro, depois por data
     const pinnedRooms = rootRooms.filter(room => room.is_pinned);
@@ -124,11 +125,18 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
     // Combinar: fixadas primeiro, depois não fixadas
     const orderedRootRooms = [...pinnedRooms, ...unpinnedRooms];
     
-    const organized: (ChatRoom & { children?: ChatRoom[] })[] = [];
+    const organized: (ChatRoom & { children?: (ChatRoom & { children?: ChatRoom[] })[] })[] = [];
     
     orderedRootRooms.forEach(root => {
-      const children = childRooms.filter(child => child.parent_room_id === root.id);
-      organized.push({ ...root, children });
+      const level2Children = level2Rooms.filter(child => child.parent_room_id === root.id);
+      
+      // Para cada sala de nível 2, buscar suas filhas de nível 3
+      const level2WithChildren = level2Children.map(level2Room => {
+        const level3Children = level3Rooms.filter(level3 => level3.parent_room_id === level2Room.id);
+        return { ...level2Room, children: level3Children };
+      });
+      
+      organized.push({ ...root, children: level2WithChildren });
     });
     
     return organized;
@@ -138,11 +146,13 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
 
   const RoomItem = ({ 
     room, 
-    isChild = false, 
+    isChild = false,
+    isGrandChild = false,
     hasChildren = false 
   }: { 
     room: ChatRoom; 
     isChild?: boolean;
+    isGrandChild?: boolean;
     hasChildren?: boolean;
   }) => (
     <div
@@ -151,7 +161,8 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
         selectedRoom?.id === room.id 
           ? 'bg-blue-50 border-l-blue-500 shadow-sm' 
           : 'border-l-transparent hover:border-l-gray-300',
-        isChild && 'ml-6 border-l-2'
+        isChild && 'ml-6 border-l-2',
+        isGrandChild && 'ml-12 border-l-2'
       )}
     >
       <div 
@@ -164,7 +175,7 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
           ) : (
             getLevelIcon(room.level)
           )}
-          {room.is_pinned && !isChild && (
+          {room.is_pinned && !isChild && !isGrandChild && (
             <Pin className="h-3 w-3 text-orange-500" />
           )}
         </div>
@@ -208,7 +219,7 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
               <Users className="h-4 w-4 mr-2" />
               Participantes
             </DropdownMenuItem>
-            {!isChild && (
+            {!isChild && !isGrandChild && (
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
@@ -299,13 +310,58 @@ const ChatRoomList: React.FC<ChatRoomListProps> = ({
                 </div>
               </div>
               
-              {/* Sub-rooms (when expanded) */}
+              {/* Sub-rooms (level 2) when expanded */}
               {room.children && 
                room.children.length > 0 && 
                expandedRooms.has(room.id) && (
                 <div className="ml-4">
                   {room.children.map((child) => (
-                    <RoomItem key={child.id} room={child} isChild />
+                    <div key={child.id}>
+                      {/* Level 2 room */}
+                      <div className="flex items-center">
+                        {child.children && child.children.length > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 mr-1 hover:bg-gray-200"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleRoomExpansion(child.id);
+                            }}
+                          >
+                            {expandedRooms.has(child.id) ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+                        <div className="flex-1">
+                          <RoomItem 
+                            key={child.id} 
+                            room={child} 
+                            isChild 
+                            hasChildren={child.children && child.children.length > 0}
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Sub-sub-rooms (level 3) when expanded */}
+                      {child.children && 
+                       child.children.length > 0 && 
+                       expandedRooms.has(child.id) && (
+                        <div className="ml-4">
+                          {child.children.map((grandChild) => (
+                            <RoomItem 
+                              key={grandChild.id} 
+                              room={grandChild} 
+                              isChild 
+                              isGrandChild
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}
