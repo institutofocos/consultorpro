@@ -81,6 +81,60 @@ export const useWebhookProcessor = () => {
     }
   };
 
+  // Novo método processForced - alias para processWebhookQueue
+  const processForced = async () => {
+    console.log('🚀 Processamento forçado de webhooks iniciado');
+    return await processWebhookQueue();
+  };
+
+  // Novo método checkConsolidationStatus
+  const checkConsolidationStatus = async () => {
+    console.log('📊 Verificando status de consolidação de webhooks');
+    
+    try {
+      // Verificar se há webhooks ativos
+      const { data: webhooks, error: webhookError } = await supabase
+        .from('webhooks')
+        .select('id, is_active, tables, events')
+        .eq('is_active', true);
+
+      if (webhookError) {
+        console.error('Erro ao verificar webhooks:', webhookError);
+        return {
+          consolidationEnabled: false,
+          statusChangeEnabled: false
+        };
+      }
+
+      // Verificar se há webhooks para criação de projetos
+      const consolidationEnabled = webhooks?.some(w => 
+        w.tables?.includes('projects') && w.events?.includes('INSERT')
+      ) || false;
+
+      // Verificar se há webhooks para mudanças de status
+      const statusChangeEnabled = webhooks?.some(w => 
+        (w.tables?.includes('projects') || w.tables?.includes('project_stages')) && 
+        w.events?.includes('UPDATE')
+      ) || false;
+
+      console.log('Status de consolidação:', {
+        consolidationEnabled,
+        statusChangeEnabled
+      });
+
+      return {
+        consolidationEnabled,
+        statusChangeEnabled
+      };
+    } catch (error) {
+      console.error('Erro ao verificar status de consolidação:', error);
+      return {
+        consolidationEnabled: false,
+        statusChangeEnabled: false
+      };
+    }
+  };
+
   // Auto-processamento a cada 5 segundos
   const startAutoProcessing = () => {
     console.log('🔄 Processamento automático de webhooks iniciado (5s) - Incluindo Status Changes');
@@ -99,10 +153,22 @@ export const useWebhookProcessor = () => {
     };
   };
 
+  // Configuração do sistema
+  const config = {
+    autoProcessingEnabled: true,
+    processingInterval: 5000,
+    maxRetries: 3,
+    consolidationEnabled: true,
+    statusChangeEnabled: true
+  };
+
   return {
     processWebhookQueue,
     processForProjectCreation,
     processForStatusChange,
-    startAutoProcessing
+    processForced,
+    checkConsolidationStatus,
+    startAutoProcessing,
+    config
   };
 };
