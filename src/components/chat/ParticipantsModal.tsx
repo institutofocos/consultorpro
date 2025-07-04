@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,24 +12,24 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Search, Users, X } from 'lucide-react';
-import { useAvailableUsers } from '@/hooks/useChatRooms';
-import type { ChatUser } from '@/hooks/useChatRooms';
+import { Search, Users, X, UserPlus } from 'lucide-react';
+import { 
+  useAvailableUsers, 
+  useRoomParticipants, 
+  useAddUserToRoom, 
+  useRemoveUserFromRoom,
+  type ChatUser,
+  type RoomParticipant
+} from '@/hooks/useChatRooms';
 import { toast } from 'sonner';
-
-interface ParticipantPermission {
-  user_id: string;
-  can_read: boolean;
-  can_write: boolean;
-}
 
 interface ParticipantsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   roomId: string;
   roomName: string;
-  currentParticipants: ParticipantPermission[];
-  onUpdateParticipants: (participants: ParticipantPermission[]) => void;
+  currentParticipants: any[]; // Legacy prop for compatibility
+  onUpdateParticipants: (participants: any[]) => void; // Legacy prop for compatibility
 }
 
 const ParticipantsModal: React.FC<ParticipantsModalProps> = ({
@@ -37,13 +37,13 @@ const ParticipantsModal: React.FC<ParticipantsModalProps> = ({
   onOpenChange,
   roomId,
   roomName,
-  currentParticipants,
-  onUpdateParticipants,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedParticipants, setSelectedParticipants] = useState<ParticipantPermission[]>(currentParticipants);
   
-  const { data: availableUsers, isLoading } = useAvailableUsers();
+  const { data: availableUsers, isLoading: loadingUsers } = useAvailableUsers();
+  const { data: roomParticipants, isLoading: loadingParticipants } = useRoomParticipants(roomId);
+  const addUserMutation = useAddUserToRoom();
+  const removeUserMutation = useRemoveUserFromRoom();
 
   const filteredUsers = React.useMemo(() => {
     if (!availableUsers) return [];
@@ -56,65 +56,49 @@ const ParticipantsModal: React.FC<ParticipantsModalProps> = ({
     );
   }, [availableUsers, searchTerm]);
 
-  const selectedUsers = React.useMemo(() => {
-    if (!availableUsers) return [];
-    return selectedParticipants.map(p => 
-      availableUsers.find(u => u.user_id === p.user_id)
-    ).filter(Boolean) as ChatUser[];
-  }, [selectedParticipants, availableUsers]);
+  const participantIds = React.useMemo(() => {
+    return new Set(roomParticipants?.map(p => p.user_id) || []);
+  }, [roomParticipants]);
 
-  const handleUserToggle = (user: ChatUser, checked: boolean) => {
-    if (checked) {
-      const newParticipants = [...selectedParticipants, {
-        user_id: user.user_id,
-        can_read: true,
-        can_write: true,
-      }];
-      setSelectedParticipants(newParticipants);
-    } else {
-      const newParticipants = selectedParticipants.filter(p => p.user_id !== user.user_id);
-      setSelectedParticipants(newParticipants);
+  const handleAddUser = async (user: ChatUser) => {
+    try {
+      await addUserMutation.mutateAsync({
+        roomId,
+        userId: user.user_id,
+        canRead: true,
+        canWrite: true,
+      });
+      toast.success(`${user.name} foi adicionado à sala`);
+    } catch (error) {
+      console.error('Erro ao adicionar usuário:', error);
+      toast.error('Erro ao adicionar usuário. Tente novamente.');
     }
   };
 
-  const handlePermissionChange = (userId: string, permission: 'can_read' | 'can_write', value: boolean) => {
-    const newParticipants = selectedParticipants.map(p =>
-      p.user_id === userId ? { ...p, [permission]: value } : p
-    );
-    setSelectedParticipants(newParticipants);
+  const handleRemoveUser = async (participant: RoomParticipant) => {
+    if (!confirm(`Tem certeza que deseja remover ${participant.name} desta sala?`)) {
+      return;
+    }
+
+    try {
+      await removeUserMutation.mutateAsync({
+        roomId,
+        userId: participant.user_id,
+      });
+      toast.success(`${participant.name} foi removido da sala`);
+    } catch (error) {
+      console.error('Erro ao remover usuário:', error);
+      toast.error('Erro ao remover usuário. Tente novamente.');
+    }
   };
 
-  const removeUser = (userId: string) => {
-    const newParticipants = selectedParticipants.filter(p => p.user_id !== userId);
-    setSelectedParticipants(newParticipants);
-  };
-
-  const isUserSelected = (userId: string) => {
-    return selectedParticipants.some(p => p.user_id === userId);
-  };
-
-  const getUserPermissions = (userId: string) => {
-    return selectedParticipants.find(p => p.user_id === userId);
-  };
-
-  const handleSave = () => {
-    onUpdateParticipants(selectedParticipants);
-    toast.success('Participantes atualizados com sucesso!');
-    onOpenChange(false);
-  };
-
-  const handleCancel = () => {
-    setSelectedParticipants(currentParticipants);
-    onOpenChange(false);
-  };
-
-  if (isLoading) {
+  if (loadingUsers || loadingParticipants) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl max-h-[90vh]">
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="text-sm text-muted-foreground ml-3">Carregando usuários...</p>
+            <p className="text-sm text-muted-foreground ml-3">Carregando...</p>
           </div>
         </DialogContent>
       </Dialog>
@@ -132,9 +116,45 @@ const ParticipantsModal: React.FC<ParticipantsModalProps> = ({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Participantes atuais */}
+          {roomParticipants && roomParticipants.length > 0 && (
+            <div className="space-y-2">
+              <Label>Participantes Atuais ({roomParticipants.length})</Label>
+              <div className="space-y-2 max-h-40 overflow-y-auto border rounded-md p-2">
+                {roomParticipants.map((participant) => (
+                  <div key={participant.user_id} className="flex items-center justify-between p-2 border rounded-md">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{participant.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {participant.email} • {participant.type === 'consultant' ? 'Consultor' : 'Cliente'}
+                      </p>
+                      <div className="flex gap-2 mt-1">
+                        <Badge variant={participant.can_read ? "default" : "secondary"} className="text-xs">
+                          {participant.can_read ? "Pode ler" : "Não pode ler"}
+                        </Badge>
+                        <Badge variant={participant.can_write ? "default" : "secondary"} className="text-xs">
+                          {participant.can_write ? "Pode escrever" : "Não pode escrever"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveUser(participant)}
+                      disabled={removeUserMutation.isPending}
+                      className="hover:bg-red-50 hover:text-red-600"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Campo de busca */}
           <div className="space-y-2">
-            <Label>Buscar Usuários</Label>
+            <Label>Adicionar Usuários</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -146,33 +166,8 @@ const ParticipantsModal: React.FC<ParticipantsModalProps> = ({
             </div>
           </div>
 
-          {/* Participantes selecionados */}
-          {selectedUsers.length > 0 && (
-            <div className="space-y-2">
-              <Label>Participantes Selecionados ({selectedUsers.length})</Label>
-              <div className="flex flex-wrap gap-2">
-                {selectedUsers.map((user) => (
-                  <Badge
-                    key={user.user_id}
-                    variant="secondary"
-                    className="flex items-center gap-1 pr-1"
-                  >
-                    <span className="text-xs">{user.name}</span>
-                    <button
-                      onClick={() => removeUser(user.user_id)}
-                      className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Lista de usuários para seleção */}
+          {/* Lista de usuários disponíveis */}
           <div className="space-y-2">
-            <Label>Selecionar Usuários</Label>
             <div className="max-h-60 overflow-y-auto space-y-2 border rounded-md p-2">
               {filteredUsers.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
@@ -180,50 +175,33 @@ const ParticipantsModal: React.FC<ParticipantsModalProps> = ({
                 </p>
               ) : (
                 filteredUsers.map((user) => {
-                  const isSelected = isUserSelected(user.user_id);
-                  const permissions = getUserPermissions(user.user_id);
+                  const isParticipant = participantIds.has(user.user_id);
 
                   return (
-                    <div key={user.user_id} className="border rounded-md p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={(checked) =>
-                              handleUserToggle(user, checked as boolean)
-                            }
-                          />
-                          <div>
-                            <p className="font-medium text-sm">{user.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {user.email} • {user.type === 'consultant' ? 'Consultor' : 'Cliente'}
-                            </p>
-                          </div>
-                        </div>
-
-                        {isSelected && permissions && (
-                          <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2">
-                              <Checkbox
-                                checked={permissions.can_read}
-                                onCheckedChange={(checked) =>
-                                  handlePermissionChange(user.user_id, 'can_read', checked as boolean)
-                                }
-                              />
-                              <span className="text-xs">Ler</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Checkbox
-                                checked={permissions.can_write}
-                                onCheckedChange={(checked) =>
-                                  handlePermissionChange(user.user_id, 'can_write', checked as boolean)
-                                }
-                              />
-                              <span className="text-xs">Escrever</span>
-                            </div>
-                          </div>
-                        )}
+                    <div key={user.user_id} className="flex items-center justify-between p-3 border rounded-md">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{user.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {user.email} • {user.type === 'consultant' ? 'Consultor' : 'Cliente'}
+                        </p>
                       </div>
+
+                      {isParticipant ? (
+                        <Badge variant="secondary" className="text-xs">
+                          Já participa
+                        </Badge>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAddUser(user)}
+                          disabled={addUserMutation.isPending}
+                          className="flex items-center gap-1"
+                        >
+                          <UserPlus className="h-3 w-3" />
+                          Adicionar
+                        </Button>
+                      )}
                     </div>
                   );
                 })
@@ -233,11 +211,8 @@ const ParticipantsModal: React.FC<ParticipantsModalProps> = ({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSave}>
-            Salvar Alterações
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Fechar
           </Button>
         </DialogFooter>
       </DialogContent>
