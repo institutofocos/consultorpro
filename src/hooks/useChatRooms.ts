@@ -40,7 +40,13 @@ export const useChatRooms = () => {
   return useQuery({
     queryKey: ['chat-rooms'],
     queryFn: async () => {
-      console.log('Carregando salas de chat...');
+      if (!user?.id) {
+        console.log('Usuário não está logado, não carregando salas');
+        return [];
+      }
+      
+      console.log('Carregando salas de chat para usuário:', user.id);
+      
       const { data, error } = await supabase
         .from('chat_rooms')
         .select('*')
@@ -62,7 +68,9 @@ export const useChatRooms = () => {
         is_pinned: pinnedRooms.includes(room.id)
       })) || [];
       
-      console.log('Salas carregadas:', roomsWithPinned);
+      console.log('Salas carregadas com sucesso:', roomsWithPinned.length, 'salas');
+      console.log('Detalhes das salas:', roomsWithPinned);
+      
       return roomsWithPinned as ChatRoom[];
     },
     enabled: !!user,
