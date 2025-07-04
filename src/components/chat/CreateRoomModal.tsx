@@ -103,6 +103,7 @@ const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
     return parent ? parent.level + 1 : 1;
   };
 
+  // Permitir salas de nível 1 e 2 como pais (para criar sub-salas de nível 2 e 3)
   const availableParentRooms = parentRooms.filter(room => room.level < 3);
 
   return (
