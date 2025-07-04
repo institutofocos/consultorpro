@@ -200,17 +200,6 @@ const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
                   </div>
                 </CardContent>
               </Card>
-
-              <Card className="bg-yellow-50 border-yellow-200">
-                <CardContent className="p-4">
-                  <h4 className="text-sm font-medium text-yellow-800 mb-2">Sistema de Visibilidade</h4>
-                  <div className="text-xs text-yellow-700 space-y-1">
-                    <p>• <strong>Sem participantes:</strong> Todos os usuários podem ver a sala</p>
-                    <p>• <strong>Com participantes:</strong> Apenas participantes podem ver a sala</p>
-                    <p>• <strong>Sub-salas:</strong> Participantes da sala pai são automaticamente adicionados</p>
-                  </div>
-                </CardContent>
-              </Card>
             </TabsContent>
 
             <TabsContent value="participants" className="space-y-4 mt-4">

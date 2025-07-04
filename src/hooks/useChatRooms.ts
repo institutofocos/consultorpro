@@ -34,12 +34,6 @@ export interface ChatUser {
   type: 'consultant' | 'client';
 }
 
-export interface RoomParticipant extends ChatUser {
-  can_read: boolean;
-  can_write: boolean;
-  added_at: string;
-}
-
 export const useChatRooms = () => {
   const { user } = useAuth();
 
@@ -115,107 +109,51 @@ export const useAvailableUsers = () => {
     queryFn: async () => {
       console.log('Carregando usuários disponíveis...');
       
-      const { data, error } = await supabase.rpc('get_available_chat_users');
+      // Buscar consultores
+      const { data: consultants, error: consultantsError } = await supabase
+        .from('consultants')
+        .select('id, name, email');
       
-      if (error) {
-        console.error('Erro ao carregar usuários disponíveis:', error);
-        throw error;
+      if (consultantsError) {
+        console.error('Erro ao carregar consultores:', consultantsError);
       }
       
-      console.log('Usuários disponíveis:', data?.length || 0);
-      return data as ChatUser[];
-    },
-  });
-};
-
-export const useRoomParticipants = (roomId: string | null) => {
-  return useQuery({
-    queryKey: ['room-participants', roomId],
-    queryFn: async () => {
-      if (!roomId) return [];
-
-      console.log('Carregando participantes da sala:', roomId);
+      // Buscar clientes
+      const { data: clients, error: clientsError } = await supabase
+        .from('clients')
+        .select('id, name, email, contact_name');
       
-      const { data, error } = await supabase.rpc('get_room_participants', {
-        p_room_id: roomId
-      });
-
-      if (error) {
-        console.error('Erro ao carregar participantes:', error);
-        throw error;
+      if (clientsError) {
+        console.error('Erro ao carregar clientes:', clientsError);
       }
       
-      console.log('Participantes carregados:', data?.length || 0);
-      return data as RoomParticipant[];
-    },
-    enabled: !!roomId,
-  });
-};
-
-export const useAddUserToRoom = () => {
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
-
-  return useMutation({
-    mutationFn: async (params: {
-      roomId: string;
-      userId: string;
-      canRead?: boolean;
-      canWrite?: boolean;
-    }) => {
-      console.log('Adicionando usuário à sala:', params);
+      // Combinar e formatar os dados
+      const users: ChatUser[] = [];
       
-      if (!user?.id) {
-        throw new Error('Usuário não autenticado');
+      if (consultants) {
+        consultants.forEach(consultant => {
+          users.push({
+            user_id: consultant.id,
+            name: consultant.name,
+            email: consultant.email || '',
+            type: 'consultant'
+          });
+        });
       }
       
-      const { error } = await supabase.rpc('add_user_to_room_and_subrooms', {
-        p_room_id: params.roomId,
-        p_user_id: params.userId,
-        p_added_by: user.id,
-        p_can_read: params.canRead ?? true,
-        p_can_write: params.canWrite ?? true
-      });
-
-      if (error) {
-        console.error('Erro ao adicionar usuário à sala:', error);
-        throw error;
+      if (clients) {
+        clients.forEach(client => {
+          users.push({
+            user_id: client.id,
+            name: client.contact_name || client.name,
+            email: client.email || '',
+            type: 'client'
+          });
+        });
       }
       
-      console.log('Usuário adicionado com sucesso');
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['room-participants', variables.roomId] });
-      queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });
-    },
-  });
-};
-
-export const useRemoveUserFromRoom = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (params: {
-      roomId: string;
-      userId: string;
-    }) => {
-      console.log('Removendo usuário da sala:', params);
-      
-      const { error } = await supabase.rpc('remove_user_from_specific_room', {
-        p_room_id: params.roomId,
-        p_user_id: params.userId
-      });
-
-      if (error) {
-        console.error('Erro ao remover usuário da sala:', error);
-        throw error;
-      }
-      
-      console.log('Usuário removido com sucesso');
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['room-participants', variables.roomId] });
-      queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });
+      console.log('Usuários disponíveis:', users.length);
+      return users;
     },
   });
 };
