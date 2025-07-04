@@ -163,171 +163,6 @@ export type Database = {
           },
         ]
       }
-      api_keys: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          description: string | null
-          expires_at: string | null
-          id: string
-          is_active: boolean
-          key_value: string
-          last_used_at: string | null
-          name: string
-          updated_at: string
-          usage_count: number | null
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          expires_at?: string | null
-          id?: string
-          is_active?: boolean
-          key_value: string
-          last_used_at?: string | null
-          name: string
-          updated_at?: string
-          usage_count?: number | null
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          expires_at?: string | null
-          id?: string
-          is_active?: boolean
-          key_value?: string
-          last_used_at?: string | null
-          name?: string
-          updated_at?: string
-          usage_count?: number | null
-        }
-        Relationships: []
-      }
-      chat_messages: {
-        Row: {
-          created_at: string
-          edited_at: string | null
-          id: string
-          is_deleted: boolean
-          message: string
-          room_id: string
-          sender_id: string
-          sender_name: string
-        }
-        Insert: {
-          created_at?: string
-          edited_at?: string | null
-          id?: string
-          is_deleted?: boolean
-          message: string
-          room_id: string
-          sender_id: string
-          sender_name: string
-        }
-        Update: {
-          created_at?: string
-          edited_at?: string | null
-          id?: string
-          is_deleted?: boolean
-          message?: string
-          room_id?: string
-          sender_id?: string
-          sender_name?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_messages_room_id_fkey"
-            columns: ["room_id"]
-            isOneToOne: false
-            referencedRelation: "chat_rooms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chat_room_participants: {
-        Row: {
-          added_at: string
-          added_by: string
-          can_read: boolean
-          can_write: boolean
-          id: string
-          room_id: string
-          user_id: string
-        }
-        Insert: {
-          added_at?: string
-          added_by: string
-          can_read?: boolean
-          can_write?: boolean
-          id?: string
-          room_id: string
-          user_id: string
-        }
-        Update: {
-          added_at?: string
-          added_by?: string
-          can_read?: boolean
-          can_write?: boolean
-          id?: string
-          room_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_room_participants_room_id_fkey"
-            columns: ["room_id"]
-            isOneToOne: false
-            referencedRelation: "chat_rooms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chat_rooms: {
-        Row: {
-          created_at: string
-          created_by: string
-          description: string | null
-          id: string
-          is_active: boolean
-          level: number
-          name: string
-          parent_room_id: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          created_by: string
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          level?: number
-          name: string
-          parent_room_id?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          level?: number
-          name?: string
-          parent_room_id?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_rooms_parent_room_id_fkey"
-            columns: ["parent_room_id"]
-            isOneToOne: false
-            referencedRelation: "chat_rooms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       clients: {
         Row: {
           address: string | null
@@ -500,99 +335,6 @@ export type Database = {
           zip_code?: string | null
         }
         Relationships: []
-      }
-      demand_views: {
-        Row: {
-          demand_id: string
-          id: string
-          user_id: string
-          viewed_at: string
-        }
-        Insert: {
-          demand_id: string
-          id?: string
-          user_id: string
-          viewed_at?: string
-        }
-        Update: {
-          demand_id?: string
-          id?: string
-          user_id?: string
-          viewed_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "demand_views_demand_id_fkey"
-            columns: ["demand_id"]
-            isOneToOne: false
-            referencedRelation: "demands"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      demands: {
-        Row: {
-          client_id: string | null
-          consultant_id: string | null
-          created_at: string
-          created_by: string
-          description: string | null
-          id: string
-          priority: string
-          project_id: string | null
-          status: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          client_id?: string | null
-          consultant_id?: string | null
-          created_at?: string
-          created_by: string
-          description?: string | null
-          id?: string
-          priority?: string
-          project_id?: string | null
-          status?: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          client_id?: string | null
-          consultant_id?: string | null
-          created_at?: string
-          created_by?: string
-          description?: string | null
-          id?: string
-          priority?: string
-          project_id?: string | null
-          status?: string
-          title?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "demands_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "demands_consultant_id_fkey"
-            columns: ["consultant_id"]
-            isOneToOne: false
-            referencedRelation: "consultants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "demands_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       financial_transactions: {
         Row: {
@@ -1057,66 +799,6 @@ export type Database = {
           full_name?: string | null
           id?: string
           updated_at?: string | null
-        }
-        Relationships: []
-      }
-      project_group_relations: {
-        Row: {
-          created_at: string
-          group_id: string
-          id: string
-          project_id: string
-        }
-        Insert: {
-          created_at?: string
-          group_id: string
-          id?: string
-          project_id: string
-        }
-        Update: {
-          created_at?: string
-          group_id?: string
-          id?: string
-          project_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "project_group_relations_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "project_groups"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "project_group_relations_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      project_groups: {
-        Row: {
-          created_at: string
-          id: string
-          name: string
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          name: string
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          name?: string
-          updated_at?: string
-          user_id?: string | null
         }
         Relationships: []
       }
@@ -2138,10 +1820,6 @@ export type Database = {
         Args: { input_time: string }
         Returns: string
       }
-      generate_api_key: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
       generate_project_id: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -2167,15 +1845,6 @@ export type Database = {
           created_at: string
           last_sign_in_at: string
           email_confirmed_at: string
-        }[]
-      }
-      get_available_chat_users: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          user_id: string
-          name: string
-          email: string
-          type: string
         }[]
       }
       get_project_consolidated_data: {
@@ -2237,10 +1906,6 @@ export type Database = {
         Args: { p_project_id: string }
         Returns: boolean
       }
-      log_api_key_usage: {
-        Args: { api_key: string }
-        Returns: undefined
-      }
       mark_all_demands_as_viewed: {
         Args: { p_user_id: string; p_demand_ids: string[] }
         Returns: undefined
@@ -2291,10 +1956,6 @@ export type Database = {
       }
       user_is_super_admin: {
         Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      validate_api_key: {
-        Args: { api_key: string }
         Returns: boolean
       }
     }

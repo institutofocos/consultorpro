@@ -18,8 +18,7 @@ import {
   LogOut,
   Menu,
   X,
-  Bell,
-  MessageCircle
+  Bell
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -32,7 +31,6 @@ interface NavItem {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   module: string;
-  isPublic?: boolean; // Adicionar esta propriedade para itens públicos
 }
 
 const navItems: NavItem[] = [
@@ -71,13 +69,6 @@ const navItems: NavItem[] = [
     label: 'Serviços',
     icon: Wrench,
     module: 'services'
-  },
-  {
-    path: '/chat',
-    label: 'Chat',
-    icon: MessageCircle,
-    module: 'chat',
-    isPublic: true // Marcar como público para todos os usuários
   },
   {
     path: '/calendar',
@@ -154,10 +145,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
             <div className="text-center text-gray-500">Carregando...</div>
           ) : (
             navItems
-              .filter(item => 
-                // Mostrar itens públicos para todos os usuários ou itens com permissão
-                item.isPublic || hasModulePermission(item.module, 'view')
-              )
+              .filter(item => hasModulePermission(item.module, 'view'))
               .map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path;

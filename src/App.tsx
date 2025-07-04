@@ -25,7 +25,6 @@ import DemandsList from "./components/demands/DemandsList";
 import Dashboard from "./components/dashboard/Dashboard";
 import CalendarPage from "./components/calendar/CalendarPage";
 import KanbanBoard from "./components/kanban/KanbanBoard";
-import ChatPage from "./components/chat/ChatPage";
 
 const queryClient = new QueryClient();
 
@@ -87,12 +86,6 @@ const App = () => (
               <Route path="/demands" element={
                 <ProtectedRoute>
                   <Layout><DemandsList /></Layout>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/chat" element={
-                <ProtectedRoute>
-                  <Layout><ChatPage /></Layout>
                 </ProtectedRoute>
               } />
               

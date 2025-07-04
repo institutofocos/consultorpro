@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import React, { useState } from 'react';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -12,85 +12,26 @@ import { supabase } from "@/integrations/supabase/client";
 interface APIKey {
   id: string;
   name: string;
-  key_value: string;
-  description?: string;
-  is_active: boolean;
-  expires_at?: string;
+  key: string;
   created_at: string;
-  created_by?: string;
-  last_used_at?: string;
-  usage_count?: number;
+  expires_at: string | null;
 }
 
 const APIKeyManager: React.FC = () => {
-  const [apiKeys, setApiKeys] = useState<APIKey[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [apiKeys, setApiKeys] = useState<APIKey[]>([
+    {
+      id: "default",
+      name: "API Key Padrão",
+      key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmZnBpb2VwdmtmdnB1cWRiYm5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MzQ5NDIsImV4cCI6MjA2MzUxMDk0Mn0.ZD1AuPVDNuqTeYz8Eyt4QZHf_Qt1K-9oZcK3_fxSx-w",
+      created_at: new Date().toISOString(),
+      expires_at: null,
+    }
+  ]);
+  
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
-  const [newKeyDescription, setNewKeyDescription] = useState("");
   const [newGeneratedKey, setNewGeneratedKey] = useState<string | null>(null);
   const { toast } = useToast();
-
-  useEffect(() => {
-    fetchApiKeys();
-  }, []);
-
-  const fetchApiKeys = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('api_keys')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching API keys:', error);
-        toast({
-          title: "Erro ao carregar chaves",
-          description: "Não foi possível carregar as chaves de API",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      setApiKeys(data || []);
-    } catch (error) {
-      console.error('Error fetching API keys:', error);
-      toast({
-        title: "Erro ao carregar chaves",
-        description: "Erro inesperado ao carregar as chaves de API",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const generateNewApiKey = async () => {
-    try {
-      const { data, error } = await supabase.rpc('generate_api_key');
-      
-      if (error) {
-        console.error('Error generating API key:', error);
-        toast({
-          title: "Erro ao gerar chave",
-          description: "Não foi possível gerar uma nova chave de API",
-          variant: "destructive"
-        });
-        return null;
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Error generating API key:', error);
-      toast({
-        title: "Erro ao gerar chave",
-        description: "Erro inesperado ao gerar a chave de API",
-        variant: "destructive"
-      });
-      return null;
-    }
-  };
 
   const handleCopyKey = (key: string) => {
     navigator.clipboard.writeText(key);
@@ -100,7 +41,13 @@ const APIKeyManager: React.FC = () => {
     });
   };
 
-  const handleCreateKey = async () => {
+  const generateKey = () => {
+    // In a real app, this would be a secure API call to generate a key
+    const mockKey = "sk_" + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    return mockKey;
+  };
+
+  const handleCreateKey = () => {
     if (!newKeyName.trim()) {
       toast({
         title: "Nome inválido",
@@ -110,135 +57,48 @@ const APIKeyManager: React.FC = () => {
       return;
     }
     
-    const generatedKey = await generateNewApiKey();
-    if (generatedKey) {
-      setNewGeneratedKey(generatedKey);
-    }
+    const newKey = generateKey();
+    setNewGeneratedKey(newKey);
   };
 
-  const confirmCreateKey = async () => {
+  const confirmCreateKey = () => {
     if (!newKeyName || !newGeneratedKey) return;
     
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        toast({
-          title: "Erro de autenticação",
-          description: "Você precisa estar logado para criar uma chave de API",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('api_keys')
-        .insert({
-          name: newKeyName,
-          key_value: newGeneratedKey,
-          description: newKeyDescription || null,
-          created_by: user.id
-        });
-
-      if (error) {
-        console.error('Error creating API key:', error);
-        toast({
-          title: "Erro ao criar chave",
-          description: "Não foi possível salvar a chave de API",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      toast({
-        title: "Chave criada",
-        description: "Nova chave de API criada com sucesso",
-      });
-      
-      // Reset state
-      setNewKeyName("");
-      setNewKeyDescription("");
-      setNewGeneratedKey(null);
-      setIsCreateDialogOpen(false);
-      
-      // Refresh the list
-      await fetchApiKeys();
-    } catch (error) {
-      console.error('Error creating API key:', error);
-      toast({
-        title: "Erro ao criar chave",
-        description: "Erro inesperado ao criar a chave de API",
-        variant: "destructive"
-      });
-    }
+    const newApiKey: APIKey = {
+      id: Date.now().toString(),
+      name: newKeyName,
+      key: newGeneratedKey,
+      created_at: new Date().toISOString(),
+      expires_at: null
+    };
+    
+    setApiKeys([...apiKeys, newApiKey]);
+    toast({
+      title: "Chave criada",
+      description: "Nova chave de API criada com sucesso",
+    });
+    
+    // Reset state
+    setNewKeyName("");
+    setNewGeneratedKey(null);
+    setIsCreateDialogOpen(false);
   };
 
-  const handleDeleteKey = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('api_keys')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        console.error('Error deleting API key:', error);
-        toast({
-          title: "Erro ao excluir chave",
-          description: "Não foi possível excluir a chave de API",
-          variant: "destructive"
-        });
-        return;
-      }
-
+  const handleDeleteKey = (id: string) => {
+    if (id === "default") {
       toast({
-        title: "Chave excluída",
-        description: "A chave de API foi excluída com sucesso",
-      });
-      
-      // Refresh the list
-      await fetchApiKeys();
-    } catch (error) {
-      console.error('Error deleting API key:', error);
-      toast({
-        title: "Erro ao excluir chave",
-        description: "Erro inesperado ao excluir a chave de API",
+        title: "Operação não permitida",
+        description: "A chave padrão não pode ser excluída",
         variant: "destructive"
       });
+      return;
     }
-  };
-
-  const toggleKeyStatus = async (id: string, currentStatus: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('api_keys')
-        .update({ is_active: !currentStatus })
-        .eq('id', id);
-
-      if (error) {
-        console.error('Error updating API key status:', error);
-        toast({
-          title: "Erro ao atualizar chave",
-          description: "Não foi possível atualizar o status da chave",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      toast({
-        title: "Status atualizado",
-        description: `Chave ${!currentStatus ? 'ativada' : 'desativada'} com sucesso`,
-      });
-      
-      // Refresh the list
-      await fetchApiKeys();
-    } catch (error) {
-      console.error('Error updating API key status:', error);
-      toast({
-        title: "Erro ao atualizar chave",
-        description: "Erro inesperado ao atualizar o status da chave",
-        variant: "destructive"
-      });
-    }
+    
+    setApiKeys(apiKeys.filter(key => key.id !== id));
+    toast({
+      title: "Chave excluída",
+      description: "A chave de API foi excluída com sucesso",
+    });
   };
 
   const formatDate = (dateString: string) => {
@@ -251,20 +111,6 @@ const APIKeyManager: React.FC = () => {
       minute: '2-digit'
     });
   };
-
-  if (loading) {
-    return (
-      <div className="space-y-6 animate-fade-in">
-        <div>
-          <h1 className="text-3xl font-bold">Gerenciador de API Keys</h1>
-          <p className="text-muted-foreground">Carregando chaves de API...</p>
-        </div>
-        <div className="flex items-center justify-center h-32">
-          <RefreshCcw className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -293,21 +139,12 @@ const APIKeyManager: React.FC = () => {
               <>
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="name">Nome*</Label>
+                    <Label htmlFor="name">Nome</Label>
                     <Input
                       id="name"
                       value={newKeyName}
                       onChange={(e) => setNewKeyName(e.target.value)}
-                      placeholder="Ex: Aplicação Web Principal"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="description">Descrição (opcional)</Label>
-                    <Input
-                      id="description"
-                      value={newKeyDescription}
-                      onChange={(e) => setNewKeyDescription(e.target.value)}
-                      placeholder="Ex: Chave para integração com sistema de terceiros"
+                      placeholder="Ex: Aplicação Web"
                     />
                   </div>
                 </div>
@@ -347,7 +184,7 @@ const APIKeyManager: React.FC = () => {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button onClick={confirmCreateKey}>Salvar Chave</Button>
+                  <Button onClick={confirmCreateKey}>Confirmar</Button>
                 </DialogFooter>
               </>
             )}
@@ -355,96 +192,59 @@ const APIKeyManager: React.FC = () => {
         </Dialog>
       </div>
 
-      {apiKeys.length === 0 ? (
-        <Card>
-          <CardContent className="p-6 text-center">
-            <Key className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-medium mb-2">Nenhuma API Key encontrada</h3>
-            <p className="text-muted-foreground mb-4">
-              Crie sua primeira chave de API para começar a usar o sistema.
-            </p>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Criar primeira API Key
-            </Button>
+      {apiKeys.map((apiKey) => (
+        <Card key={apiKey.id} className="shadow-sm border">
+          <CardHeader className="pb-2">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Key className="h-4 w-4 text-primary" />
+                <CardTitle className="text-lg">{apiKey.name}</CardTitle>
+              </div>
+              {apiKey.id !== "default" && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => handleDeleteKey(apiKey.id)}
+                >
+                  <Trash className="h-4 w-4 text-destructive" />
+                </Button>
+              )}
+            </div>
+            <CardDescription>
+              Criada em {formatDate(apiKey.created_at)}
+              {apiKey.expires_at && ` • Expira em ${formatDate(apiKey.expires_at)}`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <Input
+                readOnly
+                value={apiKey.key}
+                type="password"
+                className="font-mono"
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => handleCopyKey(apiKey.key)}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+              {apiKey.id === "default" && (
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  disabled
+                  title="Não é possível gerar nova chave padrão"
+                >
+                  <RefreshCcw className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
-      ) : (
-        <div className="space-y-4">
-          {apiKeys.map((apiKey) => (
-            <Card key={apiKey.id} className="shadow-sm border">
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <Key className="h-4 w-4 text-primary" />
-                    <CardTitle className="text-lg">{apiKey.name}</CardTitle>
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      apiKey.is_active 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                    }`}>
-                      {apiKey.is_active ? 'Ativa' : 'Inativa'}
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => toggleKeyStatus(apiKey.id, apiKey.is_active)}
-                      title={apiKey.is_active ? 'Desativar chave' : 'Ativar chave'}
-                    >
-                      {apiKey.is_active ? 'Desativar' : 'Ativar'}
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => handleDeleteKey(apiKey.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <CardDescription>
-                  <div className="space-y-1">
-                    <div>Criada em {formatDate(apiKey.created_at)}</div>
-                    {apiKey.description && <div className="text-sm">{apiKey.description}</div>}
-                    {apiKey.last_used_at && (
-                      <div className="text-xs text-muted-foreground">
-                        Último uso: {formatDate(apiKey.last_used_at)} 
-                        {apiKey.usage_count && ` (${apiKey.usage_count} usos)`}
-                      </div>
-                    )}
-                    {apiKey.expires_at && (
-                      <div className="text-xs text-orange-600 dark:text-orange-400">
-                        Expira em: {formatDate(apiKey.expires_at)}
-                      </div>
-                    )}
-                  </div>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <Input
-                    readOnly
-                    value={apiKey.key_value}
-                    type="password"
-                    className="font-mono"
-                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                  />
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    onClick={() => handleCopyKey(apiKey.key_value)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      ))}
     </div>
   );
 };
