@@ -13,7 +13,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Search, Users, X } from 'lucide-react';
-import { useAvailableUsers } from '@/hooks/useChatRooms';
+import { useAvailableUsers, useRoomParticipants, useUpdateRoomParticipants } from '@/hooks/useChatRooms';
 import type { ChatUser } from '@/hooks/useChatRooms';
 import { toast } from 'sonner';
 
@@ -28,8 +28,6 @@ interface ParticipantsModalProps {
   onOpenChange: (open: boolean) => void;
   roomId: string;
   roomName: string;
-  currentParticipants: ParticipantPermission[];
-  onUpdateParticipants: (participants: ParticipantPermission[]) => void;
 }
 
 const ParticipantsModal: React.FC<ParticipantsModalProps> = ({
@@ -37,13 +35,25 @@ const ParticipantsModal: React.FC<ParticipantsModalProps> = ({
   onOpenChange,
   roomId,
   roomName,
-  currentParticipants,
-  onUpdateParticipants,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedParticipants, setSelectedParticipants] = useState<ParticipantPermission[]>(currentParticipants);
+  const [selectedParticipants, setSelectedParticipants] = useState<ParticipantPermission[]>([]);
   
-  const { data: availableUsers, isLoading } = useAvailableUsers();
+  const { data: availableUsers, isLoading: loadingUsers } = useAvailableUsers();
+  const { data: currentParticipants, isLoading: loadingParticipants } = useRoomParticipants(roomId);
+  const updateParticipants = useUpdateRoomParticipants();
+
+  // Initialize selected participants when modal opens and participants are loaded
+  React.useEffect(() => {
+    if (open && currentParticipants) {
+      const participantsData = currentParticipants.map((p: any) => ({
+        user_id: p.user_id,
+        can_read: p.can_read,
+        can_write: p.can_write,
+      }));
+      setSelectedParticipants(participantsData);
+    }
+  }, [open, currentParticipants]);
 
   const filteredUsers = React.useMemo(() => {
     if (!availableUsers) return [];
@@ -97,18 +107,33 @@ const ParticipantsModal: React.FC<ParticipantsModalProps> = ({
     return selectedParticipants.find(p => p.user_id === userId);
   };
 
-  const handleSave = () => {
-    onUpdateParticipants(selectedParticipants);
-    toast.success('Participantes atualizados com sucesso!');
-    onOpenChange(false);
+  const handleSave = async () => {
+    try {
+      await updateParticipants.mutateAsync({
+        roomId,
+        participants: selectedParticipants,
+      });
+      toast.success('Participantes atualizados com sucesso!');
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Erro ao atualizar participantes:', error);
+      toast.error('Erro ao atualizar participantes. Tente novamente.');
+    }
   };
 
   const handleCancel = () => {
-    setSelectedParticipants(currentParticipants);
+    if (currentParticipants) {
+      const participantsData = currentParticipants.map((p: any) => ({
+        user_id: p.user_id,
+        can_read: p.can_read,
+        can_write: p.can_write,
+      }));
+      setSelectedParticipants(participantsData);
+    }
     onOpenChange(false);
   };
 
-  if (isLoading) {
+  if (loadingUsers || loadingParticipants) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl max-h-[90vh]">
@@ -233,11 +258,11 @@ const ParticipantsModal: React.FC<ParticipantsModalProps> = ({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} disabled={updateParticipants.isPending}>
             Cancelar
           </Button>
-          <Button onClick={handleSave}>
-            Salvar Alterações
+          <Button onClick={handleSave} disabled={updateParticipants.isPending}>
+            {updateParticipants.isPending ? 'Salvando...' : 'Salvar Alterações'}
           </Button>
         </DialogFooter>
       </DialogContent>

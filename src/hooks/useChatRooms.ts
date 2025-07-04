@@ -367,3 +367,54 @@ export const usePinChatRoom = () => {
     },
   });
 };
+
+export const useRoomParticipants = (roomId: string | null) => {
+  return useQuery({
+    queryKey: ['room-participants', roomId],
+    queryFn: async () => {
+      if (!roomId) return [];
+
+      console.log('Carregando participantes da sala:', roomId);
+      
+      const { data, error } = await supabase.rpc('get_room_participants', {
+        p_room_id: roomId
+      });
+
+      if (error) {
+        console.error('Erro ao carregar participantes:', error);
+        throw error;
+      }
+      
+      console.log('Participantes carregados:', data?.length || 0);
+      return data || [];
+    },
+    enabled: !!roomId,
+  });
+};
+
+export const useUpdateRoomParticipants = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: {
+      roomId: string;
+      participants: { user_id: string; can_read: boolean; can_write: boolean }[];
+    }) => {
+      console.log('Atualizando participantes da sala:', params);
+      
+      const { error } = await supabase.rpc('update_room_participants', {
+        p_room_id: params.roomId,
+        p_participants: params.participants
+      });
+
+      if (error) {
+        console.error('Erro ao atualizar participantes:', error);
+        throw error;
+      }
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['chat-rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['room-participants', variables.roomId] });
+    },
+  });
+};

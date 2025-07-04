@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,18 +13,11 @@ import ParticipantsModal from './ParticipantsModal';
 import { toast } from 'sonner';
 import type { ChatRoom } from '@/hooks/useChatRooms';
 
-interface ParticipantPermission {
-  user_id: string;
-  can_read: boolean;
-  can_write: boolean;
-}
-
 const ChatPage = () => {
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
   const [participantsRoom, setParticipantsRoom] = useState<ChatRoom | null>(null);
-  const [currentParticipants, setCurrentParticipants] = useState<ParticipantPermission[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
   const { data: rooms, isLoading, error, refetch } = useChatRooms();
@@ -72,11 +66,6 @@ const ChatPage = () => {
   const handleOpenParticipantsModal = (room: ChatRoom) => {
     setParticipantsRoom(room);
     setShowParticipantsModal(true);
-  };
-
-  const handleUpdateParticipants = (participants: ParticipantPermission[]) => {
-    setCurrentParticipants(participants);
-    console.log('Atualizando participantes:', participants);
   };
 
   if (!user) {
@@ -211,8 +200,6 @@ const ChatPage = () => {
           onOpenChange={setShowParticipantsModal}
           roomId={participantsRoom.id}
           roomName={participantsRoom.name}
-          currentParticipants={currentParticipants}
-          onUpdateParticipants={handleUpdateParticipants}
         />
       )}
     </div>
