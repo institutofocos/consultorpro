@@ -34,7 +34,7 @@ export interface ChatUser {
   type: 'consultant' | 'client';
 }
 
-// Stub implementations - retornam dados vazios
+// Stub implementations - retornam dados vazios mas com assinaturas corretas
 export const useChatRooms = () => {
   return {
     data: [],
@@ -64,8 +64,17 @@ export const useAvailableUsers = () => {
 
 export const useCreateChatRoom = () => {
   return {
-    mutate: () => {},
-    mutateAsync: async () => ({ id: '', name: '', created_at: '', updated_at: '', level: 0, created_by: '', is_active: false }),
+    mutate: (data: any) => {},
+    mutateAsync: async (data: any) => ({ 
+      id: '', 
+      name: '', 
+      created_at: '', 
+      updated_at: '', 
+      level: 0, 
+      created_by: '', 
+      is_active: false 
+    }),
+    isPending: false,
     isLoading: false,
     error: null
   };
@@ -73,8 +82,17 @@ export const useCreateChatRoom = () => {
 
 export const useSendMessage = () => {
   return {
-    mutate: () => {},
-    mutateAsync: async () => ({ id: '', room_id: '', sender_id: '', sender_name: '', message: '', created_at: '', is_deleted: false }),
+    mutate: (data: any) => {},
+    mutateAsync: async (data: any) => ({ 
+      id: '', 
+      room_id: '', 
+      sender_id: '', 
+      sender_name: '', 
+      message: '', 
+      created_at: '', 
+      is_deleted: false 
+    }),
+    isPending: false,
     isLoading: false,
     error: null
   };
@@ -82,8 +100,9 @@ export const useSendMessage = () => {
 
 export const useDeleteChatRoom = () => {
   return {
-    mutate: () => {},
-    mutateAsync: async () => {},
+    mutate: (roomId: string) => {},
+    mutateAsync: async (roomId: string) => {},
+    isPending: false,
     isLoading: false,
     error: null
   };
@@ -91,8 +110,17 @@ export const useDeleteChatRoom = () => {
 
 export const useUpdateChatRoom = () => {
   return {
-    mutate: () => {},
-    mutateAsync: async () => ({ id: '', name: '', created_at: '', updated_at: '', level: 0, created_by: '', is_active: false }),
+    mutate: (data: any) => {},
+    mutateAsync: async (data: any) => ({ 
+      id: '', 
+      name: '', 
+      created_at: '', 
+      updated_at: '', 
+      level: 0, 
+      created_by: '', 
+      is_active: false 
+    }),
+    isPending: false,
     isLoading: false,
     error: null
   };
@@ -100,8 +128,9 @@ export const useUpdateChatRoom = () => {
 
 export const usePinChatRoom = () => {
   return {
-    mutate: () => {},
-    mutateAsync: async () => ({ roomId: '', isPinned: false }),
+    mutate: (data: any) => {},
+    mutateAsync: async (data: any) => ({ roomId: '', isPinned: false }),
+    isPending: false,
     isLoading: false,
     error: null
   };
@@ -118,8 +147,9 @@ export const useRoomParticipants = (roomId: string | null) => {
 
 export const useUpdateRoomParticipants = () => {
   return {
-    mutate: () => {},
-    mutateAsync: async () => {},
+    mutate: (data: any) => {},
+    mutateAsync: async (data: any) => {},
+    isPending: false,
     isLoading: false,
     error: null
   };
