@@ -24,7 +24,7 @@ const ProjectFormStageSection: React.FC<ProjectFormStageSectionProps> = ({
 }) => {
   const addStage = () => {
     const newStage: Stage = {
-      id: `temp-${Date.now()}`,
+      id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       projectId: '',
       name: `Etapa ${stages.length + 1}`,
       description: '',
@@ -46,36 +46,36 @@ const ProjectFormStageSection: React.FC<ProjectFormStageSectionProps> = ({
       valorDeRepasse: 0
     };
     
-    console.log('Adicionando nova etapa:', newStage);
+    console.log('✅ Adicionando nova etapa (INDEPENDENTE):', newStage);
     onStagesChange([...stages, newStage]);
   };
 
   const updateStage = (index: number, field: keyof Stage, value: any) => {
-    console.log(`Atualizando etapa ${index}, campo ${field}:`, value);
+    console.log(`✅ Atualizando etapa ${index}, campo ${field}:`, value);
     
     const updatedStages = [...stages];
     
-    // Validação e conversão de tipos
+    // Validação e conversão de tipos mais robusta
     let processedValue = value;
     
     if (field === 'days' || field === 'hours' || field === 'stageOrder') {
-      processedValue = Math.max(1, Number(value) || 1);
+      processedValue = Math.max(1, parseInt(String(value)) || 1);
     } else if (field === 'value' || field === 'valorDeRepasse') {
-      processedValue = Number(value) || 0;
+      processedValue = parseFloat(String(value)) || 0;
     } else if (['completed', 'clientApproved', 'managerApproved', 'invoiceIssued', 'paymentReceived', 'consultantsSettled'].includes(field)) {
       processedValue = Boolean(value);
-    } else if (field === 'name' || field === 'description') {
+    } else if (field === 'name' || field === 'description' || field === 'consultantId') {
       processedValue = String(value || '');
     }
     
     updatedStages[index] = { ...updatedStages[index], [field]: processedValue };
     
-    console.log(`Etapa ${index} atualizada:`, updatedStages[index]);
+    console.log(`✅ Etapa ${index} atualizada (INDEPENDENTE):`, updatedStages[index]);
     onStagesChange(updatedStages);
   };
 
   const removeStage = (index: number) => {
-    console.log(`Removendo etapa ${index}`);
+    console.log(`✅ Removendo etapa ${index} (INDEPENDENTE)`);
     const updatedStages = stages.filter((_, i) => i !== index);
     const reorderedStages = updatedStages.map((stage, i) => ({
       ...stage,
@@ -83,12 +83,12 @@ const ProjectFormStageSection: React.FC<ProjectFormStageSectionProps> = ({
       name: stage.name.startsWith('Etapa ') ? `Etapa ${i + 1}` : stage.name
     }));
     
-    console.log('Etapas após remoção e reordenação:', reorderedStages);
+    console.log('✅ Etapas após remoção e reordenação (INDEPENDENTE):', reorderedStages);
     onStagesChange(reorderedStages);
   };
 
-  // Log para debugging
-  console.log('ProjectFormStageSection - Etapas atuais:', stages);
+  // Log para debugging - COMPLETAMENTE INDEPENDENTE
+  console.log('✅ ProjectFormStageSection - Etapas atuais (INDEPENDENTE):', stages);
 
   return (
     <Card>
@@ -103,7 +103,7 @@ const ProjectFormStageSection: React.FC<ProjectFormStageSectionProps> = ({
         {stages && stages.length > 0 ? (
           <div className="space-y-4">
             {stages.map((stage, index) => (
-              <div key={stage.id || index} className="border rounded-lg p-4 space-y-4 bg-gray-50">
+              <div key={stage.id || `stage-${index}`} className="border rounded-lg p-4 space-y-4 bg-gray-50">
                 <div className="flex justify-between items-start">
                   <h4 className="font-medium text-lg">Etapa {index + 1}</h4>
                   <Button
