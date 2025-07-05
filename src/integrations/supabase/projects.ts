@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -369,7 +370,7 @@ export const assignConsultantsToDemand = async (
 
 export const createProject = async (project: any) => {
   try {
-    console.log('✅ CRIANDO PROJETO E ETAPAS (TOTALMENTE INDEPENDENTE)');
+    console.log('✅ CRIANDO PROJETO E ETAPAS (COMPLETAMENTE INDEPENDENTE - SEM CHAT)');
     console.log('Dados originais recebidos:', JSON.stringify(project, null, 2));
     
     // VALIDAR DADOS DE ENTRADA
@@ -403,9 +404,9 @@ export const createProject = async (project: any) => {
       url: project.url || null,
     };
 
-    console.log('✅ Dados para inserção do projeto (INDEPENDENTE):', JSON.stringify(cleanProjectData, null, 2));
+    console.log('✅ Dados limpos para inserção do projeto (SEM CHAT):', JSON.stringify(cleanProjectData, null, 2));
     
-    // INSERIR PROJETO
+    // INSERIR PROJETO NA TABELA PROJECTS - COMPLETAMENTE INDEPENDENTE
     const { data: createdProject, error: projectError } = await supabase
       .from('projects')
       .insert(cleanProjectData)
@@ -418,12 +419,12 @@ export const createProject = async (project: any) => {
       throw new Error(`Erro ao criar projeto: ${projectError.message}`);
     }
 
-    console.log('✅ Projeto criado com sucesso (INDEPENDENTE):', createdProject);
+    console.log('✅ Projeto criado com sucesso (SEM CHAT):', createdProject);
     console.log('✅ ID do projeto criado:', createdProject.id);
 
-    // CRIAR ETAPAS SE EXISTIREM
+    // CRIAR ETAPAS NA TABELA PROJECT_STAGES - SE EXISTIREM
     if (project.stages && Array.isArray(project.stages) && project.stages.length > 0) {
-      console.log('✅ CRIANDO ETAPAS DO PROJETO (INDEPENDENTE)');
+      console.log('✅ CRIANDO ETAPAS DO PROJETO (SEM CHAT)');
       console.log(`Número de etapas a criar: ${project.stages.length}`);
       console.log('Etapas recebidas:', JSON.stringify(project.stages, null, 2));
       
@@ -461,9 +462,9 @@ export const createProject = async (project: any) => {
         return stageData;
       });
 
-      console.log('✅ Array de etapas para inserção (INDEPENDENTE):', JSON.stringify(stagesData, null, 2));
+      console.log('✅ Array de etapas para inserção (SEM CHAT):', JSON.stringify(stagesData, null, 2));
 
-      // INSERIR ETAPAS EM LOTE
+      // INSERIR ETAPAS EM LOTE NA TABELA PROJECT_STAGES
       const { data: createdStages, error: stagesError } = await supabase
         .from('project_stages')
         .insert(stagesData)
@@ -479,7 +480,7 @@ export const createProject = async (project: any) => {
         
         throw new Error(`Erro ao criar etapas: ${stagesError.message}`);
       } else {
-        console.log('✅ Etapas criadas com sucesso (INDEPENDENTE):', createdStages);
+        console.log('✅ Etapas criadas com sucesso (SEM CHAT):', createdStages);
         console.log(`✅ Total de etapas criadas: ${createdStages?.length || 0}`);
       }
     } else {
@@ -497,14 +498,14 @@ export const createProject = async (project: any) => {
       }
     }
 
-    console.log('✅ PROJETO E ETAPAS CRIADOS COM SUCESSO (INDEPENDENTE)');
+    console.log('✅ PROJETO E ETAPAS CRIADOS COM SUCESSO (SEM CHAT)');
     console.log('✅ Projeto ID:', createdProject.id);
     console.log('✅ Nome do projeto:', createdProject.name);
     console.log('✅ Status do projeto:', createdProject.status);
     
     return createdProject;
   } catch (error) {
-    console.error('❌ ERRO CRÍTICO NA CRIAÇÃO DO PROJETO (INDEPENDENTE):', error);
+    console.error('❌ ERRO CRÍTICO NA CRIAÇÃO DO PROJETO (SEM CHAT):', error);
     console.error('Stack trace:', error instanceof Error ? error.stack : 'N/A');
     throw error;
   }

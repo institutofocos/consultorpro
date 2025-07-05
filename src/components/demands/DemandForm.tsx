@@ -132,7 +132,14 @@ export default function DemandForm({ demand, onDemandSaved, onCancel }: DemandFo
         manager_phone: formData.manager_phone?.trim() || null,
         hourly_rate: 0,
         tax_percent: 16,
-        total_hours: 0
+        total_hours: 0,
+        main_consultant_id: null,
+        support_consultant_id: null,
+        main_consultant_commission: 0,
+        support_consultant_commission: 0,
+        main_consultant_value: 0,
+        support_consultant_value: 0,
+        third_party_expenses: 0
         // ZERO CAMPOS RELACIONADOS A CHAT - COMPLETAMENTE REMOVIDOS
       };
 
