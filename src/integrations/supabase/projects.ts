@@ -1,3 +1,4 @@
+
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -286,7 +287,7 @@ export const assignConsultantsToDemand = async (
   supportConsultantCommission: number
 ) => {
   try {
-    console.log('=== INICIANDO ATRIBUIÇÃO DE CONSULTOR (ZERO CHAT) ===');
+    console.log('=== INICIANDO ATRIBUIÇÃO DE CONSULTOR (COMPLETAMENTE INDEPENDENTE) ===');
     console.log('Dados recebidos:', {
       projectId,
       mainConsultantId,
@@ -313,12 +314,11 @@ export const assignConsultantsToDemand = async (
 
     console.log('Projeto encontrado:', existingProject.name);
 
-    // Atualizar APENAS o projeto principal - ZERO REFERÊNCIA A CHAT
+    // Atualizar APENAS o projeto principal - TOTALMENTE INDEPENDENTE
     const updateData: any = {
       main_consultant_id: mainConsultantId,
       main_consultant_commission: mainConsultantCommission,
       status: mainConsultantId ? 'em_producao' : 'em_planejamento'
-      // ZERO CAMPOS DE CHAT - COMPLETAMENTE REMOVIDOS
     };
 
     if (supportConsultantId) {
@@ -326,7 +326,7 @@ export const assignConsultantsToDemand = async (
       updateData.support_consultant_commission = supportConsultantCommission;
     }
 
-    console.log('Dados para atualização do projeto (ZERO CHAT):', updateData);
+    console.log('Dados para atualização do projeto (TOTALMENTE INDEPENDENTE):', updateData);
 
     const { data: updatedProject, error: updateProjectError } = await supabase
       .from('projects')
@@ -344,7 +344,7 @@ export const assignConsultantsToDemand = async (
       throw new Error('Nenhum projeto foi atualizado. Verifique se o ID está correto.');
     }
     
-    console.log('Projeto atualizado com sucesso (ZERO CHAT):', updatedProject);
+    console.log('Projeto atualizado com sucesso (TOTALMENTE INDEPENDENTE):', updatedProject);
 
     // Atribuir consultor às etapas do projeto
     if (mainConsultantId) {
@@ -378,7 +378,7 @@ export const assignConsultantsToDemand = async (
     // Update status automatically after consultant assignment
     await updateProjectStatusAutomatically(projectId);
     
-    console.log('=== ATRIBUIÇÃO CONCLUÍDA (ZERO CHAT) ===');
+    console.log('=== ATRIBUIÇÃO CONCLUÍDA (TOTALMENTE INDEPENDENTE) ===');
     console.log('✅ Processo completado sem qualquer referência a chat');
     return updatedProject;
   } catch (error) {
