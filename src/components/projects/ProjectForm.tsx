@@ -1,17 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarIcon, PlusIcon, TrashIcon, InfoIcon, LinkIcon } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { createProject, updateProject, fetchProjectTags } from "@/integrations/supabase/projects";
@@ -69,7 +62,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
 
   useEffect(() => {
     if (project) {
-      console.log('=== CARREGANDO DADOS DO PROJETO PARA EDIÇÃO (SEM CHAT) ===');
+      console.log('=== CARREGANDO DADOS DO PROJETO PARA EDIÇÃO (ZERO CHAT) ===');
       console.log('Projeto completo:', project);
       
       const projectFormData = {
@@ -357,11 +350,11 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         return;
       }
 
-      console.log('=== SUBMISSÃO PROJETO INDEPENDENTE (SEM CHAT) ===');
+      console.log('=== SUBMISSÃO PROJETO COMPLETAMENTE INDEPENDENTE (ZERO CHAT) ===');
       console.log('Tipo de operação:', project ? 'UPDATE' : 'CREATE');
       console.log('Dados do formulário ANTES da limpeza:', JSON.stringify(formData, null, 2));
 
-      // CRIAR OBJETO TOTALMENTE LIMPO - SEM QUALQUER REFERÊNCIA A CHAT
+      // CRIAR OBJETO COMPLETAMENTE LIMPO - ZERO QUALQUER REFERÊNCIA A CHAT
       const safeProjectData = {
         // ID apenas se for atualização
         ...(project?.id && { id: project.id }),
@@ -391,27 +384,28 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         tagIds: formData.tagIds || [],
         stages: formData.stages || [],
         url: formData.url || ''
+        // ZERO CAMPOS RELACIONADOS A CHAT - COMPLETAMENTE REMOVIDOS
       };
 
-      console.log('=== DADOS COMPLETAMENTE LIMPOS (SEM CHAT) ===');
+      console.log('=== DADOS COMPLETAMENTE LIMPOS (ZERO CHAT) ===');
       console.log('Objeto seguro (SEM qualquer campo de chat):', JSON.stringify(safeProjectData, null, 2));
       
       if (!project) {
-        console.log('✅ Novo projeto será criado com status "iniciar_projeto" (SEM CHAT)');
+        console.log('✅ Novo projeto será criado com status "iniciar_projeto" (ZERO CHAT)');
       }
 
       let savedProject: any;
       if (project?.id) {
-        console.log('Atualizando projeto existente com ID (SEM CHAT):', project.id);
+        console.log('Atualizando projeto existente com ID (ZERO CHAT):', project.id);
         savedProject = await updateProject(safeProjectData);
         toast.success('Projeto atualizado com sucesso!');
       } else {
-        console.log('Criando novo projeto com status "iniciar_projeto" (SEM CHAT)');
+        console.log('Criando novo projeto com status "iniciar_projeto" (ZERO CHAT)');
         savedProject = await createProject(safeProjectData);
         toast.success('Projeto criado com sucesso!');
       }
 
-      console.log('Projeto salvo no banco (SEM CHAT):', savedProject);
+      console.log('Projeto salvo no banco (ZERO CHAT):', savedProject);
 
       const transformedProject: Project = {
         id: savedProject.id,
@@ -442,13 +436,14 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         url: savedProject.url || ''
       };
 
-      console.log('Projeto transformado (SEM CHAT):', transformedProject);
+      console.log('Projeto transformado (ZERO CHAT):', transformedProject);
       console.log('Chamando onProjectSaved...');
       
       onProjectSaved(transformedProject);
       
       console.log('=== SUBMISSÃO CONCLUÍDA COM TOTAL INDEPENDÊNCIA ===');
-      console.log('✅ Nenhuma referência a chat_rooms foi feita');
+      console.log('✅ ZERO referências a chat_rooms foram feitas');
+      console.log('✅ Projeto salvo apenas nas tabelas: projects, project_stages, project_tag_relations');
     } catch (error) {
       console.error('=== ERRO NA SUBMISSÃO INDEPENDENTE ===');
       console.error('Error saving project:', error);

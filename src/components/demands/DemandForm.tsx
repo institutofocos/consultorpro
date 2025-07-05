@@ -115,7 +115,9 @@ export default function DemandForm({ demand, onDemandSaved, onCancel }: DemandFo
         return;
       }
 
-      // Preparar dados da demanda para a tabela projects
+      console.log('=== SALVANDO DEMANDA COMPLETAMENTE INDEPENDENTE (ZERO CHAT) ===');
+      
+      // Preparar dados da demanda para a tabela projects - ZERO REFERÊNCIA A CHAT
       const demandData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
@@ -131,12 +133,16 @@ export default function DemandForm({ demand, onDemandSaved, onCancel }: DemandFo
         hourly_rate: 0,
         tax_percent: 16,
         total_hours: 0
+        // ZERO CAMPOS RELACIONADOS A CHAT - COMPLETAMENTE REMOVIDOS
       };
+
+      console.log('Dados da demanda (ZERO CHAT):', demandData);
 
       let savedDemand;
       
       if (demand?.id) {
-        // Atualizar demanda existente
+        // Atualizar demanda existente - ZERO CHAT
+        console.log('Atualizando demanda existente (ZERO CHAT)');
         const { data, error } = await supabase
           .from('projects')
           .update(demandData)
@@ -148,7 +154,8 @@ export default function DemandForm({ demand, onDemandSaved, onCancel }: DemandFo
         savedDemand = data;
         toast.success('Demanda atualizada com sucesso!');
       } else {
-        // Criar nova demanda
+        // Criar nova demanda - ZERO CHAT
+        console.log('Criando nova demanda (ZERO CHAT)');
         const { data, error } = await supabase
           .from('projects')
           .insert(demandData)
@@ -160,6 +167,9 @@ export default function DemandForm({ demand, onDemandSaved, onCancel }: DemandFo
         toast.success('Demanda criada com sucesso!');
       }
 
+      console.log('Demanda salva com sucesso (ZERO CHAT):', savedDemand);
+      console.log('✅ Processo completado sem qualquer referência a chat');
+      
       onDemandSaved(savedDemand);
     } catch (error: any) {
       console.error('Erro ao salvar demanda:', error);
