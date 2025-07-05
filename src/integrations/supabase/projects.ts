@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
@@ -390,10 +389,15 @@ export const assignConsultantsToDemand = async (
 
 export const createProject = async (project: any) => {
   try {
-    console.log('=== CRIANDO PROJETO COMPLETAMENTE INDEPENDENTE (ZERO CHAT) ===');
+    console.log('=== CRIANDO PROJETO E ETAPAS (DEBUG COMPLETO) ===');
     console.log('Dados originais recebidos:', JSON.stringify(project, null, 2));
     
-    // CRIAR OBJETO COMPLETAMENTE LIMPO - APENAS CAMPOS DA TABELA PROJECTS - ZERO CHAT
+    // VALIDAR DADOS DE ENTRADA
+    if (!project.name || project.name.trim() === '') {
+      throw new Error('Nome do projeto é obrigatório');
+    }
+    
+    // CRIAR OBJETO COMPLETAMENTE LIMPO - APENAS CAMPOS DA TABELA PROJECTS
     const cleanProjectData = {
       name: String(project.name || ''),
       description: String(project.description || ''),
@@ -417,89 +421,128 @@ export const createProject = async (project: any) => {
       manager_email: String(project.managerEmail || ''),
       manager_phone: String(project.managerPhone || ''),
       url: project.url || null,
-      // ZERO CAMPOS RELACIONADOS A CHAT - COMPLETAMENTE REMOVIDOS
     };
 
-    console.log('=== DADOS PARA INSERÇÃO (COMPLETAMENTE INDEPENDENTE) ===');
-    console.log('Objeto final para inserção na tabela PROJECTS (ZERO CHAT):', JSON.stringify(cleanProjectData, null, 2));
+    console.log('=== DADOS PARA INSERÇÃO DO PROJETO ===');
+    console.log('Objeto limpo para inserção na tabela PROJECTS:', JSON.stringify(cleanProjectData, null, 2));
     
-    // INSERIR PROJETO - COMPLETAMENTE INDEPENDENTE DO SISTEMA DE CHAT
-    const { data, error } = await supabase
+    // INSERIR PROJETO
+    const { data: createdProject, error: projectError } = await supabase
       .from('projects')
       .insert(cleanProjectData)
       .select()
       .single();
     
-    if (error) {
-      console.error('❌ ERRO ao inserir projeto (INDEPENDENTE):', error);
+    if (projectError) {
+      console.error('❌ ERRO ao inserir projeto:', projectError);
       console.error('Dados que causaram erro:', JSON.stringify(cleanProjectData, null, 2));
-      throw error;
+      throw new Error(`Erro ao criar projeto: ${projectError.message}`);
     }
 
-    console.log('✅ Projeto criado com sucesso (COMPLETAMENTE INDEPENDENTE):', data);
+    console.log('✅ Projeto criado com sucesso:', createdProject);
+    console.log('ID do projeto criado:', createdProject.id);
 
-    // Vincular tags se existirem - SOMENTE PROJETO
-    if (project.tagIds && project.tagIds.length > 0) {
-      console.log('Vinculando tags ao projeto:', project.tagIds);
-      await linkProjectToTags(data.id, project.tagIds);
-    }
-
-    // Criar etapas se existirem - SOMENTE PROJETO
-    if (project.stages && project.stages.length > 0) {
-      console.log('Criando etapas do projeto:', project.stages);
+    // CRIAR ETAPAS SE EXISTIREM
+    if (project.stages && Array.isArray(project.stages) && project.stages.length > 0) {
+      console.log('=== CRIANDO ETAPAS DO PROJETO ===');
+      console.log(`Número de etapas a criar: ${project.stages.length}`);
+      console.log('Etapas recebidas:', JSON.stringify(project.stages, null, 2));
       
-      const stagesData = project.stages.map((stage: any) => ({
-        project_id: data.id,
-        name: stage.name,
-        description: stage.description || '',
-        days: Number(stage.days) || 1,
-        hours: Number(stage.hours) || 8,
-        value: Number(stage.value) || 0,
-        start_date: stage.startDate || null,
-        end_date: stage.endDate || null,
-        stage_order: Number(stage.stageOrder) || 1,
-        consultant_id: stage.consultantId || null,
-        status: stage.status || 'iniciar_projeto',
-        completed: false,
-        client_approved: false,
-        manager_approved: false,
-        invoice_issued: false,
-        payment_received: false,
-        consultants_settled: false,
-        valor_de_repasse: Number(stage.valorDeRepasse) || 0
-      }));
+      // PREPARAR DADOS DAS ETAPAS COM VALIDAÇÃO RIGOROSA
+      const stagesData = project.stages.map((stage: any, index: number) => {
+        console.log(`Processando etapa ${index + 1}:`, stage);
+        
+        // VALIDAR CAMPOS OBRIGATÓRIOS
+        if (!stage.name || stage.name.trim() === '') {
+          throw new Error(`Nome da etapa ${index + 1} é obrigatório`);
+        }
+        
+        const stageData = {
+          project_id: createdProject.id, // ID do projeto recém-criado
+          name: String(stage.name).trim(),
+          description: String(stage.description || ''),
+          days: Math.max(1, Number(stage.days) || 1),
+          hours: Math.max(1, Number(stage.hours) || 8),
+          value: Number(stage.value) || 0,
+          start_date: stage.startDate || null,
+          end_date: stage.endDate || null,
+          stage_order: Number(stage.stageOrder) || (index + 1),
+          consultant_id: stage.consultantId || project.mainConsultantId || null,
+          status: stage.status || 'iniciar_projeto',
+          completed: Boolean(stage.completed) || false,
+          client_approved: Boolean(stage.clientApproved) || false,
+          manager_approved: Boolean(stage.managerApproved) || false,
+          invoice_issued: Boolean(stage.invoiceIssued) || false,
+          payment_received: Boolean(stage.paymentReceived) || false,
+          consultants_settled: Boolean(stage.consultantsSettled) || false,
+          valor_de_repasse: Number(stage.valorDeRepasse) || 0
+        };
+        
+        console.log(`Dados limpos da etapa ${index + 1}:`, stageData);
+        return stageData;
+      });
 
-      console.log('Dados das etapas para inserção:', stagesData);
+      console.log('=== DADOS FINAIS PARA INSERÇÃO DAS ETAPAS ===');
+      console.log('Array de etapas para inserção:', JSON.stringify(stagesData, null, 2));
 
-      const { error: stagesError } = await supabase
+      // INSERIR ETAPAS EM LOTE
+      const { data: createdStages, error: stagesError } = await supabase
         .from('project_stages')
-        .insert(stagesData);
+        .insert(stagesData)
+        .select();
 
       if (stagesError) {
-        console.error('Erro ao criar etapas:', stagesError);
+        console.error('❌ ERRO ao criar etapas:', stagesError);
+        console.error('Dados das etapas que causaram erro:', JSON.stringify(stagesData, null, 2));
+        
+        // Se falhou ao criar etapas, deletar o projeto para manter consistência
+        console.log('Deletando projeto devido ao erro nas etapas...');
+        await supabase.from('projects').delete().eq('id', createdProject.id);
+        
+        throw new Error(`Erro ao criar etapas: ${stagesError.message}`);
       } else {
-        console.log('Etapas criadas com sucesso');
+        console.log('✅ Etapas criadas com sucesso:', createdStages);
+        console.log(`✅ Total de etapas criadas: ${createdStages?.length || 0}`);
+      }
+    } else {
+      console.log('⚠️ Nenhuma etapa foi fornecida para criação');
+    }
+
+    // VINCULAR TAGS SE EXISTIREM
+    if (project.tagIds && Array.isArray(project.tagIds) && project.tagIds.length > 0) {
+      console.log('Vinculando tags ao projeto:', project.tagIds);
+      try {
+        await linkProjectToTags(createdProject.id, project.tagIds);
+        console.log('✅ Tags vinculadas com sucesso');
+      } catch (tagError) {
+        console.error('⚠️ Erro ao vincular tags (não crítico):', tagError);
       }
     }
 
-    console.log('=== PROJETO CRIADO COM TOTAL INDEPENDÊNCIA ===');
-    console.log('✅ ZERO referências a chat_rooms foram feitas');
-    console.log('✅ Projeto salvo apenas nas tabelas: projects, project_stages, project_tag_relations');
+    console.log('=== PROJETO E ETAPAS CRIADOS COM SUCESSO ===');
+    console.log('✅ Projeto ID:', createdProject.id);
+    console.log('✅ Nome do projeto:', createdProject.name);
+    console.log('✅ Status do projeto:', createdProject.status);
     
-    return data;
+    return createdProject;
   } catch (error) {
-    console.error('=== ERRO NA CRIAÇÃO DO PROJETO INDEPENDENTE ===');
-    console.error('Error creating project:', error);
+    console.error('=== ERRO CRÍTICO NA CRIAÇÃO DO PROJETO ===');
+    console.error('Erro detalhado:', error);
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'N/A');
     throw error;
   }
 };
 
 export const updateProject = async (project: any) => {
   try {
-    console.log('=== ATUALIZANDO PROJETO INDEPENDENTE (ZERO CHAT) ===');
+    console.log('=== ATUALIZANDO PROJETO E ETAPAS (DEBUG COMPLETO) ===');
     console.log('Dados originais recebidos:', JSON.stringify(project, null, 2));
     
-    // CRIAR OBJETO COMPLETAMENTE LIMPO - APENAS CAMPOS DA TABELA PROJECTS - ZERO CHAT
+    if (!project.id) {
+      throw new Error('ID do projeto é obrigatório para atualização');
+    }
+    
+    // CRIAR OBJETO COMPLETAMENTE LIMPO - APENAS CAMPOS DA TABELA PROJECTS
     const cleanProjectData = {
       name: String(project.name || ''),
       description: String(project.description || ''),
@@ -522,84 +565,118 @@ export const updateProject = async (project: any) => {
       manager_email: String(project.managerEmail || ''),
       manager_phone: String(project.managerPhone || ''),
       url: project.url || null,
-      // ZERO CAMPOS RELACIONADOS A CHAT - COMPLETAMENTE REMOVIDOS
     };
 
-    console.log('=== DADOS PARA ATUALIZAÇÃO (COMPLETAMENTE INDEPENDENTE) ===');
-    console.log('Objeto final para atualização na tabela PROJECTS (ZERO CHAT):', JSON.stringify(cleanProjectData, null, 2));
+    console.log('=== DADOS PARA ATUALIZAÇÃO DO PROJETO ===');
+    console.log('Objeto limpo para atualização na tabela PROJECTS:', JSON.stringify(cleanProjectData, null, 2));
 
-    // ATUALIZAR PROJETO - COMPLETAMENTE INDEPENDENTE DO SISTEMA DE CHAT
-    const { data, error } = await supabase
+    // ATUALIZAR PROJETO
+    const { data: updatedProject, error: projectError } = await supabase
       .from('projects')
       .update(cleanProjectData)
       .eq('id', project.id)
       .select()
       .single();
     
-    if (error) {
-      console.error('❌ ERRO ao atualizar projeto (INDEPENDENTE):', error);
+    if (projectError) {
+      console.error('❌ ERRO ao atualizar projeto:', projectError);
       console.error('Dados que causaram erro:', JSON.stringify(cleanProjectData, null, 2));
-      throw error;
+      throw new Error(`Erro ao atualizar projeto: ${projectError.message}`);
     }
 
-    console.log('✅ Projeto atualizado com sucesso (COMPLETAMENTE INDEPENDENTE):', data);
+    console.log('✅ Projeto atualizado com sucesso:', updatedProject);
 
-    // Atualizar tags se existirem - SOMENTE PROJETO
-    if (project.tagIds) {
-      await linkProjectToTags(project.id, project.tagIds);
-    }
-
-    // Atualizar etapas se existirem - SOMENTE PROJETO
-    if (project.stages && project.stages.length > 0) {
-      console.log('Atualizando etapas do projeto');
+    // ATUALIZAR ETAPAS SE EXISTIREM
+    if (project.stages && Array.isArray(project.stages)) {
+      console.log('=== ATUALIZANDO ETAPAS DO PROJETO ===');
+      console.log(`Número de etapas a atualizar: ${project.stages.length}`);
       
-      await supabase
+      // PRIMEIRO, DELETAR TODAS AS ETAPAS EXISTENTES
+      console.log('Deletando etapas existentes...');
+      const { error: deleteError } = await supabase
         .from('project_stages')
         .delete()
         .eq('project_id', project.id);
 
-      const stagesData = project.stages.map((stage: any) => ({
-        project_id: project.id,
-        name: stage.name,
-        description: stage.description || '',
-        days: Number(stage.days) || 1,
-        hours: Number(stage.hours) || 8,
-        value: Number(stage.value) || 0,
-        start_date: stage.startDate || null,
-        end_date: stage.endDate || null,
-        stage_order: Number(stage.stageOrder) || 1,
-        consultant_id: stage.consultantId || null,
-        status: stage.status || 'iniciar_projeto',
-        completed: stage.completed || false,
-        client_approved: stage.clientApproved || false,
-        manager_approved: stage.managerApproved || false,
-        invoice_issued: stage.invoiceIssued || false,
-        payment_received: stage.paymentReceived || false,
-        consultants_settled: stage.consultantsSettled || false,
-        valor_de_repasse: Number(stage.valorDeRepasse) || 0
-      }));
+      if (deleteError) {
+        console.error('Erro ao deletar etapas existentes:', deleteError);
+        throw new Error(`Erro ao deletar etapas existentes: ${deleteError.message}`);
+      }
 
-      console.log('Dados das etapas para atualização:', stagesData);
+      if (project.stages.length > 0) {
+        // PREPARAR DADOS DAS ETAPAS COM VALIDAÇÃO RIGOROSA
+        const stagesData = project.stages.map((stage: any, index: number) => {
+          console.log(`Processando etapa ${index + 1}:`, stage);
+          
+          // VALIDAR CAMPOS OBRIGATÓRIOS
+          if (!stage.name || String(stage.name).trim() === '') {
+            throw new Error(`Nome da etapa ${index + 1} é obrigatório`);
+          }
+          
+          const stageData = {
+            project_id: project.id,
+            name: String(stage.name).trim(),
+            description: String(stage.description || ''),
+            days: Math.max(1, Number(stage.days) || 1),
+            hours: Math.max(1, Number(stage.hours) || 8),
+            value: Number(stage.value) || 0,
+            start_date: stage.startDate || null,
+            end_date: stage.endDate || null,
+            stage_order: Number(stage.stageOrder) || (index + 1),
+            consultant_id: stage.consultantId || project.mainConsultantId || null,
+            status: stage.status || 'iniciar_projeto',
+            completed: Boolean(stage.completed) || false,
+            client_approved: Boolean(stage.clientApproved) || false,
+            manager_approved: Boolean(stage.managerApproved) || false,
+            invoice_issued: Boolean(stage.invoiceIssued) || false,
+            payment_received: Boolean(stage.paymentReceived) || false,
+            consultants_settled: Boolean(stage.consultantsSettled) || false,
+            valor_de_repasse: Number(stage.valorDeRepasse) || 0
+          };
+          
+          console.log(`Dados limpos da etapa ${index + 1}:`, stageData);
+          return stageData;
+        });
 
-      const { error: stagesError } = await supabase
-        .from('project_stages')
-        .insert(stagesData);
+        console.log('=== DADOS FINAIS PARA INSERÇÃO DAS ETAPAS ===');
+        console.log('Array de etapas para inserção:', JSON.stringify(stagesData, null, 2));
 
-      if (stagesError) {
-        console.error('Error updating stages:', stagesError);
-      } else {
-        console.log('Etapas atualizadas com sucesso');
+        // INSERIR NOVAS ETAPAS
+        const { data: createdStages, error: stagesError } = await supabase
+          .from('project_stages')
+          .insert(stagesData)
+          .select();
+
+        if (stagesError) {
+          console.error('❌ ERRO ao criar novas etapas:', stagesError);
+          console.error('Dados das etapas que causaram erro:', JSON.stringify(stagesData, null, 2));
+          throw new Error(`Erro ao criar novas etapas: ${stagesError.message}`);
+        } else {
+          console.log('✅ Novas etapas criadas com sucesso:', createdStages);
+          console.log(`✅ Total de etapas criadas: ${createdStages?.length || 0}`);
+        }
+      }
+    }
+
+    // ATUALIZAR TAGS SE EXISTIREM
+    if (project.tagIds) {
+      try {
+        await linkProjectToTags(project.id, project.tagIds);
+        console.log('✅ Tags atualizadas com sucesso');
+      } catch (tagError) {
+        console.error('⚠️ Erro ao atualizar tags (não crítico):', tagError);
       }
     }
 
     await updateProjectStatusAutomatically(project.id);
 
-    console.log('=== PROJETO ATUALIZADO COM TOTAL INDEPENDÊNCIA ===');
-    console.log('✅ ZERO referências a chat_rooms foram feitas');
-    return data;
+    console.log('=== PROJETO E ETAPAS ATUALIZADOS COM SUCESSO ===');
+    console.log('✅ Projeto ID:', updatedProject.id);
+    return updatedProject;
   } catch (error) {
-    console.error('=== ERRO NA ATUALIZAÇÃO DO PROJETO INDEPENDENTE ===');
-    console.error('Error updating project:', error);
+    console.error('=== ERRO CRÍTICO NA ATUALIZAÇÃO DO PROJETO ===');
+    console.error('Erro detalhado:', error);
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'N/A');
     throw error;
   }
 };

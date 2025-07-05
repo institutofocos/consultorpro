@@ -46,23 +46,49 @@ const ProjectFormStageSection: React.FC<ProjectFormStageSectionProps> = ({
       valorDeRepasse: 0
     };
     
+    console.log('Adicionando nova etapa:', newStage);
     onStagesChange([...stages, newStage]);
   };
 
   const updateStage = (index: number, field: keyof Stage, value: any) => {
+    console.log(`Atualizando etapa ${index}, campo ${field}:`, value);
+    
     const updatedStages = [...stages];
-    updatedStages[index] = { ...updatedStages[index], [field]: value };
+    
+    // Validação e conversão de tipos
+    let processedValue = value;
+    
+    if (field === 'days' || field === 'hours' || field === 'stageOrder') {
+      processedValue = Math.max(1, Number(value) || 1);
+    } else if (field === 'value' || field === 'valorDeRepasse') {
+      processedValue = Number(value) || 0;
+    } else if (['completed', 'clientApproved', 'managerApproved', 'invoiceIssued', 'paymentReceived', 'consultantsSettled'].includes(field)) {
+      processedValue = Boolean(value);
+    } else if (field === 'name' || field === 'description') {
+      processedValue = String(value || '');
+    }
+    
+    updatedStages[index] = { ...updatedStages[index], [field]: processedValue };
+    
+    console.log(`Etapa ${index} atualizada:`, updatedStages[index]);
     onStagesChange(updatedStages);
   };
 
   const removeStage = (index: number) => {
+    console.log(`Removendo etapa ${index}`);
     const updatedStages = stages.filter((_, i) => i !== index);
     const reorderedStages = updatedStages.map((stage, i) => ({
       ...stage,
-      stageOrder: i + 1
+      stageOrder: i + 1,
+      name: stage.name.startsWith('Etapa ') ? `Etapa ${i + 1}` : stage.name
     }));
+    
+    console.log('Etapas após remoção e reordenação:', reorderedStages);
     onStagesChange(reorderedStages);
   };
+
+  // Log para debugging
+  console.log('ProjectFormStageSection - Etapas atuais:', stages);
 
   return (
     <Card>
@@ -77,14 +103,15 @@ const ProjectFormStageSection: React.FC<ProjectFormStageSectionProps> = ({
         {stages && stages.length > 0 ? (
           <div className="space-y-4">
             {stages.map((stage, index) => (
-              <div key={stage.id} className="border rounded-lg p-4 space-y-4">
+              <div key={stage.id || index} className="border rounded-lg p-4 space-y-4 bg-gray-50">
                 <div className="flex justify-between items-start">
-                  <h4 className="font-medium">Etapa {index + 1}</h4>
+                  <h4 className="font-medium text-lg">Etapa {index + 1}</h4>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => removeStage(index)}
+                    className="text-red-600 hover:text-red-700"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -92,71 +119,80 @@ const ProjectFormStageSection: React.FC<ProjectFormStageSectionProps> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label>Nome da Etapa</Label>
+                    <Label htmlFor={`stage-name-${index}`}>Nome da Etapa *</Label>
                     <Input
-                      value={stage.name}
+                      id={`stage-name-${index}`}
+                      value={stage.name || ''}
                       onChange={(e) => updateStage(index, 'name', e.target.value)}
-                      placeholder="Nome da etapa"
+                      placeholder="Digite o nome da etapa"
+                      required
                     />
                   </div>
 
                   <div>
-                    <Label>Valor (R$)</Label>
+                    <Label htmlFor={`stage-value-${index}`}>Valor (R$)</Label>
                     <Input
+                      id={`stage-value-${index}`}
                       type="number"
                       step="0.01"
-                      value={stage.value}
-                      onChange={(e) => updateStage(index, 'value', Number(e.target.value))}
+                      min="0"
+                      value={stage.value || 0}
+                      onChange={(e) => updateStage(index, 'value', parseFloat(e.target.value) || 0)}
                       placeholder="0.00"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <Label>Descrição</Label>
+                  <Label htmlFor={`stage-description-${index}`}>Descrição</Label>
                   <Textarea
-                    value={stage.description}
+                    id={`stage-description-${index}`}
+                    value={stage.description || ''}
                     onChange={(e) => updateStage(index, 'description', e.target.value)}
-                    placeholder="Descrição da etapa"
+                    placeholder="Descrição detalhada da etapa"
                     rows={2}
                   />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
-                    <Label>Dias</Label>
+                    <Label htmlFor={`stage-days-${index}`}>Dias</Label>
                     <Input
+                      id={`stage-days-${index}`}
                       type="number"
-                      value={stage.days}
-                      onChange={(e) => updateStage(index, 'days', Number(e.target.value))}
                       min="1"
+                      value={stage.days || 1}
+                      onChange={(e) => updateStage(index, 'days', parseInt(e.target.value) || 1)}
                     />
                   </div>
 
                   <div>
-                    <Label>Horas</Label>
+                    <Label htmlFor={`stage-hours-${index}`}>Horas</Label>
                     <Input
+                      id={`stage-hours-${index}`}
                       type="number"
-                      value={stage.hours}
-                      onChange={(e) => updateStage(index, 'hours', Number(e.target.value))}
                       min="1"
+                      value={stage.hours || 8}
+                      onChange={(e) => updateStage(index, 'hours', parseInt(e.target.value) || 8)}
                     />
                   </div>
 
                   <div>
-                    <Label>Data de Início</Label>
+                    <Label htmlFor={`stage-start-date-${index}`}>Data de Início</Label>
                     <Input
+                      id={`stage-start-date-${index}`}
                       type="date"
-                      value={stage.startDate}
+                      value={stage.startDate || ''}
                       onChange={(e) => updateStage(index, 'startDate', e.target.value)}
                     />
                   </div>
 
                   <div>
-                    <Label>Data de Término</Label>
+                    <Label htmlFor={`stage-end-date-${index}`}>Data de Término</Label>
                     <Input
+                      id={`stage-end-date-${index}`}
                       type="date"
-                      value={stage.endDate}
+                      value={stage.endDate || ''}
                       onChange={(e) => updateStage(index, 'endDate', e.target.value)}
                     />
                   </div>
@@ -176,47 +212,60 @@ const ProjectFormStageSection: React.FC<ProjectFormStageSectionProps> = ({
                   </div>
 
                   <div>
-                    <Label>
+                    <Label htmlFor={`stage-valor-repasse-${index}`}>
                       Valor de Repasse (R$)
                       <span className="text-sm text-muted-foreground ml-1">- Valor a ser pago ao consultor</span>
                     </Label>
                     <Input
+                      id={`stage-valor-repasse-${index}`}
                       type="number"
                       step="0.01"
+                      min="0"
                       value={stage.valorDeRepasse || 0}
-                      onChange={(e) => updateStage(index, 'valorDeRepasse', Number(e.target.value))}
+                      onChange={(e) => updateStage(index, 'valorDeRepasse', parseFloat(e.target.value) || 0)}
                       placeholder="0.00"
                     />
                   </div>
                 </div>
 
-                <div className="bg-gray-50 p-3 rounded text-sm">
+                <div className="bg-white p-3 rounded border text-sm">
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <span className="font-medium">Valor Total:</span>
-                      <div>R$ {stage.value.toFixed(2)}</div>
+                      <span className="font-medium text-gray-700">Valor Total:</span>
+                      <div className="text-lg font-semibold text-blue-600">
+                        R$ {(stage.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </div>
                     </div>
                     <div>
-                      <span className="font-medium">Valor de Repasse:</span>
-                      <div>R$ {(stage.valorDeRepasse || 0).toFixed(2)}</div>
+                      <span className="font-medium text-gray-700">Valor de Repasse:</span>
+                      <div className="text-lg font-semibold text-orange-600">
+                        R$ {(stage.valorDeRepasse || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </div>
                     </div>
                     <div>
-                      <span className="font-medium">Margem:</span>
-                      <div className="text-green-600">R$ {(stage.value - (stage.valorDeRepasse || 0)).toFixed(2)}</div>
+                      <span className="font-medium text-gray-700">Margem:</span>
+                      <div className="text-lg font-semibold text-green-600">
+                        R$ {((stage.value || 0) - (stage.valorDeRepasse || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </div>
                     </div>
+                  </div>
+                  
+                  <div className="mt-2 pt-2 border-t border-gray-200 text-xs text-gray-500">
+                    <div>Dias: {stage.days || 1} | Horas: {stage.hours || 8} | Ordem: {stage.stageOrder || index + 1}</div>
                   </div>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-muted-foreground text-center py-8">
-            Nenhuma etapa adicionada. Clique em "Adicionar Etapa" para começar.
-          </p>
+          <div className="text-center py-8 text-muted-foreground">
+            <p>Nenhuma etapa adicionada. Clique em "Adicionar Etapa" para começar.</p>
+          </div>
         )}
+        
         {startDate && (
           <p className="text-xs text-muted-foreground mt-4">
-            As datas das etapas são calculadas automaticamente com base na data de início do projeto
+            💡 As datas das etapas podem ser calculadas automaticamente com base na data de início do projeto
           </p>
         )}
       </CardContent>
