@@ -103,13 +103,11 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     }
   }, [project]);
 
-  // Filtrar consultores quando o serviço é selecionado (mas não em edição)
   useEffect(() => {
     if (formData.serviceId && !project) {
       fetchAuthorizedConsultants(formData.serviceId);
     } else if (!formData.serviceId && !project) {
       setFilteredConsultants([]);
-      // Limpar seleções de consultores apenas quando não há serviço e não é edição
       setFormData(prev => ({
         ...prev,
         mainConsultantId: '',
@@ -140,7 +138,6 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       console.log('Consultores autorizados encontrados:', authorizedConsultants);
       setFilteredConsultants(authorizedConsultants);
 
-      // Verificar se os consultores selecionados ainda são válidos
       if (project) {
         const validMainConsultant = authorizedConsultants.find(c => c.id === project.mainConsultantId);
         const validSupportConsultant = authorizedConsultants.find(c => c.id === project.supportConsultantId);
@@ -163,8 +160,6 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Since user management was removed, just use the email from auth
-      // and generate a simple name from the email
       if (!project) {
         setFormData(prev => ({
           ...prev,
@@ -193,7 +188,6 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         setConsultants(consultantsRes.data);
       }
 
-      // Carregar tags do projeto
       const tagsData = await fetchProjectTags();
       console.log('Tags carregadas:', tagsData);
       setAvailableTags(tagsData);
@@ -207,7 +201,6 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     setFormData(prev => ({ 
       ...prev, 
       serviceId,
-      // Limpar consultores apenas se não estiver editando um projeto existente
       mainConsultantId: project ? prev.mainConsultantId : '',
       supportConsultantId: project ? prev.supportConsultantId : ''
     }));
@@ -221,7 +214,7 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         hourlyRate: Number(selectedService.hourly_rate) || prev.hourlyRate
       }));
 
-      if (selectedService.stages && !project) { // Só auto-adicionar etapas se não estiver editando
+      if (selectedService.stages && !project) {
         const serviceStages = Array.isArray(selectedService.stages) 
           ? selectedService.stages 
           : JSON.parse(selectedService.stages || '[]');
@@ -354,11 +347,8 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       console.log('Tipo de operação:', project ? 'UPDATE' : 'CREATE');
       console.log('Dados do formulário ANTES da limpeza:', JSON.stringify(formData, null, 2));
 
-      // CRIAR OBJETO COMPLETAMENTE LIMPO - ZERO QUALQUER REFERÊNCIA A CHAT
       const safeProjectData = {
-        // ID apenas se for atualização
         ...(project?.id && { id: project.id }),
-        // Campos básicos - APENAS OS QUE EXISTEM NA TABELA PROJECTS
         name: formData.name,
         description: formData.description || '',
         serviceId: formData.serviceId || null,
@@ -384,7 +374,6 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
         tagIds: formData.tagIds || [],
         stages: formData.stages || [],
         url: formData.url || ''
-        // ZERO CAMPOS RELACIONADOS A CHAT - COMPLETAMENTE REMOVIDOS
       };
 
       console.log('=== DADOS COMPLETAMENTE LIMPOS (ZERO CHAT) ===');
@@ -474,7 +463,6 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     }));
   };
 
-  // Calculate net value with correct sequence: gross - taxes - third party - main consultant - support consultant
   const calculateNetValue = () => {
     const totalValue = Number(formData.totalValue || 0);
     const taxPercent = Number(formData.taxPercent || 16);
@@ -482,37 +470,26 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
     const consultantValue = Number(formData.consultantValue || 0);
     const supportConsultantValue = Number(formData.supportConsultantValue || 0);
     
-    // Step 1: Calculate tax amount and subtract from total
     const taxAmount = (totalValue * taxPercent) / 100;
     const afterTax = totalValue - taxAmount;
-    
-    // Step 2: Subtract third party expenses
     const afterThirdParty = afterTax - thirdPartyExpenses;
-    
-    // Step 3: Subtract main consultant value
     const afterMainConsultant = afterThirdParty - consultantValue;
-    
-    // Step 4: Subtract support consultant value
     const netValue = afterMainConsultant - supportConsultantValue;
     
     return netValue;
   };
 
-  // Preparar opções de consultores - sempre mostrar todos quando editando
   const getConsultantOptions = () => {
-    // Se estiver editando um projeto, sempre mostrar todos os consultores
     if (project) {
       console.log('Projeto em edição, mostrando todos os consultores:', consultants);
       return consultants;
     }
     
-    // Se há consultores filtrados, usar eles
     if (filteredConsultants.length > 0) {
       console.log('Usando consultores filtrados:', filteredConsultants);
       return filteredConsultants;
     }
     
-    // Senão, usar todos os consultores
     console.log('Usando todos os consultores como fallback:', consultants);
     return consultants;
   };

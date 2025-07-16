@@ -1,9 +1,8 @@
-
 import { supabase } from "./client";
 
 export const fetchProjects = async () => {
   try {
-    console.log('✅ Fetching projects (TOTALMENTE INDEPENDENTE)...');
+    console.log('✅ Fetching projects (COMPLETAMENTE INDEPENDENTE)...');
     const { data, error } = await supabase
       .from('projects')
       .select(`
