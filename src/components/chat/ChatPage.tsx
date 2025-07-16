@@ -21,7 +21,7 @@ const ChatPage = () => {
   const [participantsRoom, setParticipantsRoom] = useState<ChatRoom | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
-  const { rooms, isLoading, error, refetch } = useChatRooms();
+  const { data: rooms, isLoading, error, refetch } = useChatRooms();
 
   // Debug quando o usuário carrega a página
   useEffect(() => {
