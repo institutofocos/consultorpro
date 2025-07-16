@@ -1,3 +1,4 @@
+
 export interface Stage {
   id: string;
   projectId: string;
@@ -8,6 +9,8 @@ export interface Stage {
   value: number;
   startDate?: string;
   endDate?: string;
+  startTime?: string;
+  endTime?: string;
   consultantId?: string;
   completed: boolean;
   clientApproved: boolean;
@@ -21,6 +24,7 @@ export interface Stage {
   valorDeRepasse?: number;
   createdAt?: string;
   updatedAt?: string;
+  completedAt?: string;
   // Timer-related properties
   time_spent_minutes?: number;
   timer_status?: string;
@@ -28,6 +32,9 @@ export interface Stage {
   // Extended properties for Kanban
   projectName?: string;
   clientName?: string;
+  consultantName?: string;
+  consultantEmail?: string;
+  consultantPhone?: string;
 }
 
 export interface ProjectTag {
@@ -66,7 +73,7 @@ export interface Project {
   totalValue: number;
   taxPercent: number;
   thirdPartyExpenses?: number;
-  consultantValue?: number;
+  mainConsultantValue?: number;
   supportConsultantValue?: number;
   // Novos campos para gestor
   managerName?: string;
@@ -81,14 +88,24 @@ export interface Project {
   tags?: string[]; // Changed from ProjectTag[] to string[]
   tagIds?: string[];
   tagNames?: string[]; // Added this property to fix the TypeScript error
+  tagColors?: string[];
   stages?: Stage[];
   // Extended properties from joins
   mainConsultantName?: string;
+  mainConsultantEmail?: string;
+  mainConsultantPhone?: string;
   mainConsultantPixKey?: string;
   supportConsultantName?: string;
+  supportConsultantEmail?: string;
+  supportConsultantPhone?: string;
   supportConsultantPixKey?: string;
   serviceName?: string;
+  serviceDescription?: string;
+  serviceUrl?: string;
   clientName?: string;
+  clientContactName?: string;
+  clientEmail?: string;
+  clientPhone?: string;
   completedStages?: number;
   createdAt?: string;
   updatedAt?: string;

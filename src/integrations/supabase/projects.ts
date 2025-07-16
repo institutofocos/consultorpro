@@ -399,3 +399,51 @@ export const fetchServices = async () => {
     throw error;
   }
 };
+
+// Add missing exports for demands
+export const fetchDemandsWithoutConsultants = async () => {
+  console.log('=== BUSCANDO DEMANDAS SEM CONSULTORES ===');
+  
+  try {
+    const { data, error } = await supabase
+      .from('demands')
+      .select('*')
+      .is('consultant_id', null)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Erro ao buscar demandas:', error);
+      throw new Error(error.message);
+    }
+
+    console.log('Demandas encontradas:', data?.length || 0);
+    return data || [];
+  } catch (error) {
+    console.error('Erro na função fetchDemandsWithoutConsultants:', error);
+    throw error;
+  }
+};
+
+export const assignConsultantsToDemand = async (demandId: string, consultantIds: string[]) => {
+  console.log('=== ATRIBUINDO CONSULTORES À DEMANDA ===');
+  
+  try {
+    const { error } = await supabase
+      .from('demands')
+      .update({ consultant_id: consultantIds[0] || null })
+      .eq('id', demandId);
+
+    if (error) {
+      console.error('Erro ao atribuir consultores:', error);
+      throw new Error(error.message);
+    }
+
+    console.log('Consultores atribuídos com sucesso');
+  } catch (error) {
+    console.error('Erro na função assignConsultantsToDemand:', error);
+    throw error;
+  }
+};
+
+// Add fetchProjectTags as alias for fetchTags
+export const fetchProjectTags = fetchTags;
