@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -139,7 +138,8 @@ export default function DemandForm({ demand, onDemandSaved, onCancel }: DemandFo
         support_consultant_commission: 0,
         main_consultant_value: 0,
         support_consultant_value: 0,
-        third_party_expenses: 0
+        third_party_expenses: 0,
+        tags: []
         // ZERO CAMPOS RELACIONADOS A CHAT - COMPLETAMENTE REMOVIDOS
       };
 
