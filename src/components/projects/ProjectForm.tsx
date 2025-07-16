@@ -140,15 +140,48 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ project, onProjectSaved, onCa
         await updateProject(project.id, projectData);
         toast.success('Projeto atualizado com sucesso!');
         
-        // Fetch updated project
-        const { data: updatedProject, error } = await supabase
+        // Transform database response to Project format
+        const { data: updatedProjectData, error } = await supabase
           .from('projects')
           .select('*')
           .eq('id', project.id)
           .single();
 
         if (error) throw error;
-        onProjectSaved(updatedProject);
+        
+        // Map database fields to Project interface
+        const transformedProject: Project = {
+          id: updatedProjectData.id,
+          projectId: updatedProjectData.project_id,
+          name: updatedProjectData.name,
+          description: updatedProjectData.description,
+          clientId: updatedProjectData.client_id,
+          serviceId: updatedProjectData.service_id,
+          mainConsultantId: updatedProjectData.main_consultant_id,
+          supportConsultantId: updatedProjectData.support_consultant_id,
+          mainConsultantCommission: updatedProjectData.main_consultant_commission || 0,
+          supportConsultantCommission: updatedProjectData.support_consultant_commission || 0,
+          startDate: updatedProjectData.start_date,
+          endDate: updatedProjectData.end_date,
+          totalValue: updatedProjectData.total_value || 0,
+          totalHours: updatedProjectData.total_hours || 0,
+          hourlyRate: updatedProjectData.hourly_rate || 0,
+          taxPercent: updatedProjectData.tax_percent || 16,
+          thirdPartyExpenses: updatedProjectData.third_party_expenses || 0,
+          mainConsultantValue: updatedProjectData.main_consultant_value || 0,
+          supportConsultantValue: updatedProjectData.support_consultant_value || 0,
+          managerName: updatedProjectData.manager_name,
+          managerEmail: updatedProjectData.manager_email,
+          managerPhone: updatedProjectData.manager_phone,
+          status: updatedProjectData.status,
+          url: updatedProjectData.url,
+          tags: updatedProjectData.tags || [],
+          createdAt: updatedProjectData.created_at,
+          updatedAt: updatedProjectData.updated_at,
+          stages: []
+        };
+        
+        onProjectSaved(transformedProject);
       } else {
         // Create new project
         const newProject = await createProject(projectData);
@@ -581,7 +614,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ project, onProjectSaved, onCa
 
           <ProjectFormStageSection
             stages={formData.stages || []}
-            onChange={handleStagesChange}
+            onStagesChange={handleStagesChange}
             disabled={isSubmitting}
           />
           

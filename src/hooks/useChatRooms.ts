@@ -58,14 +58,14 @@ export const useChatRoomsDebug = () => {
 
 export const useDeleteChatRoom = () => {
   return {
-    mutateAsync: () => Promise.resolve(),
+    mutateAsync: (roomId: string) => Promise.resolve(),
     isPending: false
   };
 };
 
 export const usePinChatRoom = () => {
   return {
-    mutateAsync: () => Promise.resolve(),
+    mutateAsync: (params: { roomId: string; isPinned: boolean }) => Promise.resolve(),
     isPending: false
   };
 };
@@ -80,21 +80,21 @@ export const useChatMessages = (roomId: string) => {
 
 export const useSendMessage = () => {
   return {
-    mutateAsync: () => Promise.resolve(),
+    mutateAsync: (params: { room_id: string; message: string; sender_name: string }) => Promise.resolve(),
     isPending: false
   };
 };
 
 export const useCreateChatRoom = () => {
   return {
-    mutateAsync: () => Promise.resolve(),
+    mutateAsync: (params: any) => Promise.resolve(),
     isPending: false
   };
 };
 
 export const useUpdateChatRoom = () => {
   return {
-    mutateAsync: () => Promise.resolve(),
+    mutateAsync: (params: any) => Promise.resolve(),
     isPending: false
   };
 };
@@ -117,7 +117,7 @@ export const useRoomParticipants = (roomId: string) => {
 
 export const useUpdateRoomParticipants = () => {
   return {
-    mutateAsync: () => Promise.resolve(),
+    mutateAsync: (params: { roomId: string; participants: any[] }) => Promise.resolve(),
     isPending: false
   };
 };
