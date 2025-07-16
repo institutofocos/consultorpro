@@ -1,367 +1,241 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
-interface Demand {
-  id?: string;
-  name: string;
-  description: string;
-  client_id?: string;
-  service_id?: string;
-  start_date: string;
-  end_date: string;
-  total_value: number;
-  status: 'planned' | 'active' | 'completed' | 'cancelled';
-  manager_name: string;
-  manager_email: string;
-  manager_phone?: string;
-  created_at?: string;
-  updated_at?: string;
-}
+import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
+
+const demandSchema = z.object({
+  title: z.string().min(1, 'Título é obrigatório'),
+  description: z.string().optional(),
+  priority: z.enum(['low', 'medium', 'high']),
+  client_id: z.string().optional(),
+  consultant_id: z.string().optional(),
+  project_id: z.string().optional(),
+});
+
+type DemandFormData = z.infer<typeof demandSchema>;
 
 interface DemandFormProps {
-  demand?: Demand;
-  onDemandSaved: (demand: Demand) => void;
-  onCancel: () => void;
+  onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
-export default function DemandForm({ demand, onDemandSaved, onCancel }: DemandFormProps) {
-  const [formData, setFormData] = useState<Demand>({
-    name: '',
-    description: '',
-    client_id: '',
-    service_id: '',
-    start_date: '',
-    end_date: '',
-    total_value: 0,
-    status: 'planned',
-    manager_name: '',
-    manager_email: '',
-    manager_phone: ''
+const DemandForm: React.FC<DemandFormProps> = ({ onSuccess, onCancel }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const form = useForm<DemandFormData>({
+    resolver: zodResolver(demandSchema),
+    defaultValues: {
+      title: '',
+      description: '',
+      priority: 'medium',
+      client_id: '',
+      consultant_id: '',
+      project_id: ''
+    }
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [clients, setClients] = useState([]);
-  const [services, setServices] = useState([]);
 
-  useEffect(() => {
-    fetchSelectOptions();
-    loadCurrentUserData();
-  }, []);
-
-  useEffect(() => {
-    if (demand) {
-      setFormData({
-        ...demand,
-        start_date: demand.start_date || '',
-        end_date: demand.end_date || '',
-        total_value: demand.total_value || 0
-      });
+  // Fetch clients
+  const { data: clients = [] } = useQuery({
+    queryKey: ['clients'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, name')
+        .order('name');
+      if (error) throw error;
+      return data;
     }
-  }, [demand]);
+  });
 
-  const fetchSelectOptions = async () => {
-    try {
-      const [clientsRes, servicesRes] = await Promise.all([
-        supabase.from('clients').select('id, name').order('name'),
-        supabase.from('services').select('id, name').order('name')
-      ]);
-
-      if (clientsRes.data) setClients(clientsRes.data);
-      if (servicesRes.data) setServices(servicesRes.data);
-    } catch (error) {
-      console.error('Error fetching select options:', error);
-      toast.error('Erro ao carregar opções do formulário');
+  // Fetch consultants
+  const { data: consultants = [] } = useQuery({
+    queryKey: ['consultants'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('consultants')
+        .select('id, name')
+        .order('name');
+      if (error) throw error;
+      return data;
     }
-  };
+  });
 
-  const loadCurrentUserData = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Since user management was removed, just use the email from auth
-      // and generate a simple name from the email
-      if (!demand) {
-        setFormData(prev => ({
-          ...prev,
-          manager_name: user.email?.split('@')[0] || '',
-          manager_email: user.email || ''
-        }));
-      }
-    } catch (error) {
-      console.error('Erro ao carregar dados do usuário:', error);
+  // Fetch projects
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name')
+        .order('name');
+      if (error) throw error;
+      return data;
     }
-  };
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
+  const onSubmit = async (data: DemandFormData) => {
+    setIsSubmitting(true);
+    
     try {
-      if (!formData.name?.trim() || !formData.description?.trim()) {
-        toast.error('Nome e descrição são obrigatórios');
-        return;
+      const { error } = await supabase
+        .from('demands')
+        .insert({
+          title: data.title,
+          description: data.description || null,
+          priority: data.priority,
+          client_id: data.client_id || null,
+          consultant_id: data.consultant_id || null,
+          project_id: data.project_id || null,
+          created_by: (await supabase.auth.getUser()).data.user?.id || ''
+        });
+
+      if (error) {
+        throw error;
       }
 
-      if (!formData.start_date || !formData.end_date) {
-        toast.error('Datas de início e fim são obrigatórias');
-        return;
-      }
-
-      console.log('=== SALVANDO DEMANDA COMPLETAMENTE INDEPENDENTE (ZERO CHAT) ===');
-      
-      // Preparar dados da demanda para a tabela projects - ZERO REFERÊNCIA A CHAT
-      const demandData = {
-        name: formData.name.trim(),
-        description: formData.description.trim(),
-        client_id: formData.client_id || null,
-        service_id: formData.service_id || null,
-        start_date: formData.start_date,
-        end_date: formData.end_date,
-        total_value: formData.total_value ? Number(formData.total_value) : 0,
-        status: formData.status,
-        manager_name: formData.manager_name.trim(),
-        manager_email: formData.manager_email.trim(),
-        manager_phone: formData.manager_phone?.trim() || null,
-        hourly_rate: 0,
-        tax_percent: 16,
-        total_hours: 0,
-        main_consultant_id: null,
-        support_consultant_id: null,
-        main_consultant_commission: 0,
-        support_consultant_commission: 0,
-        main_consultant_value: 0,
-        support_consultant_value: 0,
-        third_party_expenses: 0,
-        tags: []
-        // ZERO CAMPOS RELACIONADOS A CHAT - COMPLETAMENTE REMOVIDOS
-      };
-
-      console.log('Dados da demanda (ZERO CHAT):', demandData);
-
-      let savedDemand;
-      
-      if (demand?.id) {
-        // Atualizar demanda existente - ZERO CHAT
-        console.log('Atualizando demanda existente (ZERO CHAT)');
-        const { data, error } = await supabase
-          .from('projects')
-          .update(demandData)
-          .eq('id', demand.id)
-          .select()
-          .single();
-
-        if (error) throw error;
-        savedDemand = data;
-        toast.success('Demanda atualizada com sucesso!');
-      } else {
-        // Criar nova demanda - ZERO CHAT
-        console.log('Criando nova demanda (ZERO CHAT)');
-        const { data, error } = await supabase
-          .from('projects')
-          .insert(demandData)
-          .select()
-          .single();
-
-        if (error) throw error;
-        savedDemand = data;
-        toast.success('Demanda criada com sucesso!');
-      }
-
-      console.log('Demanda salva com sucesso (ZERO CHAT):', savedDemand);
-      console.log('✅ Processo completado sem qualquer referência a chat');
-      
-      onDemandSaved(savedDemand);
+      toast.success('Demanda criada com sucesso!');
+      form.reset();
+      onSuccess?.();
     } catch (error: any) {
-      console.error('Erro ao salvar demanda:', error);
-      toast.error(error?.message || 'Erro ao salvar demanda');
+      console.error('Erro ao criar demanda:', error);
+      toast.error(error.message || 'Erro ao criar demanda');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>{demand ? 'Editar Demanda' : 'Nova Demanda'}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Informações Básicas */}
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>Nova Demanda</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div>
-            <Label htmlFor="name">Nome *</Label>
+            <Label htmlFor="title">Título *</Label>
             <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Digite o nome da demanda"
-              required
+              id="title"
+              {...form.register('title')}
+              placeholder="Digite o título da demanda"
             />
+            {form.formState.errors.title && (
+              <p className="text-red-500 text-sm mt-1">
+                {form.formState.errors.title.message}
+              </p>
+            )}
           </div>
 
           <div>
-            <Label htmlFor="description">Descrição *</Label>
+            <Label htmlFor="description">Descrição</Label>
             <Textarea
               id="description"
-              value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Descreva a demanda detalhadamente"
-              rows={4}
-              required
+              {...form.register('description')}
+              placeholder="Descreva a demanda..."
+              rows={3}
             />
           </div>
 
-          {/* Cliente e Serviço */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="client">Cliente</Label>
-              <Select value={formData.client_id || ''} onValueChange={(value) => setFormData(prev => ({ ...prev, client_id: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
-                  {clients.map((client: any) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="service">Serviço</Label>
-              <Select value={formData.service_id || ''} onValueChange={(value) => setFormData(prev => ({ ...prev, service_id: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um serviço" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
-                  {services.map((service: any) => (
-                    <SelectItem key={service.id} value={service.id}>
-                      {service.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div>
+            <Label htmlFor="priority">Prioridade</Label>
+            <Select
+              value={form.watch('priority')}
+              onValueChange={(value) => form.setValue('priority', value as 'low' | 'medium' | 'high')}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a prioridade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Baixa</SelectItem>
+                <SelectItem value="medium">Média</SelectItem>
+                <SelectItem value="high">Alta</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Status e Valor */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={(value: any) => setFormData(prev => ({ ...prev, status: value }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="planned">Planejado</SelectItem>
-                  <SelectItem value="active">Ativo</SelectItem>
-                  <SelectItem value="completed">Concluído</SelectItem>
-                  <SelectItem value="cancelled">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="total_value">Valor Total (R$)</Label>
-              <Input
-                id="total_value"
-                type="number"
-                step="0.01"
-                value={formData.total_value || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, total_value: e.target.value ? Number(e.target.value) : 0 }))}
-                placeholder="0.00"
-              />
-            </div>
+          <div>
+            <Label htmlFor="client_id">Cliente</Label>
+            <Select
+              value={form.watch('client_id')}
+              onValueChange={(value) => form.setValue('client_id', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um cliente (opcional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Nenhum cliente</SelectItem>
+                {clients.map(client => (
+                  <SelectItem key={client.id} value={client.id}>
+                    {client.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Datas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="start_date">Data de Início *</Label>
-              <Input
-                id="start_date"
-                type="date"
-                value={formData.start_date}
-                onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="end_date">Data de Fim *</Label>
-              <Input
-                id="end_date"
-                type="date"
-                value={formData.end_date}
-                onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
-                required
-              />
-            </div>
+          <div>
+            <Label htmlFor="consultant_id">Consultor</Label>
+            <Select
+              value={form.watch('consultant_id')}
+              onValueChange={(value) => form.setValue('consultant_id', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um consultor (opcional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Nenhum consultor</SelectItem>
+                {consultants.map(consultant => (
+                  <SelectItem key={consultant.id} value={consultant.id}>
+                    {consultant.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Informações do Responsável */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Informações do Responsável</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="manager_name">Nome do Responsável *</Label>
-                <Input
-                  id="manager_name"
-                  value={formData.manager_name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, manager_name: e.target.value }))}
-                  placeholder="Nome do responsável"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="manager_email">E-mail do Responsável *</Label>
-                <Input
-                  id="manager_email"
-                  type="email"
-                  value={formData.manager_email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, manager_email: e.target.value }))}
-                  placeholder="email@exemplo.com"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="manager_phone">Telefone do Responsável</Label>
-                <Input
-                  id="manager_phone"
-                  value={formData.manager_phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, manager_phone: e.target.value }))}
-                  placeholder="(11) 99999-9999"
-                />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Os dados são preenchidos automaticamente com as informações do usuário logado
-            </p>
+          <div>
+            <Label htmlFor="project_id">Projeto</Label>
+            <Select
+              value={form.watch('project_id')}
+              onValueChange={(value) => form.setValue('project_id', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um projeto (opcional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Nenhum projeto</SelectItem>
+                {projects.map(project => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Botões */}
-      <div className="flex justify-end space-x-4">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button type="submit" disabled={isLoading}>
-          {isLoading ? 'Salvando...' : demand ? 'Atualizar' : 'Criar'} Demanda
-        </Button>
-      </div>
-    </form>
+          <div className="flex justify-end space-x-2 pt-4">
+            {onCancel && (
+              <Button type="button" variant="outline" onClick={onCancel}>
+                Cancelar
+              </Button>
+            )}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Criando...' : 'Criar Demanda'}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
-}
+};
+
+export default DemandForm;
