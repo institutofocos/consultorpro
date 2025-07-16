@@ -1,4 +1,3 @@
-
 import { supabase } from './client';
 import { Project, Stage } from '@/components/projects/types';
 
@@ -80,14 +79,14 @@ export const fetchProjects = async (): Promise<Project[]> => {
         serviceDescription: project.services?.description || '',
         serviceUrl: project.services?.url || '',
         mainConsultantId: project.main_consultant_id,
-        mainConsultantName: project.consultants?.name || '',
-        mainConsultantEmail: project.consultants?.email || '',
-        mainConsultantPhone: project.consultants?.phone || '',
+        mainConsultantName: project.consultants?.[0]?.name || '',
+        mainConsultantEmail: project.consultants?.[0]?.email || '',
+        mainConsultantPhone: project.consultants?.[0]?.phone || '',
         mainConsultantCommission: project.main_consultant_commission || 0,
         supportConsultantId: project.support_consultant_id,
-        supportConsultantName: project.support_consultants?.name || '',
-        supportConsultantEmail: project.support_consultants?.email || '',
-        supportConsultantPhone: project.support_consultants?.phone || '',
+        supportConsultantName: project.support_consultants?.[0]?.name || '',
+        supportConsultantEmail: project.support_consultants?.[0]?.email || '',
+        supportConsultantPhone: project.support_consultants?.[0]?.phone || '',
         supportConsultantCommission: project.support_consultant_commission || 0,
         startDate: project.start_date,
         endDate: project.end_date,
@@ -122,9 +121,9 @@ export const fetchProjects = async (): Promise<Project[]> => {
           startTime: stage.start_time,
           endTime: stage.end_time,
           consultantId: stage.consultant_id,
-          consultantName: stage.consultants?.name || '',
-          consultantEmail: stage.consultants?.email || '',
-          consultantPhone: stage.consultants?.phone || '',
+          consultantName: stage.consultants?.[0]?.name || '',
+          consultantEmail: stage.consultants?.[0]?.email || '',
+          consultantPhone: stage.consultants?.[0]?.phone || '',
           completed: stage.completed,
           clientApproved: stage.client_approved,
           managerApproved: stage.manager_approved,
