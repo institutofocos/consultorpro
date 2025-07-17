@@ -1,72 +1,87 @@
 
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// Hook para processar webhooks - COMPLETAMENTE INDEPENDENTE DO SISTEMA DE CHAT
 export const useWebhookProcessor = () => {
-  const [config, setConfig] = useState({
-    consolidationEnabled: false,
-    statusChangeEnabled: false
-  });
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const processForProjectCreation = useCallback(() => {
+  const processConsolidatedWebhooks = useCallback(async () => {
+    if (isProcessing) return;
+    
     try {
-      console.log('🔄 Processamento de webhook para criação de projeto (TOTALMENTE INDEPENDENTE)');
-      
-      // Log simples para indicar que o processamento foi iniciado
-      // ZERO REFERÊNCIAS A CHAT ROOMS
-      toast.success('Projeto criado com sucesso!');
-      
-      console.log('✅ Processamento concluído sem qualquer dependência de chat');
-      
-    } catch (error) {
-      console.error('Erro no processamento de webhook:', error);
-      // Não exibir erro ao usuário pois é processo interno
-    }
-  }, []);
-
-  const processForced = useCallback(async () => {
-    try {
-      console.log('🚀 Processamento forçado de webhooks (COMPLETAMENTE INDEPENDENTE)');
-      // Simulação de processamento - SEM QUALQUER REFERÊNCIA A CHAT
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast.success('Fila de webhooks processada');
-      console.log('✅ Processamento forçado concluído sem chat');
-    } catch (error) {
-      console.error('Erro no processamento forçado:', error);
-      toast.error('Erro ao processar fila de webhooks');
-    }
-  }, []);
-
-  const checkConsolidationStatus = useCallback(async () => {
-    try {
-      // Simulação de verificação de status - TOTALMENTE INDEPENDENTE DO CHAT
-      const consolidationEnabled = true;
-      const statusChangeEnabled = true;
-      
-      setConfig({
-        consolidationEnabled,
-        statusChangeEnabled
-      });
-      
+      setIsProcessing(true);
       console.log('✅ Status verificado sem dependências de chat');
-      return { consolidationEnabled, statusChangeEnabled };
+      
+      // Process pending webhooks without any chat dependencies
+      const { data: pendingLogs, error } = await supabase
+        .from('webhook_logs')
+        .select(`
+          *,
+          webhooks!inner(*)
+        `)
+        .eq('success', false)
+        .lt('attempt_count', 3)
+        .eq('webhooks.is_active', true)
+        .limit(10);
+
+      if (error) {
+        console.error('Erro ao buscar webhooks pendentes:', error);
+        return;
+      }
+
+      if (pendingLogs && pendingLogs.length > 0) {
+        console.log(`Processando ${pendingLogs.length} webhooks pendentes`);
+        
+        for (const log of pendingLogs) {
+          try {
+            // Update attempt count
+            await supabase
+              .from('webhook_logs')
+              .update({ 
+                attempt_count: log.attempt_count + 1,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', log.id);
+              
+          } catch (logError) {
+            console.error('Erro ao processar webhook individual:', logError);
+          }
+        }
+      }
     } catch (error) {
-      console.error('Erro ao verificar status:', error);
-      return { consolidationEnabled: false, statusChangeEnabled: false };
+      console.error('Erro ao processar webhooks consolidados:', error);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [isProcessing]);
+
+  const processStatusChangeWebhooks = useCallback(async () => {
+    try {
+      // Process status change webhooks for projects and stages only
+      const { data: statusChangeLogs, error } = await supabase
+        .from('webhook_logs')
+        .select('*')
+        .eq('success', false)
+        .in('table_name', ['projects', 'project_stages'])
+        .limit(5);
+
+      if (error) {
+        console.error('Erro ao buscar webhooks de mudança de status:', error);
+        return;
+      }
+
+      if (statusChangeLogs && statusChangeLogs.length > 0) {
+        console.log(`Processando ${statusChangeLogs.length} webhooks de status`);
+      }
+    } catch (error) {
+      console.error('Erro ao processar webhooks de status:', error);
     }
   }, []);
-
-  useEffect(() => {
-    // Inicializar configuração - ZERO DEPENDÊNCIAS DE CHAT
-    console.log('🔧 Inicializando webhook processor independente');
-    checkConsolidationStatus();
-  }, [checkConsolidationStatus]);
 
   return {
-    processForProjectCreation,
-    processForced,
-    checkConsolidationStatus,
-    config
+    processConsolidatedWebhooks,
+    processStatusChangeWebhooks,
+    isProcessing
   };
 };

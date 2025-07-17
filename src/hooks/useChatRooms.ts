@@ -1,6 +1,6 @@
 
-// Este hook foi removido - funcionalidade de chat descontinuada
-// Mantendo interfaces para compatibilidade com imports existentes
+// Chat functionality has been completely removed from the system
+// This file is kept only for backward compatibility with any remaining imports
 
 export interface ChatRoom {
   id: string;
@@ -34,13 +34,13 @@ export interface ChatUser {
   type: 'consultant' | 'client';
 }
 
-// Stub implementations - retornam dados vazios mas com assinaturas corretas
+// Empty stub implementations - chat system has been removed
 export const useChatRooms = () => {
   return {
     data: [],
     isLoading: false,
     error: null,
-    refetch: () => {}
+    refetch: () => Promise.resolve()
   };
 };
 
@@ -49,7 +49,7 @@ export const useChatMessages = (roomId: string | null) => {
     data: [],
     isLoading: false,
     error: null,
-    refetch: () => {}
+    refetch: () => Promise.resolve()
   };
 };
 
@@ -58,7 +58,7 @@ export const useAvailableUsers = () => {
     data: [],
     isLoading: false,
     error: null,
-    refetch: () => {}
+    refetch: () => Promise.resolve()
   };
 };
 
@@ -141,7 +141,7 @@ export const useRoomParticipants = (roomId: string | null) => {
     data: [],
     isLoading: false,
     error: null,
-    refetch: () => {}
+    refetch: () => Promise.resolve()
   };
 };
 

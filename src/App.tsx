@@ -24,116 +24,130 @@ import FinancialPage from "./components/financial/FinancialPage";
 import DemandsList from "./components/demands/DemandsList";
 import Dashboard from "./components/dashboard/Dashboard";
 import CalendarPage from "./components/calendar/CalendarPage";
-import KanbanBoard from "./components/kanban/KanbanBoard";
-import ChatPage from "./components/chat/ChatPage";
 
-const queryClient = new QueryClient();
+// Create a query client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
+    },
+  },
+});
 
-// Componente interno para inicializar o processador de webhooks globalmente
+// Component to process webhooks
 const WebhookProcessorProvider = ({ children }: { children: React.ReactNode }) => {
-  const { config, checkConsolidationStatus } = useWebhookProcessor();
-
+  const { processConsolidatedWebhooks, processStatusChangeWebhooks } = useWebhookProcessor();
+  
   useEffect(() => {
-    console.log('Sistema de webhook automático inicializado globalmente:', config);
-    checkConsolidationStatus();
-  }, [config, checkConsolidationStatus]);
-
+    // Initialize webhook processing
+    console.log('Sistema de webhook automático inicializado globalmente:', {
+      consolidationEnabled: true,
+      statusChangeEnabled: true
+    });
+    
+    // Process webhooks periodically
+    const interval = setInterval(() => {
+      processConsolidatedWebhooks();
+      processStatusChangeWebhooks();
+    }, 30000); // Every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [processConsolidatedWebhooks, processStatusChangeWebhooks]);
+  
   return <>{children}</>;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <WebhookProcessorProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              
-              {/* Protected routes with Layout wrapper */}
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <Layout><Dashboard /></Layout>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/consultants" element={
-                <ProtectedRoute>
-                  <Layout><ConsultantList /></Layout>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/clients" element={
-                <ProtectedRoute>
-                  <Layout><ClientList /></Layout>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/projects" element={
-                <ProtectedRoute>
-                  <Layout><ProjectList /></Layout>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/services" element={
-                <ProtectedRoute>
-                  <Layout><ServiceList /></Layout>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/demands" element={
-                <ProtectedRoute>
-                  <Layout><DemandsList /></Layout>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/chat" element={
-                <ProtectedRoute>
-                  <Layout><ChatPage /></Layout>
-                </ProtectedRoute>
-              } />
-              
-              {/* Redirect calendar to gantt view by default */}
-              <Route path="/calendar" element={<Navigate to="/calendar/gantt" replace />} />
-              <Route path="/calendar/*" element={
-                <ProtectedRoute>
-                  <Layout><CalendarPage /></Layout>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/kanban" element={
-                <ProtectedRoute>
-                  <Layout><KanbanBoard /></Layout>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/financial" element={
-                <ProtectedRoute>
-                  <Layout><FinancialPage /></Layout>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/settings" element={
-                <ProtectedRoute>
-                  <Layout><SettingsPage /></Layout>
-                </ProtectedRoute>
-              } />
-              
-              {/* Legacy routes - redirect to login */}
-              <Route path="/auth" element={<Navigate to="/login" replace />} />
-              <Route path="/admin-setup" element={<Navigate to="/login" replace />} />
-              
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </WebhookProcessorProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AuthProvider>
+          <WebhookProcessorProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Dashboard />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Dashboard />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/consultores" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <ConsultantList />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/projetos" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <ProjectList />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/servicos" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <ServiceList />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/clientes" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <ClientList />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/configuracoes" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <SettingsPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/financeiro" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <FinancialPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/demandas" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <DemandsList />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/calendario" element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <CalendarPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </WebhookProcessorProvider>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;
