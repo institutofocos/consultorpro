@@ -26,7 +26,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <Menu className="h-5 w-5" />
       </button>
 
-      <Sidebar isOpen={isSidebarOpen} onToggle={toggleSidebar} />
+      <Sidebar />
       <main className="flex-1 overflow-auto p-6 md:p-8 pt-6">
         {children}
       </main>

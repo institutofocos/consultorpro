@@ -25,13 +25,14 @@ const WebhookStatus = () => {
     systemReady: false
   });
   const [isLoading, setIsLoading] = useState(false);
-  const { processForced, checkConsolidationStatus } = useWebhookProcessor();
+  const { processConsolidatedWebhooks } = useWebhookProcessor();
 
   const fetchStatus = async () => {
     setIsLoading(true);
     try {
-      // Verificar configurações do sistema
-      const { consolidationEnabled, statusChangeEnabled } = await checkConsolidationStatus();
+      // Verificar configurações do sistema  
+      const consolidationEnabled = true; // Always enabled now
+      const statusChangeEnabled = true; // Always enabled now
       
       // Contar webhooks ativos
       const { data: webhooks } = await supabase
@@ -69,7 +70,7 @@ const WebhookStatus = () => {
   const processQueue = async () => {
     try {
       console.log('🚀 Processando fila de webhooks (incluindo status changes)');
-      await processForced();
+      await processConsolidatedWebhooks();
       toast.success('Fila de webhooks processada com sucesso');
       await fetchStatus();
     } catch (error) {
