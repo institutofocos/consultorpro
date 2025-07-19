@@ -8,11 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Users, Search, RefreshCw, Mail, Calendar, UserCheck, Link, Check, Shield } from 'lucide-react';
+import { Users, Search, RefreshCw, Mail, Calendar, UserCheck, Shield, UserPlus, ToggleLeft, ToggleRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import UserLinkModal from './UserLinkModal';
 import UserProfileModal from './UserProfileModal';
+import CreateUserModal from './CreateUserModal';
 
 interface AuthUser {
   id: string;
@@ -20,6 +20,7 @@ interface AuthUser {
   created_at: string;
   last_sign_in_at: string | null;
   email_confirmed_at: string | null;
+  disabled?: boolean;
 }
 
 interface UserLink {
@@ -45,8 +46,8 @@ const UserManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
   const [selectedUser, setSelectedUser] = useState<AuthUser | null>(null);
-  const [linkModalOpen, setLinkModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [createUserModalOpen, setCreateUserModalOpen] = useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -71,6 +72,7 @@ const UserManagement = () => {
           created_at: user.created_at || new Date().toISOString(),
           last_sign_in_at: user.last_sign_in_at || null,
           email_confirmed_at: user.email_confirmed_at || null,
+          disabled: user.disabled || false,
         }));
 
         setUsers(formattedUsers);
@@ -183,31 +185,40 @@ const UserManagement = () => {
     return userProfiles.find(profile => profile.user_id === userId);
   };
 
-  const isUserLinked = (userId: string) => {
-    const link = getUserLink(userId);
-    return !!(link && (link.consultant_id || link.client_id));
-  };
-
-  const handleOpenLinkModal = (user: AuthUser) => {
-    setSelectedUser(user);
-    setLinkModalOpen(true);
-  };
-
   const handleOpenProfileModal = (user: AuthUser) => {
     setSelectedUser(user);
     setProfileModalOpen(true);
   };
 
-  const handleCloseLinkModal = () => {
-    setSelectedUser(null);
-    setLinkModalOpen(false);
-    // Recarregar dados quando fechar o modal
-    fetchUsers();
+  const handleToggleUserStatus = async (user: AuthUser) => {
+    try {
+      const newStatus = !user.disabled;
+      
+      const { error } = await supabase.auth.admin.updateUserById(user.id, {
+        user_metadata: { disabled: newStatus }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success(`Usuário ${newStatus ? 'desativado' : 'ativado'} com sucesso!`);
+      fetchUsers(); // Recarregar a lista
+    } catch (error: any) {
+      console.error('Erro ao alterar status do usuário:', error);
+      toast.error('Erro ao alterar status do usuário: ' + error.message);
+    }
   };
 
   const handleCloseProfileModal = () => {
     setSelectedUser(null);
     setProfileModalOpen(false);
+    // Recarregar dados quando fechar o modal
+    fetchUsers();
+  };
+
+  const handleCloseCreateUserModal = () => {
+    setCreateUserModalOpen(false);
     // Recarregar dados quando fechar o modal
     fetchUsers();
   };
@@ -257,10 +268,16 @@ const UserManagement = () => {
                 className="pl-10"
               />
             </div>
-            <Button onClick={fetchUsers} variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Atualizar
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={() => setCreateUserModalOpen(true)} variant="default">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Novo Usuário
+              </Button>
+              <Button onClick={fetchUsers} variant="outline" size="sm">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Atualizar
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -327,7 +344,6 @@ const UserManagement = () => {
                   </TableRow>
                 ) : (
                   filteredUsers.map((user) => {
-                    const linked = isUserLinked(user.id);
                     const userProfile = getUserProfile(user.id);
                     
                     return (
@@ -373,8 +389,25 @@ const UserManagement = () => {
                           {user.email_confirmed_at ? formatDate(user.email_confirmed_at) : 'Não confirmado'}
                         </TableCell>
                         <TableCell>
-                          <div className="text-center text-sm text-muted-foreground">
-                            -
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant={user.disabled ? "destructive" : "default"}
+                              onClick={() => handleToggleUserStatus(user)}
+                              className="h-7 px-2 text-xs"
+                            >
+                              {user.disabled ? (
+                                <>
+                                  <ToggleLeft className="h-3 w-3 mr-1" />
+                                  Ativar
+                                </>
+                              ) : (
+                                <>
+                                  <ToggleRight className="h-3 w-3 mr-1" />
+                                  Desativar
+                                </>
+                              )}
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -394,19 +427,19 @@ const UserManagement = () => {
         </CardContent>
       </Card>
 
-      {selectedUser && linkModalOpen && (
-        <UserLinkModal
-          isOpen={linkModalOpen}
-          onClose={handleCloseLinkModal}
-          user={selectedUser}
-        />
-      )}
-
       {selectedUser && profileModalOpen && (
         <UserProfileModal
           isOpen={profileModalOpen}
           onClose={handleCloseProfileModal}
           user={selectedUser}
+        />
+      )}
+
+      {createUserModalOpen && (
+        <CreateUserModal
+          isOpen={createUserModalOpen}
+          onClose={handleCloseCreateUserModal}
+          onUserCreated={handleCloseCreateUserModal}
         />
       )}
     </>
