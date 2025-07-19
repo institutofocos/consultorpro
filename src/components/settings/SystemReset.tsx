@@ -59,49 +59,131 @@ const SystemReset = () => {
         const option = resetOptions.find(opt => opt.id === itemId);
         if (!option) continue;
 
+        console.log(`Iniciando reset de: ${option.label}`);
+
         switch (itemId) {
           case 'consultants':
-            await supabase.from('consultant_services').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('consultant_documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('consultants').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+            // Primeiro remover vínculos de usuários
+            const { error: userLinksError } = await supabase.from('user_consultant_links').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (userLinksError) console.error('Erro ao deletar vínculos:', userLinksError);
+            
+            // Remover relações de serviços
+            const { error: servicesError } = await supabase.from('consultant_services').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (servicesError) console.error('Erro ao deletar serviços de consultores:', servicesError);
+            
+            // Remover documentos
+            const { error: docsError } = await supabase.from('consultant_documents').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (docsError) console.error('Erro ao deletar documentos:', docsError);
+            
+            // Remover consultores
+            const { error: consultantsError } = await supabase.from('consultants').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (consultantsError) {
+              console.error('Erro ao deletar consultores:', consultantsError);
+              throw new Error('Erro ao deletar consultores: ' + consultantsError.message);
+            }
             break;
 
           case 'projects':
-            await supabase.from('project_stages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('project_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('project_tag_relations').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('gantt_tasks').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('projects').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+            // Remover etapas primeiro
+            const { error: stagesError } = await supabase.from('project_stages').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (stagesError) console.error('Erro ao deletar etapas:', stagesError);
+            
+            // Remover histórico
+            const { error: historyError } = await supabase.from('project_history').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (historyError) console.error('Erro ao deletar histórico:', historyError);
+            
+            // Remover relações de tags
+            const { error: tagRelsError } = await supabase.from('project_tag_relations').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (tagRelsError) console.error('Erro ao deletar relações de tags:', tagRelsError);
+            
+            // Remover tarefas gantt
+            const { error: ganttError } = await supabase.from('gantt_tasks').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (ganttError) console.error('Erro ao deletar tarefas gantt:', ganttError);
+            
+            // Remover projetos
+            const { error: projectsError } = await supabase.from('projects').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (projectsError) {
+              console.error('Erro ao deletar projetos:', projectsError);
+              throw new Error('Erro ao deletar projetos: ' + projectsError.message);
+            }
             break;
 
           case 'services':
-            await supabase.from('service_tags').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('services').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+            // Remover relações de tags de serviços
+            const { error: serviceTagsError } = await supabase.from('service_tags').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (serviceTagsError) console.error('Erro ao deletar tags de serviços:', serviceTagsError);
+            
+            // Remover serviços
+            const { error: servicesDelError } = await supabase.from('services').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (servicesDelError) {
+              console.error('Erro ao deletar serviços:', servicesDelError);
+              throw new Error('Erro ao deletar serviços: ' + servicesDelError.message);
+            }
             break;
 
           case 'clients':
-            await supabase.from('clients').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+            // Primeiro remover vínculos de usuários
+            const { error: clientLinksError } = await supabase.from('user_client_links').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (clientLinksError) console.error('Erro ao deletar vínculos de clientes:', clientLinksError);
+            
+            // Remover clientes
+            const { error: clientsError } = await supabase.from('clients').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (clientsError) {
+              console.error('Erro ao deletar clientes:', clientsError);
+              throw new Error('Erro ao deletar clientes: ' + clientsError.message);
+            }
             break;
 
           case 'financial':
-            await supabase.from('accounts_payable').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('accounts_receivable').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('manual_transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('financial_transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+            // Remover contas a pagar
+            const { error: payableError } = await supabase.from('accounts_payable').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (payableError) console.error('Erro ao deletar contas a pagar:', payableError);
+            
+            // Remover contas a receber
+            const { error: receivableError } = await supabase.from('accounts_receivable').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (receivableError) console.error('Erro ao deletar contas a receber:', receivableError);
+            
+            // Remover transações manuais
+            const { error: manualError } = await supabase.from('manual_transactions').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (manualError) console.error('Erro ao deletar transações manuais:', manualError);
+            
+            // Remover transações financeiras
+            const { error: financialError } = await supabase.from('financial_transactions').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (financialError) console.error('Erro ao deletar transações financeiras:', financialError);
             break;
 
           case 'webhooks':
-            await supabase.from('webhooks').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+            const { error: webhooksError } = await supabase.from('webhooks').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (webhooksError) {
+              console.error('Erro ao deletar webhooks:', webhooksError);
+              throw new Error('Erro ao deletar webhooks: ' + webhooksError.message);
+            }
             break;
 
           case 'tags':
-            await supabase.from('stage_tag_relations').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('project_tag_relations').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('service_tags').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('project_tags').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('tags').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+            // Remover relações de tags de etapas
+            const { error: stageTagsError } = await supabase.from('stage_tag_relations').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (stageTagsError) console.error('Erro ao deletar relações de tags de etapas:', stageTagsError);
+            
+            // Remover relações de tags de projetos
+            const { error: projectTagsError } = await supabase.from('project_tag_relations').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (projectTagsError) console.error('Erro ao deletar relações de tags de projetos:', projectTagsError);
+            
+            // Remover relações de tags de serviços
+            const { error: serviceTagRelsError } = await supabase.from('service_tags').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (serviceTagRelsError) console.error('Erro ao deletar relações de tags de serviços:', serviceTagRelsError);
+            
+            // Remover tags de projetos
+            const { error: projTagsError } = await supabase.from('project_tags').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (projTagsError) console.error('Erro ao deletar tags de projetos:', projTagsError);
+            
+            // Remover tags gerais
+            const { error: tagsError } = await supabase.from('tags').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            if (tagsError) console.error('Erro ao deletar tags:', tagsError);
             break;
         }
+
+        console.log(`Reset de ${option.label} concluído`);
       }
 
       toast.success(`Reset realizado com sucesso! ${selectedItems.length} categoria(s) foram resetadas.`);
@@ -110,7 +192,7 @@ const SystemReset = () => {
       setPin('');
     } catch (error) {
       console.error('Erro ao resetar dados:', error);
-      toast.error('Erro ao resetar dados. Tente novamente.');
+      toast.error(`Erro ao resetar dados: ${error.message}`);
     } finally {
       setIsResetting(false);
     }
