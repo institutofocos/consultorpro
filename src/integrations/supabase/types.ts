@@ -383,6 +383,36 @@ export type Database = {
         }
         Relationships: []
       }
+      deleted_users: {
+        Row: {
+          created_at: string
+          deleted_at: string
+          deleted_by: string | null
+          id: string
+          reason: string | null
+          user_email: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string
+          deleted_by?: string | null
+          id?: string
+          reason?: string | null
+          user_email: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string
+          deleted_by?: string | null
+          id?: string
+          reason?: string | null
+          user_email?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       demand_views: {
         Row: {
           demand_id: string
@@ -2211,6 +2241,10 @@ export type Database = {
       }
       remove_user_from_specific_room: {
         Args: { p_room_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      restore_deleted_user: {
+        Args: { p_user_id: string }
         Returns: undefined
       }
       sync_super_admin_permissions: {
