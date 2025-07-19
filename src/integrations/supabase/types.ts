@@ -476,6 +476,33 @@ export type Database = {
           },
         ]
       }
+      disabled_users: {
+        Row: {
+          created_at: string
+          disabled_at: string
+          disabled_by: string | null
+          id: string
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          disabled_at?: string
+          disabled_by?: string | null
+          id?: string
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          disabled_at?: string
+          disabled_by?: string | null
+          id?: string
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       financial_transactions: {
         Row: {
           amount: number
@@ -2006,6 +2033,18 @@ export type Database = {
         Args: { stage_id: string }
         Returns: boolean
       }
+      delete_user_completely: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
+      disable_user: {
+        Args: { p_user_id: string; p_reason?: string }
+        Returns: undefined
+      }
+      enable_user: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       execute_sql: {
         Args: { query: string }
         Returns: undefined
@@ -2140,6 +2179,10 @@ export type Database = {
       }
       is_project_fully_completed: {
         Args: { p_project_id: string }
+        Returns: boolean
+      }
+      is_user_disabled: {
+        Args: { p_user_id: string }
         Returns: boolean
       }
       log_api_key_usage: {

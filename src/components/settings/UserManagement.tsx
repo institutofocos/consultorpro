@@ -194,14 +194,33 @@ const UserManagement = () => {
     try {
       const newStatus = !user.disabled;
       
-      // Simular alteração no frontend (não temos acesso direto à API admin)
-      // O sistema será atualizado quando o usuário fizer login novamente
-      const updatedUsers = users.map(u => 
-        u.id === user.id ? { ...u, disabled: newStatus } : u
-      );
-      setUsers(updatedUsers);
+      if (newStatus) {
+        // Desativar usuário
+        const { error } = await supabase.rpc('disable_user', { 
+          p_user_id: user.id,
+          p_reason: 'Desativado via interface administrativa'
+        });
+        
+        if (error) {
+          throw error;
+        }
+        
+        toast.success(`Usuário ${user.email} foi desativado com sucesso.`);
+      } else {
+        // Ativar usuário
+        const { error } = await supabase.rpc('enable_user', { 
+          p_user_id: user.id
+        });
+        
+        if (error) {
+          throw error;
+        }
+        
+        toast.success(`Usuário ${user.email} foi ativado com sucesso.`);
+      }
       
-      toast.success(`Status do usuário ${newStatus ? 'desativado' : 'ativado'} temporariamente. Para persistir permanentemente, configure as políticas RLS.`);
+      // Recarregar lista de usuários para refletir mudanças
+      await fetchUsers();
       
     } catch (error: any) {
       console.error('Erro ao alterar status do usuário:', error);
@@ -210,17 +229,23 @@ const UserManagement = () => {
   };
 
   const handleDeleteUser = async (user: AuthUser) => {
-    if (!window.confirm(`Tem certeza que deseja excluir o usuário ${user.email}? Esta ação não pode ser desfeita.`)) {
+    if (!window.confirm(`Tem certeza que deseja excluir PERMANENTEMENTE o usuário ${user.email}? Esta ação não pode ser desfeita e removerá todos os dados associados ao usuário.`)) {
       return;
     }
 
     try {
-      // Como não temos acesso direto à API admin do Supabase para excluir usuários,
-      // vamos apenas remover da lista local e avisar o usuário
-      const updatedUsers = users.filter(u => u.id !== user.id);
-      setUsers(updatedUsers);
+      const { error } = await supabase.rpc('delete_user_completely', { 
+        p_user_id: user.id
+      });
       
-      toast.success(`Usuário ${user.email} removido da lista local. Para exclusão permanente, use o painel admin do Supabase.`);
+      if (error) {
+        throw error;
+      }
+      
+      toast.success(`Usuário ${user.email} foi excluído permanentemente do sistema.`);
+      
+      // Recarregar lista de usuários
+      await fetchUsers();
       
     } catch (error: any) {
       console.error('Erro ao excluir usuário:', error);
