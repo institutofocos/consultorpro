@@ -63,123 +63,110 @@ const SystemReset = () => {
 
         switch (itemId) {
           case 'consultants':
-            // Primeiro remover vínculos de usuários
-            const { error: userLinksError } = await supabase.from('user_consultant_links').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (userLinksError) console.error('Erro ao deletar vínculos:', userLinksError);
+            // Primeiro remover TODAS as referências aos consultores
+            await supabase.from('accounts_payable').delete().not('consultant_id', 'is', null);
+            await supabase.from('accounts_receivable').delete().not('consultant_id', 'is', null);
+            await supabase.from('financial_transactions').delete().not('consultant_id', 'is', null);
+            await supabase.from('manual_transactions').delete().not('consultant_id', 'is', null);
+            await supabase.from('project_stages').delete().not('consultant_id', 'is', null);
+            await supabase.from('projects').delete().not('main_consultant_id', 'is', null);
+            await supabase.from('projects').delete().not('support_consultant_id', 'is', null);
+            await supabase.from('gantt_tasks').delete().not('assigned_consultant_id', 'is', null);
+            await supabase.from('project_tasks').delete().not('assigned_consultant_id', 'is', null);
+            
+            // Remover vínculos de usuários
+            await supabase.from('user_consultant_links').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             
             // Remover relações de serviços
-            const { error: servicesError } = await supabase.from('consultant_services').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (servicesError) console.error('Erro ao deletar serviços de consultores:', servicesError);
+            await supabase.from('consultant_services').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             
             // Remover documentos
-            const { error: docsError } = await supabase.from('consultant_documents').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (docsError) console.error('Erro ao deletar documentos:', docsError);
+            await supabase.from('consultant_documents').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             
-            // Remover consultores
-            const { error: consultantsError } = await supabase.from('consultants').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (consultantsError) {
-              console.error('Erro ao deletar consultores:', consultantsError);
-              throw new Error('Erro ao deletar consultores: ' + consultantsError.message);
-            }
-            break;
-
-          case 'projects':
-            // Remover etapas primeiro
-            const { error: stagesError } = await supabase.from('project_stages').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (stagesError) console.error('Erro ao deletar etapas:', stagesError);
-            
-            // Remover histórico
-            const { error: historyError } = await supabase.from('project_history').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (historyError) console.error('Erro ao deletar histórico:', historyError);
-            
-            // Remover relações de tags
-            const { error: tagRelsError } = await supabase.from('project_tag_relations').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (tagRelsError) console.error('Erro ao deletar relações de tags:', tagRelsError);
-            
-            // Remover tarefas gantt
-            const { error: ganttError } = await supabase.from('gantt_tasks').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (ganttError) console.error('Erro ao deletar tarefas gantt:', ganttError);
-            
-            // Remover projetos
-            const { error: projectsError } = await supabase.from('projects').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (projectsError) {
-              console.error('Erro ao deletar projetos:', projectsError);
-              throw new Error('Erro ao deletar projetos: ' + projectsError.message);
-            }
-            break;
-
-          case 'services':
-            // Remover relações de tags de serviços
-            const { error: serviceTagsError } = await supabase.from('service_tags').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (serviceTagsError) console.error('Erro ao deletar tags de serviços:', serviceTagsError);
-            
-            // Remover serviços
-            const { error: servicesDelError } = await supabase.from('services').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (servicesDelError) {
-              console.error('Erro ao deletar serviços:', servicesDelError);
-              throw new Error('Erro ao deletar serviços: ' + servicesDelError.message);
-            }
+            // Finalmente remover consultores
+            await supabase.from('consultants').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             break;
 
           case 'clients':
-            // Primeiro remover vínculos de usuários
-            const { error: clientLinksError } = await supabase.from('user_client_links').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (clientLinksError) console.error('Erro ao deletar vínculos de clientes:', clientLinksError);
+            // Primeiro remover TODAS as referências aos clientes
+            await supabase.from('accounts_receivable').delete().not('client_id', 'is', null);
+            await supabase.from('manual_transactions').delete().not('client_id', 'is', null);
+            await supabase.from('projects').delete().not('client_id', 'is', null);
+            await supabase.from('demands').delete().not('client_id', 'is', null);
             
-            // Remover clientes
-            const { error: clientsError } = await supabase.from('clients').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (clientsError) {
-              console.error('Erro ao deletar clientes:', clientsError);
-              throw new Error('Erro ao deletar clientes: ' + clientsError.message);
-            }
+            // Remover vínculos de usuários
+            await supabase.from('user_client_links').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            
+            // Finalmente remover clientes
+            await supabase.from('clients').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            break;
+
+          case 'projects':
+            // Remover todas as dependências dos projetos primeiro
+            await supabase.from('demands').delete().not('project_id', 'is', null);
+            await supabase.from('accounts_payable').delete().not('project_id', 'is', null);
+            await supabase.from('accounts_receivable').delete().not('project_id', 'is', null);
+            await supabase.from('financial_transactions').delete().not('project_id', 'is', null);
+            await supabase.from('manual_transactions').delete().not('project_id', 'is', null);
+            await supabase.from('stage_work_sessions').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('project_stages').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('project_history').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('project_tag_relations').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('project_group_relations').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('gantt_tasks').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('project_tasks').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            
+            // Finalmente remover projetos
+            await supabase.from('projects').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            break;
+
+          case 'services':
+            // Remover projetos que referenciam serviços
+            await supabase.from('projects').delete().not('service_id', 'is', null);
+            
+            // Remover relações de tags de serviços
+            await supabase.from('service_tags').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            
+            // Remover relações de consultores
+            await supabase.from('consultant_services').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            
+            // Finalmente remover serviços
+            await supabase.from('services').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             break;
 
           case 'financial':
             // Remover contas a pagar
-            const { error: payableError } = await supabase.from('accounts_payable').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (payableError) console.error('Erro ao deletar contas a pagar:', payableError);
+            await supabase.from('accounts_payable').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             
             // Remover contas a receber
-            const { error: receivableError } = await supabase.from('accounts_receivable').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (receivableError) console.error('Erro ao deletar contas a receber:', receivableError);
+            await supabase.from('accounts_receivable').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             
             // Remover transações manuais
-            const { error: manualError } = await supabase.from('manual_transactions').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (manualError) console.error('Erro ao deletar transações manuais:', manualError);
+            await supabase.from('manual_transactions').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             
             // Remover transações financeiras
-            const { error: financialError } = await supabase.from('financial_transactions').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (financialError) console.error('Erro ao deletar transações financeiras:', financialError);
+            await supabase.from('financial_transactions').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             break;
 
           case 'webhooks':
-            const { error: webhooksError } = await supabase.from('webhooks').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (webhooksError) {
-              console.error('Erro ao deletar webhooks:', webhooksError);
-              throw new Error('Erro ao deletar webhooks: ' + webhooksError.message);
-            }
+            // Remover logs de webhooks primeiro
+            await supabase.from('webhook_logs').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            
+            // Remover webhooks
+            await supabase.from('webhooks').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             break;
 
           case 'tags':
-            // Remover relações de tags de etapas
-            const { error: stageTagsError } = await supabase.from('stage_tag_relations').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (stageTagsError) console.error('Erro ao deletar relações de tags de etapas:', stageTagsError);
-            
-            // Remover relações de tags de projetos
-            const { error: projectTagsError } = await supabase.from('project_tag_relations').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (projectTagsError) console.error('Erro ao deletar relações de tags de projetos:', projectTagsError);
-            
-            // Remover relações de tags de serviços
-            const { error: serviceTagRelsError } = await supabase.from('service_tags').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (serviceTagRelsError) console.error('Erro ao deletar relações de tags de serviços:', serviceTagRelsError);
+            // Remover todas as relações de tags primeiro
+            await supabase.from('stage_tag_relations').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('project_tag_relations').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('service_tags').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             
             // Remover tags de projetos
-            const { error: projTagsError } = await supabase.from('project_tags').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (projTagsError) console.error('Erro ao deletar tags de projetos:', projTagsError);
+            await supabase.from('project_tags').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             
             // Remover tags gerais
-            const { error: tagsError } = await supabase.from('tags').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            if (tagsError) console.error('Erro ao deletar tags:', tagsError);
+            await supabase.from('tags').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             break;
         }
 
