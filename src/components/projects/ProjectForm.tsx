@@ -238,11 +238,25 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
             consultantsSettled: false,
             attachment: '',
             stageOrder: index + 1,
-            consultantId: '',
+            consultantId: '', // Será atualizado abaixo se houver consultor principal
             status: 'iniciar_projeto'
           }));
           
-          setFormData(prev => ({ ...prev, stages: newStages }));
+          setFormData(prev => {
+            const updatedData = { ...prev, stages: newStages };
+            
+            // Se já há um consultor principal selecionado, aplicar a todas as etapas
+            if (prev.mainConsultantId) {
+              const updatedStages = newStages.map(stage => ({
+                ...stage,
+                consultantId: prev.mainConsultantId
+              }));
+              updatedData.stages = updatedStages;
+              console.log('Aplicando consultor principal às etapas do serviço:', prev.mainConsultantId);
+            }
+            
+            return updatedData;
+          });
         }
       }
     }
@@ -267,9 +281,11 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
       consultantsSettled: false,
       attachment: '',
       stageOrder: (formData.stages?.length || 0) + 1,
-      consultantId: '',
+      consultantId: formData.mainConsultantId || '', // Aplicar consultor principal automaticamente
       status: 'iniciar_projeto'
     };
+    
+    console.log('Adicionando nova etapa com consultor principal:', formData.mainConsultantId);
     
     setFormData(prev => ({
       ...prev,
@@ -613,17 +629,33 @@ export default function ProjectForm({ project, onProjectSaved, onCancel }: Proje
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="mainConsultant">Consultor Principal</Label>
-              <SearchableSelect
-                options={getConsultantOptions()}
-                value={formData.mainConsultantId || ''}
-                onValueChange={(value) => {
-                  console.log('Mudando consultor principal para:', value);
-                  setFormData(prev => ({ ...prev, mainConsultantId: value as string }));
-                }}
-                placeholder="Selecione o consultor principal"
-                searchPlaceholder="Pesquisar consultores..."
-                emptyText="Nenhum consultor encontrado"
-              />
+                <SearchableSelect
+                  options={getConsultantOptions()}
+                  value={formData.mainConsultantId || ''}
+                  onValueChange={(value) => {
+                    console.log('Mudando consultor principal para:', value);
+                    
+                    // Atualizar o consultor principal
+                    setFormData(prev => {
+                      const updatedData = { ...prev, mainConsultantId: value as string };
+                      
+                      // Se há etapas e um consultor foi selecionado, aplicar a todas as etapas
+                      if (updatedData.stages && updatedData.stages.length > 0 && value) {
+                        const updatedStages = updatedData.stages.map(stage => ({
+                          ...stage,
+                          consultantId: value as string
+                        }));
+                        updatedData.stages = updatedStages;
+                        console.log('Aplicando consultor principal a todas as etapas:', value);
+                      }
+                      
+                      return updatedData;
+                    });
+                  }}
+                  placeholder="Selecione o consultor principal"
+                  searchPlaceholder="Pesquisar consultores..."
+                  emptyText="Nenhum consultor encontrado"
+                />
               {!project && !formData.serviceId && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Apenas consultores habilitados para o serviço selecionado aparecerão aqui
