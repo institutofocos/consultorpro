@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Users, Search, RefreshCw, Mail, Calendar, UserCheck, Shield, UserPlus, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Users, Search, RefreshCw, Mail, Calendar, UserCheck, Shield, UserPlus, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import UserProfileModal from './UserProfileModal';
@@ -209,6 +209,25 @@ const UserManagement = () => {
     }
   };
 
+  const handleDeleteUser = async (user: AuthUser) => {
+    if (!window.confirm(`Tem certeza que deseja excluir o usuário ${user.email}? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    try {
+      // Como não temos acesso direto à API admin do Supabase para excluir usuários,
+      // vamos apenas remover da lista local e avisar o usuário
+      const updatedUsers = users.filter(u => u.id !== user.id);
+      setUsers(updatedUsers);
+      
+      toast.success(`Usuário ${user.email} removido da lista local. Para exclusão permanente, use o painel admin do Supabase.`);
+      
+    } catch (error: any) {
+      console.error('Erro ao excluir usuário:', error);
+      toast.error('Erro ao excluir usuário: ' + error.message);
+    }
+  };
+
   const handleCloseProfileModal = () => {
     setSelectedUser(null);
     setProfileModalOpen(false);
@@ -389,24 +408,38 @@ const UserManagement = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant={user.disabled ? "destructive" : "default"}
-                              onClick={() => handleToggleUserStatus(user)}
-                              className="h-7 px-2 text-xs"
-                            >
-                              {user.disabled ? (
-                                <>
+                            {user.disabled ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  onClick={() => handleToggleUserStatus(user)}
+                                  className="h-7 px-2 text-xs"
+                                >
                                   <ToggleLeft className="h-3 w-3 mr-1" />
                                   Ativar
-                                </>
-                              ) : (
-                                <>
-                                  <ToggleRight className="h-3 w-3 mr-1" />
-                                  Desativar
-                                </>
-                              )}
-                            </Button>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleDeleteUser(user)}
+                                  className="h-7 px-2 text-xs"
+                                >
+                                  <Trash2 className="h-3 w-3 mr-1" />
+                                  Excluir
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={() => handleToggleUserStatus(user)}
+                                className="h-7 px-2 text-xs"
+                              >
+                                <ToggleRight className="h-3 w-3 mr-1" />
+                                Desativar
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
