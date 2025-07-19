@@ -2059,6 +2059,7 @@ export type Database = {
           created_at: string
           last_sign_in_at: string
           email_confirmed_at: string
+          disabled: boolean
         }[]
       }
       get_available_chat_users: {

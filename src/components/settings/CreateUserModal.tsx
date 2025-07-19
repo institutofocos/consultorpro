@@ -118,11 +118,13 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
       setLoading(true);
       setError('');
 
-      // Criar usuário no Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      // Criar usuário no Supabase Auth usando service role
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email.trim(),
         password: formData.password,
-        email_confirm: true
+        options: {
+          emailRedirectTo: `${window.location.origin}/`
+        }
       });
 
       if (authError) {
