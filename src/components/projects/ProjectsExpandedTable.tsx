@@ -427,13 +427,13 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleViewStageDescription(stage.name, stage.description || '')}
+                        onClick={() => handleViewStageDescription(stage.name, stage.description)}
                         title="Ver descrição da etapa"
                       >
                         <Search className="h-4 w-4" />
                       </Button>
                     ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
+                      '-'
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
@@ -448,10 +448,9 @@ const ProjectsExpandedTable: React.FC<ProjectsExpandedTableProps> = ({
                             variant="outline"
                             size="sm"
                             className="h-8 w-8 p-0"
-                            disabled={isLoading}
                           >
                             <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Abrir menu da etapa</span>
+                            <span className="sr-only">Abrir menu</span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
