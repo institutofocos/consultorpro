@@ -256,7 +256,14 @@ export default function ConsultantForm({ consultant, onConsultantSaved, onCancel
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                 placeholder="email@exemplo.com"
                 required
+                disabled={!!consultant?.id}
+                className={consultant?.id ? "bg-gray-100" : ""}
               />
+              {consultant?.id && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  O email não pode ser alterado. Para alterar, vá em Configurações &gt; Usuários.
+                </p>
+              )}
             </div>
           </div>
 

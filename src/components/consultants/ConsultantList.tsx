@@ -114,17 +114,6 @@ const ConsultantList = () => {
             <h1 className="text-3xl font-bold">Consultores</h1>
             <p className="text-muted-foreground">Gerencie os consultores da empresa</p>
           </div>
-          <PermissionGuard 
-            module="consultants" 
-            action="edit" 
-            showAlert={false}
-            fallback={null}
-          >
-            <Button onClick={() => setIsFormOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Consultor
-            </Button>
-          </PermissionGuard>
         </div>
 
         <Card>
@@ -196,21 +185,6 @@ const ConsultantList = () => {
                                     <Edit className="h-3 w-3" />
                                   </Button>
                                 )}
-                              </PermissionGuard>
-                              <PermissionGuard 
-                                module="consultants" 
-                                action="delete" 
-                                showAlert={false}
-                                fallback={null}
-                              >
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleDelete(consultant)}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
                               </PermissionGuard>
                             </div>
                           </div>

@@ -139,7 +139,14 @@ export default function ClientForm({ client, onClientSaved, onCancel }: ClientFo
                 value={formData.email}
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                 placeholder="email@exemplo.com"
+                disabled={!!client?.id}
+                className={client?.id ? "bg-gray-100" : ""}
               />
+              {client?.id && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  O email não pode ser alterado. Para alterar, vá em Configurações &gt; Usuários.
+                </p>
+              )}
             </div>
 
             <div>

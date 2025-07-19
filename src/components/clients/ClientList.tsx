@@ -114,17 +114,6 @@ const ClientList = () => {
             <h1 className="text-3xl font-bold">Clientes</h1>
             <p className="text-muted-foreground">Gerencie os clientes da empresa</p>
           </div>
-          <PermissionGuard 
-            module="clients" 
-            action="edit" 
-            showAlert={false}
-            fallback={null}
-          >
-            <Button onClick={() => setIsFormOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Cliente
-            </Button>
-          </PermissionGuard>
         </div>
 
         <Card>
@@ -196,21 +185,6 @@ const ClientList = () => {
                                     <Edit className="h-3 w-3" />
                                   </Button>
                                 )}
-                              </PermissionGuard>
-                              <PermissionGuard 
-                                module="clients" 
-                                action="delete" 
-                                showAlert={false}
-                                fallback={null}
-                              >
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleDelete(client)}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
                               </PermissionGuard>
                             </div>
                           </div>

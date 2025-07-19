@@ -373,27 +373,9 @@ const UserManagement = () => {
                           {user.email_confirmed_at ? formatDate(user.email_confirmed_at) : 'Não confirmado'}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            size="sm"
-                            variant={linked ? "default" : "outline"}
-                            onClick={() => handleOpenLinkModal(user)}
-                            className={linked 
-                              ? "bg-green-600 hover:bg-green-700 text-white" 
-                              : ""
-                            }
-                          >
-                            {linked ? (
-                              <>
-                                <Check className="h-3 w-3 mr-1" />
-                                Vinculado
-                              </>
-                            ) : (
-                              <>
-                                <Link className="h-3 w-3 mr-1" />
-                                Vincular
-                              </>
-                            )}
-                          </Button>
+                          <div className="text-center text-sm text-muted-foreground">
+                            -
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
