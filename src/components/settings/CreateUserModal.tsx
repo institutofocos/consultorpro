@@ -35,6 +35,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
 }) => {
   const [formData, setFormData] = useState({
     email: '',
+    name: '',
     password: '',
     confirmPassword: '',
     profileId: ''
@@ -65,6 +66,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
       fetchProfiles();
       setFormData({
         email: '',
+        name: '',
         password: '',
         confirmPassword: '',
         profileId: ''
@@ -81,6 +83,11 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
 
     if (!formData.email.includes('@')) {
       setError('Email deve ser válido');
+      return false;
+    }
+
+    if (!formData.name.trim()) {
+      setError('Nome é obrigatório');
       return false;
     }
 
@@ -123,7 +130,10 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
         email: formData.email.trim(),
         password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: formData.name.trim()
+          }
         }
       });
 
@@ -183,6 +193,19 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+
+          <div>
+            <Label htmlFor="name">Nome *</Label>
+            <Input
+              id="name"
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Nome completo do usuário"
+              required
+              disabled={loading}
+            />
+          </div>
 
           <div>
             <Label htmlFor="email">Email *</Label>
