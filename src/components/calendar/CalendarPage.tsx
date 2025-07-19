@@ -82,55 +82,58 @@ const CalendarPage: React.FC = () => {
   const fetchTasks = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('project_stages')
+      // Buscar etapas através da tabela projects para aplicar as RLS policies
+      const { data: projectsData, error: projectsError } = await supabase
+        .from('projects')
         .select(`
           id,
           name,
-          description,
-          start_date,
-          end_date,
-          status,
-          value,
-          valor_de_repasse,
-          hours,
-          days,
-          project_id,
-          consultant_id,
-          time_spent_minutes,
-          timer_status,
-          timer_started_at
-        `)
-        .not('start_date', 'is', null)
-        .not('end_date', 'is', null);
+          service_id,
+          project_stages!project_stages_project_id_fkey(
+            id,
+            name,
+            description,
+            start_date,
+            end_date,
+            status,
+            value,
+            valor_de_repasse,
+            hours,
+            days,
+            project_id,
+            consultant_id,
+            time_spent_minutes,
+            timer_status,
+            timer_started_at
+          )
+        `);
+      
+      if (projectsError) throw projectsError;
 
-      if (error) throw error;
+      // Extrair todas as etapas dos projetos autorizados
+      const allStages = projectsData?.flatMap(project => 
+        (project.project_stages || []).map(stage => ({
+          ...stage,
+          project_name: project.name,
+          service_id: project.service_id
+        }))
+      ).filter(stage => stage.start_date && stage.end_date) || [];
 
-      // Fetch project, consultant and service data separately to avoid relationship ambiguity
-      const projectIds = [...new Set(data?.map(stage => stage.project_id).filter(Boolean))];
-      const consultantIds = [...new Set(data?.map(stage => stage.consultant_id).filter(Boolean))];
+      // Buscar dados dos consultores e serviços
+      const consultantIds = [...new Set(allStages.map(stage => stage.consultant_id).filter(Boolean))];
+      const serviceIds = [...new Set(allStages.map(stage => stage.service_id).filter(Boolean))];
 
-      const [projectsData, consultantsData] = await Promise.all([
-        projectIds.length > 0 ? supabase
-          .from('projects')
-          .select('id, name, service_id')
-          .in('id', projectIds) : Promise.resolve({ data: [] }),
+      const [consultantsData, servicesData] = await Promise.all([
         consultantIds.length > 0 ? supabase
           .from('consultants')
           .select('id, name')
-          .in('id', consultantIds) : Promise.resolve({ data: [] })
+          .in('id', consultantIds) : Promise.resolve({ data: [] }),
+        serviceIds.length > 0 ? supabase
+          .from('services')
+          .select('id, name')
+          .in('id', serviceIds) : Promise.resolve({ data: [] })
       ]);
 
-      // Get service data for projects
-      const serviceIds = [...new Set((projectsData.data || []).map(p => p.service_id).filter(Boolean))];
-      const servicesData = serviceIds.length > 0 ? await supabase
-        .from('services')
-        .select('id, name')
-        .in('id', serviceIds) : { data: [] };
-
-      const projectsMap = new Map<string, { name: string; service_id: string }>(
-        (projectsData.data || []).map(p => [p.id, { name: p.name, service_id: p.service_id }])
-      );
       const consultantsMap = new Map<string, string>(
         (consultantsData.data || []).map(c => [c.id, c.name] as [string, string])
       );
@@ -138,31 +141,30 @@ const CalendarPage: React.FC = () => {
         (servicesData.data || []).map(s => [s.id, s.name] as [string, string])
       );
 
-      const formattedTasks: Task[] = data?.map(task => {
-        const projectInfo = projectsMap.get(task.project_id);
-        const serviceName = projectInfo?.service_id ? servicesMap.get(projectInfo.service_id) || 'Serviço não definido' : 'Serviço não definido';
+      const formattedTasks: Task[] = allStages.map(stage => {
+        const serviceName = stage.service_id ? servicesMap.get(stage.service_id) || 'Serviço não definido' : 'Serviço não definido';
         
         return {
-          id: task.id,
-          name: task.name,
-          description: task.description || '',
-          start_date: task.start_date,
-          end_date: task.end_date,
-          status: task.status || 'iniciar_projeto',
-          value: task.value || 0,
-          valor_de_repasse: task.valor_de_repasse || 0,
-          hours: task.hours || 0,
-          days: task.days || 1,
-          project_id: task.project_id,
-          consultant_id: task.consultant_id,
-          consultant_name: consultantsMap.get(task.consultant_id) || 'Não atribuído',
-          project_name: projectInfo?.name || 'Projeto sem nome',
+          id: stage.id,
+          name: stage.name,
+          description: stage.description || '',
+          start_date: stage.start_date,
+          end_date: stage.end_date,
+          status: stage.status || 'iniciar_projeto',
+          value: stage.value || 0,
+          valor_de_repasse: stage.valor_de_repasse || 0,
+          hours: stage.hours || 0,
+          days: stage.days || 1,
+          project_id: stage.project_id,
+          consultant_id: stage.consultant_id || '',
+          consultant_name: consultantsMap.get(stage.consultant_id) || 'Não atribuído',
+          project_name: stage.project_name,
           service_name: serviceName,
-          time_spent_minutes: task.time_spent_minutes || 0,
-          timer_status: task.timer_status || 'stopped',
-          timer_started_at: task.timer_started_at
+          time_spent_minutes: stage.time_spent_minutes || 0,
+          timer_status: stage.timer_status || 'stopped',
+          timer_started_at: stage.timer_started_at
         };
-      }) || [];
+      });
 
       setTasks(formattedTasks);
     } catch (error) {

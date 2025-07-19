@@ -2,7 +2,9 @@ import { supabase } from "./client";
 
 export const fetchProjects = async () => {
   try {
-    console.log('✅ Fetching projects (COMPLETAMENTE INDEPENDENTE)...');
+    console.log('✅ Fetching projects...');
+    
+    // Buscar todos os projetos - as RLS policies já fazem a filtragem baseada no usuário
     const { data, error } = await supabase
       .from('projects')
       .select(`
@@ -39,7 +41,6 @@ export const fetchProjects = async () => {
           tag:project_tags(id, name, color)
         )
       `)
-      .not('main_consultant_id', 'is', null)
       .order('created_at', { ascending: false });
     
     if (error) {
@@ -47,10 +48,10 @@ export const fetchProjects = async () => {
       throw error;
     }
 
-    console.log('✅ Raw projects data (INDEPENDENTE):', data);
+    console.log('✅ Raw projects data:', data);
 
     const transformedData = data?.map(project => {
-      console.log('✅ Transforming project (INDEPENDENTE):', project);
+      console.log('✅ Transforming project:', project);
       
       const projectTags = project.project_tag_relations?.map(rel => rel.tag).filter(Boolean) || [];
       
@@ -115,10 +116,10 @@ export const fetchProjects = async () => {
       };
     }) || [];
 
-    console.log('✅ Transformed projects data (INDEPENDENTE):', transformedData);
+    console.log('✅ Transformed projects data:', transformedData);
     return transformedData;
   } catch (error) {
-    console.error('❌ Error fetching projects (INDEPENDENTE):', error);
+    console.error('❌ Error fetching projects:', error);
     return [];
   }
 };
